@@ -50,7 +50,7 @@ export async function POST(request: Request) {
             const transactions = await prisma.transaction.findMany({
                 where: {
                     ownerId: { in: targetOwnerIds },
-                    paymentType: 'CREDIT',
+                    paymentType: { in: ['CREDIT', 'BOX_TRUCK'] },
                     invoiceId: null,
                     ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
                 },
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
                 const transactions = await prisma.transaction.findMany({
                     where: {
                         ownerId: owId,
-                        paymentType: 'CREDIT',
+                        paymentType: { in: ['CREDIT', 'BOX_TRUCK'] },
                         invoiceId: null,
                         ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
                     },

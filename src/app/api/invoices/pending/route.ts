@@ -6,11 +6,11 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         const group = searchParams.get('group');
 
-        // Build where clause
+        // Build where clause - include CREDIT and BOX_TRUCK payment types for invoicing
         const whereClause: any = {
             transactions: {
                 some: {
-                    paymentType: 'CREDIT',
+                    paymentType: { in: ['CREDIT', 'BOX_TRUCK'] },
                     invoiceId: null,
                 }
             }
@@ -21,13 +21,13 @@ export async function GET(request: NextRequest) {
             whereClause.groupType = group;
         }
 
-        // Get all owners with unpaid credit transactions (not in an invoice)
+        // Get all owners with unpaid credit/box_truck transactions (not in an invoice)
         const ownersWithPendingCredit = await prisma.owner.findMany({
             where: whereClause,
             include: {
                 transactions: {
                     where: {
-                        paymentType: 'CREDIT',
+                        paymentType: { in: ['CREDIT', 'BOX_TRUCK'] },
                         invoiceId: null,
                     },
                     select: {
