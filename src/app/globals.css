@@ -1139,3 +1139,66 @@ select {
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
+
+/* ========================================
+   BOTTOM TAB BAR FOR MOBILE
+   ======================================== */
+.bottom-tab-bar {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .bottom-tab-bar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(15, 15, 26, 0.98);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 8px 16px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    z-index: 50;
+    gap: 8px;
+  }
+
+  .bottom-tab-bar button {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px;
+    border-radius: 12px;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 11px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+
+  .bottom-tab-bar button.active {
+    background: rgba(139, 92, 246, 0.2);
+    color: #8b5cf6;
+  }
+
+  .bottom-tab-bar button svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  /* Add padding to main content to avoid overlap with bottom tab */
+  .main-content-with-tabs {
+    padding-bottom: 100px !important;
+  }
+
+  /* Hide content based on active tab */
+  .tab-content {
+    display: none;
+  }
+
+  .tab-content.active {
+    display: block;
+  }
+}

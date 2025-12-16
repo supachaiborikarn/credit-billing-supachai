@@ -20,7 +20,11 @@ import {
     X,
     Sparkles,
     Edit,
-    Trash2
+    Trash2,
+    List,
+    BarChart3,
+    PenLine,
+    Gauge
 } from 'lucide-react';
 import { PAYMENT_TYPES, DEFAULT_RETAIL_PRICE, DEFAULT_WHOLESALE_PRICE, STATIONS, STATION_STAFF } from '@/constants';
 
@@ -74,6 +78,9 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
     const [dailyRecord, setDailyRecord] = useState<DailyRecord | null>(null);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [activeFilter, setActiveFilter] = useState('all');
+
+    // Mobile tab navigation: 'record' | 'list' | 'meter' | 'summary'
+    const [activeTab, setActiveTab] = useState<'record' | 'list' | 'meter' | 'summary'>('record');
 
     // Form states for FULL station
     const [retailPrice, setRetailPrice] = useState(DEFAULT_RETAIL_PRICE);
@@ -1575,8 +1582,8 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                             type="button"
                                             onClick={() => setEditPaymentType(pt.value)}
                                             className={`px-3 py-1.5 rounded-lg text-sm transition-all ${editPaymentType === pt.value
-                                                    ? `${pt.color} text-white`
-                                                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                                ? `${pt.color} text-white`
+                                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                                                 }`}
                                         >
                                             {pt.label}
@@ -1610,6 +1617,40 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                     </div>
                 </div>
             )}
+
+            {/* Mobile Bottom Tab Bar */}
+            <div className="bottom-tab-bar">
+                <button
+                    onClick={() => setActiveTab('record')}
+                    className={activeTab === 'record' ? 'active' : ''}
+                >
+                    <PenLine />
+                    <span>บันทึก</span>
+                </button>
+                <button
+                    onClick={() => setActiveTab('list')}
+                    className={activeTab === 'list' ? 'active' : ''}
+                >
+                    <List />
+                    <span>รายการ</span>
+                </button>
+                {isFullStation && (
+                    <button
+                        onClick={() => setActiveTab('meter')}
+                        className={activeTab === 'meter' ? 'active' : ''}
+                    >
+                        <Gauge />
+                        <span>มิเตอร์</span>
+                    </button>
+                )}
+                <button
+                    onClick={() => setActiveTab('summary')}
+                    className={activeTab === 'summary' ? 'active' : ''}
+                >
+                    <BarChart3 />
+                    <span>สรุป</span>
+                </button>
+            </div>
         </Sidebar>
     );
 }
