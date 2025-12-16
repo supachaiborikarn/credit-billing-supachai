@@ -26,7 +26,7 @@ import {
     PenLine,
     Gauge
 } from 'lucide-react';
-import { PAYMENT_TYPES, DEFAULT_RETAIL_PRICE, DEFAULT_WHOLESALE_PRICE, STATIONS, STATION_STAFF } from '@/constants';
+import { PAYMENT_TYPES, DEFAULT_RETAIL_PRICE, DEFAULT_WHOLESALE_PRICE, STATIONS } from '@/constants';
 
 interface DailyRecord {
     id: string;
@@ -121,7 +121,6 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
     const [specialPrice, setSpecialPrice] = useState('');
     const [bookNo, setBookNo] = useState('');
     const [billNo, setBillNo] = useState('');
-    const [staffName, setStaffName] = useState('');
     const [transferProofUrl, setTransferProofUrl] = useState<string | null>(null);
     const [transferUploading, setTransferUploading] = useState(false);
 
@@ -1180,8 +1179,6 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                         />
                                     )}
                                 </div>
-
-                                {/* Staff Selector */}
 
                                 {/* Total */}
                                 <div className="bg-purple-900/30 rounded-xl p-4 flex items-center justify-between">

@@ -19,8 +19,6 @@ import {
 } from 'lucide-react';
 import { STATIONS } from '@/constants';
 import {
-    BarChart,
-    Bar,
     XAxis,
     YAxis,
     CartesianGrid,
@@ -311,9 +309,9 @@ export default function DashboardPage() {
                                                 className="flex items-center gap-4 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-300 group"
                                             >
                                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold transition-transform group-hover:scale-110 ${index === 0 ? 'bg-gradient-to-br from-yellow-400 to-orange-500 text-white' :
-                                                        index === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-gray-800' :
-                                                            index === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-white' :
-                                                                'bg-white/10 text-gray-400'
+                                                    index === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-gray-800' :
+                                                        index === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-white' :
+                                                            'bg-white/10 text-gray-400'
                                                     }`}>
                                                     {index + 1}
                                                 </div>

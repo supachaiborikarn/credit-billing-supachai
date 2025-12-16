@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { LoadingState } from '@/components/Spinner';
-import { formatCurrency, formatDate } from '@/utils/format';
+import { formatCurrency } from '@/utils/format';
 import { Invoice, OwnerWithBalance } from '@/types';
 import { FileText, Plus, Search, CheckCircle, Clock, Users, Sparkles } from 'lucide-react';
 import { OWNER_GROUPS } from '@/constants';

@@ -4,7 +4,7 @@ import { useState, useEffect, use } from 'react';
 import Sidebar from '@/components/Sidebar';
 import {
     FileText, ArrowLeft, DollarSign, CheckCircle,
-    Calendar, Plus, Printer, Trash2
+    Plus, Printer
 } from 'lucide-react';
 import Link from 'next/link';
 

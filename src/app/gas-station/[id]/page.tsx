@@ -8,13 +8,9 @@ import {
     Fuel,
     AlertTriangle,
     CheckCircle,
-    Filter,
     User,
-    Phone,
     Plus,
     Package,
-    TrendingUp,
-    Truck as TruckIcon,
     Camera,
     Gauge,
     FileText,
@@ -1223,8 +1219,8 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                                             type="button"
                                                             onClick={() => setStaffName(staffName === name ? '' : name)}
                                                             className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${staffName === name
-                                                                    ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg'
-                                                                    : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                                                                ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg'
+                                                                : 'bg-white/10 text-gray-300 hover:bg-white/20'
                                                                 }`}
                                                         >
                                                             {name}
