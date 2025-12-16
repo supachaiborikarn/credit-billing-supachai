@@ -663,8 +663,8 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                         {/* FULL Station: Price Settings & Meters */}
                         {isFullStation && (
                             <>
-                                {/* Price Settings */}
-                                <div className="glass-card p-6 mb-6">
+                                {/* Price Settings - only show on meter tab on mobile */}
+                                <div className="glass-card p-6 mb-6" style={{ display: showSection('meter') ? 'block' : 'none' }}>
                                     <h2 className="text-lg font-bold text-white mb-4">⛽ ตั้งค่าราคาน้ำมัน</h2>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
