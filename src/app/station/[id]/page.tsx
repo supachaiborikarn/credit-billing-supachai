@@ -18,7 +18,9 @@ import {
     FileText,
     Printer,
     X,
-    Sparkles
+    Sparkles,
+    Edit,
+    Trash2
 } from 'lucide-react';
 import { PAYMENT_TYPES, DEFAULT_RETAIL_PRICE, DEFAULT_WHOLESALE_PRICE, STATIONS, STATION_STAFF } from '@/constants';
 
@@ -98,6 +100,8 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
     const [bookNo, setBookNo] = useState('');
     const [billNo, setBillNo] = useState('');
     const [staffName, setStaffName] = useState('');
+    const [transferProofUrl, setTransferProofUrl] = useState<string | null>(null);
+    const [transferUploading, setTransferUploading] = useState(false);
 
     // License plate search
     const [searchResults, setSearchResults] = useState<TruckSearchResult[]>([]);
@@ -376,8 +380,44 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
         return qty * price;
     };
 
+    const handleTransferProofUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setTransferUploading(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('type', 'transfer');
+            formData.append('date', selectedDate);
+            formData.append('stationId', `station-${id}`);
+
+            const res = await fetch('/api/upload/meter-photo', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setTransferProofUrl(data.url);
+            } else {
+                alert('อัพโหลดรูปไม่สำเร็จ');
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+        } finally {
+            setTransferUploading(false);
+        }
+    };
+
     const handleSubmitTransaction = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Validate transfer requires photo
+        if (paymentType === 'TRANSFER' && !transferProofUrl) {
+            alert('กรุณาแนบรูปหลักฐานการโอน');
+            return;
+        }
 
         try {
             const res = await fetch(`/api/station/${id}/transactions`, {
@@ -394,7 +434,8 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                     amount: calculateAmount(),
                     billBookNo: bookNo,
                     billNo: billNo,
-                    productType: 'ดีเซล', // Default to Diesel for Tank Loi
+                    productType: 'ดีเซล',
+                    transferProofUrl: paymentType === 'TRANSFER' ? transferProofUrl : null,
                 }),
             });
 
@@ -405,6 +446,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                 setLiters('');
                 setBookNo('');
                 setBillNo('');
+                setTransferProofUrl(null);
                 setShowForm(false);
                 fetchDailyData();
             }
@@ -417,6 +459,56 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
         if (activeFilter === 'all') return true;
         return t.paymentType === activeFilter;
     });
+
+    const handleDeleteTransaction = async (transactionId: string) => {
+        if (!confirm('ต้องการลบรายการนี้?')) return;
+
+        try {
+            const res = await fetch(`/api/station/${id}/transactions/${transactionId}`, {
+                method: 'DELETE',
+            });
+            if (res.ok) {
+                fetchDailyData();
+            } else {
+                alert('ลบไม่สำเร็จ');
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+        }
+    };
+
+    const handlePrintTransaction = (t: Transaction) => {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>ใบเสร็จ</title>
+                    <style>
+                        body { font-family: 'Sarabun', sans-serif; padding: 20px; }
+                        .header { text-align: center; margin-bottom: 20px; }
+                        .detail { margin: 10px 0; }
+                        .amount { font-size: 24px; font-weight: bold; text-align: center; margin: 20px 0; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h2>${station?.name}</h2>
+                        <p>${new Date(t.date).toLocaleDateString('th-TH')}</p>
+                    </div>
+                    <div class="detail">ทะเบียน: ${t.licensePlate}</div>
+                    <div class="detail">ชื่อ: ${t.ownerName || '-'}</div>
+                    <div class="detail">เล่ม/เลขที่: ${t.billBookNo || '-'}/${t.billNo || '-'}</div>
+                    <div class="detail">ลิตร: ${t.liters}</div>
+                    <div class="detail">ราคา/ลิตร: ${t.pricePerLiter}</div>
+                    <div class="amount">รวม: ${Number(t.amount).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท</div>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.print();
+        }
+    };
 
     const meterTotal = meters.reduce((sum, m) => sum + (m.end - m.start), 0);
     const transactionsTotal = transactions.reduce((sum, t) => sum + Number(t.liters), 0);
@@ -702,6 +794,62 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                     ))}
                                 </div>
                             </div>
+
+                            {/* Transfer Proof Upload - Only show when TRANSFER selected */}
+                            {paymentType === 'TRANSFER' && (
+                                <div className="mb-4 p-4 bg-blue-900/20 border border-blue-500/30 rounded-xl">
+                                    <label className="block text-sm text-blue-400 mb-2 font-medium">
+                                        📷 หลักฐานการโอน (จำเป็น)
+                                    </label>
+                                    {transferProofUrl ? (
+                                        <div className="flex items-center gap-4">
+                                            <img
+                                                src={transferProofUrl}
+                                                alt="หลักฐานการโอน"
+                                                className="w-24 h-24 object-cover rounded-lg border border-blue-500/30"
+                                            />
+                                            <div className="flex flex-col gap-2">
+                                                <span className="text-green-400 text-sm flex items-center gap-1">
+                                                    <CheckCircle size={14} /> อัพโหลดแล้ว
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setTransferProofUrl(null)}
+                                                    className="text-red-400 text-sm hover:underline"
+                                                >
+                                                    ลบรูป
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="relative">
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleTransferProofUpload}
+                                                disabled={transferUploading}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                            />
+                                            <div className={`flex items-center justify-center gap-2 p-4 border-2 border-dashed rounded-xl transition-colors ${transferUploading
+                                                    ? 'border-blue-500/50 bg-blue-900/30'
+                                                    : 'border-blue-500/30 hover:border-blue-500/60 hover:bg-blue-900/20'
+                                                }`}>
+                                                {transferUploading ? (
+                                                    <>
+                                                        <div className="spinner w-5 h-5" />
+                                                        <span className="text-blue-400">กำลังอัพโหลด...</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Camera size={20} className="text-blue-400" />
+                                                        <span className="text-blue-400">คลิกเพื่อเลือกรูปหลักฐาน</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Book/Bill No & Fuel Type */}
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
@@ -1081,12 +1229,13 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                             <th>ลิตร</th>
                                             <th>ราคา/ลิตร</th>
                                             <th>รวมเงิน</th>
+                                            <th>จัดการ</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {filteredTransactions.length === 0 ? (
                                             <tr>
-                                                <td colSpan={isFullStation ? 10 : 9} className="text-center py-8 text-gray-400">
+                                                <td colSpan={isFullStation ? 11 : 10} className="text-center py-8 text-gray-400">
                                                     ไม่มีรายการ
                                                 </td>
                                             </tr>
@@ -1111,6 +1260,24 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                         <td className="font-mono">{formatNumber(Number(t.liters))}</td>
                                                         <td className="font-mono">{Number(t.pricePerLiter).toFixed(2)}</td>
                                                         <td className="font-mono text-green-400">{formatCurrency(Number(t.amount))}</td>
+                                                        <td>
+                                                            <div className="flex gap-1">
+                                                                <button
+                                                                    onClick={() => handlePrintTransaction(t)}
+                                                                    className="p-1.5 rounded-lg bg-blue-500/20 hover:bg-blue-500/40 text-blue-400 transition-colors"
+                                                                    title="พิมพ์"
+                                                                >
+                                                                    <Printer size={14} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeleteTransaction(t.id)}
+                                                                    className="p-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/40 text-red-400 transition-colors"
+                                                                    title="ลบ"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </div>
+                                                        </td>
                                                     </tr>
                                                 );
                                             })

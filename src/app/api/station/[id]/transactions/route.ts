@@ -22,6 +22,7 @@ export async function POST(
             billBookNo,
             billNo,
             productType,
+            transferProofUrl,
         } = body;
 
         // Get user from session
@@ -85,6 +86,7 @@ export async function POST(
                 billBookNo,
                 billNo,
                 productType,
+                transferProofUrl,
                 recordedById: userId,
             }
         });

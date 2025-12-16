@@ -178,6 +178,7 @@ model Transaction {
   billBookNo    String?
   billNo        String?
   notes         String?
+  transferProofUrl String?  // รูปหลักฐานการโอน (Cloudinary URL)
   recordedById  String
   invoiceId     String?
   createdAt     DateTime    @default(now())
