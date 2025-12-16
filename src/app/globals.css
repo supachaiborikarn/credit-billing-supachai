@@ -904,3 +904,206 @@ select {
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out forwards;
 }
+
+/* ========================================
+   MOBILE-FIRST STYLES FOR STAFF
+   ======================================== */
+
+/* Mobile Base Improvements */
+@media (max-width: 768px) {
+
+  /* Larger touch targets */
+  .btn {
+    min-height: 48px;
+    padding: 14px 20px;
+    font-size: 16px;
+  }
+
+  .btn-sm {
+    min-height: 40px;
+    padding: 10px 16px;
+  }
+
+  /* Larger inputs */
+  .input-glow {
+    min-height: 48px;
+    font-size: 16px;
+    padding: 14px 16px;
+  }
+
+  /* Glass cards - full width, less padding */
+  .glass-card {
+    border-radius: 12px;
+    padding: 16px !important;
+  }
+
+  /* Better spacing */
+  .p-6 {
+    padding: 16px !important;
+  }
+
+  .p-8 {
+    padding: 16px !important;
+  }
+
+  .mb-6 {
+    margin-bottom: 16px !important;
+  }
+
+  /* Stack grids on mobile */
+  .grid-cols-2,
+  .md\:grid-cols-2 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .grid-cols-3,
+  .md\:grid-cols-3 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .grid-cols-4,
+  .md\:grid-cols-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Payment type buttons - larger */
+  .payment-type-btn {
+    min-height: 48px;
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  /* Table improvements */
+  .table-glass {
+    font-size: 13px;
+  }
+
+  .table-glass th,
+  .table-glass td {
+    padding: 10px 8px;
+    white-space: nowrap;
+  }
+
+  /* Action buttons in table - larger */
+  .table-glass td .flex.gap-1 button {
+    min-width: 36px;
+    min-height: 36px;
+    padding: 8px;
+  }
+
+  /* Modal improvements */
+  .fixed.inset-0>div {
+    max-width: 100% !important;
+    margin: 8px;
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
+  }
+
+  /* Summary cards - compact */
+  .stat-card {
+    padding: 12px !important;
+  }
+
+  /* Page header - smaller */
+  h1 {
+    font-size: 1.5rem !important;
+  }
+
+  h2 {
+    font-size: 1.125rem !important;
+  }
+
+  /* Filter badges - larger touch */
+  .badge {
+    min-height: 36px;
+    padding: 8px 12px;
+  }
+
+  /* Hide less important columns on very small screens */
+  .table-glass th:nth-child(2),
+  .table-glass td:nth-child(2) {
+    display: none;
+    /* Hide time column */
+  }
+}
+
+/* Very small screens (< 480px) */
+@media (max-width: 480px) {
+
+  /* Even more compact */
+  .table-glass {
+    font-size: 12px;
+  }
+
+  .table-glass th,
+  .table-glass td {
+    padding: 8px 6px;
+  }
+
+  /* Hide more columns */
+  .table-glass th:nth-child(9),
+  .table-glass td:nth-child(9) {
+    display: none;
+    /* Hide price per liter */
+  }
+
+  /* Stack amount display */
+  .text-3xl {
+    font-size: 1.75rem !important;
+  }
+
+  /* Compact header */
+  .flex.items-center.gap-4 h1 {
+    font-size: 1.125rem !important;
+  }
+
+  /* Full-width buttons */
+  .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Quick Action Floating Button for Mobile */
+@media (max-width: 768px) {
+  .quick-action-fab {
+    position: fixed;
+    bottom: 80px;
+    right: 16px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    z-index: 40;
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.5);
+  }
+}
+
+/* Improved scrolling on mobile */
+@media (max-width: 768px) {
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Smooth scroll hint */
+  .overflow-x-auto::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 20px;
+    background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.3));
+    pointer-events: none;
+  }
+}
+
+/* Safe area for iPhone notch */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .sidebar {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  main {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
