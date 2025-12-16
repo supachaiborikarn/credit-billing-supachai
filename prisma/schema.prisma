@@ -1,0 +1,341 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum StationType {
+  FULL
+  SIMPLE
+  GAS      // LPG Gas station
+}
+
+enum PaymentType {
+  CASH
+  CREDIT
+  TRANSFER
+  BOX_TRUCK
+  OIL_TRUCK_SUPACHAI
+  CREDIT_CARD  // บัตรเครดิต
+}
+
+enum OwnerGroup {
+  SUGAR_FACTORY     // โรงงานน้ำตาล
+  GENERAL_CREDIT    // เงินเชื่อทั่วไป
+  BOX_TRUCK         // รถตู้ทึบส่งโรงงาน
+  OIL_TRUCK         // รถน้ำมันศุภชัย
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  PARTIAL
+}
+
+enum DailyRecordStatus {
+  OPEN
+  CLOSED
+}
+
+enum UserRole {
+  ADMIN
+  STAFF
+}
+
+// ผู้ใช้งาน
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  username  String   @unique
+  password  String
+  role      UserRole @default(STAFF)
+  stationId String?
+  createdAt DateTime @default(now())
+
+  station      Station?      @relation(fields: [stationId], references: [id])
+  transactions Transaction[]
+  sessions     Session[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("sessions")
+}
+
+// สถานี (6 สถานี: 1 FULL, 3 SIMPLE, 2 GAS)
+model Station {
+  id            String      @id @default(uuid())
+  name          String      // แท๊งลอยวัชรเกียรติ, วัชรเกียรติออยล์, พงษ์อนันต์ปิโตรเลียม, ศุภชัยบริการ, ปั๊มแก๊สพงษ์อนันต์, ปั๊มแก๊สศุภชัย
+  type          StationType // FULL, SIMPLE, or GAS
+  // Gas station specific fields
+  gasPrice      Decimal?    // ราคาแก๊ส LPG (บาท/ลิตร)
+  gasStockAlert Decimal?    // แจ้งเตือนเมื่อแก๊สต่ำกว่านี้ (ลิตร)
+  hasProducts   Boolean     @default(false) // มีสินค้าขายด้วยหรือไม่
+
+  users              User[]
+  dailyRecords       DailyRecord[]
+  transactions       Transaction[]
+  gasSupplies        GasSupply[]
+  productInventories ProductInventory[]
+
+  @@map("stations")
+}
+
+// ลูกค้า/เจ้าของ (ใช้ร่วมทุกสถานี)
+model Owner {
+  id         String     @id @default(uuid())
+  name       String
+  phone      String?
+  venderCode String?    // รหัส vendor โรงงาน เช่น 40002550
+  groupType  OwnerGroup @default(GENERAL_CREDIT)
+  code       String?    // C001, C002...
+  createdAt  DateTime   @default(now())
+
+  trucks       Truck[]
+  transactions Transaction[]
+  invoices     Invoice[]
+
+  @@map("owners")
+}
+
+// รถ/ทะเบียน
+model Truck {
+  id           String   @id @default(uuid())
+  licensePlate String
+  ownerId      String
+  createdAt    DateTime @default(now())
+
+  owner        Owner         @relation(fields: [ownerId], references: [id])
+  transactions Transaction[]
+
+  @@map("trucks")
+}
+
+// บันทึกประจำวัน (สถานี FULL และ GAS)
+model DailyRecord {
+  id             String            @id @default(uuid())
+  stationId      String
+  date           DateTime
+  retailPrice    Decimal           @default(31.34)  // ราคาปลีก (เงินเชื่อ) - น้ำมัน
+  wholesalePrice Decimal           @default(30.5)   // ราคาส่ง (เงินสด) - น้ำมัน
+  gasPrice       Decimal?          // ราคาแก๊ส LPG วันนั้น
+  status         DailyRecordStatus @default(OPEN)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  station       Station        @relation(fields: [stationId], references: [id])
+  meters        MeterReading[]
+  transactions  Transaction[]
+  gaugeReadings GaugeReading[]
+
+  @@unique([stationId, date])
+  @@map("daily_records")
+}
+
+// มิเตอร์หัวจ่าย (4 หัว - ใช้ทั้ง FULL และ GAS)
+model MeterReading {
+  id            String  @id @default(uuid())
+  dailyRecordId String
+  nozzleNumber  Int     // 1-4
+  startReading  Decimal @default(0)
+  endReading    Decimal?
+  startPhoto    String?
+  endPhoto      String?
+
+  dailyRecord DailyRecord @relation(fields: [dailyRecordId], references: [id])
+
+  @@unique([dailyRecordId, nozzleNumber])
+  @@map("meter_readings")
+}
+
+// รายการเติมน้ำมัน/แก๊ส
+model Transaction {
+  id            String      @id @default(uuid())
+  stationId     String
+  dailyRecordId String?     // null for SIMPLE stations
+  date          DateTime    @default(now())
+  truckId       String?
+  licensePlate  String?     // กรณีไม่มีในระบบ
+  ownerId       String?
+  ownerName     String?     // กรณีไม่มีในระบบ (เงินสด/โอน)
+  paymentType   PaymentType
+  nozzleNumber  Int?
+  liters        Decimal
+  pricePerLiter Decimal
+  amount        Decimal
+  productType   String?     // ดีเซล, เบนซิน91, LPG, etc.
+  billBookNo    String?
+  billNo        String?
+  notes         String?
+  recordedById  String
+  invoiceId     String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  station     Station      @relation(fields: [stationId], references: [id])
+  dailyRecord DailyRecord? @relation(fields: [dailyRecordId], references: [id])
+  truck       Truck?       @relation(fields: [truckId], references: [id])
+  owner       Owner?       @relation(fields: [ownerId], references: [id])
+  recordedBy  User         @relation(fields: [recordedById], references: [id])
+  invoice     Invoice?     @relation(fields: [invoiceId], references: [id])
+
+  @@map("transactions")
+}
+
+// ใบวางบิล
+model Invoice {
+  id            String        @id @default(uuid())
+  invoiceNumber String        @unique
+  ownerId       String
+  totalAmount   Decimal
+  paidAmount    Decimal       @default(0)
+  status        InvoiceStatus @default(PENDING)
+  dueDate       DateTime?
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  owner        Owner         @relation(fields: [ownerId], references: [id])
+  transactions Transaction[]
+  payments     Payment[]
+
+  @@map("invoices")
+}
+
+// การชำระเงิน
+model Payment {
+  id            String   @id @default(uuid())
+  invoiceId     String
+  amount        Decimal
+  paymentDate   DateTime @default(now())
+  paymentMethod String   // TRANSFER, CASH, CHECK
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@map("payments")
+}
+
+// ==================== GAS STATION MODELS ====================
+
+// รับแก๊สจากซัพพลายเออร์
+model GasSupply {
+  id            String   @id @default(uuid())
+  stationId     String
+  date          DateTime
+  liters        Decimal  // จำนวนลิตรที่รับ
+  supplier      String?  // ชื่อผู้ส่ง
+  invoiceNo     String?  // เลขที่ใบส่ง
+  pricePerLiter Decimal?
+  totalCost     Decimal?
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  station Station @relation(fields: [stationId], references: [id])
+
+  @@map("gas_supplies")
+}
+
+// บันทึกเกจถังแก๊ส (เปอร์เซนต์) - 3 ถัง
+model GaugeReading {
+  id            String    @id @default(uuid())
+  stationId     String
+  dailyRecordId String?
+  tankNumber    Int       // ถังที่ 1, 2, 3
+  date          DateTime
+  percentage    Decimal   // เปอร์เซนต์ที่เห็นจากเกจ (0-100)
+  photoUrl      String?   // รูปถ่ายเกจ
+  recordedById  String?
+  notes         String?
+  createdAt     DateTime  @default(now())
+
+  dailyRecord DailyRecord? @relation(fields: [dailyRecordId], references: [id])
+
+  @@map("gauge_readings")
+}
+
+// ==================== PRODUCT INVENTORY MODELS ====================
+
+// สินค้าในร้าน (น้ำดื่ม, ขนม, etc.)
+model Product {
+  id        String   @id @default(uuid())
+  name      String   // เช่น น้ำดื่ม, ขนม
+  unit      String   // ขวด, ชิ้น, แพ็ค
+  costPrice Decimal? // ราคาทุน
+  salePrice Decimal  // ราคาขาย
+  createdAt DateTime @default(now())
+
+  inventory ProductInventory[]
+  sales     ProductSale[]
+
+  @@map("products")
+}
+
+// สต็อกสินค้าแต่ละสถานี
+model ProductInventory {
+  id         String   @id @default(uuid())
+  productId  String
+  stationId  String
+  quantity   Int      @default(0)
+  alertLevel Int?     // แจ้งเตือนเมื่อต่ำกว่านี้
+  updatedAt  DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id])
+  station Station @relation(fields: [stationId], references: [id])
+
+  @@unique([productId, stationId])
+  @@map("product_inventories")
+}
+
+// รับสินค้าเข้า
+model ProductReceipt {
+  id        String   @id @default(uuid())
+  productId String
+  stationId String
+  quantity  Int
+  costPrice Decimal?
+  supplier  String?
+  invoiceNo String?
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@map("product_receipts")
+}
+
+// ขายสินค้า
+model ProductSale {
+  id          String      @id @default(uuid())
+  productId   String
+  stationId   String
+  quantity    Int
+  salePrice   Decimal
+  paymentType PaymentType
+  date        DateTime    @default(now())
+  createdAt   DateTime    @default(now())
+
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("product_sales")
+}
+
+// System settings (key-value store)
+model Setting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
