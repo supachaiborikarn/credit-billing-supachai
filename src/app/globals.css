@@ -1189,8 +1189,9 @@ select {
   }
 
   /* Add padding to main content to avoid overlap with bottom tab */
-  .main-content-with-tabs {
-    padding-bottom: 100px !important;
+  .main-content-with-tabs,
+  main {
+    padding-bottom: 120px !important;
   }
 
   /* Hide content based on active tab */
