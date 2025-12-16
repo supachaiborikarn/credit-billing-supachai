@@ -1182,37 +1182,6 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                 </div>
 
                                 {/* Staff Selector */}
-                                {(() => {
-                                    const stationStaff = STATION_STAFF[`station-${id}` as keyof typeof STATION_STAFF];
-                                    if (stationStaff && stationStaff.staff.length > 0) {
-                                        return (
-                                            <div className="bg-blue-900/20 rounded-xl p-3 border border-blue-500/30">
-                                                <label className="block text-sm text-blue-400 mb-2 font-medium">
-                                                    👷 พนักงานที่เติม
-                                                </label>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {stationStaff.staff.map((name) => (
-                                                        <button
-                                                            key={name}
-                                                            type="button"
-                                                            onClick={() => setStaffName(staffName === name ? '' : name)}
-                                                            className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${staffName === name
-                                                                ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg'
-                                                                : 'bg-white/10 text-gray-300 hover:bg-white/20'
-                                                                }`}
-                                                        >
-                                                            {name}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                                {stationStaff.allowConcurrentShifts && (
-                                                    <p className="text-xs text-gray-500 mt-2">* สถานีนี้พนักงานทำงานพร้อมกันได้</p>
-                                                )}
-                                            </div>
-                                        );
-                                    }
-                                    return null;
-                                })()}
 
                                 {/* Total */}
                                 <div className="bg-purple-900/30 rounded-xl p-4 flex items-center justify-between">
