@@ -81,6 +81,21 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
 
     // Mobile tab navigation: 'record' | 'list' | 'meter' | 'summary'
     const [activeTab, setActiveTab] = useState<'record' | 'list' | 'meter' | 'summary'>('record');
+    const [isMobile, setIsMobile] = useState(false);
+
+    // Detect mobile screen
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    // Helper: determines if section should be visible based on tab
+    const showSection = (tab: 'record' | 'list' | 'meter' | 'summary') => {
+        if (!isMobile) return true; // Desktop shows all
+        return activeTab === tab;
+    };
 
     // Form states for FULL station
     const [retailPrice, setRetailPrice] = useState(DEFAULT_RETAIL_PRICE);
@@ -680,7 +695,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                 </div>
 
                                 {/* Meter Readings */}
-                                <div className="grid md:grid-cols-2 gap-6 mb-6">
+                                <div className="grid md:grid-cols-2 gap-6 mb-6" style={{ display: showSection('meter') ? 'grid' : 'none' }}>
                                     {/* Start Meters */}
                                     <div className="glass-card p-6">
                                         <h3 className="font-bold text-white mb-4">📟 เลขมิเตอร์เริ่มต้น (4 หัวจ่าย)</h3>
@@ -838,7 +853,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                         )}
 
                         {/* Transaction Form */}
-                        <div className="glass-card p-6 mb-6">
+                        <div className="glass-card p-6 mb-6" style={{ display: showSection('record') ? 'block' : 'none' }}>
                             <h2 className="text-lg font-bold text-white mb-4">📝 บันทึกการเติม</h2>
 
                             {/* Payment Type Buttons */}
@@ -1213,9 +1228,9 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                             </form>
                         </div>
 
-                        {/* Meter Verification (FULL only) */}
+                        {/* Meter Verification (FULL only) - shows in summary tab on mobile */}
                         {isFullStation && (
-                            <div className="glass-card p-6 mb-6">
+                            <div className="glass-card p-6 mb-6" style={{ display: showSection('summary') ? 'block' : 'none' }}>
                                 <h2 className="text-lg font-bold text-white mb-4">📊 ตรวจสอบยอดมิเตอร์</h2>
                                 <div className="grid grid-cols-3 gap-4">
                                     <div className="text-center p-4 bg-blue-900/20 rounded-xl">
@@ -1250,7 +1265,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                         )}
 
                         {/* Transactions List */}
-                        <div className="glass-card p-6">
+                        <div className="glass-card p-6" style={{ display: showSection('list') ? 'block' : 'none' }}>
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
                                 <h2 className="text-lg font-bold text-white">📋 รายการเติมวันนี้</h2>
                                 <div className="flex flex-wrap gap-2">
