@@ -113,6 +113,17 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
     // Daily summary modal
     const [showDailySummary, setShowDailySummary] = useState(false);
 
+    // Edit modal state
+    const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+    const [editLicensePlate, setEditLicensePlate] = useState('');
+    const [editOwnerName, setEditOwnerName] = useState('');
+    const [editLiters, setEditLiters] = useState('');
+    const [editPricePerLiter, setEditPricePerLiter] = useState('');
+    const [editPaymentType, setEditPaymentType] = useState('');
+    const [editBillBookNo, setEditBillBookNo] = useState('');
+    const [editBillNo, setEditBillNo] = useState('');
+    const [editSaving, setEditSaving] = useState(false);
+
     const [showAddTruckForm, setShowAddTruckForm] = useState(false);
     const [owners, setOwners] = useState<{ id: string; name: string; code: string | null }[]>([]);
     const [selectedOwnerId, setSelectedOwnerId] = useState('');
@@ -477,6 +488,50 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
         }
     };
 
+    const openEditModal = (t: Transaction) => {
+        setEditingTransaction(t);
+        setEditLicensePlate(t.licensePlate || '');
+        setEditOwnerName(t.ownerName || '');
+        setEditLiters(String(t.liters));
+        setEditPricePerLiter(String(t.pricePerLiter));
+        setEditPaymentType(t.paymentType);
+        setEditBillBookNo(t.billBookNo || '');
+        setEditBillNo(t.billNo || '');
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingTransaction) return;
+        setEditSaving(true);
+
+        try {
+            const res = await fetch(`/api/station/${id}/transactions/${editingTransaction.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    licensePlate: editLicensePlate,
+                    ownerName: editOwnerName,
+                    liters: parseFloat(editLiters),
+                    pricePerLiter: parseFloat(editPricePerLiter),
+                    amount: parseFloat(editLiters) * parseFloat(editPricePerLiter),
+                    paymentType: editPaymentType,
+                    billBookNo: editBillBookNo,
+                    billNo: editBillNo,
+                }),
+            });
+
+            if (res.ok) {
+                setEditingTransaction(null);
+                fetchDailyData();
+            } else {
+                alert('บันทึกไม่สำเร็จ');
+            }
+        } catch (error) {
+            console.error('Save error:', error);
+        } finally {
+            setEditSaving(false);
+        }
+    };
+
     const handlePrintTransaction = (t: Transaction) => {
         const printWindow = window.open('', '_blank');
         if (printWindow) {
@@ -831,8 +886,8 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                             />
                                             <div className={`flex items-center justify-center gap-2 p-4 border-2 border-dashed rounded-xl transition-colors ${transferUploading
-                                                    ? 'border-blue-500/50 bg-blue-900/30'
-                                                    : 'border-blue-500/30 hover:border-blue-500/60 hover:bg-blue-900/20'
+                                                ? 'border-blue-500/50 bg-blue-900/30'
+                                                : 'border-blue-500/30 hover:border-blue-500/60 hover:bg-blue-900/20'
                                                 }`}>
                                                 {transferUploading ? (
                                                     <>
@@ -1263,6 +1318,13 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                         <td>
                                                             <div className="flex gap-1">
                                                                 <button
+                                                                    onClick={() => openEditModal(t)}
+                                                                    className="p-1.5 rounded-lg bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-400 transition-colors"
+                                                                    title="แก้ไข"
+                                                                >
+                                                                    <Edit size={14} />
+                                                                </button>
+                                                                <button
                                                                     onClick={() => handlePrintTransaction(t)}
                                                                     className="p-1.5 rounded-lg bg-blue-500/20 hover:bg-blue-500/40 text-blue-400 transition-colors"
                                                                     title="พิมพ์"
@@ -1417,6 +1479,133 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Transaction Modal */}
+            {editingTransaction && (
+                <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+                    <div className="bg-[#0f0f1a] rounded-2xl w-full max-w-lg border border-white/10">
+                        <div className="flex items-center justify-between p-4 border-b border-white/10">
+                            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                <Edit className="text-yellow-400" size={20} />
+                                แก้ไขรายการ
+                            </h2>
+                            <button
+                                onClick={() => setEditingTransaction(null)}
+                                className="text-gray-400 hover:text-white"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="p-4 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">ทะเบียน</label>
+                                    <input
+                                        type="text"
+                                        value={editLicensePlate}
+                                        onChange={(e) => setEditLicensePlate(e.target.value)}
+                                        className="input-glow w-full"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">เจ้าของ</label>
+                                    <input
+                                        type="text"
+                                        value={editOwnerName}
+                                        onChange={(e) => setEditOwnerName(e.target.value)}
+                                        className="input-glow w-full"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">เล่มที่</label>
+                                    <input
+                                        type="text"
+                                        value={editBillBookNo}
+                                        onChange={(e) => setEditBillBookNo(e.target.value)}
+                                        className="input-glow w-full"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">เลขที่</label>
+                                    <input
+                                        type="text"
+                                        value={editBillNo}
+                                        onChange={(e) => setEditBillNo(e.target.value)}
+                                        className="input-glow w-full"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">ลิตร</label>
+                                    <input
+                                        type="number"
+                                        value={editLiters}
+                                        onChange={(e) => setEditLiters(e.target.value)}
+                                        className="input-glow w-full"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">ราคา/ลิตร</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={editPricePerLiter}
+                                        onChange={(e) => setEditPricePerLiter(e.target.value)}
+                                        className="input-glow w-full"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">ประเภทการจ่าย</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {PAYMENT_TYPES.map(pt => (
+                                        <button
+                                            key={pt.value}
+                                            type="button"
+                                            onClick={() => setEditPaymentType(pt.value)}
+                                            className={`px-3 py-1.5 rounded-lg text-sm transition-all ${editPaymentType === pt.value
+                                                    ? `${pt.color} text-white`
+                                                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                                }`}
+                                        >
+                                            {pt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="text-right text-lg">
+                                รวม: <span className="text-green-400 font-bold">
+                                    {formatCurrency((parseFloat(editLiters) || 0) * (parseFloat(editPricePerLiter) || 0))} บาท
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 p-4 border-t border-white/10">
+                            <button
+                                onClick={() => setEditingTransaction(null)}
+                                className="flex-1 btn btn-secondary"
+                            >
+                                ยกเลิก
+                            </button>
+                            <button
+                                onClick={handleSaveEdit}
+                                disabled={editSaving}
+                                className="flex-1 btn btn-primary"
+                            >
+                                {editSaving ? 'กำลังบันทึก...' : 'บันทึก'}
+                            </button>
                         </div>
                     </div>
                 </div>
