@@ -250,47 +250,47 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
-                                    <table className="w-full">
+                                    <table className="table-glass">
                                         <thead>
-                                            <tr className="text-sm text-gray-400 border-b border-white/10">
-                                                <th className="py-2 px-3 text-left">เล่ม/เลขที่</th>
-                                                <th className="py-2 px-3 text-left">ทะเบียน</th>
-                                                <th className="py-2 px-3 text-left">ลูกค้า</th>
-                                                <th className="py-2 px-3 text-left">น้ำมัน</th>
-                                                <th className="py-2 px-3 text-right">ลิตร</th>
-                                                <th className="py-2 px-3 text-right">ราคา</th>
-                                                <th className="py-2 px-3 text-right">รวม</th>
-                                                <th className="py-2 px-3 text-center">ชำระ</th>
-                                                <th className="py-2 px-3 text-center">ลบ</th>
+                                            <tr>
+                                                <th>เล่ม/เลขที่</th>
+                                                <th>ทะเบียน</th>
+                                                <th className="hidden sm:table-cell">ลูกค้า</th>
+                                                <th className="hidden sm:table-cell">น้ำมัน</th>
+                                                <th>ลิตร</th>
+                                                <th className="hidden sm:table-cell">ราคา</th>
+                                                <th>รวม</th>
+                                                <th className="hidden sm:table-cell">ชำระ</th>
+                                                <th>ลบ</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {filteredTransactions.map((txn) => (
-                                                <tr key={txn.id} className="border-b border-white/5 hover:bg-white/5">
-                                                    <td className="py-2 px-3 text-sm text-gray-300">
+                                                <tr key={txn.id}>
+                                                    <td>
                                                         {txn.bookNo || '-'}/{txn.billNo || '-'}
                                                     </td>
-                                                    <td className="py-2 px-3 text-sm font-mono text-blue-400">
+                                                    <td className="font-mono text-blue-400">
                                                         {txn.licensePlate || '-'}
                                                     </td>
-                                                    <td className="py-2 px-3 text-sm text-white">
+                                                    <td className="hidden sm:table-cell">
                                                         {txn.ownerName || '-'}
                                                     </td>
-                                                    <td className="py-2 px-3">
+                                                    <td className="hidden sm:table-cell">
                                                         <span className={`badge ${getFuelTypeColor(txn.fuelType)} text-white text-xs`}>
                                                             {getFuelTypeLabel(txn.fuelType)}
                                                         </span>
                                                     </td>
-                                                    <td className="py-2 px-3 text-right font-mono text-white">
+                                                    <td className="font-mono">
                                                         {formatCurrency(txn.liters)}
                                                     </td>
-                                                    <td className="py-2 px-3 text-right font-mono text-gray-400">
+                                                    <td className="hidden sm:table-cell font-mono text-gray-400">
                                                         {formatCurrency(txn.pricePerLiter)}
                                                     </td>
-                                                    <td className="py-2 px-3 text-right font-mono font-bold text-green-400">
+                                                    <td className="font-mono font-bold text-green-400">
                                                         {formatCurrency(txn.amount)}
                                                     </td>
-                                                    <td className="py-2 px-3 text-center">
+                                                    <td className="hidden sm:table-cell text-center">
                                                         <span className={`badge ${txn.paymentType === 'CASH' ? 'bg-green-600' :
                                                             txn.paymentType === 'CREDIT' ? 'bg-purple-600' :
                                                                 'bg-blue-600'
@@ -298,7 +298,7 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
                                                             {getPaymentTypeLabel(txn.paymentType)}
                                                         </span>
                                                     </td>
-                                                    <td className="py-2 px-3 text-center">
+                                                    <td className="text-center">
                                                         <button
                                                             onClick={() => handleDeleteTransaction(txn.id)}
                                                             className="text-red-400 hover:text-red-300 p-1"
