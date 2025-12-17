@@ -82,9 +82,11 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
     // Mobile tab navigation: 'record' | 'list' | 'meter' | 'summary'
     const [activeTab, setActiveTab] = useState<'record' | 'list' | 'meter' | 'summary'>('record');
     const [isMobile, setIsMobile] = useState(false);
+    const [mounted, setMounted] = useState(false);
 
-    // Detect mobile screen
+    // Detect mobile screen - runs after mount to avoid SSR issues
     useEffect(() => {
+        setMounted(true);
         const checkMobile = () => setIsMobile(window.innerWidth <= 768);
         checkMobile();
         window.addEventListener('resize', checkMobile);
@@ -92,7 +94,9 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
     }, []);
 
     // Helper: determines if section should be visible based on tab
+    // Before mount, show all sections to avoid flash. After mount, use tab logic on mobile.
     const showSection = (tab: 'record' | 'list' | 'meter' | 'summary') => {
+        if (!mounted) return true; // Before mount, show all (SSR safe)
         if (!isMobile) return true; // Desktop shows all
         return activeTab === tab;
     };
