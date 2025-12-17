@@ -3,6 +3,7 @@
 import { useState, useEffect, use, useRef } from 'react';
 import Sidebar from '@/components/Sidebar';
 import BillEntryForm from '@/components/BillEntryForm';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import {
     Calendar,
     Save,
@@ -138,6 +139,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
 
     // Daily summary modal
     const [showDailySummary, setShowDailySummary] = useState(false);
+    const [includeTransactionsInPrint, setIncludeTransactionsInPrint] = useState(true);
 
     // Edit modal state
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -158,6 +160,14 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
     // Meter continuity check
     const [previousDayMeters, setPreviousDayMeters] = useState<{ nozzle: number; endReading: number }[]>([]);
     const [meterWarnings, setMeterWarnings] = useState<string[]>([]);
+
+    // Delete confirmation
+    const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; transactionId: string | null; licensePlate: string }>({
+        isOpen: false,
+        transactionId: null,
+        licensePlate: '',
+    });
+    const [deleting, setDeleting] = useState(false);
 
     // Duplicate bill check
     const [duplicateBillWarning, setDuplicateBillWarning] = useState<{
@@ -498,20 +508,34 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
         return t.paymentType === activeFilter;
     });
 
-    const handleDeleteTransaction = async (transactionId: string) => {
-        if (!confirm('ต้องการลบรายการนี้?')) return;
+    // Open delete confirmation dialog
+    const openDeleteConfirm = (transactionId: string, licensePlate: string) => {
+        setDeleteConfirm({
+            isOpen: true,
+            transactionId,
+            licensePlate,
+        });
+    };
 
+    // Confirm delete transaction
+    const confirmDeleteTransaction = async () => {
+        if (!deleteConfirm.transactionId) return;
+
+        setDeleting(true);
         try {
-            const res = await fetch(`/api/station/${id}/transactions/${transactionId}`, {
+            const res = await fetch(`/api/station/${id}/transactions/${deleteConfirm.transactionId}`, {
                 method: 'DELETE',
             });
             if (res.ok) {
                 fetchDailyData();
+                setDeleteConfirm({ isOpen: false, transactionId: null, licensePlate: '' });
             } else {
                 alert('ลบไม่สำเร็จ');
             }
         } catch (error) {
             console.error('Delete error:', error);
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -1333,7 +1357,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                                     <Printer size={14} />
                                                                 </button>
                                                                 <button
-                                                                    onClick={() => handleDeleteTransaction(t.id)}
+                                                                    onClick={() => openDeleteConfirm(t.id, t.licensePlate)}
                                                                     className="p-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/40 text-red-400 transition-colors"
                                                                     title="ลบ"
                                                                 >
@@ -1478,6 +1502,48 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                         <div className="text-2xl font-bold text-green-400">{transactions.reduce((s, t) => s + Number(t.amount), 0).toLocaleString()}</div>
                                         <div className="text-sm text-gray-400">บาท</div>
                                     </div>
+                                </div>
+                            </div>
+
+                            {/* Transactions Detail with Print Toggle */}
+                            <div className="bg-white/5 rounded-xl p-4">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="font-bold text-orange-400">📋 รายการทั้งหมด ({transactions.length} รายการ)</h3>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={includeTransactionsInPrint}
+                                            onChange={(e) => setIncludeTransactionsInPrint(e.target.checked)}
+                                            className="w-4 h-4 rounded border-gray-500 bg-white/10 accent-orange-500"
+                                        />
+                                        <span className="text-sm text-gray-400">รวมในการพิมพ์</span>
+                                    </label>
+                                </div>
+                                <div className={`max-h-60 overflow-y-auto ${!includeTransactionsInPrint ? 'no-print' : ''}`} id="transactions-detail">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="text-left text-gray-400 border-b border-white/10">
+                                                <th className="py-2">#</th>
+                                                <th>เวลา</th>
+                                                <th>ทะเบียน</th>
+                                                <th>เจ้าของ</th>
+                                                <th className="text-right">ลิตร</th>
+                                                <th className="text-right">บาท</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {transactions.map((t, i) => (
+                                                <tr key={t.id} className="border-b border-white/5">
+                                                    <td className="py-1.5 text-gray-500">{i + 1}</td>
+                                                    <td className="text-gray-300">{new Date(t.date).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</td>
+                                                    <td className="font-mono text-green-400">{t.licensePlate}</td>
+                                                    <td className="text-gray-300">{t.ownerName || '-'}</td>
+                                                    <td className="text-right font-mono text-cyan-400">{Number(t.liters).toFixed(1)}</td>
+                                                    <td className="text-right font-mono text-green-400">{Number(t.amount).toLocaleString()}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -1645,6 +1711,19 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                     <span>สรุป</span>
                 </button>
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            <ConfirmDialog
+                isOpen={deleteConfirm.isOpen}
+                title="ยืนยันการลบ"
+                message={`ต้องการลบรายการ "${deleteConfirm.licensePlate}" หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้`}
+                confirmText="ลบรายการ"
+                cancelText="ยกเลิก"
+                type="danger"
+                onConfirm={confirmDeleteTransaction}
+                onCancel={() => setDeleteConfirm({ isOpen: false, transactionId: null, licensePlate: '' })}
+                loading={deleting}
+            />
         </Sidebar>
     );
 }
