@@ -698,7 +698,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                 </div>
 
                                 {/* Meter Readings */}
-                                <div className="grid md:grid-cols-2 gap-6 mb-6" style={{ display: showSection('meter') ? 'grid' : 'none' }}>
+                                <div className="space-y-6 mb-6" style={{ display: showSection('meter') ? 'block' : 'none' }}>
                                     {/* Start Meters */}
                                     <div className="glass-card p-6">
                                         <h3 className="font-bold text-white mb-4">📟 เลขมิเตอร์เริ่มต้น (4 หัวจ่าย)</h3>
