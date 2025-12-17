@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { LoadingState } from '@/components/Spinner';
 import { useToast } from '@/components/Toast';
-import { Truck as TruckIcon, Search, Plus, User, X, Sparkles } from 'lucide-react';
+import { Truck as TruckIcon, Search, Plus, User, X, Sparkles, Edit2 } from 'lucide-react';
 
 interface Truck {
     id: string;
@@ -34,6 +34,14 @@ export default function TrucksPage() {
     const [showAddModal, setShowAddModal] = useState(false);
     const [saving, setSaving] = useState(false);
     const [formData, setFormData] = useState({
+        licensePlate: '',
+        ownerId: '',
+    });
+
+    // Edit Truck Modal
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editingTruck, setEditingTruck] = useState<Truck | null>(null);
+    const [editFormData, setEditFormData] = useState({
         licensePlate: '',
         ownerId: '',
     });
@@ -95,6 +103,48 @@ export default function TrucksPage() {
             }
         } catch (error) {
             console.error('Error adding truck:', error);
+            showToast('error', 'เกิดข้อผิดพลาด');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const openEditModal = (truck: Truck) => {
+        setEditingTruck(truck);
+        setEditFormData({
+            licensePlate: truck.licensePlate,
+            ownerId: truck.owner.id,
+        });
+        setShowEditModal(true);
+    };
+
+    const handleEditTruck = async () => {
+        if (!editingTruck) return;
+        if (!editFormData.ownerId) {
+            showToast('error', 'กรุณาเลือกเจ้าของรถ');
+            return;
+        }
+
+        setSaving(true);
+        try {
+            const res = await fetch(`/api/trucks/${editingTruck.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ownerId: editFormData.ownerId }),
+            });
+
+            if (res.ok) {
+                const updatedTruck = await res.json();
+                setTrucks(prev => prev.map(t => t.id === updatedTruck.id ? updatedTruck : t));
+                setShowEditModal(false);
+                setEditingTruck(null);
+                showToast('success', `อัปเดตรถ "${updatedTruck.licensePlate}" สำเร็จ`);
+            } else {
+                const err = await res.json();
+                showToast('error', err.error || 'เกิดข้อผิดพลาด');
+            }
+        } catch (error) {
+            console.error('Error updating truck:', error);
             showToast('error', 'เกิดข้อผิดพลาด');
         } finally {
             setSaving(false);
@@ -173,12 +223,13 @@ export default function TrucksPage() {
                                         <th className="text-left p-4 text-sm font-medium text-gray-400">ทะเบียนรถ</th>
                                         <th className="text-left p-4 text-sm font-medium text-gray-400">เจ้าของ</th>
                                         <th className="text-left p-4 text-sm font-medium text-gray-400">รหัส</th>
+                                        <th className="text-left p-4 text-sm font-medium text-gray-400">จัดการ</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {filteredTrucks.length === 0 ? (
                                         <tr>
-                                            <td colSpan={4} className="text-center py-12 text-gray-400">
+                                            <td colSpan={5} className="text-center py-12 text-gray-400">
                                                 ไม่พบข้อมูล
                                             </td>
                                         </tr>
@@ -200,6 +251,15 @@ export default function TrucksPage() {
                                                     </div>
                                                 </td>
                                                 <td className="p-4 font-mono text-purple-400">{truck.owner.code || '-'}</td>
+                                                <td className="p-4">
+                                                    <button
+                                                        onClick={() => openEditModal(truck)}
+                                                        className="p-2 rounded-lg bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 transition-colors"
+                                                        title="แก้ไขเจ้าของ"
+                                                    >
+                                                        <Edit2 size={16} />
+                                                    </button>
+                                                </td>
                                             </tr>
                                         ))
                                     )}
@@ -272,6 +332,74 @@ export default function TrucksPage() {
                                 </button>
                                 <button
                                     onClick={() => setShowAddModal(false)}
+                                    className="px-6 py-3 rounded-xl font-medium text-gray-300 bg-white/5 hover:bg-white/10 transition-colors"
+                                >
+                                    ยกเลิก
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Truck Modal */}
+            {showEditModal && editingTruck && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="relative w-full max-w-md animate-fade-in">
+                        <div className="absolute -inset-1 bg-gradient-to-r from-yellow-600 via-amber-500 to-yellow-600 rounded-3xl blur-xl opacity-30" />
+                        <div className="relative backdrop-blur-2xl rounded-2xl border border-white/10 p-6"
+                            style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)' }}>
+                            <div className="flex items-center justify-between mb-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-xl bg-gradient-to-br from-yellow-500 to-amber-500">
+                                        <Edit2 className="text-white" size={20} />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-white">แก้ไขเจ้าของรถ</h3>
+                                </div>
+                                <button
+                                    onClick={() => { setShowEditModal(false); setEditingTruck(null); }}
+                                    className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+                                >
+                                    <X size={20} className="text-gray-400" />
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-2">ทะเบียนรถ</label>
+                                    <div className="w-full px-4 py-3 bg-white/10 border border-white/10 rounded-xl text-white font-mono">
+                                        {editFormData.licensePlate}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-2">เจ้าของรถ *</label>
+                                    <select
+                                        value={editFormData.ownerId}
+                                        onChange={(e) => setEditFormData(prev => ({ ...prev, ownerId: e.target.value }))}
+                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-yellow-500/50 transition-all duration-300"
+                                    >
+                                        <option value="">เลือกเจ้าของ...</option>
+                                        {owners.map(owner => (
+                                            <option key={owner.id} value={owner.id}>
+                                                {owner.code ? `[${owner.code}] ` : ''}{owner.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 mt-6">
+                                <button
+                                    onClick={handleEditTruck}
+                                    disabled={saving}
+                                    className="flex-1 relative group px-6 py-3 rounded-xl font-semibold text-white overflow-hidden disabled:opacity-50"
+                                >
+                                    <div className="absolute inset-0 bg-gradient-to-r from-yellow-600 via-amber-500 to-yellow-600" />
+                                    <span className="relative">{saving ? 'กำลังบันทึก...' : 'บันทึก'}</span>
+                                </button>
+                                <button
+                                    onClick={() => { setShowEditModal(false); setEditingTruck(null); }}
                                     className="px-6 py-3 rounded-xl font-medium text-gray-300 bg-white/5 hover:bg-white/10 transition-colors"
                                 >
                                     ยกเลิก
