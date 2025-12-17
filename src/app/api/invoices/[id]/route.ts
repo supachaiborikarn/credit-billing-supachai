@@ -24,6 +24,7 @@ export async function GET(
                         pricePerLiter: true,
                         amount: true,
                         paymentType: true,
+                        transferProofUrl: true,
                     }
                 },
                 payments: {

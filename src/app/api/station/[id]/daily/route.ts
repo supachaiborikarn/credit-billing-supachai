@@ -75,6 +75,7 @@ export async function GET(
                 billBookNo: t.billBookNo || null,
                 billNo: t.billNo || null,
                 recordedByName: t.recordedBy?.name || '-',
+                transferProofUrl: t.transferProofUrl || null,
             })),
             previousDayMeters,
         });

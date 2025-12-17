@@ -4,7 +4,7 @@ import { useState, useEffect, use } from 'react';
 import Sidebar from '@/components/Sidebar';
 import {
     FileText, ArrowLeft, DollarSign, CheckCircle,
-    Plus, Printer
+    Plus, Printer, Eye, X, Image as ImageIcon
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -34,6 +34,7 @@ interface Transaction {
     pricePerLiter: number;
     amount: number;
     paymentType: string;
+    transferProofUrl: string | null;
 }
 
 interface Payment {
@@ -53,6 +54,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
     const [paymentAmount, setPaymentAmount] = useState('');
     const [paymentMethod, setPaymentMethod] = useState('TRANSFER');
     const [paymentNotes, setPaymentNotes] = useState('');
+    const [selectedSlip, setSelectedSlip] = useState<string | null>(null);
 
     useEffect(() => {
         fetchInvoice();
@@ -236,7 +238,8 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                                     <th className="px-3 py-3 text-left text-sm font-bold text-gray-900 border-r border-gray-300">ทะเบียนรถ</th>
                                     <th className="px-3 py-3 text-right text-sm font-bold text-gray-900 border-r border-gray-300">จำนวน (ลิตร)</th>
                                     <th className="px-3 py-3 text-right text-sm font-bold text-gray-900 border-r border-gray-300">ราคา/ลิตร</th>
-                                    <th className="px-3 py-3 text-right text-sm font-bold text-gray-900">รวมเงิน (บาท)</th>
+                                    <th className="px-3 py-3 text-right text-sm font-bold text-gray-900 border-r border-gray-300">รวมเงิน (บาท)</th>
+                                    <th className="px-3 py-3 text-center text-sm font-bold text-gray-900 print:hidden">สลิป</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -247,7 +250,21 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                                         <td className="px-3 py-2 font-mono text-sm font-medium border-r border-gray-300">{t.licensePlate}</td>
                                         <td className="px-3 py-2 text-right font-mono text-sm border-r border-gray-300">{Number(t.liters).toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
                                         <td className="px-3 py-2 text-right font-mono text-sm border-r border-gray-300">{Number(t.pricePerLiter).toFixed(2)}</td>
-                                        <td className="px-3 py-2 text-right font-mono text-sm font-medium">{formatCurrency(Number(t.amount))}</td>
+                                        <td className="px-3 py-2 text-right font-mono text-sm font-medium border-r border-gray-300">{formatCurrency(Number(t.amount))}</td>
+                                        <td className="px-3 py-2 text-center print:hidden">
+                                            {t.transferProofUrl ? (
+                                                <button
+                                                    onClick={() => setSelectedSlip(t.transferProofUrl)}
+                                                    className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-green-600 bg-green-100 rounded hover:bg-green-200 transition-colors"
+                                                    title="ดูสลิปโอนเงิน"
+                                                >
+                                                    <Eye size={14} />
+                                                    ดูสลิป
+                                                </button>
+                                            ) : (
+                                                <span className="text-gray-400 text-xs">-</span>
+                                            )}
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -258,9 +275,10 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                                         {formatCurrency(invoice.transactions.reduce((sum, t) => sum + Number(t.liters), 0))}
                                     </td>
                                     <td className="border-r border-gray-300"></td>
-                                    <td className="px-3 py-3 text-right font-mono font-bold text-xl text-gray-900">
+                                    <td className="px-3 py-3 text-right font-mono font-bold text-xl text-gray-900 border-r border-gray-300">
                                         {formatCurrency(Number(invoice.totalAmount))}
                                     </td>
+                                    <td className="print:hidden"></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -482,6 +500,39 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                     }
                 }
             `}</style>
+
+            {/* Slip Image Modal */}
+            {selectedSlip && (
+                <div
+                    className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                    onClick={() => setSelectedSlip(null)}
+                >
+                    <div
+                        className="relative max-w-4xl max-h-[90vh] animate-fade-in"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button
+                            onClick={() => setSelectedSlip(null)}
+                            className="absolute -top-12 right-0 p-2 text-white/80 hover:text-white transition-colors"
+                        >
+                            <X size={32} />
+                        </button>
+                        <div className="bg-white rounded-xl overflow-hidden shadow-2xl">
+                            <div className="bg-gradient-to-r from-green-600 to-emerald-500 px-4 py-3 flex items-center gap-2">
+                                <ImageIcon className="text-white" size={20} />
+                                <span className="text-white font-medium">สลิปโอนเงิน</span>
+                            </div>
+                            <div className="p-2">
+                                <img
+                                    src={selectedSlip}
+                                    alt="สลิปโอนเงิน"
+                                    className="max-w-full max-h-[75vh] object-contain mx-auto"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </Sidebar>
     );
 }

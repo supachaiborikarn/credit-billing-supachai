@@ -25,7 +25,9 @@ import {
     List,
     BarChart3,
     PenLine,
-    Gauge
+    Gauge,
+    Eye,
+    Image as ImageIcon
 } from 'lucide-react';
 import { PAYMENT_TYPES, DEFAULT_RETAIL_PRICE, DEFAULT_WHOLESALE_PRICE, STATIONS } from '@/constants';
 
@@ -42,6 +44,8 @@ interface MeterReading {
     nozzleNumber: number;
     startReading: number;
     endReading: number | null;
+    startPhoto?: string | null;
+    endPhoto?: string | null;
 }
 
 interface Transaction {
@@ -58,6 +62,7 @@ interface Transaction {
     billBookNo?: string;
     billNo?: string;
     recordedByName?: string;
+    transferProofUrl?: string | null;
 }
 
 interface TruckSearchResult {
@@ -194,6 +199,9 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
         transactions: { id: string; date: string; licensePlate: string; ownerName: string; amount: number }[];
     } | null>(null);
     const [checkingBill, setCheckingBill] = useState(false);
+
+    // Slip image view modal
+    const [selectedSlipUrl, setSelectedSlipUrl] = useState<string | null>(null);
 
     useEffect(() => {
         if (station) {
@@ -339,6 +347,8 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                             nozzle: m.nozzleNumber,
                             start: Number(m.startReading),
                             end: Number(m.endReading) || 0,
+                            startPhoto: m.startPhoto || undefined,
+                            endPhoto: m.endPhoto || undefined,
                         }));
                         setMeters(currentMeters);
 
@@ -828,7 +838,13 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                         className="input-glow text-center font-mono"
                                                     />
                                                     {m.startPhoto && (
-                                                        <p className="text-xs text-green-400 mt-1">✓ มีรูปแล้ว</p>
+                                                        <button
+                                                            onClick={() => setSelectedSlipUrl(m.startPhoto || null)}
+                                                            className="flex items-center gap-1 text-xs text-green-400 mt-1 hover:text-green-300"
+                                                        >
+                                                            <Eye size={12} />
+                                                            ดูรูปมิเตอร์
+                                                        </button>
                                                     )}
                                                 </div>
                                             ))}
@@ -893,7 +909,13 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                         className="input-glow text-center font-mono"
                                                     />
                                                     {m.endPhoto && (
-                                                        <p className="text-xs text-green-400 mt-1">✓ มีรูปแล้ว</p>
+                                                        <button
+                                                            onClick={() => setSelectedSlipUrl(m.endPhoto || null)}
+                                                            className="flex items-center gap-1 text-xs text-green-400 mt-1 hover:text-green-300"
+                                                        >
+                                                            <Eye size={12} />
+                                                            ดูรูปมิเตอร์
+                                                        </button>
                                                     )}
                                                 </div>
                                             ))}
@@ -1367,6 +1389,15 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                         </td>
                                                         <td>
                                                             <div className="flex gap-1">
+                                                                {t.transferProofUrl && (
+                                                                    <button
+                                                                        onClick={() => setSelectedSlipUrl(t.transferProofUrl || null)}
+                                                                        className="p-1.5 rounded-lg bg-green-500/20 hover:bg-green-500/40 text-green-400 transition-colors"
+                                                                        title="ดูสลิปโอนเงิน"
+                                                                    >
+                                                                        <Eye size={14} />
+                                                                    </button>
+                                                                )}
                                                                 <button
                                                                     onClick={() => openEditModal(t)}
                                                                     className="p-1.5 rounded-lg bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-400 transition-colors"
@@ -1749,6 +1780,39 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                 onCancel={() => setDeleteConfirm({ isOpen: false, transactionId: null, licensePlate: '' })}
                 loading={deleting}
             />
+
+            {/* Slip Image Modal */}
+            {selectedSlipUrl && (
+                <div
+                    className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                    onClick={() => setSelectedSlipUrl(null)}
+                >
+                    <div
+                        className="relative max-w-4xl max-h-[90vh] animate-fade-in"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button
+                            onClick={() => setSelectedSlipUrl(null)}
+                            className="absolute -top-12 right-0 p-2 text-white/80 hover:text-white transition-colors"
+                        >
+                            <X size={32} />
+                        </button>
+                        <div className="bg-white rounded-xl overflow-hidden shadow-2xl">
+                            <div className="bg-gradient-to-r from-green-600 to-emerald-500 px-4 py-3 flex items-center gap-2">
+                                <ImageIcon className="text-white" size={20} />
+                                <span className="text-white font-medium">สลิปโอนเงิน</span>
+                            </div>
+                            <div className="p-2">
+                                <img
+                                    src={selectedSlipUrl}
+                                    alt="สลิปโอนเงิน"
+                                    className="max-w-full max-h-[75vh] object-contain mx-auto"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </Sidebar>
     );
 }
