@@ -85,6 +85,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
     const [activeTab, setActiveTab] = useState<'record' | 'list' | 'meter' | 'summary'>('record');
     const [isMobile, setIsMobile] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const [currentUser, setCurrentUser] = useState<{ role: string } | null>(null);
 
     // Detect mobile screen - runs after mount to avoid SSR issues
     useEffect(() => {
@@ -93,6 +94,22 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
         checkMobile();
         window.addEventListener('resize', checkMobile);
         return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    // Fetch current user role
+    useEffect(() => {
+        const fetchCurrentUser = async () => {
+            try {
+                const res = await fetch('/api/auth/me');
+                if (res.ok) {
+                    const data = await res.json();
+                    setCurrentUser(data.user);
+                }
+            } catch (error) {
+                console.error('Error fetching user:', error);
+            }
+        };
+        fetchCurrentUser();
     }, []);
 
     // Helper: determines if section should be visible based on tab
@@ -461,8 +478,9 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
     const handleSubmitTransaction = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Validate transfer requires photo
-        if (paymentType === 'TRANSFER' && !transferProofUrl) {
+        // Validate transfer requires photo (except for admin entering past records)
+        const isAdmin = currentUser?.role === 'ADMIN';
+        if (paymentType === 'TRANSFER' && !transferProofUrl && !isAdmin) {
             alert('กรุณาแนบรูปหลักฐานการโอน');
             return;
         }
