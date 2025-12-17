@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { createHash } from 'crypto';
+import bcrypt from 'bcryptjs';
 
-function hashPassword(password: string): string {
-    return createHash('sha256').update(password).digest('hex');
+async function hashPassword(password: string): Promise<string> {
+    return bcrypt.hash(password, 10);
 }
 
 export async function GET() {
@@ -46,10 +46,11 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'ชื่อผู้ใช้นี้มีอยู่แล้ว' }, { status: 400 });
         }
 
+        const hashedPassword = await hashPassword(password);
         const user = await prisma.user.create({
             data: {
                 username,
-                password: hashPassword(password),
+                password: hashedPassword,
                 name: fullName,
                 role: role || 'STAFF',
                 station: stationId ? { connect: { id: stationId } } : undefined,
