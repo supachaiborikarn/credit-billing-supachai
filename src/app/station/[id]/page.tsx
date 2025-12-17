@@ -726,10 +726,10 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                 ))}
                                             </div>
                                         )}
-
-                                        <div className="space-y-4" style={{ display: 'block' }}>
+                                        {/* Meter Inputs - Force Visible */}
+                                        <div style={{ display: 'block', visibility: 'visible' }}>
                                             {meters.map((m, i) => (
-                                                <div key={i} className="bg-white/5 rounded-lg p-3" style={{ display: 'block' }}>
+                                                <div key={i} className="bg-white/5 rounded-lg p-3 mb-3" style={{ display: 'block', visibility: 'visible' }}>
                                                     <div className="flex items-center justify-between mb-2">
                                                         <label className="text-sm text-gray-400">❶ หัวจ่าย {m.nozzle}</label>
                                                         <label className="btn btn-secondary text-xs py-1 px-3 cursor-pointer">
@@ -791,9 +791,10 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                     {/* End Meters */}
                                     <div className="glass-card p-6">
                                         <h3 className="font-bold text-white mb-4">📟 เลขมิเตอร์สิ้นสุด (4 หัวจ่าย)</h3>
-                                        <div className="space-y-4" style={{ display: 'block' }}>
+                                        {/* Meter Inputs - Force Visible */}
+                                        <div style={{ display: 'block', visibility: 'visible' }}>
                                             {meters.map((m, i) => (
-                                                <div key={i} className="bg-white/5 rounded-lg p-3" style={{ display: 'block' }}>
+                                                <div key={i} className="bg-white/5 rounded-lg p-3 mb-3" style={{ display: 'block', visibility: 'visible' }}>
                                                     <div className="flex items-center justify-between mb-2">
                                                         <label className="text-sm text-gray-400">❶ หัวจ่าย {m.nozzle}</label>
                                                         <label className="btn btn-secondary text-xs py-1 px-3 cursor-pointer">
