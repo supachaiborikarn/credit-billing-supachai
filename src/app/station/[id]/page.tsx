@@ -49,6 +49,7 @@ interface Transaction {
     date: string;
     licensePlate: string;
     ownerName: string;
+    ownerCode?: string | null;
     paymentType: string;
     nozzleNumber: number;
     liters: number;
@@ -1322,7 +1323,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                             <th>เล่ม/เลขที่</th>
                                             <th>ทะเบียน</th>
                                             <th>เจ้าของ</th>
-                                            {isFullStation && <th>หัวจ่าย</th>}
+                                            <th>C-Code</th>
                                             <th>ประเภท</th>
                                             <th>ลิตร</th>
                                             <th>ราคา/ลิตร</th>
@@ -1350,7 +1351,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                         </td>
                                                         <td className="font-mono">{t.licensePlate}</td>
                                                         <td>{t.ownerName || '-'}</td>
-                                                        {isFullStation && <td>{t.nozzleNumber}</td>}
+                                                        <td className="text-cyan-400 font-mono text-sm">{t.ownerCode || '-'}</td>
                                                         <td>
                                                             <span className={`badge ${paymentInfo?.color.replace('bg-', 'badge-').replace('-600', '')}`}>
                                                                 {paymentInfo?.label}
