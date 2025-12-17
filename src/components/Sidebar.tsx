@@ -145,7 +145,7 @@ export default function Sidebar({ children }: SidebarProps) {
                 </div>
 
                 {/* Navigation */}
-                <nav className="p-4 space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto">
+                <nav className="p-4 space-y-2 overflow-y-auto scroll-smooth overscroll-contain pb-48" style={{ maxHeight: 'calc(100vh - 120px)' }}>
                     {/* Main Menu - Admin only */}
                     {isAdmin && menuItems.map(item => (
                         <Link
