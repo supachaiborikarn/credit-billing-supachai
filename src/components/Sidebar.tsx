@@ -47,10 +47,10 @@ export default function Sidebar({ children }: SidebarProps) {
                 // Not authenticated - redirect to login
                 router.push('/login');
             }
+            // Other errors (500, network issues) - don't redirect, just log
         } catch (error) {
             console.error('Error fetching user:', error);
-            // On error, redirect to login for safety
-            router.push('/login');
+            // Don't redirect on network errors - might be temporary
         }
     };
 

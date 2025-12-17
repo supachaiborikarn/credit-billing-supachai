@@ -1051,9 +1051,9 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                         setShowDropdown(true);
                                                     }
                                                 }}
-                                                placeholder="พิมพ์ทะเบียน..."
+                                                placeholder={paymentType === 'CASH' || paymentType === 'TRANSFER' ? 'ทะเบียน (ไม่บังคับ)' : 'พิมพ์ทะเบียน...'}
                                                 className="input-glow"
-                                                required
+                                                required={paymentType !== 'CASH' && paymentType !== 'TRANSFER'}
                                                 autoComplete="off"
                                             />
                                             {searchLoading && (
