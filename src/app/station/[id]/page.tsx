@@ -506,6 +506,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
             });
 
             if (res.ok) {
+                alert('✅ บันทึกรายการสำเร็จ!');
                 // Reset form
                 setLicensePlate('');
                 setOwnerName('');
@@ -515,7 +516,6 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                 setTransferProofUrl(null);
                 setShowForm(false);
                 fetchDailyData();
-                alert('✅ บันทึกรายการสำเร็จ!');
             } else {
                 const errorData = await res.json();
                 alert(`เกิดข้อผิดพลาด: ${errorData?.error || 'ไม่สามารถบันทึกได้'}`);

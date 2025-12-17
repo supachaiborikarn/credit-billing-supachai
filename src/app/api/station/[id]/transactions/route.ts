@@ -69,6 +69,31 @@ export async function POST(
             if (owner) ownerId = owner.id;
         }
 
+        // Check for duplicates (same station, date, plate, amount, type)
+        // Helps prevent double-entry when importing data
+        const startOfDay = new Date(dateStr + 'T00:00:00');
+        const endOfDay = new Date(dateStr + 'T23:59:59.999');
+
+        const duplicate = await prisma.transaction.findFirst({
+            where: {
+                stationId,
+                date: { gte: startOfDay, lte: endOfDay },
+                amount: amount,
+                paymentType: paymentType,
+                // Only check plate/owner if provided to avoid false positives on anonymous cash
+                OR: [
+                    licensePlate ? { licensePlate: licensePlate } : {},
+                    ownerName ? { ownerName: ownerName } : {}
+                ]
+            }
+        });
+
+        if (duplicate) {
+            return NextResponse.json({
+                error: `รายการซ้ำ: พบรายการ ${paymentType} ยอด ${amount} บาท ของ ${licensePlate || ownerName || 'ไม่ระบุ'} ในวันที่ ${dateStr} แล้ว`
+            }, { status: 409 });
+        }
+
         // Create transaction
         const transaction = await prisma.transaction.create({
             data: {
