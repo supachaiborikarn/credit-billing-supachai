@@ -74,7 +74,7 @@ export async function POST(
             data: {
                 stationId,
                 dailyRecordId,
-                date: new Date(),
+                date: new Date(dateStr + 'T' + new Date().toTimeString().slice(0, 8)), // Use selected date with current time
                 licensePlate,
                 ownerName,
                 ownerId,
