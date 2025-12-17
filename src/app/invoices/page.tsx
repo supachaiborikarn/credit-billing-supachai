@@ -5,7 +5,7 @@ import Sidebar from '@/components/Sidebar';
 import { LoadingState } from '@/components/Spinner';
 import { formatCurrency } from '@/utils/format';
 import { Invoice, OwnerWithBalance } from '@/types';
-import { FileText, Plus, Search, CheckCircle, Clock, Users, Sparkles } from 'lucide-react';
+import { FileText, Plus, Search, CheckCircle, Clock, Users, Sparkles, Trash2 } from 'lucide-react';
 import { OWNER_GROUPS } from '@/constants';
 
 
@@ -125,7 +125,31 @@ export default function InvoicesPage() {
         }
     };
 
+    const handleDeleteInvoice = async (invoiceId: string, invoiceNumber: string, e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent row click
 
+        if (!confirm(`ต้องการลบใบวางบิล ${invoiceNumber} ใช่หรือไม่?\n\nรายการทั้งหมดจะกลับไปสถานะรอวางบิล`)) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/invoices/${invoiceId}`, {
+                method: 'DELETE'
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                alert(`✅ ${data.message}`);
+                fetchData();
+            } else {
+                const errData = await res.json();
+                alert(`❌ ${errData.error}`);
+            }
+        } catch (error) {
+            console.error('Delete invoice error:', error);
+            alert('เกิดข้อผิดพลาดในการลบ');
+        }
+    };
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -408,6 +432,7 @@ export default function InvoicesPage() {
                                         <th>ชำระแล้ว</th>
                                         <th>สถานะ</th>
                                         <th>วันที่</th>
+                                        <th>จัดการ</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -441,6 +466,15 @@ export default function InvoicesPage() {
                                                 </td>
                                                 <td className="text-sm text-gray-400">
                                                     {new Date(inv.createdAt).toLocaleDateString('th-TH')}
+                                                </td>
+                                                <td>
+                                                    <button
+                                                        onClick={(e) => handleDeleteInvoice(inv.id, inv.invoiceNumber, e)}
+                                                        className="p-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/40 text-red-400 transition-colors"
+                                                        title="ลบใบวางบิล"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
                                                 </td>
                                             </tr>
                                         ))
