@@ -304,7 +304,8 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                 if (data.dailyRecord) {
                     setRetailPrice(data.dailyRecord.retailPrice);
                     setWholesalePrice(data.dailyRecord.wholesalePrice);
-                    if (data.dailyRecord.meters) {
+                    // Only update meters if API returns non-empty array
+                    if (data.dailyRecord.meters && data.dailyRecord.meters.length > 0) {
                         const currentMeters = data.dailyRecord.meters.map((m: MeterReading) => ({
                             nozzle: m.nozzleNumber,
                             start: Number(m.startReading),
@@ -702,8 +703,6 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                     {/* Start Meters */}
                                     <div className="glass-card p-6">
                                         <h3 className="font-bold text-white mb-4">📟 เลขมิเตอร์เริ่มต้น (4 หัวจ่าย)</h3>
-                                        {/* Debug info */}
-                                        <p className="text-xs text-yellow-400 mb-2">DEBUG: meters count = {meters.length}</p>
 
                                         {/* Meter Continuity Warning */}
                                         {meterWarnings.length > 0 && (
