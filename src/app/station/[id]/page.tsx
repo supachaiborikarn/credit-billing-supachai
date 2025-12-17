@@ -515,9 +515,14 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                 setTransferProofUrl(null);
                 setShowForm(false);
                 fetchDailyData();
+            } else {
+                const errorData = await res.json();
+                alert(`เกิดข้อผิดพลาด: ${errorData?.error || 'ไม่สามารถบันทึกได้'}`);
+                console.error('Transaction save failed:', errorData);
             }
         } catch (error) {
             console.error('Error saving transaction:', error);
+            alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
         }
     };
 
