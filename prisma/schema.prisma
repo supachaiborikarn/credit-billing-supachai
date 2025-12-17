@@ -58,6 +58,7 @@ model User {
   station      Station?      @relation(fields: [stationId], references: [id])
   transactions Transaction[]
   sessions     Session[]
+  auditLogs    AuditLog[]
 
   @@map("users")
 }
@@ -105,6 +106,7 @@ model Owner {
   trucks       Truck[]
   transactions Transaction[]
   invoices     Invoice[]
+  deletedAt    DateTime?
 
   @@map("owners")
 }
@@ -118,6 +120,7 @@ model Truck {
 
   owner        Owner         @relation(fields: [ownerId], references: [id])
   transactions Transaction[]
+  deletedAt    DateTime?
 
   @@map("trucks")
 }
@@ -190,6 +193,7 @@ model Transaction {
   owner       Owner?       @relation(fields: [ownerId], references: [id])
   recordedBy  User         @relation(fields: [recordedById], references: [id])
   invoice     Invoice?     @relation(fields: [invoiceId], references: [id])
+  deletedAt   DateTime?
 
   @@map("transactions")
 }
@@ -339,4 +343,21 @@ model Setting {
   updatedAt DateTime @updatedAt
 
   @@map("settings")
+}
+
+// Audit Log for tracking all CRUD operations
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  action    String   // CREATE, UPDATE, DELETE
+  model     String   // Transaction, Owner, Truck, Invoice
+  recordId  String
+  oldData   Json?
+  newData   Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
 }
