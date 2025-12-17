@@ -43,9 +43,14 @@ export default function Sidebar({ children }: SidebarProps) {
             if (res.ok) {
                 const data = await res.json();
                 setUser(data.user);
+            } else if (res.status === 401) {
+                // Not authenticated - redirect to login
+                router.push('/login');
             }
         } catch (error) {
             console.error('Error fetching user:', error);
+            // On error, redirect to login for safety
+            router.push('/login');
         }
     };
 
