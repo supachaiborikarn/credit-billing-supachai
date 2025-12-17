@@ -55,6 +55,7 @@ interface Transaction {
     amount: number;
     billBookNo?: string;
     billNo?: string;
+    recordedByName?: string;
 }
 
 interface TruckSearchResult {
@@ -1278,6 +1279,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                             <th>ลิตร</th>
                                             <th>ราคา/ลิตร</th>
                                             <th>รวมเงิน</th>
+                                            <th>ผู้บันทึก</th>
                                             <th>จัดการ</th>
                                         </tr>
                                     </thead>
@@ -1309,6 +1311,11 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                         <td className="font-mono">{formatNumber(Number(t.liters))}</td>
                                                         <td className="font-mono">{Number(t.pricePerLiter).toFixed(2)}</td>
                                                         <td className="font-mono text-green-400">{formatCurrency(Number(t.amount))}</td>
+                                                        <td>
+                                                            <span className="px-2 py-1 text-xs rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                                                                {t.recordedByName || '-'}
+                                                            </span>
+                                                        </td>
                                                         <td>
                                                             <div className="flex gap-1">
                                                                 <button

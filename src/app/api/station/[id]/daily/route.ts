@@ -35,7 +35,8 @@ export async function GET(
             orderBy: { date: 'asc' },
             include: {
                 owner: { select: { name: true, code: true } },
-                truck: { select: { licensePlate: true } }
+                truck: { select: { licensePlate: true } },
+                recordedBy: { select: { name: true } }
             }
         });
 
@@ -71,6 +72,7 @@ export async function GET(
                 liters: Number(t.liters),
                 pricePerLiter: Number(t.pricePerLiter),
                 amount: Number(t.amount),
+                recordedByName: t.recordedBy?.name || '-',
             })),
             previousDayMeters,
         });
