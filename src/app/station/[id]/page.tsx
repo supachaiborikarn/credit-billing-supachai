@@ -347,7 +347,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                             currentMeters.forEach((m: { nozzle: number; start: number }) => {
                                 const prevMeter = data.previousDayMeters.find((p: { nozzle: number }) => p.nozzle === m.nozzle);
                                 if (prevMeter && prevMeter.endReading > 0 && m.start !== prevMeter.endReading) {
-                                    warnings.push(`หัวจ่าย ${m.nozzle}: มิเตอร์ไม่ต่อเนื่อง (เมื่อวาน: ${prevMeter.endReading.toLocaleString()}, วันนี้: ${m.start.toLocaleString()})`);
+                                    warnings.push(`หัวจ่าย ${m.nozzle}: มิเตอร์ไม่ต่อเนื่อง (เมื่อวาน: ${prevMeter.endReading.toLocaleString("th-TH", { maximumFractionDigits: 2 })}, วันนี้: ${m.start.toLocaleString("th-TH", { maximumFractionDigits: 2 })})`);
                                 }
                             });
                             setMeterWarnings(warnings);
@@ -644,8 +644,8 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
     const transactionsTotal = transactions.reduce((sum, t) => sum + Number(t.liters), 0);
     const meterDiff = transactionsTotal - meterTotal;
 
-    const formatNumber = (num: number) => new Intl.NumberFormat('th-TH').format(num);
-    const formatCurrency = (num: number) => new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2 }).format(num);
+    const formatNumber = (num: number) => new Intl.NumberFormat('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(num);
+    const formatCurrency = (num: number) => new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
 
     if (!station) {
         return (
@@ -771,7 +771,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                 <span className="font-medium">เมื่อวาน:</span>{' '}
                                                 {previousDayMeters.map((p, i) => (
                                                     <span key={i} className="mr-2">
-                                                        หัวจ่าย{p.nozzle}: {p.endReading.toLocaleString()}
+                                                        หัวจ่าย{p.nozzle}: {p.endReading.toLocaleString("th-TH", { maximumFractionDigits: 2 })}
                                                     </span>
                                                 ))}
                                             </div>
@@ -1030,7 +1030,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                     <div className="text-xs text-red-300 space-y-1">
                                         {duplicateBillWarning.transactions.map((t, i) => (
                                             <div key={i}>
-                                                • {new Date(t.date).toLocaleDateString('th-TH')} - {t.licensePlate || 'ไม่ระบุ'} ({t.ownerName || 'ไม่ระบุ'}) - {t.amount.toLocaleString()} บาท
+                                                • {new Date(t.date).toLocaleDateString('th-TH')} - {t.licensePlate || 'ไม่ระบุ'} ({t.ownerName || 'ไม่ระบุ'}) - {t.amount.toLocaleString("th-TH", { maximumFractionDigits: 2 })} บาท
                                             </div>
                                         ))}
                                     </div>
@@ -1449,15 +1449,15 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                         {meters.map(m => (
                                             <div key={m.nozzle} className="contents">
                                                 <div className="text-cyan-400">หัว {m.nozzle}</div>
-                                                <div className="font-mono text-right">{m.start.toLocaleString()}</div>
-                                                <div className="font-mono text-right">{m.end.toLocaleString()}</div>
-                                                <div className="font-mono text-right text-green-400">{(m.end - m.start).toLocaleString()}</div>
+                                                <div className="font-mono text-right">{m.start.toLocaleString("th-TH", { maximumFractionDigits: 2 })}</div>
+                                                <div className="font-mono text-right">{m.end.toLocaleString("th-TH", { maximumFractionDigits: 2 })}</div>
+                                                <div className="font-mono text-right text-green-400">{(m.end - m.start).toLocaleString("th-TH", { maximumFractionDigits: 2 })}</div>
                                             </div>
                                         ))}
                                         <div className="font-bold text-white border-t border-white/10 pt-2">รวม</div>
-                                        <div className="font-mono text-right border-t border-white/10 pt-2">{meters.reduce((s, m) => s + m.start, 0).toLocaleString()}</div>
-                                        <div className="font-mono text-right border-t border-white/10 pt-2">{meters.reduce((s, m) => s + m.end, 0).toLocaleString()}</div>
-                                        <div className="font-mono text-right border-t border-white/10 pt-2 text-green-400 font-bold">{meters.reduce((s, m) => s + (m.end - m.start), 0).toLocaleString()}</div>
+                                        <div className="font-mono text-right border-t border-white/10 pt-2">{meters.reduce((s, m) => s + m.start, 0).toLocaleString("th-TH", { maximumFractionDigits: 2 })}</div>
+                                        <div className="font-mono text-right border-t border-white/10 pt-2">{meters.reduce((s, m) => s + m.end, 0).toLocaleString("th-TH", { maximumFractionDigits: 2 })}</div>
+                                        <div className="font-mono text-right border-t border-white/10 pt-2 text-green-400 font-bold">{meters.reduce((s, m) => s + (m.end - m.start), 0).toLocaleString("th-TH", { maximumFractionDigits: 2 })}</div>
                                     </div>
                                 </div>
                             )}
@@ -1478,31 +1478,31 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                             <>
                                                 <div className="flex justify-between">
                                                     <span className="text-gray-400">💵 เงินสด:</span>
-                                                    <span className="font-mono text-green-400">{cashTotal.toLocaleString()} บาท</span>
+                                                    <span className="font-mono text-green-400">{cashTotal.toLocaleString("th-TH", { maximumFractionDigits: 2 })} บาท</span>
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span className="text-gray-400">💳 เงินเชื่อ:</span>
-                                                    <span className="font-mono text-orange-400">{creditTotal.toLocaleString()} บาท</span>
+                                                    <span className="font-mono text-orange-400">{creditTotal.toLocaleString("th-TH", { maximumFractionDigits: 2 })} บาท</span>
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span className="text-gray-400">📲 โอนเงิน:</span>
-                                                    <span className="font-mono text-blue-400">{transferTotal.toLocaleString()} บาท</span>
+                                                    <span className="font-mono text-blue-400">{transferTotal.toLocaleString("th-TH", { maximumFractionDigits: 2 })} บาท</span>
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span className="text-gray-400">📦 รถตู้ทึบ:</span>
-                                                    <span className="font-mono text-yellow-400">{boxTotal.toLocaleString()} บาท</span>
+                                                    <span className="font-mono text-yellow-400">{boxTotal.toLocaleString("th-TH", { maximumFractionDigits: 2 })} บาท</span>
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span className="text-gray-400">🚛 รถน้ำมันศุภชัย:</span>
-                                                    <span className="font-mono text-purple-400">{oilTruckTotal.toLocaleString()} บาท</span>
+                                                    <span className="font-mono text-purple-400">{oilTruckTotal.toLocaleString("th-TH", { maximumFractionDigits: 2 })} บาท</span>
                                                 </div>
                                                 <div className="flex justify-between border-t border-white/10 pt-2 mt-2">
                                                     <span className="font-bold text-white">รวมทั้งหมด:</span>
-                                                    <span className="font-mono font-bold text-green-400 text-lg">{total.toLocaleString()} บาท</span>
+                                                    <span className="font-mono font-bold text-green-400 text-lg">{total.toLocaleString("th-TH", { maximumFractionDigits: 2 })} บาท</span>
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span className="font-bold text-white">รวมลิตร:</span>
-                                                    <span className="font-mono font-bold text-cyan-400">{totalLiters.toLocaleString()} ลิตร</span>
+                                                    <span className="font-mono font-bold text-cyan-400">{totalLiters.toLocaleString("th-TH", { maximumFractionDigits: 2 })} ลิตร</span>
                                                 </div>
                                             </>
                                         );
@@ -1519,11 +1519,11 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                         <div className="text-sm text-gray-400">รายการ</div>
                                     </div>
                                     <div>
-                                        <div className="text-2xl font-bold text-cyan-400">{transactions.reduce((s, t) => s + Number(t.liters), 0).toLocaleString()}</div>
+                                        <div className="text-2xl font-bold text-cyan-400">{transactions.reduce((s, t) => s + Number(t.liters), 0).toLocaleString("th-TH", { maximumFractionDigits: 2 })}</div>
                                         <div className="text-sm text-gray-400">ลิตร</div>
                                     </div>
                                     <div>
-                                        <div className="text-2xl font-bold text-green-400">{transactions.reduce((s, t) => s + Number(t.amount), 0).toLocaleString()}</div>
+                                        <div className="text-2xl font-bold text-green-400">{transactions.reduce((s, t) => s + Number(t.amount), 0).toLocaleString("th-TH", { maximumFractionDigits: 2 })}</div>
                                         <div className="text-sm text-gray-400">บาท</div>
                                     </div>
                                 </div>
@@ -1563,7 +1563,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                     <td className="font-mono text-green-400">{t.licensePlate}</td>
                                                     <td className="text-gray-300">{t.ownerName || '-'}</td>
                                                     <td className="text-right font-mono text-cyan-400">{Number(t.liters).toFixed(1)}</td>
-                                                    <td className="text-right font-mono text-green-400">{Number(t.amount).toLocaleString()}</td>
+                                                    <td className="text-right font-mono text-green-400">{Number(t.amount).toLocaleString("th-TH", { maximumFractionDigits: 2 })}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
