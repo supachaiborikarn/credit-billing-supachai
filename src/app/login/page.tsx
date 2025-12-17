@@ -1,40 +1,92 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { LogIn, Eye, EyeOff, Fuel, Sparkles } from 'lucide-react';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { LogIn, Eye, EyeOff, Fuel, Sparkles, Loader2 } from 'lucide-react';
 
-export default function LoginPage() {
+function LoginContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [redirecting, setRedirecting] = useState(false);
     const [error, setError] = useState('');
     const [mounted, setMounted] = useState(false);
+
+    // Form validation states
+    const [usernameError, setUsernameError] = useState('');
+    const [passwordError, setPasswordError] = useState('');
 
     useEffect(() => {
         setMounted(true);
     }, []);
 
+    // Validate username
+    const validateUsername = (value: string) => {
+        const trimmed = value.trim();
+        if (trimmed.length > 0 && trimmed.length < 2) {
+            setUsernameError('ชื่อผู้ใช้ต้องมีอย่างน้อย 2 ตัวอักษร');
+            return false;
+        }
+        setUsernameError('');
+        return true;
+    };
+
+    // Validate password
+    const validatePassword = (value: string) => {
+        if (value.length > 0 && value.length < 4) {
+            setPasswordError('รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร');
+            return false;
+        }
+        setPasswordError('');
+        return true;
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+
+        // Trim inputs
+        const trimmedUsername = username.trim();
+        const trimmedPassword = password;
+
+        // Validate before submit
+        if (!validateUsername(trimmedUsername) || !validatePassword(trimmedPassword)) {
+            return;
+        }
+
+        if (trimmedUsername.length < 2 || trimmedPassword.length < 4) {
+            setError('กรุณากรอกข้อมูลให้ครบถ้วน');
+            return;
+        }
+
         setLoading(true);
 
         try {
             const res = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password }),
+                body: JSON.stringify({ username: trimmedUsername, password: trimmedPassword }),
             });
 
             const data = await res.json();
 
             if (res.ok) {
-                // Redirect based on role
-                if (data.user?.role === 'STAFF' && data.user?.stationId) {
-                    // Extract station number from stationId (e.g., "station-1" -> "1")
+                // Show redirecting state
+                setRedirecting(true);
+
+                // Get redirect URL from query params or default
+                const redirectTo = searchParams.get('redirect');
+
+                // Small delay for UX
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // Redirect based on role or redirect param
+                if (redirectTo && !redirectTo.startsWith('/login')) {
+                    router.push(redirectTo);
+                } else if (data.user?.role === 'STAFF' && data.user?.stationId) {
                     const stationNum = data.user.stationId.replace('station-', '');
                     router.push(`/station/${stationNum}`);
                 } else {
@@ -160,7 +212,16 @@ export default function LoginPage() {
                         </p>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* Redirecting Overlay */}
+                    {redirecting && (
+                        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#0a0a12]/90 backdrop-blur-sm rounded-3xl">
+                            <Loader2 size={48} className="animate-spin text-purple-400 mb-4" />
+                            <p className="text-lg text-white font-medium">กำลังพาเข้าสู่ระบบ...</p>
+                            <p className="text-sm text-gray-400 mt-1">กรุณารอสักครู่</p>
+                        </div>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="space-y-5">
                         {error && (
                             <div className="bg-red-500/10 backdrop-blur-sm border border-red-500/30 text-red-300 px-4 py-3 rounded-2xl text-sm flex items-center gap-3 animate-shake">
                                 <span className="text-xl">⚠️</span>
@@ -168,7 +229,7 @@ export default function LoginPage() {
                             </div>
                         )}
 
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                             <label className="block text-sm font-medium text-gray-300 ml-1">
                                 ชื่อผู้ใช้
                             </label>
@@ -177,16 +238,27 @@ export default function LoginPage() {
                                 <input
                                     type="text"
                                     value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
-                                    className="relative w-full px-5 py-4 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all duration-300"
+                                    onChange={(e) => {
+                                        setUsername(e.target.value);
+                                        if (usernameError) validateUsername(e.target.value);
+                                    }}
+                                    onBlur={(e) => validateUsername(e.target.value)}
+                                    className={`relative w-full px-5 py-4 min-h-[48px] bg-white/5 backdrop-blur-sm border rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 transition-all duration-300 text-base ${usernameError
+                                        ? 'border-red-500/50 focus:border-red-500/50 focus:ring-red-500/20'
+                                        : 'border-white/10 focus:border-purple-500/50 focus:ring-purple-500/20'
+                                        }`}
                                     placeholder="กรอกชื่อผู้ใช้"
                                     required
                                     autoComplete="username"
+                                    disabled={loading || redirecting}
                                 />
                             </div>
+                            {usernameError && (
+                                <p className="text-red-400 text-xs ml-1 mt-1">{usernameError}</p>
+                            )}
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                             <label className="block text-sm font-medium text-gray-300 ml-1">
                                 รหัสผ่าน
                             </label>
@@ -195,26 +267,38 @@ export default function LoginPage() {
                                 <input
                                     type={showPassword ? 'text' : 'password'}
                                     value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="relative w-full px-5 py-4 pr-14 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all duration-300"
+                                    onChange={(e) => {
+                                        setPassword(e.target.value);
+                                        if (passwordError) validatePassword(e.target.value);
+                                    }}
+                                    onBlur={(e) => validatePassword(e.target.value)}
+                                    className={`relative w-full px-5 py-4 pr-14 min-h-[48px] bg-white/5 backdrop-blur-sm border rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 transition-all duration-300 text-base ${passwordError
+                                        ? 'border-red-500/50 focus:border-red-500/50 focus:ring-red-500/20'
+                                        : 'border-white/10 focus:border-purple-500/50 focus:ring-purple-500/20'
+                                        }`}
                                     placeholder="กรอกรหัสผ่าน"
                                     required
                                     autoComplete="current-password"
+                                    disabled={loading || redirecting}
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-purple-400 transition-colors p-1.5 rounded-lg hover:bg-white/10"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-purple-400 transition-colors p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-white/10"
+                                    aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
                                 >
                                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                                 </button>
                             </div>
+                            {passwordError && (
+                                <p className="text-red-400 text-xs ml-1 mt-1">{passwordError}</p>
+                            )}
                         </div>
 
                         <button
                             type="submit"
-                            disabled={loading}
-                            className="relative w-full py-4 mt-4 rounded-xl font-semibold text-white overflow-hidden group disabled:opacity-70 disabled:cursor-not-allowed"
+                            disabled={loading || redirecting}
+                            className="relative w-full py-4 min-h-[52px] mt-2 rounded-xl font-semibold text-white overflow-hidden group disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             {/* Button gradient background */}
                             <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-pink-500 to-cyan-500 transition-all duration-300 group-hover:scale-105" />
@@ -266,5 +350,18 @@ export default function LoginPage() {
                 .animate-shake { animation: shake 0.6s ease-in-out; }
             `}</style>
         </div>
+    );
+}
+
+// Wrap in Suspense for useSearchParams
+export default function LoginPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-[#0a0a12]">
+                <Loader2 size={48} className="animate-spin text-purple-400" />
+            </div>
+        }>
+            <LoginContent />
+        </Suspense>
     );
 }
