@@ -11,8 +11,8 @@ export async function GET(
         const { searchParams } = new URL(request.url);
         const dateStr = searchParams.get('date') || new Date().toISOString().split('T')[0];
 
-        const date = new Date(dateStr);
-        date.setHours(0, 0, 0, 0);
+        // Parse date in local timezone (use T00:00:00 to force local)
+        const date = new Date(dateStr + 'T00:00:00');
 
         // Get daily record with meters
         const dailyRecord = await prisma.dailyRecord.findUnique({
@@ -22,10 +22,9 @@ export async function GET(
             include: { meters: true }
         });
 
-        // Get transactions for the day
-        const startOfDay = new Date(date);
-        const endOfDay = new Date(date);
-        endOfDay.setHours(23, 59, 59, 999);
+        // Get transactions for the day (local timezone range)
+        const startOfDay = new Date(dateStr + 'T00:00:00');
+        const endOfDay = new Date(dateStr + 'T23:59:59.999');
 
         const transactions = await prisma.transaction.findMany({
             where: {
