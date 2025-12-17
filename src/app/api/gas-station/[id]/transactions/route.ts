@@ -29,7 +29,12 @@ export async function POST(
         });
 
         if (!session) {
-            return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+            return NextResponse.json({ error: 'Session ไม่ถูกต้อง' }, { status: 401 });
+        }
+
+        // Check session expiry
+        if (session.expiresAt < new Date()) {
+            return NextResponse.json({ error: 'Session หมดอายุ กรุณาเข้าสู่ระบบใหม่' }, { status: 401 });
         }
 
         const body = await request.json();
@@ -46,14 +51,16 @@ export async function POST(
             productType
         } = body;
 
-        // Get station
-        let station = await prisma.station.findFirst({
-            where: { name: stationConfig.name }
+        // Get or create station with STANDARD ID
+        const stationId = `station-${id}`;
+        let station = await prisma.station.findUnique({
+            where: { id: stationId }
         });
 
         if (!station) {
             station = await prisma.station.create({
                 data: {
+                    id: stationId, // Use standard ID format
                     name: stationConfig.name,
                     type: 'GAS',
                     gasPrice: pricePerLiter || 15.50,

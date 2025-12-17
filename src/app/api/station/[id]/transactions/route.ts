@@ -25,18 +25,29 @@ export async function POST(
             transferProofUrl,
         } = body;
 
-        // Get user from session
+        // Get user from session - REQUIRE authentication
         const cookieStore = await cookies();
         const sessionId = cookieStore.get('session')?.value;
-        let userId = 'unknown';
 
-        if (sessionId) {
-            const session = await prisma.session.findUnique({
-                where: { id: sessionId },
-                select: { userId: true }
-            });
-            if (session) userId = session.userId;
+        if (!sessionId) {
+            return NextResponse.json({ error: 'กรุณาเข้าสู่ระบบ' }, { status: 401 });
         }
+
+        const session = await prisma.session.findUnique({
+            where: { id: sessionId },
+            select: { userId: true, expiresAt: true }
+        });
+
+        if (!session) {
+            return NextResponse.json({ error: 'Session ไม่ถูกต้อง' }, { status: 401 });
+        }
+
+        // Check session expiry
+        if (session.expiresAt < new Date()) {
+            return NextResponse.json({ error: 'Session หมดอายุ กรุณาเข้าสู่ระบบใหม่' }, { status: 401 });
+        }
+
+        const userId = session.userId;
 
         // Get or create daily record for FULL station
         const date = new Date(dateStr);
