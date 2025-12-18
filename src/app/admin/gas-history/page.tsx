@@ -74,6 +74,8 @@ export default function GasHistoryAdminPage() {
     const [editingMeters, setEditingMeters] = useState<string | null>(null);
     const [meterInputs, setMeterInputs] = useState<Record<number, { start: number; end: number }>>({});
     const [saving, setSaving] = useState(false);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [newDate, setNewDate] = useState('');
 
     // Initialize date range (last 30 days)
     useEffect(() => {
@@ -184,6 +186,40 @@ export default function GasHistoryAdminPage() {
         }
     };
 
+    const handleCreateRecord = async () => {
+        if (!newDate) {
+            alert('กรุณาเลือกวันที่');
+            return;
+        }
+
+        setSaving(true);
+        try {
+            const res = await fetch('/api/admin/gas-history', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    stationId: selectedStation,
+                    dateStr: newDate,
+                    action: 'createRecord',
+                }),
+            });
+
+            if (res.ok) {
+                setShowCreateModal(false);
+                setNewDate('');
+                fetchData();
+                alert('สร้างข้อมูลสำเร็จ!');
+            } else {
+                const error = await res.json();
+                alert(error.error || 'Failed to create');
+            }
+        } catch (error) {
+            console.error('Error creating record:', error);
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const formatNumber = (num: number) => {
         return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
     };
@@ -251,13 +287,23 @@ export default function GasHistoryAdminPage() {
                         </div>
 
                         {/* Refresh Button */}
-                        <div className="flex items-end">
+                        <div className="flex items-end gap-2">
                             <button
                                 onClick={fetchData}
-                                className="w-full px-4 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition"
+                                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition"
                             >
                                 <RefreshCw size={18} />
-                                โหลดข้อมูล
+                                โหลด
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setNewDate(new Date().toISOString().split('T')[0]);
+                                    setShowCreateModal(true);
+                                }}
+                                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition"
+                            >
+                                <Plus size={18} />
+                                สร้างใหม่
                             </button>
                         </div>
                     </div>
@@ -510,6 +556,69 @@ export default function GasHistoryAdminPage() {
                         </div>
                     )}
                 </div>
+
+                {/* Create New Record Modal */}
+                {showCreateModal && (
+                    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+                        <div className="bg-[#12121a] rounded-2xl border border-white/10 p-6 w-full max-w-md">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-xl font-bold text-white">สร้างข้อมูลใหม่</h3>
+                                <button
+                                    onClick={() => setShowCreateModal(false)}
+                                    className="text-gray-400 hover:text-white"
+                                >
+                                    <X size={24} />
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-2">ปั๊มแก๊ส</label>
+                                    <select
+                                        value={selectedStation}
+                                        onChange={(e) => setSelectedStation(e.target.value)}
+                                        className="w-full px-4 py-3 bg-[#1a1a24] border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    >
+                                        {STATIONS.map(s => (
+                                            <option key={s.id} value={s.id}>{s.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-2">วันที่</label>
+                                    <input
+                                        type="date"
+                                        value={newDate}
+                                        onChange={(e) => setNewDate(e.target.value)}
+                                        className="w-full px-4 py-3 bg-[#1a1a24] border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    />
+                                </div>
+
+                                <p className="text-sm text-gray-500">
+                                    จะสร้าง Daily Record ใหม่พร้อมมิเตอร์ 4 หัวจ่าย (ค่าเริ่มต้น 0)
+                                </p>
+
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => setShowCreateModal(false)}
+                                        className="flex-1 px-4 py-3 bg-gray-600 text-white rounded-xl"
+                                    >
+                                        ยกเลิก
+                                    </button>
+                                    <button
+                                        onClick={handleCreateRecord}
+                                        disabled={saving}
+                                        className="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl flex items-center justify-center gap-2"
+                                    >
+                                        <Plus size={18} />
+                                        {saving ? 'กำลังสร้าง...' : 'สร้างข้อมูล'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </Sidebar>
     );
