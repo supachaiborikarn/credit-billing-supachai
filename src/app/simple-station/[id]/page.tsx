@@ -44,6 +44,9 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
     const [editBillNo, setEditBillNo] = useState('');
     const [editSaving, setEditSaving] = useState(false);
 
+    // Print state
+    const [printingTransaction, setPrintingTransaction] = useState<Transaction | null>(null);
+
     useEffect(() => {
         setMounted(true);
         if (station) {
@@ -378,6 +381,15 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
                                                     </td>
                                                     <td className="text-center">
                                                         <div className="flex items-center justify-center gap-1">
+                                                            {txn.paymentType === 'CREDIT' && (
+                                                                <button
+                                                                    onClick={() => setPrintingTransaction(txn)}
+                                                                    className="text-purple-400 hover:text-purple-300 p-1"
+                                                                    title="พิมพ์บิล"
+                                                                >
+                                                                    <Printer size={16} />
+                                                                </button>
+                                                            )}
                                                             <button
                                                                 onClick={() => openEditModal(txn)}
                                                                 className="text-blue-400 hover:text-blue-300 p-1"
@@ -580,6 +592,209 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
                                         บันทึก
                                     </span>
                                 )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Print Receipt Modal */}
+            {printingTransaction && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+                        {/* Header */}
+                        <div className="flex items-center justify-between p-4 border-b">
+                            <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                <Printer className="text-purple-600" size={20} />
+                                พิมพ์บิลเงินเชื่อ
+                            </h2>
+                            <button
+                                onClick={() => setPrintingTransaction(null)}
+                                className="p-2 rounded-lg hover:bg-gray-100 text-gray-500"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Receipt Preview */}
+                        <div id="receipt-content" className="p-6 bg-gradient-to-b from-gray-50 to-white">
+                            <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 bg-white">
+                                {/* Station Info */}
+                                <div className="text-center mb-4">
+                                    <div className="text-2xl mb-1">⛽</div>
+                                    <h3 className="font-bold text-lg text-gray-800">{station?.name}</h3>
+                                    <p className="text-sm text-gray-500">ใบส่งน้ำมันเชื่อ</p>
+                                </div>
+
+                                <div className="border-t border-dashed border-gray-300 my-4"></div>
+
+                                {/* Bill Info */}
+                                <div className="grid grid-cols-2 gap-2 text-sm mb-4">
+                                    <div className="text-gray-500">เล่ม/เลขที่:</div>
+                                    <div className="font-semibold text-right text-gray-800">
+                                        {printingTransaction.bookNo || '-'}/{printingTransaction.billNo || '-'}
+                                    </div>
+                                    <div className="text-gray-500">วันที่:</div>
+                                    <div className="font-semibold text-right text-gray-800">
+                                        {new Date(printingTransaction.date).toLocaleDateString('th-TH', {
+                                            day: 'numeric', month: 'short', year: 'numeric'
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className="border-t border-dashed border-gray-300 my-4"></div>
+
+                                {/* Customer Info */}
+                                <div className="bg-purple-50 rounded-xl p-4 mb-4">
+                                    <div className="text-center">
+                                        <p className="text-xs text-purple-600 mb-1">ลูกค้า</p>
+                                        <p className="font-bold text-lg text-purple-800">
+                                            {printingTransaction.ownerName || '-'}
+                                        </p>
+                                        <p className="text-sm text-purple-600">
+                                            🚗 {printingTransaction.licensePlate || '-'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Fuel Info */}
+                                <div className="bg-amber-50 rounded-xl p-4 mb-4">
+                                    <div className="flex items-center justify-between text-sm mb-2">
+                                        <span className="text-gray-600">ประเภทน้ำมัน</span>
+                                        <span className="font-semibold text-amber-700">
+                                            {getFuelTypeLabel(printingTransaction.fuelType)}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm mb-2">
+                                        <span className="text-gray-600">จำนวน</span>
+                                        <span className="font-semibold text-gray-800">
+                                            {formatCurrency(printingTransaction.liters)} ลิตร
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="text-gray-600">ราคา/ลิตร</span>
+                                        <span className="font-semibold text-gray-800">
+                                            {formatCurrency(printingTransaction.pricePerLiter)} บาท
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="border-t border-dashed border-gray-300 my-4"></div>
+
+                                {/* Total */}
+                                <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl p-4 text-center">
+                                    <p className="text-xs text-purple-200 mb-1">ยอดเงินเชื่อ</p>
+                                    <p className="text-3xl font-bold text-white">
+                                        {formatCurrency(printingTransaction.amount)}
+                                    </p>
+                                    <p className="text-sm text-purple-200">บาท</p>
+                                </div>
+
+                                {/* Signature */}
+                                <div className="mt-6 pt-4 border-t border-gray-200">
+                                    <div className="grid grid-cols-2 gap-4 text-center text-sm text-gray-500">
+                                        <div>
+                                            <div className="border-b border-gray-300 mb-2 h-12"></div>
+                                            <p>ผู้รับสินค้า</p>
+                                        </div>
+                                        <div>
+                                            <div className="border-b border-gray-300 mb-2 h-12"></div>
+                                            <p>ผู้ส่งสินค้า</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Footer */}
+                                <div className="mt-4 text-center text-xs text-gray-400">
+                                    <p>ขอบคุณที่ใช้บริการ 🙏</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Print Button */}
+                        <div className="p-4 border-t flex gap-3">
+                            <button
+                                onClick={() => setPrintingTransaction(null)}
+                                className="flex-1 py-3 rounded-xl font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+                            >
+                                ยกเลิก
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const printContent = document.getElementById('receipt-content');
+                                    if (printContent) {
+                                        const printWindow = window.open('', '_blank');
+                                        if (printWindow) {
+                                            printWindow.document.write(`
+                                                <html>
+                                                <head>
+                                                    <title>บิลเงินเชื่อ - ${printingTransaction.billNo}</title>
+                                                    <style>
+                                                        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Sarabun', 'Prompt', sans-serif; }
+                                                        body { padding: 20px; background: white; }
+                                                        .receipt { max-width: 300px; margin: 0 auto; }
+                                                        .header { text-align: center; margin-bottom: 16px; }
+                                                        .station-name { font-size: 18px; font-weight: bold; }
+                                                        .divider { border-top: 1px dashed #ccc; margin: 12px 0; }
+                                                        .row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+                                                        .label { color: #666; }
+                                                        .value { font-weight: 600; }
+                                                        .customer-box { background: #f8f5ff; padding: 12px; border-radius: 8px; text-align: center; margin: 12px 0; }
+                                                        .customer-name { font-size: 16px; font-weight: bold; color: #7c3aed; }
+                                                        .fuel-box { background: #fffbeb; padding: 12px; border-radius: 8px; margin: 12px 0; }
+                                                        .total-box { background: linear-gradient(90deg, #9333ea, #ec4899); padding: 16px; border-radius: 8px; text-align: center; color: white; }
+                                                        .total-amount { font-size: 28px; font-weight: bold; }
+                                                        .signature { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px; text-align: center; }
+                                                        .sig-line { border-bottom: 1px solid #ccc; height: 40px; margin-bottom: 8px; }
+                                                        .footer { text-align: center; margin-top: 16px; font-size: 12px; color: #999; }
+                                                        @media print { body { padding: 0; } }
+                                                    </style>
+                                                </head>
+                                                <body>
+                                                    <div class="receipt">
+                                                        <div class="header">
+                                                            <div style="font-size:24px">⛽</div>
+                                                            <div class="station-name">${station?.name}</div>
+                                                            <div style="font-size:12px;color:#666">ใบส่งน้ำมันเชื่อ</div>
+                                                        </div>
+                                                        <div class="divider"></div>
+                                                        <div class="row"><span class="label">เล่ม/เลขที่:</span><span class="value">${printingTransaction.bookNo || '-'}/${printingTransaction.billNo || '-'}</span></div>
+                                                        <div class="row"><span class="label">วันที่:</span><span class="value">${new Date(printingTransaction.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}</span></div>
+                                                        <div class="divider"></div>
+                                                        <div class="customer-box">
+                                                            <div style="font-size:11px;color:#7c3aed;margin-bottom:4px">ลูกค้า</div>
+                                                            <div class="customer-name">${printingTransaction.ownerName || '-'}</div>
+                                                            <div style="font-size:13px;color:#7c3aed">🚗 ${printingTransaction.licensePlate || '-'}</div>
+                                                        </div>
+                                                        <div class="fuel-box">
+                                                            <div class="row"><span class="label">ประเภทน้ำมัน</span><span class="value" style="color:#b45309">${getFuelTypeLabel(printingTransaction.fuelType)}</span></div>
+                                                            <div class="row"><span class="label">จำนวน</span><span class="value">${formatCurrency(printingTransaction.liters)} ลิตร</span></div>
+                                                            <div class="row"><span class="label">ราคา/ลิตร</span><span class="value">${formatCurrency(printingTransaction.pricePerLiter)} บาท</span></div>
+                                                        </div>
+                                                        <div class="divider"></div>
+                                                        <div class="total-box">
+                                                            <div style="font-size:11px;opacity:0.8">ยอดเงินเชื่อ</div>
+                                                            <div class="total-amount">${formatCurrency(printingTransaction.amount)}</div>
+                                                            <div style="font-size:12px;opacity:0.8">บาท</div>
+                                                        </div>
+                                                        <div class="signature">
+                                                            <div><div class="sig-line"></div><div style="font-size:12px;color:#666">ผู้รับสินค้า</div></div>
+                                                            <div><div class="sig-line"></div><div style="font-size:12px;color:#666">ผู้ส่งสินค้า</div></div>
+                                                        </div>
+                                                        <div class="footer">ขอบคุณที่ใช้บริการ 🙏</div>
+                                                    </div>
+                                                    <script>window.onload = function() { window.print(); }</script>
+                                                </body>
+                                                </html>
+                                            `);
+                                            printWindow.document.close();
+                                        }
+                                    }
+                                }}
+                                className="flex-1 py-3 rounded-xl font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 transition-all flex items-center justify-center gap-2"
+                            >
+                                <Printer size={18} />
+                                พิมพ์
                             </button>
                         </div>
                     </div>
