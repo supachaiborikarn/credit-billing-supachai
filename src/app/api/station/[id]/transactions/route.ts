@@ -107,8 +107,12 @@ export async function POST(
             billBookNo,
             billNo,
             productType,
+            fuelType,  // BillEntryForm sends fuelType
             transferProofUrl,
         } = body;
+
+        // Use fuelType if provided, fallback to productType
+        const actualProductType = fuelType || productType;
 
         // Get user from session - REQUIRE authentication
         const cookieStore = await cookies();
@@ -206,7 +210,7 @@ export async function POST(
                 amount,
                 billBookNo,
                 billNo,
-                productType,
+                productType: actualProductType,
                 transferProofUrl,
                 recordedById: userId,
             }
