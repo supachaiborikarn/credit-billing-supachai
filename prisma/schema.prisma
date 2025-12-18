@@ -59,6 +59,7 @@ model User {
   transactions Transaction[]
   sessions     Session[]
   auditLogs    AuditLog[]
+  shifts       Shift[]       @relation("ShiftStaff")
 
   @@map("users")
 }
@@ -141,24 +142,46 @@ model DailyRecord {
   meters        MeterReading[]
   transactions  Transaction[]
   gaugeReadings GaugeReading[]
+  shifts        Shift[]
 
   @@unique([stationId, date])
   @@map("daily_records")
 }
 
+// กะ (สำหรับปั๊มแก๊ส - 2 กะ/วัน)
+model Shift {
+  id            String   @id @default(uuid())
+  dailyRecordId String
+  shiftNumber   Int      // 1 = กะเช้า, 2 = กะบ่าย
+  staffId       String?  // พนักงานประจำกะ
+  status        String   @default("OPEN") // OPEN, CLOSED
+  createdAt     DateTime @default(now())
+  closedAt      DateTime?
+
+  dailyRecord DailyRecord  @relation(fields: [dailyRecordId], references: [id])
+  staff       User?        @relation("ShiftStaff", fields: [staffId], references: [id])
+  meters      MeterReading[]
+
+  @@unique([dailyRecordId, shiftNumber])
+  @@map("shifts")
+}
+
 // มิเตอร์หัวจ่าย (4 หัว - ใช้ทั้ง FULL และ GAS)
 model MeterReading {
   id            String  @id @default(uuid())
-  dailyRecordId String
+  dailyRecordId String?  // For FULL station (backward compatible)
+  shiftId       String?  // For GAS station shifts
   nozzleNumber  Int     // 1-4
   startReading  Decimal @default(0)
   endReading    Decimal?
   startPhoto    String?
   endPhoto      String?
 
-  dailyRecord DailyRecord @relation(fields: [dailyRecordId], references: [id])
+  dailyRecord DailyRecord? @relation(fields: [dailyRecordId], references: [id])
+  shift       Shift?       @relation(fields: [shiftId], references: [id])
 
   @@unique([dailyRecordId, nozzleNumber])
+  @@unique([shiftId, nozzleNumber])
   @@map("meter_readings")
 }
 
