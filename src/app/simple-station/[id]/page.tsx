@@ -67,30 +67,46 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
         fetchUserInfo();
     }, []);
 
+    // Fetch staff list for admin dropdown (fetch all transactions first)
     useEffect(() => {
-        setMounted(true);
-        if (station) {
-            fetchTransactions();
-        }
-    }, [selectedDate, station, viewAllStaff, selectedStaffId]);
-
-    const fetchTransactions = async () => {
-        setLoading(true);
-        try {
-            // Admin: pass viewAll to see all staff or filter
-            const viewAllParam = userRole === 'ADMIN' && viewAllStaff ? '&viewAll=true' : '';
-            const res = await fetch(`/api/station/${id}/transactions?date=${selectedDate}${viewAllParam}`);
-            if (res.ok) {
-                const data = await res.json();
-                setTransactions(data || []);
-
-                // For admin, extract unique staff from transactions
-                if (userRole === 'ADMIN') {
+        const fetchStaffList = async () => {
+            if (userRole !== 'ADMIN' || !station) return;
+            try {
+                const res = await fetch(`/api/station/${id}/transactions?date=${selectedDate}`);
+                if (res.ok) {
+                    const data = await res.json();
                     const uniqueStaff = Array.from(new Set(data.map((t: any) => t.recordedByName)))
                         .filter(Boolean)
                         .map((name: any) => ({ name, id: name }));
                     setStaffList(uniqueStaff as any);
                 }
+            } catch (e) { /* ignore */ }
+        };
+        fetchStaffList();
+    }, [userRole, selectedDate, station, id]);
+
+    useEffect(() => {
+        setMounted(true);
+        if (station) {
+            fetchTransactions();
+        }
+    }, [selectedDate, station, selectedStaffId, userRole]);
+
+    const fetchTransactions = async () => {
+        setLoading(true);
+        try {
+            // Build URL with optional staffId filter for admin
+            let url = `/api/station/${id}/transactions?date=${selectedDate}`;
+
+            // Add staffId filter if admin selected a specific staff
+            if (userRole === 'ADMIN' && selectedStaffId) {
+                url += `&staffId=${encodeURIComponent(selectedStaffId)}`;
+            }
+
+            const res = await fetch(url);
+            if (res.ok) {
+                const data = await res.json();
+                setTransactions(data || []);
             }
         } catch (error) {
             console.error('Error fetching transactions:', error);
@@ -162,12 +178,8 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
     };
 
     const filteredTransactions = transactions.filter(t => {
-        // Filter by payment type
+        // Filter by payment type only (staff filter is now server-side)
         if (activeFilter !== 'all' && t.paymentType !== activeFilter) return false;
-
-        // Filter by selected staff (Admin only)
-        if (selectedStaffId && (t as any).recordedByName !== selectedStaffId) return false;
-
         return true;
     });
 

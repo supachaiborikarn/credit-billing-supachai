@@ -37,22 +37,34 @@ export async function GET(
             }
         }
 
-        // Build where clause - Staff sees only their own, Admin sees all (unless filtered)
+        // Build where clause - Staff sees only their own, Admin sees all (with optional filter)
         const whereClause: Record<string, unknown> = {
             stationId,
             date: { gte: startOfDay, lte: endOfDay },
             deletedAt: null,
         };
 
-        // Staff role: filter by recordedById
-        // Admin role: show all unless viewAll=false
+        // Get optional staffId filter for admin
+        const filterStaffId = searchParams.get('staffId');
+
+        // Staff role: filter by recordedById (always)
+        // Admin role: show all by default, or filter by specific staffId
         if (userRole === 'STAFF' && userId) {
             whereClause.recordedById = userId;
-        } else if (userRole === 'ADMIN' && !viewAll && userId) {
-            // Admin can toggle to see only their own
-            whereClause.recordedById = userId;
+        } else if (userRole === 'ADMIN') {
+            // Admin can filter by specific staff using staffId param
+            if (filterStaffId) {
+                // Find user by name to get their ID
+                const staffUser = await prisma.user.findFirst({
+                    where: { name: filterStaffId }
+                });
+                if (staffUser) {
+                    whereClause.recordedById = staffUser.id;
+                }
+            }
+            // If no staffId filter and viewAll=true (default), show all transactions
         }
-        // If viewAll=true (admin), don't add recordedById filter
+        // viewAll param is now only used for backward compatibility
 
         const transactions = await prisma.transaction.findMany({
             where: whereClause,
