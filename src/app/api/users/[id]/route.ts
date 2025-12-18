@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { createHash } from 'crypto';
+import bcrypt from 'bcryptjs';
 
-function hashPassword(password: string): string {
-    return createHash('sha256').update(password).digest('hex');
+async function hashPassword(password: string): Promise<string> {
+    return bcrypt.hash(password, 10);
 }
 
 export async function GET(
@@ -46,7 +46,7 @@ export async function PUT(
 
         const data: any = { name: fullName, role };
         if (password) {
-            data.password = hashPassword(password);
+            data.password = await hashPassword(password);
         }
         if (stationId) {
             data.station = { connect: { id: stationId } };
