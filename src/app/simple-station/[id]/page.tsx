@@ -33,6 +33,12 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
     const [showDailySummary, setShowDailySummary] = useState(false);
     const [mounted, setMounted] = useState(false);
 
+    // Admin toggle state
+    const [userRole, setUserRole] = useState<string>('STAFF');
+    const [viewAllStaff, setViewAllStaff] = useState(true);
+    const [staffList, setStaffList] = useState<{ name: string, id: string }[]>([]);
+    const [selectedStaffId, setSelectedStaffId] = useState<string>('');
+
     // Edit modal state
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
     const [editLicensePlate, setEditLicensePlate] = useState('');
@@ -47,20 +53,44 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
     // Print state
     const [printingTransaction, setPrintingTransaction] = useState<Transaction | null>(null);
 
+    // Fetch user info on mount
+    useEffect(() => {
+        const fetchUserInfo = async () => {
+            try {
+                const res = await fetch('/api/auth/me');
+                if (res.ok) {
+                    const data = await res.json();
+                    setUserRole(data.user?.role || 'STAFF');
+                }
+            } catch (e) { /* ignore */ }
+        };
+        fetchUserInfo();
+    }, []);
+
     useEffect(() => {
         setMounted(true);
         if (station) {
             fetchTransactions();
         }
-    }, [selectedDate, station]);
+    }, [selectedDate, station, viewAllStaff, selectedStaffId]);
 
     const fetchTransactions = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/station/${id}/transactions?date=${selectedDate}`);
+            // Admin: pass viewAll to see all staff or filter
+            const viewAllParam = userRole === 'ADMIN' && viewAllStaff ? '&viewAll=true' : '';
+            const res = await fetch(`/api/station/${id}/transactions?date=${selectedDate}${viewAllParam}`);
             if (res.ok) {
                 const data = await res.json();
                 setTransactions(data || []);
+
+                // For admin, extract unique staff from transactions
+                if (userRole === 'ADMIN') {
+                    const uniqueStaff = Array.from(new Set(data.map((t: any) => t.recordedByName)))
+                        .filter(Boolean)
+                        .map((name: any) => ({ name, id: name }));
+                    setStaffList(uniqueStaff as any);
+                }
             }
         } catch (error) {
             console.error('Error fetching transactions:', error);
@@ -132,8 +162,13 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
     };
 
     const filteredTransactions = transactions.filter(t => {
-        if (activeFilter === 'all') return true;
-        return t.paymentType === activeFilter;
+        // Filter by payment type
+        if (activeFilter !== 'all' && t.paymentType !== activeFilter) return false;
+
+        // Filter by selected staff (Admin only)
+        if (selectedStaffId && (t as any).recordedByName !== selectedStaffId) return false;
+
+        return true;
     });
 
     const totalAmount = filteredTransactions.reduce((sum, t) => sum + Number(t.amount), 0);
@@ -297,27 +332,59 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
                         {/* Filter Buttons */}
                         <div className={`backdrop-blur-xl rounded-2xl border border-white/10 p-4 mb-6 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
                             style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)', transitionDelay: '300ms' }}>
-                            <div className="flex flex-wrap gap-2">
-                                <button
-                                    onClick={() => setActiveFilter('all')}
-                                    className={`px-4 py-2 rounded-xl font-medium transition-all duration-300 ${activeFilter === 'all'
-                                        ? 'bg-gradient-to-r from-orange-600 to-yellow-600 text-white shadow-lg shadow-orange-500/30'
-                                        : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'}`}
-                                >
-                                    ทั้งหมด ({transactions.length})
-                                </button>
-                                {PAYMENT_TYPES.slice(0, 3).map(pt => {
-                                    const count = transactions.filter(t => t.paymentType === pt.value).length;
-                                    return (
+                            <div className="flex flex-wrap gap-2 items-center justify-between">
+                                <div className="flex flex-wrap gap-2">
+                                    <button
+                                        onClick={() => setActiveFilter('all')}
+                                        className={`px-4 py-2 rounded-xl font-medium transition-all duration-300 ${activeFilter === 'all'
+                                            ? 'bg-gradient-to-r from-orange-600 to-yellow-600 text-white shadow-lg shadow-orange-500/30'
+                                            : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'}`}
+                                    >
+                                        ทั้งหมด ({transactions.length})
+                                    </button>
+                                    {PAYMENT_TYPES.slice(0, 3).map(pt => {
+                                        const count = transactions.filter(t => t.paymentType === pt.value).length;
+                                        return (
+                                            <button
+                                                key={pt.value}
+                                                onClick={() => setActiveFilter(pt.value)}
+                                                className={`badge ${activeFilter === pt.value ? 'badge-purple' : 'badge-gray'}`}
+                                            >
+                                                {pt.label} ({count})
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Admin Toggle: View All Staff */}
+                                {userRole === 'ADMIN' && (
+                                    <div className="flex items-center gap-3 ml-auto">
                                         <button
-                                            key={pt.value}
-                                            onClick={() => setActiveFilter(pt.value)}
-                                            className={`badge ${activeFilter === pt.value ? 'badge-purple' : 'badge-gray'}`}
+                                            onClick={() => setViewAllStaff(!viewAllStaff)}
+                                            className={`px-4 py-2 rounded-xl font-medium transition-all duration-300 flex items-center gap-2 ${viewAllStaff
+                                                ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg'
+                                                : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                                }`}
                                         >
-                                            {pt.label} ({count})
+                                            👥 {viewAllStaff ? 'ดูทุกคน' : 'ดูของฉัน'}
                                         </button>
-                                    );
-                                })}
+
+                                        {viewAllStaff && staffList.length > 0 && (
+                                            <select
+                                                value={selectedStaffId}
+                                                onChange={(e) => setSelectedStaffId(e.target.value)}
+                                                className="bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-white text-sm"
+                                            >
+                                                <option value="" className="bg-gray-800">ทุกคน</option>
+                                                {staffList.map(staff => (
+                                                    <option key={staff.name} value={staff.name} className="bg-gray-800">
+                                                        {staff.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
