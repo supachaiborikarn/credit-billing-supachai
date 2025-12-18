@@ -322,7 +322,7 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
                         </div>
 
                         {/* Transactions Table */}
-                        <div className="glass-card p-6">
+                        <div className="glass-card p-4 sm:p-6">
                             <h2 className="text-lg font-bold text-white mb-4">📋 รายการวันนี้</h2>
 
                             {filteredTransactions.length === 0 ? (
@@ -330,100 +330,180 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
                                     ยังไม่มีรายการ
                                 </div>
                             ) : (
-                                <div className="overflow-x-auto">
-                                    <table className="table-glass">
-                                        <thead>
-                                            <tr>
-                                                <th>เล่ม/เลขที่</th>
-                                                <th>ทะเบียน</th>
-                                                <th className="hidden sm:table-cell">ลูกค้า</th>
-                                                <th className="hidden sm:table-cell">น้ำมัน</th>
-                                                <th>ลิตร</th>
-                                                <th className="hidden sm:table-cell">ราคา</th>
-                                                <th>รวม</th>
-                                                <th className="hidden sm:table-cell">ชำระ</th>
-                                                <th>จัดการ</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {filteredTransactions.map((txn) => (
-                                                <tr key={txn.id}>
-                                                    <td>
-                                                        {txn.bookNo || '-'}/{txn.billNo || '-'}
-                                                    </td>
-                                                    <td className="font-mono text-blue-400">
-                                                        {txn.licensePlate || '-'}
-                                                    </td>
-                                                    <td className="hidden sm:table-cell">
-                                                        {txn.ownerName || '-'}
-                                                    </td>
-                                                    <td className="hidden sm:table-cell">
-                                                        <span className={`badge ${getFuelTypeColor(txn.fuelType)} text-white text-xs`}>
+                                <>
+                                    {/* Mobile Card View */}
+                                    <div className="sm:hidden space-y-3 pb-4">
+                                        {filteredTransactions.map((txn) => (
+                                            <div key={txn.id} className="bg-white/5 rounded-xl p-4 border border-white/10">
+                                                <div className="flex items-start justify-between mb-3">
+                                                    <div>
+                                                        <div className="text-sm text-gray-400">
+                                                            เล่ม {txn.bookNo || '-'} / เลขที่ {txn.billNo || '-'}
+                                                        </div>
+                                                        <div className="font-mono text-blue-400 font-medium">
+                                                            🚗 {txn.licensePlate || '-'}
+                                                        </div>
+                                                        {txn.ownerName && (
+                                                            <div className="text-sm text-gray-300">{txn.ownerName}</div>
+                                                        )}
+                                                    </div>
+                                                    <span className={`badge ${txn.paymentType === 'CASH' ? 'bg-green-600' :
+                                                        txn.paymentType === 'CREDIT' ? 'bg-purple-600' : 'bg-blue-600'
+                                                        } text-white text-xs px-2 py-1 rounded-full`}>
+                                                        {getPaymentTypeLabel(txn.paymentType)}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <div className="flex items-center gap-3">
+                                                        <span className={`badge ${getFuelTypeColor(txn.fuelType)} text-white text-xs px-2 py-1 rounded`}>
                                                             {getFuelTypeLabel(txn.fuelType)}
                                                         </span>
-                                                    </td>
-                                                    <td className="font-mono">
-                                                        {formatCurrency(txn.liters)}
-                                                    </td>
-                                                    <td className="hidden sm:table-cell font-mono text-gray-400">
-                                                        {formatCurrency(txn.pricePerLiter)}
-                                                    </td>
-                                                    <td className="font-mono font-bold text-green-400">
-                                                        {formatCurrency(txn.amount)}
-                                                    </td>
-                                                    <td className="hidden sm:table-cell text-center">
-                                                        <span className={`badge ${txn.paymentType === 'CASH' ? 'bg-green-600' :
-                                                            txn.paymentType === 'CREDIT' ? 'bg-purple-600' :
-                                                                'bg-blue-600'
-                                                            } text-white text-xs`}>
-                                                            {getPaymentTypeLabel(txn.paymentType)}
+                                                        <span className="font-mono text-gray-300">
+                                                            {formatCurrency(txn.liters)} ล.
                                                         </span>
-                                                    </td>
-                                                    <td className="text-center">
-                                                        <div className="flex items-center justify-center gap-1">
-                                                            {txn.paymentType === 'CREDIT' && (
-                                                                <button
-                                                                    onClick={() => setPrintingTransaction(txn)}
-                                                                    className="text-purple-400 hover:text-purple-300 p-1"
-                                                                    title="พิมพ์บิล"
-                                                                >
-                                                                    <Printer size={16} />
-                                                                </button>
-                                                            )}
-                                                            <button
-                                                                onClick={() => openEditModal(txn)}
-                                                                className="text-blue-400 hover:text-blue-300 p-1"
-                                                                title="แก้ไข"
-                                                            >
-                                                                <Edit size={16} />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDeleteTransaction(txn.id)}
-                                                                className="text-red-400 hover:text-red-300 p-1"
-                                                                title="ลบ"
-                                                            >
-                                                                <Trash2 size={16} />
-                                                            </button>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className="text-xl font-bold text-green-400 font-mono">
+                                                            {formatCurrency(txn.amount)} ฿
                                                         </div>
-                                                    </td>
+                                                    </div>
+                                                </div>
+                                                {/* Action Buttons - Always Visible */}
+                                                <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+                                                    {txn.paymentType === 'CREDIT' && (
+                                                        <button
+                                                            onClick={() => setPrintingTransaction(txn)}
+                                                            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-colors text-sm"
+                                                        >
+                                                            <Printer size={16} />
+                                                            พิมพ์
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => openEditModal(txn)}
+                                                        className="flex items-center gap-1 px-3 py-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors text-sm"
+                                                    >
+                                                        <Edit size={16} />
+                                                        แก้ไข
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteTransaction(txn.id)}
+                                                        className="flex items-center gap-1 px-3 py-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors text-sm"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                        ลบ
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {/* Mobile Total */}
+                                        <div className="bg-gradient-to-r from-green-900/30 to-emerald-900/30 rounded-xl p-4 border border-green-500/20">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-gray-300">รวมทั้งหมด</span>
+                                                <div className="text-right">
+                                                    <span className="font-mono text-blue-400 mr-4">{formatCurrency(totalLiters)} ล.</span>
+                                                    <span className="font-mono text-2xl font-bold text-green-400">{formatCurrency(totalAmount)} ฿</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Desktop Table View */}
+                                    <div className="hidden sm:block overflow-x-auto">
+                                        <table className="table-glass">
+                                            <thead>
+                                                <tr>
+                                                    <th>เล่ม/เลขที่</th>
+                                                    <th>ทะเบียน</th>
+                                                    <th>ลูกค้า</th>
+                                                    <th>น้ำมัน</th>
+                                                    <th>ลิตร</th>
+                                                    <th>ราคา</th>
+                                                    <th>รวม</th>
+                                                    <th>ชำระ</th>
+                                                    <th>จัดการ</th>
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                        <tfoot>
-                                            <tr className="border-t border-white/20 font-bold">
-                                                <td colSpan={4} className="py-3 px-3 text-right text-gray-400">รวมทั้งหมด:</td>
-                                                <td className="py-3 px-3 text-right font-mono text-blue-400">
-                                                    {formatCurrency(totalLiters)} ล.
-                                                </td>
-                                                <td></td>
-                                                <td className="py-3 px-3 text-right font-mono text-xl text-green-400">
-                                                    {formatCurrency(totalAmount)} ฿
-                                                </td>
-                                                <td colSpan={2}></td>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
-                                </div>
+                                            </thead>
+                                            <tbody>
+                                                {filteredTransactions.map((txn) => (
+                                                    <tr key={txn.id}>
+                                                        <td>
+                                                            {txn.bookNo || '-'}/{txn.billNo || '-'}
+                                                        </td>
+                                                        <td className="font-mono text-blue-400">
+                                                            {txn.licensePlate || '-'}
+                                                        </td>
+                                                        <td>
+                                                            {txn.ownerName || '-'}
+                                                        </td>
+                                                        <td>
+                                                            <span className={`badge ${getFuelTypeColor(txn.fuelType)} text-white text-xs`}>
+                                                                {getFuelTypeLabel(txn.fuelType)}
+                                                            </span>
+                                                        </td>
+                                                        <td className="font-mono">
+                                                            {formatCurrency(txn.liters)}
+                                                        </td>
+                                                        <td className="font-mono text-gray-400">
+                                                            {formatCurrency(txn.pricePerLiter)}
+                                                        </td>
+                                                        <td className="font-mono font-bold text-green-400">
+                                                            {formatCurrency(txn.amount)}
+                                                        </td>
+                                                        <td className="text-center">
+                                                            <span className={`badge ${txn.paymentType === 'CASH' ? 'bg-green-600' :
+                                                                txn.paymentType === 'CREDIT' ? 'bg-purple-600' :
+                                                                    'bg-blue-600'
+                                                                } text-white text-xs`}>
+                                                                {getPaymentTypeLabel(txn.paymentType)}
+                                                            </span>
+                                                        </td>
+                                                        <td className="text-center">
+                                                            <div className="flex items-center justify-center gap-1">
+                                                                {txn.paymentType === 'CREDIT' && (
+                                                                    <button
+                                                                        onClick={() => setPrintingTransaction(txn)}
+                                                                        className="text-purple-400 hover:text-purple-300 p-1"
+                                                                        title="พิมพ์บิล"
+                                                                    >
+                                                                        <Printer size={16} />
+                                                                    </button>
+                                                                )}
+                                                                <button
+                                                                    onClick={() => openEditModal(txn)}
+                                                                    className="text-blue-400 hover:text-blue-300 p-1"
+                                                                    title="แก้ไข"
+                                                                >
+                                                                    <Edit size={16} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeleteTransaction(txn.id)}
+                                                                    className="text-red-400 hover:text-red-300 p-1"
+                                                                    title="ลบ"
+                                                                >
+                                                                    <Trash2 size={16} />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                            <tfoot>
+                                                <tr className="border-t border-white/20 font-bold">
+                                                    <td colSpan={4} className="py-3 px-3 text-right text-gray-400">รวมทั้งหมด:</td>
+                                                    <td className="py-3 px-3 text-right font-mono text-blue-400">
+                                                        {formatCurrency(totalLiters)} ล.
+                                                    </td>
+                                                    <td></td>
+                                                    <td className="py-3 px-3 text-right font-mono text-xl text-green-400">
+                                                        {formatCurrency(totalAmount)} ฿
+                                                    </td>
+                                                    <td colSpan={2}></td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                </>
                             )}
                         </div>
                     </>
