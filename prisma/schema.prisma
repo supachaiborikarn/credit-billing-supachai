@@ -116,6 +116,7 @@ model Owner {
 model Truck {
   id           String   @id @default(uuid())
   licensePlate String
+  code         String?  // C-Code per truck (e.g. C001, C002)
   ownerId      String
   createdAt    DateTime @default(now())
 
