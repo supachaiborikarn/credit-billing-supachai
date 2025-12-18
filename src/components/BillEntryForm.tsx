@@ -314,8 +314,8 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
                             <tr className="text-sm text-gray-400">
                                 <th className="py-2 px-3 text-left w-12">ลบ</th>
                                 <th className="py-2 px-3 text-left">รายการสินค้า</th>
-                                <th className="py-2 px-3 text-right w-28">จำนวน (ลิตร)</th>
-                                <th className="py-2 px-3 text-right w-28">ราคา/ลิตร</th>
+                                <th className="py-2 px-3 text-right w-28">จำนวน</th>
+                                <th className="py-2 px-3 text-right w-28">ราคา/หน่วย</th>
                                 <th className="py-2 px-3 text-right w-32">จำนวนเงิน</th>
                             </tr>
                         </thead>
@@ -411,8 +411,8 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
                                             type="button"
                                             onClick={() => setStaffName(staffName === name ? '' : name)}
                                             className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${staffName === name
-                                                    ? 'bg-gradient-to-r from-orange-600 to-yellow-600 text-white shadow-lg'
-                                                    : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                                                ? 'bg-gradient-to-r from-orange-600 to-yellow-600 text-white shadow-lg'
+                                                : 'bg-white/10 text-gray-300 hover:bg-white/20'
                                                 }`}
                                         >
                                             {name}

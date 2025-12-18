@@ -57,6 +57,10 @@ export const FUEL_TYPES = [
     { value: 'BENZIN_95', label: 'เบนซิน 95', defaultPrice: 42.16, color: 'bg-red-500' },
     { value: 'POWER_DIESEL', label: 'พาวเวอร์ดีเซล', defaultPrice: 37.50, color: 'bg-purple-500' },
     { value: 'LPG', label: 'แก๊ส LPG', defaultPrice: 15.50, color: 'bg-cyan-500' },
+    // สินค้า (Products)
+    { value: 'ENGINE_OIL', label: '🛢️ น้ำมันเครื่อง', defaultPrice: 0, color: 'bg-orange-500', isProduct: true },
+    { value: 'COOLANT', label: '🧊 หัวเชื้อ/น้ำยาหล่อเย็น', defaultPrice: 0, color: 'bg-pink-500', isProduct: true },
+    { value: 'OTHER_PRODUCT', label: '📦 สินค้าอื่นๆ', defaultPrice: 0, color: 'bg-gray-500', isProduct: true },
 ] as const;
 
 // Owner groups
