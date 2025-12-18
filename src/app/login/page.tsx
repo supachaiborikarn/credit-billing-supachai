@@ -90,21 +90,22 @@ function LoginContent() {
                     const stationId = data.user.stationId;
                     const stationType = data.user.stationType;
 
+                    // Import findStationIndex to handle UUID aliases
+                    const { findStationIndex } = await import('@/constants');
+                    const stationNum = findStationIndex(stationId);
+
                     // Use stationType to determine the correct path
-                    if (stationType === 'FULL') {
-                        const stationNum = stationId.replace('station-', '');
-                        router.push(`/station/${stationNum}`);
-                    } else if (stationType === 'GAS') {
-                        // For gas stations, find the index from stationId
-                        // stationId could be 'station-5' or a UUID  
-                        const stationNum = stationId.startsWith('station-')
-                            ? stationId.replace('station-', '')
-                            : '5'; // Default to station-5 for UUID gas stations
-                        router.push(`/gas-station/${stationNum}`);
+                    if (stationNum > 0) {
+                        if (stationType === 'FULL') {
+                            router.push(`/station/${stationNum}`);
+                        } else if (stationType === 'GAS') {
+                            router.push(`/gas-station/${stationNum}`);
+                        } else {
+                            router.push(`/simple-station/${stationNum}`);
+                        }
                     } else {
-                        // SIMPLE stations
-                        const stationNum = stationId.replace('station-', '');
-                        router.push(`/simple-station/${stationNum}`);
+                        // Fallback
+                        router.push('/dashboard');
                     }
                 } else {
                     router.push('/dashboard');

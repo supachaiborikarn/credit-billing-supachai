@@ -4,9 +4,21 @@ export const STATIONS = [
     { id: 'station-2', name: 'วัชรเกียรติออยล์', type: 'SIMPLE' as const },
     { id: 'station-3', name: 'พงษ์อนันต์ปิโตรเลียม', type: 'SIMPLE' as const },
     { id: 'station-4', name: 'ศุภชัยบริการ', type: 'SIMPLE' as const },
-    { id: 'station-5', name: 'ปั๊มแก๊สพงษ์อนันต์', type: 'GAS' as const, hasProducts: true },
-    { id: 'station-6', name: 'ปั๊มแก๊สศุภชัย', type: 'GAS' as const },
+    { id: 'station-5', name: 'ปั๊มแก๊สพงษ์อนันต์', type: 'GAS' as const, hasProducts: true, aliases: ['d01b9c7b-fcf0-4185-a0b1-a5840391a61c'] },
+    { id: 'station-6', name: 'ปั๊มแก๊สศุภชัย', type: 'GAS' as const, aliases: ['6950b69c-1841-4d22-a915-22141b94ca46'] },
 ] as const;
+
+// Helper to find station index by id or alias
+export const findStationIndex = (stationId: string): number => {
+    const index = STATIONS.findIndex(s => {
+        if (s.id === stationId) return true;
+        if ('aliases' in s && s.aliases) {
+            return (s.aliases as readonly string[]).includes(stationId);
+        }
+        return false;
+    });
+    return index >= 0 ? index + 1 : -1; // Return 1-based index
+};
 
 // Payment types
 export const PAYMENT_TYPES = [
