@@ -81,11 +81,30 @@ export interface FuelLine {
 
 // ==================== Dashboard Types ====================
 
+export interface RecentTransaction {
+    id: string;
+    date: string;
+    createdAt: string;
+    licensePlate: string;
+    ownerName: string;
+    amount: number;
+    liters: number;
+    paymentType: string;
+    stationName: string;
+}
+
+export interface DashboardAlert {
+    type: string;
+    severity: 'info' | 'warning' | 'critical';
+    message: string;
+}
+
 export interface DashboardStats {
     totalOwners: number;
     totalTrucks: number;
     todayTransactions: number;
     todayAmount: number;
+    todayLiters: number;
     pendingInvoices: number;
     pendingAmount: number;
     stationStats: {
@@ -116,4 +135,18 @@ export interface DashboardStats {
         liters: number;
         count: number;
     }[];
+    // Comparison data
+    yesterdayAmount: number;
+    yesterdayLiters: number;
+    yesterdayTransactions: number;
+    amountPercentChange: number;
+    litersPercentChange: number;
+    countPercentChange: number;
+    // Recent transactions feed
+    recentTransactions: RecentTransaction[];
+    // Monthly heat map
+    monthlyHeatMap: { date: string; amount: number }[];
+    // Alerts
+    alerts: DashboardAlert[];
 }
+
