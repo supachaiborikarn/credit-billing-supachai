@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import Sidebar from '@/components/Sidebar';
 import BillEntryForm from '@/components/BillEntryForm';
-import { Calendar, Fuel, Trash2, FileText, Printer, X, Sparkles } from 'lucide-react';
+import { Calendar, Fuel, Trash2, FileText, Printer, X, Sparkles, Edit, Save } from 'lucide-react';
 import { STATIONS, PAYMENT_TYPES, FUEL_TYPES } from '@/constants';
 
 interface Transaction {
@@ -32,6 +32,17 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
     const [activeFilter, setActiveFilter] = useState('all');
     const [showDailySummary, setShowDailySummary] = useState(false);
     const [mounted, setMounted] = useState(false);
+
+    // Edit modal state
+    const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+    const [editLicensePlate, setEditLicensePlate] = useState('');
+    const [editOwnerName, setEditOwnerName] = useState('');
+    const [editLiters, setEditLiters] = useState('');
+    const [editPricePerLiter, setEditPricePerLiter] = useState('');
+    const [editPaymentType, setEditPaymentType] = useState('');
+    const [editBookNo, setEditBookNo] = useState('');
+    const [editBillNo, setEditBillNo] = useState('');
+    const [editSaving, setEditSaving] = useState(false);
 
     useEffect(() => {
         setMounted(true);
@@ -67,6 +78,53 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
             }
         } catch (error) {
             console.error('Error deleting transaction:', error);
+        }
+    };
+
+    // Open edit modal
+    const openEditModal = (txn: Transaction) => {
+        setEditingTransaction(txn);
+        setEditLicensePlate(txn.licensePlate || '');
+        setEditOwnerName(txn.ownerName || '');
+        setEditLiters(String(txn.liters));
+        setEditPricePerLiter(String(txn.pricePerLiter));
+        setEditPaymentType(txn.paymentType);
+        setEditBookNo(txn.bookNo || '');
+        setEditBillNo(txn.billNo || '');
+    };
+
+    // Save edit
+    const handleSaveEdit = async () => {
+        if (!editingTransaction) return;
+        setEditSaving(true);
+
+        try {
+            const res = await fetch(`/api/station/${id}/transactions/${editingTransaction.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    licensePlate: editLicensePlate,
+                    ownerName: editOwnerName,
+                    liters: parseFloat(editLiters),
+                    pricePerLiter: parseFloat(editPricePerLiter),
+                    amount: parseFloat(editLiters) * parseFloat(editPricePerLiter),
+                    paymentType: editPaymentType,
+                    billBookNo: editBookNo,
+                    billNo: editBillNo,
+                }),
+            });
+
+            if (res.ok) {
+                setEditingTransaction(null);
+                fetchTransactions();
+            } else {
+                alert('บันทึกไม่สำเร็จ');
+            }
+        } catch (error) {
+            console.error('Save error:', error);
+            alert('เกิดข้อผิดพลาด');
+        } finally {
+            setEditSaving(false);
         }
     };
 
@@ -261,7 +319,7 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
                                                 <th className="hidden sm:table-cell">ราคา</th>
                                                 <th>รวม</th>
                                                 <th className="hidden sm:table-cell">ชำระ</th>
-                                                <th>ลบ</th>
+                                                <th>จัดการ</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -299,12 +357,22 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
                                                         </span>
                                                     </td>
                                                     <td className="text-center">
-                                                        <button
-                                                            onClick={() => handleDeleteTransaction(txn.id)}
-                                                            className="text-red-400 hover:text-red-300 p-1"
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </button>
+                                                        <div className="flex items-center justify-center gap-1">
+                                                            <button
+                                                                onClick={() => openEditModal(txn)}
+                                                                className="text-blue-400 hover:text-blue-300 p-1"
+                                                                title="แก้ไข"
+                                                            >
+                                                                <Edit size={16} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteTransaction(txn.id)}
+                                                                className="text-red-400 hover:text-red-300 p-1"
+                                                                title="ลบ"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))}
@@ -371,6 +439,128 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
                                     <div><div className="text-2xl font-bold text-green-400">{formatCurrency(totalAmount)}</div><div className="text-sm text-gray-400">บาท</div></div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Transaction Modal */}
+            {editingTransaction && (
+                <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+                    <div className="bg-[#0f0f1a] rounded-2xl w-full max-w-lg border border-white/10">
+                        <div className="flex items-center justify-between p-6 border-b border-white/10">
+                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                <Edit className="text-blue-400" />
+                                แก้ไขรายการ
+                            </h2>
+                            <button onClick={() => setEditingTransaction(null)} className="p-2 rounded-lg hover:bg-white/10 text-gray-400">
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">เล่มที่</label>
+                                    <input
+                                        type="text"
+                                        value={editBookNo}
+                                        onChange={(e) => setEditBookNo(e.target.value)}
+                                        className="input-glow"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">เลขที่</label>
+                                    <input
+                                        type="text"
+                                        value={editBillNo}
+                                        onChange={(e) => setEditBillNo(e.target.value)}
+                                        className="input-glow"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">ทะเบียนรถ</label>
+                                <input
+                                    type="text"
+                                    value={editLicensePlate}
+                                    onChange={(e) => setEditLicensePlate(e.target.value)}
+                                    className="input-glow"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">ชื่อลูกค้า</label>
+                                <input
+                                    type="text"
+                                    value={editOwnerName}
+                                    onChange={(e) => setEditOwnerName(e.target.value)}
+                                    className="input-glow"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">จำนวนลิตร</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={editLiters}
+                                        onChange={(e) => setEditLiters(e.target.value)}
+                                        className="input-glow text-center font-mono"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">ราคา/ลิตร</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={editPricePerLiter}
+                                        onChange={(e) => setEditPricePerLiter(e.target.value)}
+                                        className="input-glow text-center font-mono"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">ประเภทชำระ</label>
+                                <select
+                                    value={editPaymentType}
+                                    onChange={(e) => setEditPaymentType(e.target.value)}
+                                    className="input-glow"
+                                >
+                                    {PAYMENT_TYPES.map(pt => (
+                                        <option key={pt.value} value={pt.value}>{pt.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="bg-white/5 rounded-xl p-4 text-center">
+                                <p className="text-gray-400 text-sm">ยอดรวม</p>
+                                <p className="text-2xl font-bold text-green-400 font-mono">
+                                    {formatCurrency((parseFloat(editLiters) || 0) * (parseFloat(editPricePerLiter) || 0))} บาท
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex gap-3 p-6 border-t border-white/10">
+                            <button
+                                onClick={() => setEditingTransaction(null)}
+                                className="flex-1 btn btn-secondary"
+                            >
+                                ยกเลิก
+                            </button>
+                            <button
+                                onClick={handleSaveEdit}
+                                disabled={editSaving}
+                                className="flex-1 btn btn-primary bg-gradient-to-r from-blue-600 to-cyan-600"
+                            >
+                                {editSaving ? (
+                                    <span className="flex items-center gap-2">
+                                        <div className="spinner-sm" />
+                                        กำลังบันทึก...
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center gap-2">
+                                        <Save size={18} />
+                                        บันทึก
+                                    </span>
+                                )}
+                            </button>
                         </div>
                     </div>
                 </div>
