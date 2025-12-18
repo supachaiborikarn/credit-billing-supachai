@@ -19,6 +19,10 @@ function LoginContent() {
     const [usernameError, setUsernameError] = useState('');
     const [passwordError, setPasswordError] = useState('');
 
+    // Shift selection for Gas Station (กะเช้า/กะบ่าย)
+    const [showShiftModal, setShowShiftModal] = useState(false);
+    const [pendingRedirect, setPendingRedirect] = useState<{ stationNum: number } | null>(null);
+
     useEffect(() => {
         setMounted(true);
     }, []);
@@ -99,7 +103,10 @@ function LoginContent() {
                         if (stationType === 'FULL') {
                             router.push(`/station/${stationNum}`);
                         } else if (stationType === 'GAS') {
-                            router.push(`/gas-station/${stationNum}`);
+                            // Show shift selection modal for Gas Station
+                            setPendingRedirect({ stationNum });
+                            setShowShiftModal(true);
+                            setRedirecting(false);
                         } else {
                             router.push(`/simple-station/${stationNum}`);
                         }
@@ -118,6 +125,18 @@ function LoginContent() {
         } finally {
             setLoading(false);
         }
+    };
+
+    // Handle shift selection for Gas Station
+    const handleShiftSelect = async (shiftNumber: number) => {
+        if (!pendingRedirect) return;
+
+        // Store selected shift in localStorage
+        localStorage.setItem('selectedShift', String(shiftNumber));
+        localStorage.setItem('selectedShiftName', shiftNumber === 1 ? 'กะเช้า' : 'กะบ่าย');
+
+        setRedirecting(true);
+        router.push(`/gas-station/${pendingRedirect.stationNum}?shift=${shiftNumber}`);
     };
 
     return (
@@ -367,6 +386,44 @@ function LoginContent() {
                 }
                 .animate-shake { animation: shake 0.6s ease-in-out; }
             `}</style>
+
+            {/* Shift Selection Modal for Gas Station */}
+            {showShiftModal && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
+                    <div
+                        className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-8 max-w-md w-full mx-4 border border-purple-500/30 shadow-2xl"
+                        style={{ animation: 'float 6s ease-in-out infinite' }}
+                    >
+                        <div className="text-center mb-8">
+                            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+                                <Fuel size={40} className="text-white" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-white mb-2">เลือกกะ</h2>
+                            <p className="text-gray-400">กรุณาเลือกกะที่ต้องการเข้าทำงาน</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <button
+                                onClick={() => handleShiftSelect(1)}
+                                className="p-6 rounded-2xl bg-gradient-to-br from-orange-500 to-yellow-500 hover:from-orange-400 hover:to-yellow-400 transition-all duration-300 transform hover:scale-105 shadow-lg"
+                            >
+                                <div className="text-4xl mb-2">🌅</div>
+                                <div className="text-xl font-bold text-white">กะเช้า</div>
+                                <div className="text-sm text-white/80">กะที่ 1</div>
+                            </button>
+
+                            <button
+                                onClick={() => handleShiftSelect(2)}
+                                className="p-6 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 transition-all duration-300 transform hover:scale-105 shadow-lg"
+                            >
+                                <div className="text-4xl mb-2">🌙</div>
+                                <div className="text-xl font-bold text-white">กะบ่าย</div>
+                                <div className="text-sm text-white/80">กะที่ 2</div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
