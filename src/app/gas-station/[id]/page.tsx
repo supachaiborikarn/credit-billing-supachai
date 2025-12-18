@@ -16,7 +16,8 @@ import {
     FileText,
     Printer,
     X,
-    Sparkles
+    Sparkles,
+    Clock
 } from 'lucide-react';
 import { GAS_PAYMENT_TYPES, STATIONS, DEFAULT_GAS_PRICE, STATION_STAFF } from '@/constants';
 
@@ -185,15 +186,53 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
         checkUser();
     }, []);
 
+    // Read selected shift from localStorage (set at login)
+    useEffect(() => {
+        const savedShift = localStorage.getItem('selectedShift');
+        if (savedShift) {
+            setCurrentShift(parseInt(savedShift));
+        }
+    }, []);
+
+    // Fetch shift data for the day
+    const fetchShiftData = async () => {
+        try {
+            const res = await fetch(`/api/gas-station/${id}/shifts?date=${selectedDate}`);
+            if (res.ok) {
+                const data = await res.json();
+                setShiftData(data);
+                // If current shift exists in data, update state
+                if (currentShift && data.shifts) {
+                    const myShift = data.shifts.find((s: any) => s.shiftNumber === currentShift);
+                    if (myShift) {
+                        // Pre-fill meter inputs from shift data
+                        const meterValues: Record<number, number> = {};
+                        myShift.meters?.forEach((m: any) => {
+                            if (m.endReading !== null) {
+                                meterValues[m.nozzleNumber] = m.endReading;
+                            } else {
+                                meterValues[m.nozzleNumber] = m.startReading;
+                            }
+                        });
+                        setShiftMeterInputs(meterValues);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching shift data:', error);
+        }
+    };
+
     useEffect(() => {
         if (station && isGasStation) {
             fetchDailyData();
             fetchGaugeReadings();
+            fetchShiftData();
             if (hasProducts) {
                 fetchProductInventory();
             }
         }
-    }, [selectedDate, station]);
+    }, [selectedDate, station, currentShift]);
 
     // Search license plates
     useEffect(() => {
@@ -331,6 +370,81 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
             }
         } catch (error) {
             console.error('Error saving gauge reading:', error);
+        }
+    };
+
+    // Open shift with start meters
+    const handleOpenShift = async () => {
+        if (!currentShift) {
+            alert('กรุณาเลือกกะก่อน');
+            return;
+        }
+
+        const metersData = [1, 2, 3, 4].map(nozzle => ({
+            nozzleNumber: nozzle,
+            startReading: shiftMeterInputs[nozzle] || 0
+        }));
+
+        try {
+            const res = await fetch(`/api/gas-station/${id}/shifts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    shiftNumber: currentShift,
+                    meters: metersData,
+                    dateStr: selectedDate,
+                }),
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                alert(`✅ เปิด${currentShift === 1 ? 'กะเช้า' : 'กะบ่าย'}สำเร็จ!`);
+                setShowOpenShiftModal(false);
+                fetchShiftData();
+            } else {
+                const error = await res.json();
+                alert(error.error || 'เกิดข้อผิดพลาด');
+            }
+        } catch (error) {
+            console.error('Error opening shift:', error);
+            alert('เกิดข้อผิดพลาดในการเปิดกะ');
+        }
+    };
+
+    // Close shift with end meters
+    const handleCloseShift = async () => {
+        if (!shiftData?.shifts || !currentShift) return;
+
+        const myShift = shiftData.shifts.find((s: any) => s.shiftNumber === currentShift);
+        if (!myShift) {
+            alert('ไม่พบกะที่เปิดอยู่');
+            return;
+        }
+
+        const metersData = [1, 2, 3, 4].map(nozzle => ({
+            nozzleNumber: nozzle,
+            endReading: shiftMeterInputs[nozzle] || 0
+        }));
+
+        try {
+            const res = await fetch(`/api/gas-station/${id}/shifts/${myShift.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ meters: metersData }),
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                alert(`✅ ปิด${currentShift === 1 ? 'กะเช้า' : 'กะบ่าย'}สำเร็จ!\n\nรวมลิตรขาย: ${data.totalLitersSold?.toLocaleString('th-TH')} ลิตร`);
+                setShowCloseShiftModal(false);
+                fetchShiftData();
+            } else {
+                const error = await res.json();
+                alert(error.error || 'เกิดข้อผิดพลาด');
+            }
+        } catch (error) {
+            console.error('Error closing shift:', error);
+            alert('เกิดข้อผิดพลาดในการปิดกะ');
         }
     };
 
@@ -595,8 +709,42 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                             <p className="text-gray-400 flex items-center gap-2">
                                 <Sparkles size={14} className="text-cyan-400" />
                                 ⛽ ปั๊มแก๊ส LPG
+                                {currentShift && (
+                                    <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${currentShift === 1
+                                        ? 'bg-orange-500/20 text-orange-400'
+                                        : 'bg-indigo-500/20 text-indigo-400'
+                                        }`}>
+                                        {currentShift === 1 ? '🌅 กะเช้า' : '🌙 กะบ่าย'}
+                                    </span>
+                                )}
                             </p>
                         </div>
+                    </div>
+
+                    {/* Shift Controls */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {currentShift && (
+                            <>
+                                {/* Check if shift is open */}
+                                {shiftData?.shifts?.find((s: any) => s.shiftNumber === currentShift && s.status === 'OPEN') ? (
+                                    <button
+                                        onClick={() => setShowCloseShiftModal(true)}
+                                        className="px-4 py-2 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-all flex items-center gap-2 text-sm"
+                                    >
+                                        <Clock size={16} />
+                                        ปิดกะ
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => setShowOpenShiftModal(true)}
+                                        className="px-4 py-2 rounded-xl bg-green-500/20 text-green-400 border border-green-500/30 hover:bg-green-500/30 transition-all flex items-center gap-2 text-sm"
+                                    >
+                                        <Clock size={16} />
+                                        เปิดกะ
+                                    </button>
+                                )}
+                            </>
+                        )}
                     </div>
                     <div className="flex items-center gap-3">
                         <button
