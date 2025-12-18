@@ -13,17 +13,49 @@ export async function GET(
         const stationId = `station-${id}`;
         const { searchParams } = new URL(request.url);
         const dateStr = searchParams.get('date') || getTodayBangkok();
+        const viewAll = searchParams.get('viewAll') === 'true'; // For admin toggle
 
         // Get transactions for the day (Bangkok timezone)
         const startOfDay = getStartOfDayBangkok(dateStr);
         const endOfDay = getEndOfDayBangkok(dateStr);
 
+        // Get user from session to filter by staff
+        const cookieStore = await cookies();
+        const sessionId = cookieStore.get('session')?.value;
+
+        let userId: string | null = null;
+        let userRole: string = 'STAFF';
+
+        if (sessionId) {
+            const session = await prisma.session.findUnique({
+                where: { id: sessionId },
+                include: { user: { select: { id: true, role: true } } }
+            });
+            if (session && session.expiresAt > new Date()) {
+                userId = session.user.id;
+                userRole = session.user.role;
+            }
+        }
+
+        // Build where clause - Staff sees only their own, Admin sees all (unless filtered)
+        const whereClause: Record<string, unknown> = {
+            stationId,
+            date: { gte: startOfDay, lte: endOfDay },
+            deletedAt: null,
+        };
+
+        // Staff role: filter by recordedById
+        // Admin role: show all unless viewAll=false
+        if (userRole === 'STAFF' && userId) {
+            whereClause.recordedById = userId;
+        } else if (userRole === 'ADMIN' && !viewAll && userId) {
+            // Admin can toggle to see only their own
+            whereClause.recordedById = userId;
+        }
+        // If viewAll=true (admin), don't add recordedById filter
+
         const transactions = await prisma.transaction.findMany({
-            where: {
-                stationId,
-                date: { gte: startOfDay, lte: endOfDay },
-                deletedAt: null,
-            },
+            where: whereClause,
             orderBy: { date: 'asc' },
             include: {
                 owner: { select: { name: true, code: true } },
