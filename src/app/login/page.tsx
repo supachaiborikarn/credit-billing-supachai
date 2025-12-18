@@ -87,8 +87,15 @@ function LoginContent() {
                 if (redirectTo && !redirectTo.startsWith('/login')) {
                     router.push(redirectTo);
                 } else if (data.user?.role === 'STAFF' && data.user?.stationId) {
-                    const stationNum = data.user.stationId.replace('station-', '');
-                    router.push(`/station/${stationNum}`);
+                    const stationId = data.user.stationId;
+                    // Check if it's a simple station (station-X format) or gas station (UUID)
+                    if (stationId.startsWith('station-')) {
+                        const stationNum = stationId.replace('station-', '');
+                        router.push(`/simple-station/${stationNum}`);
+                    } else {
+                        // UUID format = gas station
+                        router.push(`/gas-station/${stationId}`);
+                    }
                 } else {
                     router.push('/dashboard');
                 }
