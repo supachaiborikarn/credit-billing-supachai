@@ -39,6 +39,7 @@ export async function POST(request: Request) {
                 role: user.role,
                 stationId: user.stationId,
                 stationName: user.station?.name,
+                stationType: user.station?.type, // 'FULL', 'SIMPLE', 'GAS'
             }
         });
 

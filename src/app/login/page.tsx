@@ -88,13 +88,23 @@ function LoginContent() {
                     router.push(redirectTo);
                 } else if (data.user?.role === 'STAFF' && data.user?.stationId) {
                     const stationId = data.user.stationId;
-                    // Check if it's a simple station (station-X format) or gas station (UUID)
-                    if (stationId.startsWith('station-')) {
+                    const stationType = data.user.stationType;
+
+                    // Use stationType to determine the correct path
+                    if (stationType === 'FULL') {
+                        const stationNum = stationId.replace('station-', '');
+                        router.push(`/station/${stationNum}`);
+                    } else if (stationType === 'GAS') {
+                        // For gas stations, find the index from stationId
+                        // stationId could be 'station-5' or a UUID  
+                        const stationNum = stationId.startsWith('station-')
+                            ? stationId.replace('station-', '')
+                            : '5'; // Default to station-5 for UUID gas stations
+                        router.push(`/gas-station/${stationNum}`);
+                    } else {
+                        // SIMPLE stations
                         const stationNum = stationId.replace('station-', '');
                         router.push(`/simple-station/${stationNum}`);
-                    } else {
-                        // UUID format = gas station
-                        router.push(`/gas-station/${stationId}`);
                     }
                 } else {
                     router.push('/dashboard');

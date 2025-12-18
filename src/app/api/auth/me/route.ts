@@ -31,6 +31,7 @@ export async function GET() {
                 role: session.user.role,
                 stationId: session.user.stationId,
                 stationName: session.user.station?.name,
+                stationType: session.user.station?.type, // 'FULL', 'SIMPLE', 'GAS'
             }
         });
     } catch (error) {
