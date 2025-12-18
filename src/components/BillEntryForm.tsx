@@ -174,7 +174,7 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
                         liters: parseFloat(line.quantity),
                         pricePerLiter: parseFloat(line.pricePerLiter),
                         amount: calculateLineTotal(line),
-                        bookNo,
+                        billBookNo: bookNo,
                         billNo,
                     }),
                 });
