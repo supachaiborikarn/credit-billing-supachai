@@ -143,6 +143,7 @@ export async function POST(
                 date: { gte: startOfDay, lte: endOfDay },
                 amount: amount,
                 paymentType: paymentType,
+                deletedAt: null, // Don't count soft-deleted transactions as duplicates
                 // Only check plate/owner if provided to avoid false positives on anonymous cash
                 OR: [
                     licensePlate ? { licensePlate: licensePlate } : {},
