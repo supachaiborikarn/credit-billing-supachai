@@ -158,6 +158,13 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
     // User role check
     const [isAdmin, setIsAdmin] = useState(false);
 
+    // Shift management (กะเช้า/กะบ่าย)
+    const [currentShift, setCurrentShift] = useState<number | null>(null); // 1=กะเช้า, 2=กะบ่าย
+    const [shiftData, setShiftData] = useState<any>(null);
+    const [showOpenShiftModal, setShowOpenShiftModal] = useState(false);
+    const [showCloseShiftModal, setShowCloseShiftModal] = useState(false);
+    const [shiftMeterInputs, setShiftMeterInputs] = useState<Record<number, number>>({});
+
     // Daily summary modal
     const [showDailySummary, setShowDailySummary] = useState(false);
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
+import { cookies } from 'next/headers';
 
 export async function GET(
     request: NextRequest,
@@ -15,6 +16,23 @@ export async function GET(
         // Parse date using Bangkok timezone utilities
         const date = getStartOfDayBangkok(dateStr);
 
+        // Get user from session (for filtering)
+        const cookieStore = await cookies();
+        const sessionId = cookieStore.get('session')?.value;
+        let userId: string | null = null;
+        let userRole: string = 'STAFF';
+
+        if (sessionId) {
+            const session = await prisma.session.findUnique({
+                where: { id: sessionId },
+                select: { user: { select: { id: true, role: true } } }
+            });
+            if (session?.user) {
+                userId = session.user.id;
+                userRole = session.user.role;
+            }
+        }
+
         // Get daily record with meters
         const dailyRecord = await prisma.dailyRecord.findUnique({
             where: {
@@ -27,11 +45,18 @@ export async function GET(
         const startOfDay = getStartOfDayBangkok(dateStr);
         const endOfDay = getEndOfDayBangkok(dateStr);
 
+        // Build where clause - Staff sees only their own, Admin sees all
+        const whereClause: Record<string, unknown> = {
+            stationId,
+            date: { gte: startOfDay, lte: endOfDay }
+        };
+
+        if (userRole === 'STAFF' && userId) {
+            whereClause.recordedById = userId;
+        }
+
         const transactions = await prisma.transaction.findMany({
-            where: {
-                stationId,
-                date: { gte: startOfDay, lte: endOfDay }
-            },
+            where: whereClause,
             orderBy: { date: 'asc' },
             include: {
                 owner: { select: { name: true, code: true } },
