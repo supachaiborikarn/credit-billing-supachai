@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
+import { getStartOfDayBangkok, getEndOfDayBangkok, createTransactionDate } from '@/lib/date-utils';
 
 export async function POST(
     request: NextRequest,
@@ -50,8 +51,7 @@ export async function POST(
         const userId = session.userId;
 
         // Get or create daily record for FULL station
-        const date = new Date(dateStr);
-        date.setHours(0, 0, 0, 0);
+        const date = getStartOfDayBangkok(dateStr);
 
         let dailyRecordId = null;
         const station = await prisma.station.findUnique({ where: { id: stationId } });
@@ -82,8 +82,8 @@ export async function POST(
 
         // Check for duplicates (same station, date, plate, amount, type)
         // Helps prevent double-entry when importing data
-        const startOfDay = new Date(dateStr + 'T00:00:00');
-        const endOfDay = new Date(dateStr + 'T23:59:59.999');
+        const startOfDay = getStartOfDayBangkok(dateStr);
+        const endOfDay = getEndOfDayBangkok(dateStr);
 
         const duplicate = await prisma.transaction.findFirst({
             where: {
@@ -110,7 +110,7 @@ export async function POST(
             data: {
                 stationId,
                 dailyRecordId,
-                date: new Date(dateStr + 'T' + new Date().toTimeString().slice(0, 8)), // Use selected date with current time
+                date: createTransactionDate(dateStr), // Use selected date with current Bangkok time
                 licensePlate,
                 ownerName,
                 ownerId,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
 
 export async function GET(
     request: NextRequest,
@@ -9,10 +10,10 @@ export async function GET(
         const { id } = await params;
         const stationId = `station-${id}`;
         const { searchParams } = new URL(request.url);
-        const dateStr = searchParams.get('date') || new Date().toISOString().split('T')[0];
+        const dateStr = searchParams.get('date') || getTodayBangkok();
 
-        // Parse date in local timezone (use T00:00:00 to force local)
-        const date = new Date(dateStr + 'T00:00:00');
+        // Parse date using Bangkok timezone utilities
+        const date = getStartOfDayBangkok(dateStr);
 
         // Get daily record with meters
         const dailyRecord = await prisma.dailyRecord.findUnique({
@@ -22,9 +23,9 @@ export async function GET(
             include: { meters: true }
         });
 
-        // Get transactions for the day (local timezone range)
-        const startOfDay = new Date(dateStr + 'T00:00:00');
-        const endOfDay = new Date(dateStr + 'T23:59:59.999');
+        // Get transactions for the day (Bangkok timezone range)
+        const startOfDay = getStartOfDayBangkok(dateStr);
+        const endOfDay = getEndOfDayBangkok(dateStr);
 
         const transactions = await prisma.transaction.findMany({
             where: {
@@ -95,8 +96,7 @@ export async function POST(
         const body = await request.json();
         const { date: dateStr, retailPrice, wholesalePrice } = body;
 
-        const date = new Date(dateStr);
-        date.setHours(0, 0, 0, 0);
+        const date = getStartOfDayBangkok(dateStr);
 
         // Upsert daily record
         const dailyRecord = await prisma.dailyRecord.upsert({

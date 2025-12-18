@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getStartOfDayBangkok } from '@/lib/date-utils';
 
 export async function POST(
     request: NextRequest,
@@ -11,8 +12,7 @@ export async function POST(
         const body = await request.json();
         const { date: dateStr, type, meters } = body;
 
-        const date = new Date(dateStr);
-        date.setHours(0, 0, 0, 0);
+        const date = getStartOfDayBangkok(dateStr);
 
         // Get or create daily record
         const dailyRecord = await prisma.dailyRecord.upsert({
