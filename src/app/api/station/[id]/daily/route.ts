@@ -87,9 +87,20 @@ export async function GET(
 
         return NextResponse.json({
             dailyRecord: dailyRecord ? {
-                ...dailyRecord,
+                id: dailyRecord.id,
+                stationId: dailyRecord.stationId,
+                date: dailyRecord.date,
+                status: dailyRecord.status,
                 retailPrice: Number(dailyRecord.retailPrice),
                 wholesalePrice: Number(dailyRecord.wholesalePrice),
+                meters: dailyRecord.meters.map(m => ({
+                    id: m.id,
+                    nozzleNumber: m.nozzleNumber,
+                    startReading: Number(m.startReading),
+                    endReading: Number(m.endReading) || 0,
+                    startPhoto: m.startPhoto,
+                    endPhoto: m.endPhoto,
+                })),
             } : null,
             transactions: transactions.map(t => ({
                 id: t.id,
