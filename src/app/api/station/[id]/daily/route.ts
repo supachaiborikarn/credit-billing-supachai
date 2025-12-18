@@ -45,13 +45,17 @@ export async function GET(
         const startOfDay = getStartOfDayBangkok(dateStr);
         const endOfDay = getEndOfDayBangkok(dateStr);
 
-        // Build where clause - Staff sees only their own, Admin sees all
+        // Build where clause
+        // FULL station (id=1): Everyone sees all (staff work together)
+        // SIMPLE/GAS stations: Staff sees only their own
         const whereClause: Record<string, unknown> = {
             stationId,
             date: { gte: startOfDay, lte: endOfDay }
         };
 
-        if (userRole === 'STAFF' && userId) {
+        // Only filter by recordedById for non-FULL stations
+        const isFullStation = id === '1';
+        if (userRole === 'STAFF' && userId && !isFullStation) {
             whereClause.recordedById = userId;
         }
 
