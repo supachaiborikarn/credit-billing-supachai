@@ -1,7 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
-import { getStartOfDayBangkok, getEndOfDayBangkok, createTransactionDate } from '@/lib/date-utils';
+import { getStartOfDayBangkok, getEndOfDayBangkok, createTransactionDate, getTodayBangkok } from '@/lib/date-utils';
+
+// GET transactions for a station by date
+export async function GET(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const { id } = await params;
+        const stationId = `station-${id}`;
+        const { searchParams } = new URL(request.url);
+        const dateStr = searchParams.get('date') || getTodayBangkok();
+
+        // Get transactions for the day (Bangkok timezone)
+        const startOfDay = getStartOfDayBangkok(dateStr);
+        const endOfDay = getEndOfDayBangkok(dateStr);
+
+        const transactions = await prisma.transaction.findMany({
+            where: {
+                stationId,
+                date: { gte: startOfDay, lte: endOfDay },
+                deletedAt: null,
+            },
+            orderBy: { date: 'asc' },
+            include: {
+                owner: { select: { name: true, code: true } },
+                truck: { select: { licensePlate: true } },
+                recordedBy: { select: { name: true } }
+            }
+        });
+
+        // Format response for simple-station page
+        const formattedTransactions = transactions.map(t => ({
+            id: t.id,
+            date: t.date.toISOString(),
+            licensePlate: t.licensePlate || t.truck?.licensePlate || '',
+            ownerName: t.ownerName || t.owner?.name || '',
+            paymentType: t.paymentType,
+            fuelType: t.productType || 'DIESEL',
+            liters: Number(t.liters),
+            pricePerLiter: Number(t.pricePerLiter),
+            amount: Number(t.amount),
+            bookNo: t.billBookNo || '',
+            billNo: t.billNo || '',
+            recordedByName: t.recordedBy?.name || '-',
+        }));
+
+        return NextResponse.json(formattedTransactions);
+    } catch (error) {
+        console.error('Transactions GET error:', error);
+        return NextResponse.json({ error: 'Failed to fetch transactions' }, { status: 500 });
+    }
+}
 
 export async function POST(
     request: NextRequest,
