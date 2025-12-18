@@ -331,79 +331,81 @@ export default function Sidebar({ children }: SidebarProps) {
                 {children}
             </main>
 
-            {/* Mobile Bottom Tab Bar */}
-            <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-white/10"
-                style={{ background: 'rgba(10, 10, 18, 0.98)', backdropFilter: 'blur(20px)' }}>
-                <div className="flex items-center justify-around py-2 px-2">
-                    {/* Dashboard - Admin only */}
-                    {isAdmin && (
-                        <Link
-                            href="/dashboard"
-                            className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all min-w-[60px] ${isActive('/dashboard')
+            {/* Mobile Bottom Tab Bar - Hide when on station pages (they have their own tab bar) */}
+            {!pathname.includes('/station/') && !pathname.includes('/simple-station/') && !pathname.includes('/gas-station/') && (
+                <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-white/10"
+                    style={{ background: 'rgba(10, 10, 18, 0.98)', backdropFilter: 'blur(20px)' }}>
+                    <div className="flex items-center justify-around py-2 px-2">
+                        {/* Dashboard - Admin only */}
+                        {isAdmin && (
+                            <Link
+                                href="/dashboard"
+                                className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all min-w-[60px] ${isActive('/dashboard')
                                     ? 'text-purple-400'
                                     : 'text-gray-500 hover:text-white'
-                                }`}
-                        >
-                            <LayoutDashboard size={20} />
-                            <span className="text-[10px]">ภาพรวม</span>
-                        </Link>
-                    )}
+                                    }`}
+                            >
+                                <LayoutDashboard size={20} />
+                                <span className="text-[10px]">ภาพรวม</span>
+                            </Link>
+                        )}
 
-                    {/* Station */}
-                    {visibleStations.length > 0 && (
-                        <Link
-                            href={getStationPath(visibleStations[0], STATIONS.findIndex(s => s.id === visibleStations[0].id))}
-                            className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all min-w-[60px] ${pathname.includes('/station') || pathname.includes('/simple-station') || pathname.includes('/gas-station')
+                        {/* Station */}
+                        {visibleStations.length > 0 && (
+                            <Link
+                                href={getStationPath(visibleStations[0], STATIONS.findIndex(s => s.id === visibleStations[0].id))}
+                                className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all min-w-[60px] ${pathname.includes('/station') || pathname.includes('/simple-station') || pathname.includes('/gas-station')
                                     ? 'text-orange-400'
                                     : 'text-gray-500 hover:text-white'
-                                }`}
-                        >
-                            <Fuel size={20} />
-                            <span className="text-[10px]">ปั๊ม</span>
-                        </Link>
-                    )}
+                                    }`}
+                            >
+                                <Fuel size={20} />
+                                <span className="text-[10px]">ปั๊ม</span>
+                            </Link>
+                        )}
 
-                    {/* Owners - Admin only */}
-                    {isAdmin && (
-                        <Link
-                            href="/owners"
-                            className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all min-w-[60px] ${isActive('/owners')
+                        {/* Owners - Admin only */}
+                        {isAdmin && (
+                            <Link
+                                href="/owners"
+                                className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all min-w-[60px] ${isActive('/owners')
                                     ? 'text-blue-400'
                                     : 'text-gray-500 hover:text-white'
-                                }`}
-                        >
-                            <Users size={20} />
-                            <span className="text-[10px]">เจ้าของ</span>
-                        </Link>
-                    )}
+                                    }`}
+                            >
+                                <Users size={20} />
+                                <span className="text-[10px]">เจ้าของ</span>
+                            </Link>
+                        )}
 
-                    {/* Reports - Admin only */}
-                    {isAdmin && (
-                        <Link
-                            href="/reports"
-                            className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all min-w-[60px] ${isActive('/reports')
+                        {/* Reports - Admin only */}
+                        {isAdmin && (
+                            <Link
+                                href="/reports"
+                                className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all min-w-[60px] ${isActive('/reports')
                                     ? 'text-yellow-400'
                                     : 'text-gray-500 hover:text-white'
-                                }`}
-                        >
-                            <FileText size={20} />
-                            <span className="text-[10px]">รายงาน</span>
-                        </Link>
-                    )}
+                                    }`}
+                            >
+                                <FileText size={20} />
+                                <span className="text-[10px]">รายงาน</span>
+                            </Link>
+                        )}
 
-                    {/* Menu Button */}
-                    <button
-                        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                        className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all min-w-[60px] ${isMobileMenuOpen
+                        {/* Menu Button */}
+                        <button
+                            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                            className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all min-w-[60px] ${isMobileMenuOpen
                                 ? 'text-cyan-400'
                                 : 'text-gray-500 hover:text-white'
-                            }`}
-                    >
-                        <Menu size={20} />
-                        <span className="text-[10px]">เมนู</span>
-                    </button>
-                </div>
-            </nav>
+                                }`}
+                        >
+                            <Menu size={20} />
+                            <span className="text-[10px]">เมนู</span>
+                        </button>
+                    </div>
+                </nav>
+            )}
         </div>
     );
 }
