@@ -186,7 +186,7 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
     const totalAmount = filteredTransactions.reduce((sum, t) => sum + Number(t.amount), 0);
     const totalLiters = filteredTransactions.reduce((sum, t) => sum + Number(t.liters), 0);
 
-    const formatCurrency = (num: number) => new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2 }).format(num);
+    const formatCurrency = (num: number) => new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
 
     const getPaymentTypeLabel = (value: string) => {
         const pt = PAYMENT_TYPES.find(p => p.value === value);
