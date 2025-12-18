@@ -144,13 +144,33 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
     };
 
     const getFuelTypeLabel = (value: string) => {
-        const ft = FUEL_TYPES.find(f => f.value === value);
+        // Normalize fuel type names for display consistency
+        const normalized = normalizeFuelType(value);
+        const ft = FUEL_TYPES.find(f => f.value === normalized);
         return ft ? ft.label : value;
     };
 
     const getFuelTypeColor = (value: string) => {
-        const ft = FUEL_TYPES.find(f => f.value === value);
-        return ft ? ft.color : 'bg-gray-500';
+        const normalized = normalizeFuelType(value);
+        const ft = FUEL_TYPES.find(f => f.value === normalized);
+        return ft ? ft.color : 'bg-amber-500'; // Default to diesel color
+    };
+
+    // Map Thai fuel names to FUEL_TYPE codes
+    const normalizeFuelType = (value: string): string => {
+        const mapping: Record<string, string> = {
+            'ดีเซล': 'DIESEL',
+            'น้ำมันดีเซล': 'DIESEL',
+            'เบนซิน91': 'GASOHOL_91',
+            'เบนซิน95': 'GASOHOL_95',
+            'แก๊สโซฮอล์ 91': 'GASOHOL_91',
+            'แก๊สโซฮอล์ 95': 'GASOHOL_95',
+            'แก๊สโซฮอล์ E20': 'GASOHOL_E20',
+            'พาวเวอร์ดีเซล': 'POWER_DIESEL',
+            'แก๊ส LPG': 'LPG',
+            'LPG': 'LPG',
+        };
+        return mapping[value] || value;
     };
 
     if (!station) {
