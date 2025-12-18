@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v2 as cloudinary } from 'cloudinary';
 import { prisma } from '@/lib/prisma';
+import { getStartOfDayBangkok } from '@/lib/date-utils';
 
 // Configure Cloudinary
 cloudinary.config({
@@ -58,8 +59,8 @@ export async function POST(request: NextRequest) {
             const stationNum = stationId.replace('station-', '');
             const fullStationId = `station-${stationNum}`;
 
-            // Find or create daily record
-            const dateObj = new Date(date + 'T00:00:00');
+            // Find or create daily record using Bangkok timezone
+            const dateObj = getStartOfDayBangkok(date);
 
             const dailyRecord = await prisma.dailyRecord.upsert({
                 where: { stationId_date: { stationId: fullStationId, date: dateObj } },

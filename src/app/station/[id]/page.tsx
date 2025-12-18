@@ -814,6 +814,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                                     formData.append('type', 'start');
                                                                     formData.append('nozzle', String(m.nozzle));
                                                                     formData.append('date', selectedDate);
+                                                                    formData.append('stationId', `station-${id}`);
                                                                     try {
                                                                         const res = await fetch('/api/upload/meter-photo', {
                                                                             method: 'POST',
@@ -885,6 +886,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                                     formData.append('type', 'end');
                                                                     formData.append('nozzle', String(m.nozzle));
                                                                     formData.append('date', selectedDate);
+                                                                    formData.append('stationId', `station-${id}`);
                                                                     try {
                                                                         const res = await fetch('/api/upload/meter-photo', {
                                                                             method: 'POST',
