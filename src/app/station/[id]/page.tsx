@@ -489,9 +489,9 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
     const handleSubmitTransaction = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Validate required fields
-        if (!bookNo || !billNo) {
-            alert('กรุณากรอก เล่มที่ และ เลขที่ บิล');
+        // Validate required fields for CREDIT payment only
+        if (paymentType === 'CREDIT' && (!bookNo || !billNo)) {
+            alert('กรุณากรอก เล่มที่ และ เลขที่ บิล สำหรับเงินเชื่อ');
             return;
         }
 
