@@ -1159,16 +1159,22 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                     ) : !searchLoading && licensePlate.length >= 2 ? (
                                                         <div className="px-4 py-3 text-center">
                                                             <p className="text-gray-400 mb-2">ไม่พบทะเบียน "{licensePlate}"</p>
+                                                        </div>
+                                                    ) : null}
+
+                                                    {/* Always show add truck button at bottom */}
+                                                    {!searchLoading && licensePlate.length >= 2 && (
+                                                        <div className="px-4 py-2 border-t border-white/20 bg-slate-800/50">
                                                             <button
                                                                 type="button"
                                                                 onClick={openAddTruckForm}
-                                                                className="btn btn-success text-sm py-2 px-4"
+                                                                className="w-full btn btn-success text-sm py-2 px-4 flex items-center justify-center gap-2"
                                                             >
                                                                 <Plus size={16} />
-                                                                เพิ่มทะเบียนใหม่
+                                                                เพิ่มทะเบียน "{licensePlate.toUpperCase()}" เป็นของเจ้าของใหม่
                                                             </button>
                                                         </div>
-                                                    ) : null}
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
