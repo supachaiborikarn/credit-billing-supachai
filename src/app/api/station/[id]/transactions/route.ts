@@ -76,7 +76,11 @@ export async function GET(
             }
         });
 
-        // Build a map of licensePlate -> code for transactions without truck relation
+        // Build a map of normalized licensePlate -> code for transactions without truck relation
+        // Normalize: remove Thai prefix (กพ, etc), dashes, and spaces
+        const normalizePlate = (plate: string) =>
+            plate.replace(/^[ก-ฮ]+/, '').replace(/[-\s]/g, '').toUpperCase();
+
         const licensePlates = transactions
             .filter(t => !t.truck && t.licensePlate)
             .map(t => t.licensePlate)
@@ -84,15 +88,37 @@ export async function GET(
 
         let truckCodeMap: Record<string, string> = {};
         if (licensePlates.length > 0) {
+            // Get all trucks with code for fuzzy matching
             const trucks = await prisma.truck.findMany({
-                where: { licensePlate: { in: licensePlates } },
+                where: { code: { not: null } },
                 select: { licensePlate: true, code: true }
             });
-            truckCodeMap = trucks.reduce((acc: Record<string, string>, t: { licensePlate: string; code: string | null }) => {
-                if (t.code) acc[t.licensePlate] = t.code;
-                return acc;
-            }, {});
+
+            // Build map: both original and normalized plate -> code
+            trucks.forEach((t: { licensePlate: string; code: string | null }) => {
+                if (t.code) {
+                    truckCodeMap[t.licensePlate] = t.code;
+                    truckCodeMap[normalizePlate(t.licensePlate)] = t.code;
+                    // Handle รถพ่วง format: กพ80-1278/กพ82-4004
+                    if (t.licensePlate.includes('/')) {
+                        t.licensePlate.split('/').forEach(part => {
+                            truckCodeMap[part.trim()] = t.code!;
+                            truckCodeMap[normalizePlate(part.trim())] = t.code!;
+                        });
+                    }
+                }
+            });
         }
+
+        // Helper to find code by plate (try various formats)
+        const findCode = (plate: string): string | null => {
+            if (!plate) return null;
+            if (truckCodeMap[plate]) return truckCodeMap[plate];
+            const normalized = normalizePlate(plate);
+            if (truckCodeMap[normalized]) return truckCodeMap[normalized];
+            if (truckCodeMap['กพ' + normalized]) return truckCodeMap['กพ' + normalized];
+            return null;
+        };
 
         // Format response for simple-station page
         const formattedTransactions = transactions.map(t => {
@@ -102,7 +128,7 @@ export async function GET(
                 date: t.date.toISOString(),
                 licensePlate: plate,
                 ownerName: t.owner?.name || t.ownerName || '',
-                ownerCode: t.truck?.code || truckCodeMap[plate] || t.owner?.code || null,
+                ownerCode: t.truck?.code || findCode(plate) || t.owner?.code || null,
                 paymentType: t.paymentType,
                 fuelType: t.productType || 'DIESEL',
                 liters: Number(t.liters),
