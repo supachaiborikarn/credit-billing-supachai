@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
             stationId: t.stationId,
             stationName: t.station.name,
             licensePlate: t.licensePlate,
-            ownerName: t.ownerName || t.owner?.name || null,
+            ownerName: t.owner?.name || t.ownerName || null,
             paymentType: t.paymentType,
             liters: Number(t.liters),
             pricePerLiter: Number(t.pricePerLiter),

@@ -106,7 +106,7 @@ export async function GET(
                 id: t.id,
                 date: t.date.toISOString(),
                 licensePlate: t.licensePlate || t.truck?.licensePlate || '',
-                ownerName: t.ownerName || t.owner?.name || '',
+                ownerName: t.owner?.name || t.ownerName || '',
                 ownerCode: t.owner?.code || null,
                 paymentType: t.paymentType,
                 nozzleNumber: t.nozzleNumber,
