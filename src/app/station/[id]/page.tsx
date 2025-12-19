@@ -1127,15 +1127,15 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                                     key={truck.id}
                                                                     type="button"
                                                                     onClick={() => selectTruck(truck)}
-                                                                    className="w-full px-4 py-3 text-left hover:bg-purple-500/20 border-b border-white/10 last:border-b-0 transition-colors"
+                                                                    className="w-full px-4 py-3 text-left hover:bg-cyan-500/30 border-b border-white/20 last:border-b-0 transition-colors bg-slate-900/50"
                                                                 >
                                                                     <div className="flex items-start justify-between">
                                                                         <div>
-                                                                            <p className="font-mono text-blue-400 font-medium">
+                                                                            <p className="font-mono text-cyan-300 font-bold text-base">
                                                                                 {truck.licensePlate}
                                                                             </p>
-                                                                            <p className="text-sm text-white flex items-center gap-1 mt-1">
-                                                                                <User size={12} className="text-gray-400" />
+                                                                            <p className="text-sm text-yellow-300 font-medium flex items-center gap-1 mt-1">
+                                                                                <User size={12} className="text-yellow-400" />
                                                                                 {truck.ownerName}
                                                                             </p>
                                                                         </div>

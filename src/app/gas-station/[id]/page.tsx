@@ -1321,10 +1321,10 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                                                 key={truck.id}
                                                                 type="button"
                                                                 onClick={() => selectTruck(truck)}
-                                                                className="w-full px-4 py-3 text-left hover:bg-cyan-500/20 border-b border-white/10 last:border-b-0 transition-colors"
+                                                                className="w-full px-4 py-3 text-left hover:bg-cyan-500/30 border-b border-white/20 last:border-b-0 transition-colors bg-slate-900/50"
                                                             >
-                                                                <p className="font-mono text-cyan-400 font-medium">{truck.licensePlate}</p>
-                                                                <p className="text-sm text-white">{truck.ownerName}</p>
+                                                                <p className="font-mono text-cyan-300 font-bold text-base">{truck.licensePlate}</p>
+                                                                <p className="text-sm text-yellow-300 font-medium">{truck.ownerName}</p>
                                                             </button>
                                                         ))
                                                     ) : !searchLoading && licensePlate.length >= 2 ? (

@@ -480,10 +480,10 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
                                             key={truck.id}
                                             type="button"
                                             onClick={() => selectTruck(truck)}
-                                            className="w-full px-3 py-2 text-left hover:bg-purple-500/20 text-sm"
+                                            className="w-full px-4 py-3 text-left hover:bg-cyan-500/30 border-b border-white/20 last:border-b-0 transition-colors bg-slate-900/50"
                                         >
-                                            <span className="font-mono text-blue-400">{truck.licensePlate}</span>
-                                            <span className="text-gray-400 ml-2">{truck.ownerName}</span>
+                                            <span className="font-mono text-cyan-300 font-bold">{truck.licensePlate}</span>
+                                            <span className="text-yellow-300 font-medium ml-2">{truck.ownerName}</span>
                                         </button>
                                     ))
                                 ) : !searchLoading && licensePlate.length >= 2 ? (
