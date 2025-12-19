@@ -71,7 +71,7 @@ export async function GET(
             orderBy: { date: 'asc' },
             include: {
                 owner: { select: { name: true, code: true } },
-                truck: { select: { licensePlate: true } },
+                truck: { select: { licensePlate: true, code: true } },
                 recordedBy: { select: { name: true } }
             }
         });
@@ -82,6 +82,7 @@ export async function GET(
             date: t.date.toISOString(),
             licensePlate: t.licensePlate || t.truck?.licensePlate || '',
             ownerName: t.owner?.name || t.ownerName || '',
+            ownerCode: t.truck?.code || t.owner?.code || null,
             paymentType: t.paymentType,
             fuelType: t.productType || 'DIESEL',
             liters: Number(t.liters),

@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
             licensePlate: t.licensePlate,
             ownerId: t.owner.id,
             ownerName: t.owner.name,
-            ownerCode: t.owner.code,
+            ownerCode: t.code || t.owner.code, // ใช้ truck.code ก่อน fallback เป็น owner.code
             ownerPhone: t.owner.phone,
             ownerGroup: t.owner.groupType,
         })));

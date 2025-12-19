@@ -7,10 +7,315 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id           String        @id @default(uuid())
+  name         String
+  username     String        @unique
+  password     String
+  role         UserRole      @default(STAFF)
+  stationId    String?
+  createdAt    DateTime      @default(now())
+  auditLogs    AuditLog[]
+  sessions     Session[]
+  shifts       Shift[]       @relation("ShiftStaff")
+  transactions Transaction[]
+  station      Station?      @relation(fields: [stationId], references: [id])
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("sessions")
+}
+
+model Station {
+  id                 String             @id @default(uuid())
+  name               String
+  type               StationType
+  gasPrice           Decimal?
+  gasStockAlert      Decimal?
+  hasProducts        Boolean            @default(false)
+  dailyRecords       DailyRecord[]
+  gasSupplies        GasSupply[]
+  productInventories ProductInventory[]
+  transactions       Transaction[]
+  users              User[]
+
+  @@map("stations")
+}
+
+model Owner {
+  id           String        @id @default(uuid())
+  name         String
+  phone        String?
+  venderCode   String?
+  groupType    OwnerGroup    @default(GENERAL_CREDIT)
+  code         String?
+  createdAt    DateTime      @default(now())
+  deletedAt    DateTime?
+  invoices     Invoice[]
+  transactions Transaction[]
+  trucks       Truck[]
+
+  @@map("owners")
+}
+
+model Truck {
+  id           String        @id @default(uuid())
+  licensePlate String
+  ownerId      String
+  createdAt    DateTime      @default(now())
+  deletedAt    DateTime?
+  code         String?
+  transactions Transaction[]
+  owner        Owner         @relation(fields: [ownerId], references: [id])
+
+  @@map("trucks")
+}
+
+model DailyRecord {
+  id             String            @id @default(uuid())
+  stationId      String
+  date           DateTime
+  retailPrice    Decimal           @default(31.34)
+  wholesalePrice Decimal           @default(30.5)
+  status         DailyRecordStatus @default(OPEN)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  gasPrice       Decimal?
+  station        Station           @relation(fields: [stationId], references: [id])
+  gaugeReadings  GaugeReading[]
+  meters         MeterReading[]
+  shifts         Shift[]
+  transactions   Transaction[]
+
+  @@unique([stationId, date])
+  @@map("daily_records")
+}
+
+model Shift {
+  id            String         @id @default(uuid())
+  dailyRecordId String
+  shiftNumber   Int
+  staffId       String?
+  status        String         @default("OPEN")
+  createdAt     DateTime       @default(now())
+  closedAt      DateTime?
+  meters        MeterReading[]
+  dailyRecord   DailyRecord    @relation(fields: [dailyRecordId], references: [id])
+  staff         User?          @relation("ShiftStaff", fields: [staffId], references: [id])
+
+  @@unique([dailyRecordId, shiftNumber])
+  @@map("shifts")
+}
+
+model MeterReading {
+  id            String       @id @default(uuid())
+  dailyRecordId String?
+  nozzleNumber  Int
+  startReading  Decimal      @default(0)
+  endReading    Decimal?
+  startPhoto    String?
+  endPhoto      String?
+  shiftId       String?
+  dailyRecord   DailyRecord? @relation(fields: [dailyRecordId], references: [id])
+  shift         Shift?       @relation(fields: [shiftId], references: [id])
+
+  @@unique([dailyRecordId, nozzleNumber])
+  @@unique([shiftId, nozzleNumber])
+  @@map("meter_readings")
+}
+
+model Transaction {
+  id               String       @id @default(uuid())
+  stationId        String
+  dailyRecordId    String?
+  date             DateTime     @default(now())
+  truckId          String?
+  licensePlate     String?
+  ownerId          String?
+  ownerName        String?
+  paymentType      PaymentType
+  nozzleNumber     Int?
+  liters           Decimal
+  pricePerLiter    Decimal
+  amount           Decimal
+  productType      String?
+  billBookNo       String?
+  billNo           String?
+  notes            String?
+  recordedById     String
+  invoiceId        String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  transferProofUrl String?
+  deletedAt        DateTime?
+  isVoided         Boolean      @default(false)
+  voidReason       String?
+  voidedAt         DateTime?
+  voidedById       String?
+  dailyRecord      DailyRecord? @relation(fields: [dailyRecordId], references: [id])
+  invoice          Invoice?     @relation(fields: [invoiceId], references: [id])
+  owner            Owner?       @relation(fields: [ownerId], references: [id])
+  recordedBy       User         @relation(fields: [recordedById], references: [id])
+  station          Station      @relation(fields: [stationId], references: [id])
+  truck            Truck?       @relation(fields: [truckId], references: [id])
+
+  @@map("transactions")
+}
+
+model Invoice {
+  id            String        @id @default(uuid())
+  ownerId       String
+  dueDate       DateTime?
+  totalAmount   Decimal
+  status        InvoiceStatus @default(PENDING)
+  paidAmount    Decimal       @default(0)
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  invoiceNumber String        @unique
+  owner         Owner         @relation(fields: [ownerId], references: [id])
+  payments      Payment[]
+  transactions  Transaction[]
+
+  @@map("invoices")
+}
+
+model Payment {
+  id            String   @id @default(uuid())
+  invoiceId     String
+  amount        Decimal
+  paymentDate   DateTime @default(now())
+  paymentMethod String
+  notes         String?
+  createdAt     DateTime @default(now())
+  invoice       Invoice  @relation(fields: [invoiceId], references: [id])
+
+  @@map("payments")
+}
+
+model GasSupply {
+  id            String   @id @default(uuid())
+  stationId     String
+  date          DateTime
+  liters        Decimal
+  supplier      String?
+  invoiceNo     String?
+  pricePerLiter Decimal?
+  totalCost     Decimal?
+  notes         String?
+  createdAt     DateTime @default(now())
+  station       Station  @relation(fields: [stationId], references: [id])
+
+  @@map("gas_supplies")
+}
+
+model GaugeReading {
+  id            String       @id @default(uuid())
+  stationId     String
+  dailyRecordId String?
+  date          DateTime
+  percentage    Decimal
+  photoUrl      String?
+  recordedById  String?
+  notes         String?
+  createdAt     DateTime     @default(now())
+  tankNumber    Int
+  dailyRecord   DailyRecord? @relation(fields: [dailyRecordId], references: [id])
+
+  @@map("gauge_readings")
+}
+
+model Product {
+  id        String             @id @default(uuid())
+  name      String
+  unit      String
+  costPrice Decimal?
+  salePrice Decimal
+  createdAt DateTime           @default(now())
+  inventory ProductInventory[]
+  sales     ProductSale[]
+
+  @@map("products")
+}
+
+model ProductInventory {
+  id         String   @id @default(uuid())
+  productId  String
+  stationId  String
+  quantity   Int      @default(0)
+  alertLevel Int?
+  updatedAt  DateTime @updatedAt
+  product    Product  @relation(fields: [productId], references: [id])
+  station    Station  @relation(fields: [stationId], references: [id])
+
+  @@unique([productId, stationId])
+  @@map("product_inventories")
+}
+
+model ProductReceipt {
+  id        String   @id @default(uuid())
+  productId String
+  stationId String
+  quantity  Int
+  costPrice Decimal?
+  supplier  String?
+  invoiceNo String?
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@map("product_receipts")
+}
+
+model ProductSale {
+  id          String      @id @default(uuid())
+  productId   String
+  stationId   String
+  quantity    Int
+  salePrice   Decimal
+  paymentType PaymentType
+  date        DateTime    @default(now())
+  createdAt   DateTime    @default(now())
+  product     Product     @relation(fields: [productId], references: [id])
+
+  @@map("product_sales")
+}
+
+model Setting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  action    String
+  model     String
+  recordId  String
+  oldData   Json?
+  newData   Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
 enum StationType {
   FULL
   SIMPLE
-  GAS      // LPG Gas station
+  GAS
 }
 
 enum PaymentType {
@@ -19,14 +324,14 @@ enum PaymentType {
   TRANSFER
   BOX_TRUCK
   OIL_TRUCK_SUPACHAI
-  CREDIT_CARD  // บัตรเครดิต
+  CREDIT_CARD
 }
 
 enum OwnerGroup {
-  SUGAR_FACTORY     // โรงงานน้ำตาล
-  GENERAL_CREDIT    // เงินเชื่อทั่วไป
-  BOX_TRUCK         // รถตู้ทึบส่งโรงงาน
-  OIL_TRUCK         // รถน้ำมันศุภชัย
+  SUGAR_FACTORY
+  GENERAL_CREDIT
+  BOX_TRUCK
+  OIL_TRUCK
 }
 
 enum InvoiceStatus {
@@ -43,352 +348,4 @@ enum DailyRecordStatus {
 enum UserRole {
   ADMIN
   STAFF
-}
-
-// ผู้ใช้งาน
-model User {
-  id        String   @id @default(uuid())
-  name      String
-  username  String   @unique
-  password  String
-  role      UserRole @default(STAFF)
-  stationId String?
-  createdAt DateTime @default(now())
-
-  station      Station?      @relation(fields: [stationId], references: [id])
-  transactions Transaction[]
-  sessions     Session[]
-  auditLogs    AuditLog[]
-  shifts       Shift[]       @relation("ShiftStaff")
-
-  @@map("users")
-}
-
-model Session {
-  id        String   @id @default(uuid())
-  userId    String
-  createdAt DateTime @default(now())
-  expiresAt DateTime
-
-  user User @relation(fields: [userId], references: [id])
-
-  @@map("sessions")
-}
-
-// สถานี (6 สถานี: 1 FULL, 3 SIMPLE, 2 GAS)
-model Station {
-  id            String      @id @default(uuid())
-  name          String      // แท๊งลอยวัชรเกียรติ, วัชรเกียรติออยล์, พงษ์อนันต์ปิโตรเลียม, ศุภชัยบริการ, ปั๊มแก๊สพงษ์อนันต์, ปั๊มแก๊สศุภชัย
-  type          StationType // FULL, SIMPLE, or GAS
-  // Gas station specific fields
-  gasPrice      Decimal?    // ราคาแก๊ส LPG (บาท/ลิตร)
-  gasStockAlert Decimal?    // แจ้งเตือนเมื่อแก๊สต่ำกว่านี้ (ลิตร)
-  hasProducts   Boolean     @default(false) // มีสินค้าขายด้วยหรือไม่
-
-  users              User[]
-  dailyRecords       DailyRecord[]
-  transactions       Transaction[]
-  gasSupplies        GasSupply[]
-  productInventories ProductInventory[]
-
-  @@map("stations")
-}
-
-// ลูกค้า/เจ้าของ (ใช้ร่วมทุกสถานี)
-model Owner {
-  id         String     @id @default(uuid())
-  name       String
-  phone      String?
-  venderCode String?    // รหัส vendor โรงงาน เช่น 40002550
-  groupType  OwnerGroup @default(GENERAL_CREDIT)
-  code       String?    // C001, C002...
-  createdAt  DateTime   @default(now())
-
-  trucks       Truck[]
-  transactions Transaction[]
-  invoices     Invoice[]
-  deletedAt    DateTime?
-
-  @@map("owners")
-}
-
-// รถ/ทะเบียน
-model Truck {
-  id           String   @id @default(uuid())
-  licensePlate String
-  code         String?  // C-Code per truck (e.g. C001, C002)
-  ownerId      String
-  createdAt    DateTime @default(now())
-
-  owner        Owner         @relation(fields: [ownerId], references: [id])
-  transactions Transaction[]
-  deletedAt    DateTime?
-
-  @@map("trucks")
-}
-
-// บันทึกประจำวัน (สถานี FULL และ GAS)
-model DailyRecord {
-  id             String            @id @default(uuid())
-  stationId      String
-  date           DateTime
-  retailPrice    Decimal           @default(31.34)  // ราคาปลีก (เงินเชื่อ) - น้ำมัน
-  wholesalePrice Decimal           @default(30.5)   // ราคาส่ง (เงินสด) - น้ำมัน
-  gasPrice       Decimal?          // ราคาแก๊ส LPG วันนั้น
-  status         DailyRecordStatus @default(OPEN)
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-
-  station       Station        @relation(fields: [stationId], references: [id])
-  meters        MeterReading[]
-  transactions  Transaction[]
-  gaugeReadings GaugeReading[]
-  shifts        Shift[]
-
-  @@unique([stationId, date])
-  @@map("daily_records")
-}
-
-// กะ (สำหรับปั๊มแก๊ส - 2 กะ/วัน)
-model Shift {
-  id            String   @id @default(uuid())
-  dailyRecordId String
-  shiftNumber   Int      // 1 = กะเช้า, 2 = กะบ่าย
-  staffId       String?  // พนักงานประจำกะ
-  status        String   @default("OPEN") // OPEN, CLOSED
-  createdAt     DateTime @default(now())
-  closedAt      DateTime?
-
-  dailyRecord DailyRecord  @relation(fields: [dailyRecordId], references: [id])
-  staff       User?        @relation("ShiftStaff", fields: [staffId], references: [id])
-  meters      MeterReading[]
-
-  @@unique([dailyRecordId, shiftNumber])
-  @@map("shifts")
-}
-
-// มิเตอร์หัวจ่าย (4 หัว - ใช้ทั้ง FULL และ GAS)
-model MeterReading {
-  id            String  @id @default(uuid())
-  dailyRecordId String?  // For FULL station (backward compatible)
-  shiftId       String?  // For GAS station shifts
-  nozzleNumber  Int     // 1-4
-  startReading  Decimal @default(0)
-  endReading    Decimal?
-  startPhoto    String?
-  endPhoto      String?
-
-  dailyRecord DailyRecord? @relation(fields: [dailyRecordId], references: [id])
-  shift       Shift?       @relation(fields: [shiftId], references: [id])
-
-  @@unique([dailyRecordId, nozzleNumber])
-  @@unique([shiftId, nozzleNumber])
-  @@map("meter_readings")
-}
-
-// รายการเติมน้ำมัน/แก๊ส
-model Transaction {
-  id            String      @id @default(uuid())
-  stationId     String
-  dailyRecordId String?     // null for SIMPLE stations
-  date          DateTime    @default(now())
-  truckId       String?
-  licensePlate  String?     // กรณีไม่มีในระบบ
-  ownerId       String?
-  ownerName     String?     // กรณีไม่มีในระบบ (เงินสด/โอน)
-  paymentType   PaymentType
-  nozzleNumber  Int?
-  liters        Decimal
-  pricePerLiter Decimal
-  amount        Decimal
-  productType   String?     // ดีเซล, เบนซิน91, LPG, etc.
-  billBookNo    String?
-  billNo        String?
-  notes         String?
-  transferProofUrl String?  // รูปหลักฐานการโอน (Cloudinary URL)
-  recordedById  String
-  invoiceId     String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-
-  station     Station      @relation(fields: [stationId], references: [id])
-  dailyRecord DailyRecord? @relation(fields: [dailyRecordId], references: [id])
-  truck       Truck?       @relation(fields: [truckId], references: [id])
-  owner       Owner?       @relation(fields: [ownerId], references: [id])
-  recordedBy  User         @relation(fields: [recordedById], references: [id])
-  invoice     Invoice?     @relation(fields: [invoiceId], references: [id])
-  
-  // Void fields
-  isVoided     Boolean   @default(false)
-  voidedAt     DateTime?
-  voidedById   String?
-  voidReason   String?   // เหตุผลในการยกเลิก
-  
-  deletedAt   DateTime?
-
-  @@map("transactions")
-}
-
-// ใบวางบิล
-model Invoice {
-  id            String        @id @default(uuid())
-  invoiceNumber String        @unique
-  ownerId       String
-  totalAmount   Decimal
-  paidAmount    Decimal       @default(0)
-  status        InvoiceStatus @default(PENDING)
-  dueDate       DateTime?
-  notes         String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-
-  owner        Owner         @relation(fields: [ownerId], references: [id])
-  transactions Transaction[]
-  payments     Payment[]
-
-  @@map("invoices")
-}
-
-// การชำระเงิน
-model Payment {
-  id            String   @id @default(uuid())
-  invoiceId     String
-  amount        Decimal
-  paymentDate   DateTime @default(now())
-  paymentMethod String   // TRANSFER, CASH, CHECK
-  notes         String?
-  createdAt     DateTime @default(now())
-
-  invoice Invoice @relation(fields: [invoiceId], references: [id])
-
-  @@map("payments")
-}
-
-// ==================== GAS STATION MODELS ====================
-
-// รับแก๊สจากซัพพลายเออร์
-model GasSupply {
-  id            String   @id @default(uuid())
-  stationId     String
-  date          DateTime
-  liters        Decimal  // จำนวนลิตรที่รับ
-  supplier      String?  // ชื่อผู้ส่ง
-  invoiceNo     String?  // เลขที่ใบส่ง
-  pricePerLiter Decimal?
-  totalCost     Decimal?
-  notes         String?
-  createdAt     DateTime @default(now())
-
-  station Station @relation(fields: [stationId], references: [id])
-
-  @@map("gas_supplies")
-}
-
-// บันทึกเกจถังแก๊ส (เปอร์เซนต์) - 3 ถัง
-model GaugeReading {
-  id            String    @id @default(uuid())
-  stationId     String
-  dailyRecordId String?
-  tankNumber    Int       // ถังที่ 1, 2, 3
-  date          DateTime
-  percentage    Decimal   // เปอร์เซนต์ที่เห็นจากเกจ (0-100)
-  photoUrl      String?   // รูปถ่ายเกจ
-  recordedById  String?
-  notes         String?
-  createdAt     DateTime  @default(now())
-
-  dailyRecord DailyRecord? @relation(fields: [dailyRecordId], references: [id])
-
-  @@map("gauge_readings")
-}
-
-// ==================== PRODUCT INVENTORY MODELS ====================
-
-// สินค้าในร้าน (น้ำดื่ม, ขนม, etc.)
-model Product {
-  id        String   @id @default(uuid())
-  name      String   // เช่น น้ำดื่ม, ขนม
-  unit      String   // ขวด, ชิ้น, แพ็ค
-  costPrice Decimal? // ราคาทุน
-  salePrice Decimal  // ราคาขาย
-  createdAt DateTime @default(now())
-
-  inventory ProductInventory[]
-  sales     ProductSale[]
-
-  @@map("products")
-}
-
-// สต็อกสินค้าแต่ละสถานี
-model ProductInventory {
-  id         String   @id @default(uuid())
-  productId  String
-  stationId  String
-  quantity   Int      @default(0)
-  alertLevel Int?     // แจ้งเตือนเมื่อต่ำกว่านี้
-  updatedAt  DateTime @updatedAt
-
-  product Product @relation(fields: [productId], references: [id])
-  station Station @relation(fields: [stationId], references: [id])
-
-  @@unique([productId, stationId])
-  @@map("product_inventories")
-}
-
-// รับสินค้าเข้า
-model ProductReceipt {
-  id        String   @id @default(uuid())
-  productId String
-  stationId String
-  quantity  Int
-  costPrice Decimal?
-  supplier  String?
-  invoiceNo String?
-  date      DateTime @default(now())
-  createdAt DateTime @default(now())
-
-  @@map("product_receipts")
-}
-
-// ขายสินค้า
-model ProductSale {
-  id          String      @id @default(uuid())
-  productId   String
-  stationId   String
-  quantity    Int
-  salePrice   Decimal
-  paymentType PaymentType
-  date        DateTime    @default(now())
-  createdAt   DateTime    @default(now())
-
-  product Product @relation(fields: [productId], references: [id])
-
-  @@map("product_sales")
-}
-
-// System settings (key-value store)
-model Setting {
-  id        String   @id @default(uuid())
-  key       String   @unique
-  value     String
-  updatedAt DateTime @updatedAt
-
-  @@map("settings")
-}
-
-// Audit Log for tracking all CRUD operations
-model AuditLog {
-  id        String   @id @default(uuid())
-  userId    String
-  action    String   // CREATE, UPDATE, DELETE
-  model     String   // Transaction, Owner, Truck, Invoice
-  recordId  String
-  oldData   Json?
-  newData   Json?
-  ipAddress String?
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id])
-
-  @@map("audit_logs")
 }

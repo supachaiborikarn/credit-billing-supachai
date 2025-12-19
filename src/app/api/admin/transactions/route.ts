@@ -49,7 +49,8 @@ export async function GET(request: NextRequest) {
             orderBy: { date: 'desc' },
             include: {
                 recordedBy: { select: { name: true } },
-                owner: { select: { name: true } },
+                owner: { select: { name: true, code: true } },
+                truck: { select: { code: true } },
                 station: { select: { name: true } },
             }
         });
@@ -61,6 +62,7 @@ export async function GET(request: NextRequest) {
             stationName: t.station.name,
             licensePlate: t.licensePlate,
             ownerName: t.owner?.name || t.ownerName || null,
+            ownerCode: t.truck?.code || t.owner?.code || null,
             paymentType: t.paymentType,
             liters: Number(t.liters),
             pricePerLiter: Number(t.pricePerLiter),
