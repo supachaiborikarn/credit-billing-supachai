@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Save, X, Plus, Trash2, User, Phone, FileText } from 'lucide-react';
+import { Save, X, Plus, Trash2, User, Phone, FileText, Camera, Image } from 'lucide-react';
 import { FUEL_TYPES, PAYMENT_TYPES } from '@/constants';
 
 interface TruckSearchResult {
@@ -57,6 +57,11 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
     ]);
 
     const [saving, setSaving] = useState(false);
+
+    // Transfer proof upload
+    const [transferProofUrl, setTransferProofUrl] = useState<string | null>(null);
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Search for trucks
     useEffect(() => {
@@ -204,6 +209,7 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
                     paymentType,
                     billBookNo: bookNo,
                     billNo,
+                    transferProofUrl,
                     lines: validLines.map(line => ({
                         fuelType: line.fuelType,
                         liters: parseFloat(line.quantity),
@@ -285,7 +291,87 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
                     </div>
                 </div>
 
-                {/* Customer Info */}
+                {/* Transfer Proof Upload - Show only for TRANSFER */}
+                {paymentType === 'TRANSFER' && (
+                    <div className="mb-4 p-4 bg-blue-500/10 rounded-xl border border-blue-500/30">
+                        <label className="block text-sm text-blue-400 mb-2 font-medium">📎 หลักฐานการโอนเงิน</label>
+                        <div className="flex items-center gap-3">
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                accept="image/*"
+                                className="hidden"
+                                onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+
+                                    setUploading(true);
+                                    try {
+                                        const formData = new FormData();
+                                        formData.append('file', file);
+
+                                        const res = await fetch('/api/upload/transfer-proof', {
+                                            method: 'POST',
+                                            body: formData,
+                                        });
+
+                                        if (res.ok) {
+                                            const { url } = await res.json();
+                                            setTransferProofUrl(url);
+                                        } else {
+                                            alert('อัปโหลดไม่สำเร็จ');
+                                        }
+                                    } catch (err) {
+                                        console.error('Upload error:', err);
+                                        alert('เกิดข้อผิดพลาด');
+                                    } finally {
+                                        setUploading(false);
+                                    }
+                                }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={uploading}
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm disabled:opacity-50"
+                            >
+                                {uploading ? (
+                                    <>
+                                        <div className="spinner w-4 h-4" />
+                                        กำลังอัปโหลด...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Camera size={16} />
+                                        เลือกรูป
+                                    </>
+                                )}
+                            </button>
+                            {transferProofUrl && (
+                                <div className="flex items-center gap-2">
+                                    <Image size={16} className="text-green-400" />
+                                    <span className="text-green-400 text-sm">อัปโหลดแล้ว</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setTransferProofUrl(null)}
+                                        className="text-red-400 hover:text-red-300 text-xs"
+                                    >
+                                        ลบ
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                        {transferProofUrl && (
+                            <div className="mt-2">
+                                <img
+                                    src={transferProofUrl}
+                                    alt="หลักฐานการโอน"
+                                    className="max-h-32 rounded-lg border border-green-500/30"
+                                />
+                            </div>
+                        )}
+                    </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div ref={dropdownRef} className="relative">
                         <label className="block text-sm text-gray-400 mb-1">ทะเบียนรถ</label>
