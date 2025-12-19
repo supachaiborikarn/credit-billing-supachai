@@ -85,6 +85,24 @@ export async function GET(
             endReading: Number(m.endReading) || 0
         })) || [];
 
+        // Build a map of licensePlate -> code for transactions without truck relation
+        const licensePlates = transactions
+            .filter(t => !t.truck && t.licensePlate)
+            .map(t => t.licensePlate)
+            .filter((p): p is string => p !== null);
+
+        let truckCodeMap: Record<string, string> = {};
+        if (licensePlates.length > 0) {
+            const trucks = await prisma.truck.findMany({
+                where: { licensePlate: { in: licensePlates } },
+                select: { licensePlate: true, code: true }
+            });
+            truckCodeMap = trucks.reduce((acc: Record<string, string>, t: { licensePlate: string; code: string | null }) => {
+                if (t.code) acc[t.licensePlate] = t.code;
+                return acc;
+            }, {});
+        }
+
         return NextResponse.json({
             dailyRecord: dailyRecord ? {
                 id: dailyRecord.id,
@@ -102,22 +120,25 @@ export async function GET(
                     endPhoto: m.endPhoto,
                 })),
             } : null,
-            transactions: transactions.map(t => ({
-                id: t.id,
-                date: t.date.toISOString(),
-                licensePlate: t.licensePlate || t.truck?.licensePlate || '',
-                ownerName: t.owner?.name || t.ownerName || '',
-                ownerCode: t.truck?.code || t.owner?.code || null,
-                paymentType: t.paymentType,
-                nozzleNumber: t.nozzleNumber,
-                liters: Number(t.liters),
-                pricePerLiter: Number(t.pricePerLiter),
-                amount: Number(t.amount),
-                billBookNo: t.billBookNo || null,
-                billNo: t.billNo || null,
-                recordedByName: t.recordedBy?.name || '-',
-                transferProofUrl: t.transferProofUrl || null,
-            })),
+            transactions: transactions.map(t => {
+                const plate = t.licensePlate || t.truck?.licensePlate || '';
+                return {
+                    id: t.id,
+                    date: t.date.toISOString(),
+                    licensePlate: plate,
+                    ownerName: t.owner?.name || t.ownerName || '',
+                    ownerCode: t.truck?.code || truckCodeMap[plate] || t.owner?.code || null,
+                    paymentType: t.paymentType,
+                    nozzleNumber: t.nozzleNumber,
+                    liters: Number(t.liters),
+                    pricePerLiter: Number(t.pricePerLiter),
+                    amount: Number(t.amount),
+                    billBookNo: t.billBookNo || null,
+                    billNo: t.billNo || null,
+                    recordedByName: t.recordedBy?.name || '-',
+                    transferProofUrl: t.transferProofUrl || null,
+                };
+            }),
             previousDayMeters,
         });
     } catch (error) {

@@ -55,23 +55,44 @@ export async function GET(request: NextRequest) {
             }
         });
 
-        const formattedTransactions = transactions.map(t => ({
-            id: t.id,
-            date: t.date.toISOString(),
-            stationId: t.stationId,
-            stationName: t.station.name,
-            licensePlate: t.licensePlate,
-            ownerName: t.owner?.name || t.ownerName || null,
-            ownerCode: t.truck?.code || t.owner?.code || null,
-            paymentType: t.paymentType,
-            liters: Number(t.liters),
-            pricePerLiter: Number(t.pricePerLiter),
-            amount: Number(t.amount),
-            productType: t.productType,
-            isVoided: t.isVoided,
-            voidReason: t.voidReason,
-            recordedByName: t.recordedBy?.name || '-',
-        }));
+        // Build a map of licensePlate -> code for transactions without truck relation
+        const licensePlates = transactions
+            .filter(t => !t.truck && t.licensePlate)
+            .map(t => t.licensePlate)
+            .filter((p): p is string => p !== null);
+
+        let truckCodeMap: Record<string, string> = {};
+        if (licensePlates.length > 0) {
+            const trucks = await prisma.truck.findMany({
+                where: { licensePlate: { in: licensePlates } },
+                select: { licensePlate: true, code: true }
+            });
+            truckCodeMap = trucks.reduce((acc: Record<string, string>, t: { licensePlate: string; code: string | null }) => {
+                if (t.code) acc[t.licensePlate] = t.code;
+                return acc;
+            }, {});
+        }
+
+        const formattedTransactions = transactions.map(t => {
+            const plate = t.licensePlate || '';
+            return {
+                id: t.id,
+                date: t.date.toISOString(),
+                stationId: t.stationId,
+                stationName: t.station.name,
+                licensePlate: plate,
+                ownerName: t.owner?.name || t.ownerName || null,
+                ownerCode: t.truck?.code || truckCodeMap[plate] || t.owner?.code || null,
+                paymentType: t.paymentType,
+                liters: Number(t.liters),
+                pricePerLiter: Number(t.pricePerLiter),
+                amount: Number(t.amount),
+                productType: t.productType,
+                isVoided: t.isVoided,
+                voidReason: t.voidReason,
+                recordedByName: t.recordedBy?.name || '-',
+            };
+        });
 
         return NextResponse.json(formattedTransactions);
     } catch (error) {
