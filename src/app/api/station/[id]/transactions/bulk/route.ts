@@ -99,6 +99,29 @@ export async function POST(
             if (owner) resolvedOwnerId = owner.id;
         }
 
+        // Auto-create truck if license plate + owner provided but truck doesn't exist
+        let truckId: string | null = null;
+        if (licensePlate && resolvedOwnerId) {
+            // Check if truck exists
+            const existingTruck = await prisma.truck.findFirst({
+                where: { licensePlate: licensePlate.toUpperCase() }
+            });
+
+            if (existingTruck) {
+                truckId = existingTruck.id;
+            } else {
+                // Create new truck automatically
+                const newTruck = await prisma.truck.create({
+                    data: {
+                        licensePlate: licensePlate.toUpperCase(),
+                        ownerId: resolvedOwnerId,
+                    }
+                });
+                truckId = newTruck.id;
+                console.log(`Auto-created truck: ${licensePlate} for owner ${resolvedOwnerId}`);
+            }
+        }
+
         // Check for duplicates
         const startOfDay = getStartOfDayBangkok(dateStr);
         const endOfDay = getEndOfDayBangkok(dateStr);
@@ -137,6 +160,7 @@ export async function POST(
                         licensePlate: licensePlate || null,
                         ownerName: ownerName || null,
                         ownerId: resolvedOwnerId,
+                        truckId: truckId,
                         paymentType: paymentType as PaymentType,
                         nozzleNumber: null,
                         liters: line.liters,

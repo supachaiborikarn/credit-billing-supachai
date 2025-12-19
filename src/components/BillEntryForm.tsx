@@ -63,6 +63,13 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // Add Truck Modal
+    const [showAddTruckModal, setShowAddTruckModal] = useState(false);
+    const [allOwners, setAllOwners] = useState<{ id: string; name: string; code: string | null }[]>([]);
+    const [selectedNewTruckOwner, setSelectedNewTruckOwner] = useState('');
+    const [addingTruck, setAddingTruck] = useState(false);
+    const [ownerFilter, setOwnerFilter] = useState('');
+
     // Search for trucks
     useEffect(() => {
         const timer = setTimeout(async () => {
@@ -135,6 +142,74 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
         setOwnerPhone(truck.ownerPhone);
         setShowDropdown(false);
     };
+
+    // Fetch owners for add truck modal
+    const fetchOwners = async () => {
+        try {
+            const res = await fetch('/api/owners');
+            if (res.ok) {
+                const data = await res.json();
+                setAllOwners(data);
+            }
+        } catch (error) {
+            console.error('Error fetching owners:', error);
+        }
+    };
+
+    // Handle opening add truck modal
+    const openAddTruckModal = () => {
+        setShowDropdown(false);
+        setShowAddTruckModal(true);
+        setSelectedNewTruckOwner('');
+        setOwnerFilter('');
+        if (allOwners.length === 0) {
+            fetchOwners();
+        }
+    };
+
+    // Handle adding new truck
+    const handleAddTruck = async () => {
+        if (!licensePlate || !selectedNewTruckOwner) {
+            alert('กรุณากรอกทะเบียนและเลือกเจ้าของ');
+            return;
+        }
+
+        setAddingTruck(true);
+        try {
+            const res = await fetch('/api/trucks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    licensePlate: licensePlate.toUpperCase(),
+                    ownerId: selectedNewTruckOwner,
+                }),
+            });
+
+            if (res.ok) {
+                const newTruck = await res.json();
+                // Auto-select the newly added truck
+                setCustomerName(newTruck.owner.name);
+                setOwnerId(newTruck.owner.id);
+                setOwnerCode(newTruck.owner.code);
+                setShowAddTruckModal(false);
+                alert('✅ เพิ่มทะเบียนสำเร็จ!');
+            } else {
+                const err = await res.json();
+                alert(err.error || 'เกิดข้อผิดพลาด');
+            }
+        } catch (error) {
+            console.error('Error adding truck:', error);
+            alert('เกิดข้อผิดพลาดในการเพิ่มทะเบียน');
+        } finally {
+            setAddingTruck(false);
+        }
+    };
+
+    // Filter owners for display
+    const filteredOwners = allOwners.filter(owner =>
+        owner.name.toLowerCase().includes(ownerFilter.toLowerCase()) ||
+        (owner.code && owner.code.toLowerCase().includes(ownerFilter.toLowerCase()))
+    );
 
     const addFuelLine = () => {
         const newId = String(Date.now());
@@ -384,6 +459,11 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
                                 setOwnerCode(null);
                                 setOwnerPhone(null);
                             }}
+                            onFocus={() => {
+                                if (licensePlate.length >= 2) {
+                                    setShowDropdown(true);
+                                }
+                            }}
                             className="input-glow"
                             placeholder="กพ-0000"
                         />
@@ -392,19 +472,33 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
                                 <div className="spinner w-4 h-4" />
                             </div>
                         )}
-                        {showDropdown && searchResults.length > 0 && (
+                        {showDropdown && (
                             <div className="absolute z-50 w-full mt-1 glass-card max-h-48 overflow-y-auto">
-                                {searchResults.map((truck) => (
-                                    <button
-                                        key={truck.id}
-                                        type="button"
-                                        onClick={() => selectTruck(truck)}
-                                        className="w-full px-3 py-2 text-left hover:bg-purple-500/20 text-sm"
-                                    >
-                                        <span className="font-mono text-blue-400">{truck.licensePlate}</span>
-                                        <span className="text-gray-400 ml-2">{truck.ownerName}</span>
-                                    </button>
-                                ))}
+                                {searchResults.length > 0 ? (
+                                    searchResults.map((truck) => (
+                                        <button
+                                            key={truck.id}
+                                            type="button"
+                                            onClick={() => selectTruck(truck)}
+                                            className="w-full px-3 py-2 text-left hover:bg-purple-500/20 text-sm"
+                                        >
+                                            <span className="font-mono text-blue-400">{truck.licensePlate}</span>
+                                            <span className="text-gray-400 ml-2">{truck.ownerName}</span>
+                                        </button>
+                                    ))
+                                ) : !searchLoading && licensePlate.length >= 2 ? (
+                                    <div className="p-3">
+                                        <p className="text-yellow-400 text-sm mb-2">⚠️ ไม่พบทะเบียน "{licensePlate}"</p>
+                                        <button
+                                            type="button"
+                                            onClick={openAddTruckModal}
+                                            className="w-full mt-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm flex items-center justify-center gap-2"
+                                        >
+                                            <Plus size={16} />
+                                            เพิ่มทะเบียนใหม่
+                                        </button>
+                                    </div>
+                                ) : null}
                             </div>
                         )}
                     </div>
@@ -651,6 +745,88 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
                     </button>
                 </div>
             </form>
+
+            {/* Add Truck Modal */}
+            {showAddTruckModal && (
+                <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+                    <div className="bg-[#0f0f1a] rounded-2xl w-full max-w-md border border-white/10">
+                        <div className="flex items-center justify-between p-4 border-b border-white/10">
+                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                <Plus className="text-green-400" />
+                                เพิ่มทะเบียนใหม่
+                            </h3>
+                            <button
+                                onClick={() => setShowAddTruckModal(false)}
+                                className="text-gray-400 hover:text-white"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <div className="p-4 space-y-4">
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">ทะเบียนรถ</label>
+                                <div className="input-glow bg-blue-900/30 border-blue-500/50 text-blue-400 font-mono text-lg">
+                                    {licensePlate}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">ค้นหาเจ้าของ</label>
+                                <input
+                                    type="text"
+                                    value={ownerFilter}
+                                    onChange={(e) => setOwnerFilter(e.target.value)}
+                                    placeholder="พิมพ์ชื่อหรือรหัส..."
+                                    className="input-glow"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">เลือกเจ้าของ</label>
+                                <div className="max-h-48 overflow-y-auto bg-white/5 rounded-lg border border-white/10">
+                                    {filteredOwners.length === 0 ? (
+                                        <p className="text-gray-400 text-center py-4">ไม่พบเจ้าของ...</p>
+                                    ) : (
+                                        filteredOwners.slice(0, 50).map((owner) => (
+                                            <button
+                                                key={owner.id}
+                                                type="button"
+                                                onClick={() => setSelectedNewTruckOwner(owner.id)}
+                                                className={`w-full px-3 py-2 text-left text-sm border-b border-white/5 last:border-b-0 transition-colors ${selectedNewTruckOwner === owner.id
+                                                    ? 'bg-green-600/30 text-green-400'
+                                                    : 'hover:bg-purple-500/20 text-white'
+                                                    }`}
+                                            >
+                                                <span className="font-medium">{owner.name}</span>
+                                                {owner.code && (
+                                                    <span className="text-gray-500 ml-2">({owner.code})</span>
+                                                )}
+                                            </button>
+                                        ))
+                                    )}
+                                </div>
+                                {filteredOwners.length > 50 && (
+                                    <p className="text-gray-500 text-xs mt-1">แสดง 50 รายการแรก กรุณาค้นหาเพื่อกรอง</p>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex gap-3 p-4 border-t border-white/10">
+                            <button
+                                onClick={() => setShowAddTruckModal(false)}
+                                className="flex-1 btn btn-secondary"
+                            >
+                                ยกเลิก
+                            </button>
+                            <button
+                                onClick={handleAddTruck}
+                                disabled={!selectedNewTruckOwner || addingTruck}
+                                className="flex-1 btn btn-success flex items-center justify-center gap-2"
+                            >
+                                <Save size={18} />
+                                {addingTruck ? 'กำลังเพิ่ม...' : 'เพิ่มทะเบียน'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

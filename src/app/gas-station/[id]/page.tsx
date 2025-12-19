@@ -1313,19 +1313,26 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                             )}
 
                                             {/* Dropdown */}
-                                            {showDropdown && searchResults.length > 0 && (
+                                            {showDropdown && (
                                                 <div className="absolute z-50 w-full mt-1 dropdown-menu max-h-64 overflow-y-auto">
-                                                    {searchResults.map((truck) => (
-                                                        <button
-                                                            key={truck.id}
-                                                            type="button"
-                                                            onClick={() => selectTruck(truck)}
-                                                            className="w-full px-4 py-3 text-left hover:bg-cyan-500/20 border-b border-white/10 last:border-b-0 transition-colors"
-                                                        >
-                                                            <p className="font-mono text-cyan-400 font-medium">{truck.licensePlate}</p>
-                                                            <p className="text-sm text-white">{truck.ownerName}</p>
-                                                        </button>
-                                                    ))}
+                                                    {searchResults.length > 0 ? (
+                                                        searchResults.map((truck) => (
+                                                            <button
+                                                                key={truck.id}
+                                                                type="button"
+                                                                onClick={() => selectTruck(truck)}
+                                                                className="w-full px-4 py-3 text-left hover:bg-cyan-500/20 border-b border-white/10 last:border-b-0 transition-colors"
+                                                            >
+                                                                <p className="font-mono text-cyan-400 font-medium">{truck.licensePlate}</p>
+                                                                <p className="text-sm text-white">{truck.ownerName}</p>
+                                                            </button>
+                                                        ))
+                                                    ) : !searchLoading && licensePlate.length >= 2 ? (
+                                                        <div className="p-3">
+                                                            <p className="text-yellow-400 text-sm mb-2">⚠️ ไม่พบทะเบียน "{licensePlate}"</p>
+                                                            <p className="text-gray-400 text-xs">กรุณาตรวจสอบทะเบียนอีกครั้ง หรือเพิ่มทะเบียนใหม่ที่หน้า "รถ"</p>
+                                                        </div>
+                                                    ) : null}
                                                 </div>
                                             )}
                                         </div>
