@@ -355,7 +355,7 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
                                     >
                                         ทั้งหมด ({transactions.length})
                                     </button>
-                                    {PAYMENT_TYPES.slice(0, 3).map(pt => {
+                                    {PAYMENT_TYPES.map(pt => {
                                         const count = transactions.filter(t => t.paymentType === pt.value).length;
                                         return (
                                             <button

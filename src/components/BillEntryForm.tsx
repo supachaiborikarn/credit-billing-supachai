@@ -192,29 +192,30 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
 
         setSaving(true);
         try {
-            // Save each fuel line as a separate transaction
-            for (const line of validLines) {
-                const res = await fetch(`/api/station/${stationId}/transactions`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        date: selectedDate,
-                        licensePlate,
-                        ownerName: customerName,
-                        ownerId,
-                        paymentType,
+            // Use bulk API for atomic transaction (All or Nothing)
+            const res = await fetch(`/api/station/${stationId}/transactions/bulk`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    date: selectedDate,
+                    licensePlate,
+                    ownerName: customerName,
+                    ownerId,
+                    paymentType,
+                    billBookNo: bookNo,
+                    billNo,
+                    lines: validLines.map(line => ({
                         fuelType: line.fuelType,
                         liters: parseFloat(line.quantity),
                         pricePerLiter: parseFloat(line.pricePerLiter),
                         amount: calculateLineTotal(line),
-                        billBookNo: bookNo,
-                        billNo,
-                    }),
-                });
+                    })),
+                }),
+            });
 
-                if (!res.ok) {
-                    throw new Error('Failed to save transaction');
-                }
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || 'Failed to save transaction');
             }
 
             onSave();
@@ -232,6 +233,9 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
                     <FileText className="text-blue-400" />
                     ลงบิลใหม่
+                    <span className="text-sm font-normal text-purple-400 bg-purple-500/20 px-2 py-1 rounded-lg ml-2">
+                        📅 {new Date(selectedDate).toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
                 </h2>
                 <button onClick={onCancel} className="text-gray-400 hover:text-white">
                     <X size={24} />
@@ -264,7 +268,7 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
                     <div className="md:col-span-2">
                         <label className="block text-sm text-gray-400 mb-1">ประเภทการชำระ</label>
                         <div className="flex flex-wrap gap-2">
-                            {PAYMENT_TYPES.slice(0, 3).map((pt) => (
+                            {PAYMENT_TYPES.map((pt) => (
                                 <button
                                     key={pt.value}
                                     type="button"
@@ -324,13 +328,12 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
                             type="text"
                             value={customerName}
                             onChange={(e) => {
-                                setCustomerName(e.target.value);
-                                if (ownerId) {
-                                    setOwnerId(null);
-                                    setOwnerCode(null);
+                                if (!ownerId) {
+                                    setCustomerName(e.target.value);
                                 }
                             }}
-                            className="input-glow"
+                            readOnly={!!ownerId}
+                            className={`input-glow ${ownerId ? 'bg-green-900/30 border-green-500/50 cursor-not-allowed' : ''}`}
                             placeholder="ในนาม"
                         />
                         {ownerSearchLoading && (
