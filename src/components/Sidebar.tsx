@@ -73,6 +73,7 @@ export default function Sidebar({ children }: SidebarProps) {
 
     const adminMenuItems = [
         { href: '/admin/transactions', icon: Edit, label: 'แก้ไขรายการ', gradient: 'from-red-500 to-orange-500' },
+        { href: '/admin/owners', icon: Users, label: 'รวมเจ้าของ', gradient: 'from-indigo-500 to-blue-500' },
         { href: '/invoices', icon: FileText, label: 'วางบิล/ชำระเงิน', gradient: 'from-pink-500 to-rose-500' },
         { href: '/admin/gas-history', icon: Fuel, label: 'ข้อมูลย้อนหลัง', gradient: 'from-cyan-500 to-teal-500' },
         { href: '/users', icon: Users, label: 'จัดการผู้ใช้', gradient: 'from-violet-500 to-purple-500' },

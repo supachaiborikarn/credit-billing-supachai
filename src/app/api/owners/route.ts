@@ -6,7 +6,7 @@ export async function GET() {
         const owners = await prisma.owner.findMany({
             orderBy: { name: 'asc' },
             include: {
-                _count: { select: { trucks: true } }
+                _count: { select: { trucks: true, transactions: true } }
             }
         });
 
