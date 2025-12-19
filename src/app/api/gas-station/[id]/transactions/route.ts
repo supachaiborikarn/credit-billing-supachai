@@ -103,6 +103,27 @@ export async function POST(
             }
         }
 
+        // ===== DUPLICATE PREVENTION =====
+        // Check if same transaction exists within last 2 minutes (double submit protection)
+        const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+        const duplicateCheck = await prisma.transaction.findFirst({
+            where: {
+                stationId: station.id,
+                licensePlate: licensePlate?.toUpperCase() || null,
+                ownerName: ownerName || null,
+                amount: amount,
+                createdAt: { gte: twoMinutesAgo },
+                deletedAt: null,
+            }
+        });
+
+        if (duplicateCheck) {
+            return NextResponse.json({
+                error: 'รายการนี้ถูกบันทึกไปแล้ว (ป้องกันการส่งซ้ำ)',
+                duplicateId: duplicateCheck.id
+            }, { status: 409 });
+        }
+
         // Create transaction
         const transaction = await prisma.transaction.create({
             data: {
