@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import Sidebar from '@/components/Sidebar';
 import BillEntryForm from '@/components/BillEntryForm';
-import { Calendar, Fuel, Trash2, FileText, Printer, X, Sparkles, Edit, Save } from 'lucide-react';
+import { Calendar, Fuel, Trash2, FileText, Printer, X, Sparkles, Edit, Save, Home, PlusCircle, List, BarChart3 } from 'lucide-react';
 import { STATIONS, PAYMENT_TYPES, FUEL_TYPES } from '@/constants';
 
 interface Transaction {
@@ -32,6 +32,9 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
     const [activeFilter, setActiveFilter] = useState('all');
     const [showDailySummary, setShowDailySummary] = useState(false);
     const [mounted, setMounted] = useState(false);
+
+    // Active tab for floating navigation
+    const [activeTab, setActiveTab] = useState<'home' | 'add' | 'list' | 'summary'>('list');
 
     // Admin toggle state
     const [userRole, setUserRole] = useState<string>('STAFF');
@@ -959,6 +962,89 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
                     </div>
                 </div>
             )}
+
+            {/* Floating Bottom Navigation Bar */}
+            <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 sm:hidden">
+                <div className="flex items-center gap-2 px-4 py-3 rounded-2xl backdrop-blur-xl border border-white/20 shadow-2xl"
+                    style={{ background: 'linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.6) 100%)' }}>
+
+                    <button
+                        onClick={() => { setActiveTab('list'); setShowForm(false); setShowDailySummary(false); }}
+                        className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all ${activeTab === 'list'
+                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg scale-105'
+                            : 'text-gray-400 hover:text-white hover:bg-white/10'
+                            }`}
+                    >
+                        <List size={22} />
+                        <span className="text-xs font-medium">รายการ</span>
+                    </button>
+
+                    <button
+                        onClick={() => { setActiveTab('add'); setShowForm(true); setShowDailySummary(false); }}
+                        className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all ${activeTab === 'add'
+                            ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg scale-105'
+                            : 'text-gray-400 hover:text-white hover:bg-white/10'
+                            }`}
+                    >
+                        <PlusCircle size={22} />
+                        <span className="text-xs font-medium">ลงบิล</span>
+                    </button>
+
+                    <button
+                        onClick={() => { setActiveTab('summary'); setShowDailySummary(true); setShowForm(false); }}
+                        className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all ${activeTab === 'summary'
+                            ? 'bg-gradient-to-r from-orange-600 to-yellow-600 text-white shadow-lg scale-105'
+                            : 'text-gray-400 hover:text-white hover:bg-white/10'
+                            }`}
+                    >
+                        <BarChart3 size={22} />
+                        <span className="text-xs font-medium">สรุป</span>
+                    </button>
+                </div>
+            </div>
+
+            {/* Floating Bottom Navigation Bar */}
+            <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 sm:hidden">
+                <div className="flex items-center gap-2 px-4 py-3 rounded-2xl backdrop-blur-xl border border-white/20 shadow-2xl"
+                    style={{ background: 'linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.6) 100%)' }}>
+
+                    <button
+                        onClick={() => { setActiveTab('list'); setShowForm(false); setShowDailySummary(false); }}
+                        className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all ${activeTab === 'list'
+                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg scale-105'
+                            : 'text-gray-400 hover:text-white hover:bg-white/10'
+                            }`}
+                    >
+                        <List size={22} />
+                        <span className="text-xs font-medium">รายการ</span>
+                    </button>
+
+                    <button
+                        onClick={() => { setActiveTab('add'); setShowForm(true); setShowDailySummary(false); }}
+                        className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all ${activeTab === 'add'
+                            ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg scale-105'
+                            : 'text-gray-400 hover:text-white hover:bg-white/10'
+                            }`}
+                    >
+                        <PlusCircle size={22} />
+                        <span className="text-xs font-medium">ลงบิล</span>
+                    </button>
+
+                    <button
+                        onClick={() => { setActiveTab('summary'); setShowDailySummary(true); setShowForm(false); }}
+                        className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all ${activeTab === 'summary'
+                            ? 'bg-gradient-to-r from-orange-600 to-yellow-600 text-white shadow-lg scale-105'
+                            : 'text-gray-400 hover:text-white hover:bg-white/10'
+                            }`}
+                    >
+                        <BarChart3 size={22} />
+                        <span className="text-xs font-medium">สรุป</span>
+                    </button>
+                </div>
+            </div>
+
+            {/* Bottom padding for mobile to avoid floating nav overlap */}
+            <div className="sm:hidden h-24" />
         </Sidebar>
     );
 }
