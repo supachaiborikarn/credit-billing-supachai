@@ -46,6 +46,12 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
     const [searchLoading, setSearchLoading] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
+    // Owner search for autocomplete
+    const [ownerSearchResults, setOwnerSearchResults] = useState<{ id: string, name: string }[]>([]);
+    const [showOwnerDropdown, setShowOwnerDropdown] = useState(false);
+    const [ownerSearchLoading, setOwnerSearchLoading] = useState(false);
+    const ownerDropdownRef = useRef<HTMLDivElement>(null);
+
     const [fuelLines, setFuelLines] = useState<FuelLine[]>([
         { id: '1', fuelType: 'DIESEL', quantity: '', pricePerLiter: '30.50' }
     ]);
@@ -83,10 +89,38 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
             if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
                 setShowDropdown(false);
             }
+            if (ownerDropdownRef.current && !ownerDropdownRef.current.contains(e.target as Node)) {
+                setShowOwnerDropdown(false);
+            }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    // Search for owners by name
+    useEffect(() => {
+        const timer = setTimeout(async () => {
+            if (customerName.length >= 2 && !ownerId) {
+                setOwnerSearchLoading(true);
+                try {
+                    const res = await fetch(`/api/owners/search?q=${encodeURIComponent(customerName)}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        setOwnerSearchResults(data);
+                        setShowOwnerDropdown(data.length > 0);
+                    }
+                } catch (error) {
+                    console.error('Owner search error:', error);
+                } finally {
+                    setOwnerSearchLoading(false);
+                }
+            } else {
+                setOwnerSearchResults([]);
+                setShowOwnerDropdown(false);
+            }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [customerName, ownerId]);
 
     const selectTruck = (truck: TruckSearchResult) => {
         setLicensePlate(truck.licensePlate);
@@ -284,15 +318,44 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
                             </div>
                         )}
                     </div>
-                    <div>
+                    <div ref={ownerDropdownRef} className="relative">
                         <label className="block text-sm text-gray-400 mb-1">ชื่อลูกค้า</label>
                         <input
                             type="text"
                             value={customerName}
-                            onChange={(e) => setCustomerName(e.target.value)}
+                            onChange={(e) => {
+                                setCustomerName(e.target.value);
+                                if (ownerId) {
+                                    setOwnerId(null);
+                                    setOwnerCode(null);
+                                }
+                            }}
                             className="input-glow"
                             placeholder="ในนาม"
                         />
+                        {ownerSearchLoading && (
+                            <div className="absolute right-3 top-9">
+                                <div className="spinner w-4 h-4" />
+                            </div>
+                        )}
+                        {showOwnerDropdown && ownerSearchResults.length > 0 && (
+                            <div className="absolute z-50 w-full mt-1 glass-card max-h-48 overflow-y-auto">
+                                {ownerSearchResults.map((owner) => (
+                                    <button
+                                        key={owner.id}
+                                        type="button"
+                                        onClick={() => {
+                                            setCustomerName(owner.name);
+                                            setOwnerId(owner.id);
+                                            setShowOwnerDropdown(false);
+                                        }}
+                                        className="w-full px-3 py-2 text-left hover:bg-purple-500/20 text-sm text-white"
+                                    >
+                                        {owner.name}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                         {ownerCode && (
                             <p className="text-xs text-green-400 mt-1 flex items-center gap-1">
                                 <User size={10} /> รหัส: {ownerCode}
