@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Save, X, Plus, Trash2, User, Phone, FileText } from 'lucide-react';
-import { FUEL_TYPES, PAYMENT_TYPES } from '@/constants';
+import { FUEL_TYPES, PAYMENT_TYPES, STATION_STAFF } from '@/constants';
 
 interface TruckSearchResult {
     id: string;
@@ -51,6 +51,7 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
     ]);
 
     const [saving, setSaving] = useState(false);
+    const [staffName, setStaffName] = useState('');
 
     // Search for trucks
     useEffect(() => {
@@ -480,6 +481,35 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
                     </table>
                 </div>
 
+                {/* Staff Selector */}
+                {(() => {
+                    const stationStaff = STATION_STAFF[`station-${stationId}` as keyof typeof STATION_STAFF];
+                    if (stationStaff && stationStaff.staff.length > 0) {
+                        return (
+                            <div className="bg-orange-900/20 rounded-xl p-3 border border-orange-500/30 mb-4">
+                                <label className="block text-sm text-orange-400 mb-2 font-medium">
+                                    👷 พนักงานที่เติม
+                                </label>
+                                <div className="flex flex-wrap gap-2">
+                                    {stationStaff.staff.map((name) => (
+                                        <button
+                                            key={name}
+                                            type="button"
+                                            onClick={() => setStaffName(staffName === name ? '' : name)}
+                                            className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${staffName === name
+                                                ? 'bg-gradient-to-r from-orange-600 to-yellow-600 text-white shadow-lg'
+                                                : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                                                }`}
+                                        >
+                                            {name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    }
+                    return null;
+                })()}
 
                 {/* Submit Button */}
                 <div className="flex gap-3">
