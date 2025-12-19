@@ -217,6 +217,13 @@ model Transaction {
   owner       Owner?       @relation(fields: [ownerId], references: [id])
   recordedBy  User         @relation(fields: [recordedById], references: [id])
   invoice     Invoice?     @relation(fields: [invoiceId], references: [id])
+  
+  // Void fields
+  isVoided     Boolean   @default(false)
+  voidedAt     DateTime?
+  voidedById   String?
+  voidReason   String?   // เหตุผลในการยกเลิก
+  
   deletedAt   DateTime?
 
   @@map("transactions")
