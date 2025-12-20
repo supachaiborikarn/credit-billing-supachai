@@ -302,7 +302,8 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
             onSave();
         } catch (error) {
             console.error('Error saving bill:', error);
-            alert('เกิดข้อผิดพลาดในการบันทึก');
+            const errorMessage = error instanceof Error ? error.message : 'ไม่ทราบสาเหตุ';
+            alert(`❌ บันทึกไม่สำเร็จ\n\n📋 สาเหตุ: ${errorMessage}`);
         } finally {
             setSaving(false);
         }
