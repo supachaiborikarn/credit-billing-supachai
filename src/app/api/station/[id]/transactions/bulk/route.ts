@@ -122,29 +122,35 @@ export async function POST(
             }
         }
 
-        // Check for duplicates
+        // Check for duplicates - only if we have identifiable info
         const startOfDay = getStartOfDayBangkok(dateStr);
         const endOfDay = getEndOfDayBangkok(dateStr);
         const totalAmount = lines.reduce((sum, l) => sum + l.amount, 0);
 
-        const duplicate = await prisma.transaction.findFirst({
-            where: {
-                stationId,
-                date: { gte: startOfDay, lte: endOfDay },
-                amount: totalAmount,
-                paymentType: paymentType as PaymentType,
-                deletedAt: null,
-                OR: [
-                    licensePlate ? { licensePlate } : {},
-                    ownerName ? { ownerName } : {}
-                ]
-            }
-        });
+        // Build OR conditions only if we have data
+        const orConditions = [];
+        if (licensePlate) orConditions.push({ licensePlate });
+        if (ownerName) orConditions.push({ ownerName });
 
-        if (duplicate) {
-            return NextResponse.json({
-                error: `รายการซ้ำ: พบรายการ ${paymentType} ยอด ${totalAmount} บาท ในวันที่ ${dateStr} แล้ว`
-            }, { status: 409 });
+        // Only check for duplicates if we have licensePlate or ownerName
+        if (orConditions.length > 0) {
+            const duplicate = await prisma.transaction.findFirst({
+                where: {
+                    stationId,
+                    date: { gte: startOfDay, lte: endOfDay },
+                    amount: totalAmount,
+                    paymentType: paymentType as PaymentType,
+                    deletedAt: null,
+                    isVoided: false, // Don't count voided transactions
+                    OR: orConditions
+                }
+            });
+
+            if (duplicate) {
+                return NextResponse.json({
+                    error: `รายการซ้ำ: พบรายการ ${paymentType} ยอด ${totalAmount.toFixed(2)} บาท ในวันที่ ${dateStr} แล้ว`
+                }, { status: 409 });
+            }
         }
 
         // Use database transaction for atomicity (All or Nothing)
