@@ -188,30 +188,48 @@ export async function POST(
             if (owner) ownerId = owner.id;
         }
 
-        // Check for duplicates (same station, date, plate, amount, type)
-        // Helps prevent double-entry when importing data
+        // Check for duplicates - be more strict to avoid false positives
+        // Only consider duplicate if SAME bill book+number OR same plate+amount+type on same day
         const startOfDay = getStartOfDayBangkok(dateStr);
         const endOfDay = getEndOfDayBangkok(dateStr);
 
-        const duplicate = await prisma.transaction.findFirst({
-            where: {
-                stationId,
-                date: { gte: startOfDay, lte: endOfDay },
-                amount: amount,
-                paymentType: paymentType,
-                deletedAt: null, // Don't count soft-deleted transactions as duplicates
-                // Only check plate/owner if provided to avoid false positives on anonymous cash
-                OR: [
-                    licensePlate ? { licensePlate: licensePlate } : {},
-                    ownerName ? { ownerName: ownerName } : {}
-                ]
-            }
-        });
+        // First check: exact same bill book + bill number (if provided)
+        if (billBookNo && billNo) {
+            const billDuplicate = await prisma.transaction.findFirst({
+                where: {
+                    stationId,
+                    billBookNo: billBookNo,
+                    billNo: billNo,
+                    deletedAt: null,
+                }
+            });
 
-        if (duplicate) {
-            return NextResponse.json({
-                error: `รายการซ้ำ: พบรายการ ${paymentType} ยอด ${amount} บาท ของ ${licensePlate || ownerName || 'ไม่ระบุ'} ในวันที่ ${dateStr} แล้ว`
-            }, { status: 409 });
+            if (billDuplicate) {
+                return NextResponse.json({
+                    error: `บิลซ้ำ: เล่ม ${billBookNo} เลขที่ ${billNo} มีอยู่แล้วในระบบ (วันที่ ${billDuplicate.date.toLocaleDateString('th-TH')})`
+                }, { status: 409 });
+            }
+        }
+
+        // Second check: same plate + same amount + same type on same day
+        // This catches true duplicates like double-clicking submit
+        if (licensePlate) {
+            const plateDuplicate = await prisma.transaction.findFirst({
+                where: {
+                    stationId,
+                    date: { gte: startOfDay, lte: endOfDay },
+                    licensePlate: licensePlate,
+                    amount: amount,
+                    paymentType: paymentType,
+                    deletedAt: null,
+                }
+            });
+
+            if (plateDuplicate) {
+                return NextResponse.json({
+                    error: `รายการซ้ำ: พบรายการ ${paymentType} ทะเบียน ${licensePlate} ยอด ${amount} บาท ในวันที่ ${dateStr} แล้ว`
+                }, { status: 409 });
+            }
         }
 
         // Create transaction

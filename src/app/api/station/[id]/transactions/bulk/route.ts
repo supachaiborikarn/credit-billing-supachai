@@ -122,33 +122,47 @@ export async function POST(
             }
         }
 
-        // Check for duplicates - only if we have identifiable info
+        // Check for duplicates - be more strict to avoid false positives
         const startOfDay = getStartOfDayBangkok(dateStr);
         const endOfDay = getEndOfDayBangkok(dateStr);
         const totalAmount = lines.reduce((sum, l) => sum + l.amount, 0);
 
-        // Build OR conditions only if we have data
-        const orConditions = [];
-        if (licensePlate) orConditions.push({ licensePlate });
-        if (ownerName) orConditions.push({ ownerName });
-
-        // Only check for duplicates if we have licensePlate or ownerName
-        if (orConditions.length > 0) {
-            const duplicate = await prisma.transaction.findFirst({
+        // First check: exact same bill book + bill number (if provided)
+        if (billBookNo && billNo) {
+            const billDuplicate = await prisma.transaction.findFirst({
                 where: {
                     stationId,
-                    date: { gte: startOfDay, lte: endOfDay },
-                    amount: totalAmount,
-                    paymentType: paymentType as PaymentType,
+                    billBookNo: billBookNo,
+                    billNo: billNo,
                     deletedAt: null,
-                    isVoided: false, // Don't count voided transactions
-                    OR: orConditions
                 }
             });
 
-            if (duplicate) {
+            if (billDuplicate) {
                 return NextResponse.json({
-                    error: `รายการซ้ำ: พบรายการ ${paymentType} ยอด ${totalAmount.toFixed(2)} บาท ในวันที่ ${dateStr} แล้ว`
+                    error: `บิลซ้ำ: เล่ม ${billBookNo} เลขที่ ${billNo} มีอยู่แล้วในระบบ (วันที่ ${billDuplicate.date.toLocaleDateString('th-TH')})`
+                }, { status: 409 });
+            }
+        }
+
+        // Second check: same plate + same total amount + same type on same day
+        // This catches true duplicates like double-clicking submit
+        if (licensePlate) {
+            const plateDuplicate = await prisma.transaction.findFirst({
+                where: {
+                    stationId,
+                    date: { gte: startOfDay, lte: endOfDay },
+                    licensePlate: licensePlate,
+                    amount: totalAmount,
+                    paymentType: paymentType as PaymentType,
+                    deletedAt: null,
+                    isVoided: false,
+                }
+            });
+
+            if (plateDuplicate) {
+                return NextResponse.json({
+                    error: `รายการซ้ำ: พบรายการ ${paymentType} ทะเบียน ${licensePlate} ยอด ${totalAmount.toFixed(2)} บาท ในวันที่ ${dateStr} แล้ว`
                 }, { status: 409 });
             }
         }
