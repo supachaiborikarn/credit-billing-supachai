@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok, formatDateBangkok } from '@/lib/date-utils';
 
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
-        const dateStr = searchParams.get('date') || new Date().toISOString().split('T')[0];
+        const dateStr = searchParams.get('date') || getTodayBangkok();
 
-        const startOfDay = new Date(dateStr);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(dateStr);
-        endOfDay.setHours(23, 59, 59, 999);
+        // Use Bangkok timezone for date range
+        const startOfDay = getStartOfDayBangkok(dateStr);
+        const endOfDay = getEndOfDayBangkok(dateStr);
 
         // Yesterday for comparison
         const yesterdayStart = new Date(startOfDay);
@@ -17,15 +17,13 @@ export async function GET(request: Request) {
         const yesterdayEnd = new Date(endOfDay);
         yesterdayEnd.setDate(yesterdayEnd.getDate() - 1);
 
-        // Get 7 days range for weekly chart
-        const sevenDaysAgo = new Date(dateStr);
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-        sevenDaysAgo.setHours(0, 0, 0, 0);
+        // Get 7 days range for weekly chart (Bangkok timezone)
+        const sevenDaysAgoStr = new Date(new Date(dateStr).getTime() - 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const sevenDaysAgo = getStartOfDayBangkok(sevenDaysAgoStr);
 
-        // Get 30 days range for monthly heat map
-        const thirtyDaysAgo = new Date(dateStr);
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
-        thirtyDaysAgo.setHours(0, 0, 0, 0);
+        // Get 30 days range for monthly heat map (Bangkok timezone)
+        const thirtyDaysAgoStr = new Date(new Date(dateStr).getTime() - 29 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const thirtyDaysAgo = getStartOfDayBangkok(thirtyDaysAgoStr);
 
         // Get counts and data
         const [

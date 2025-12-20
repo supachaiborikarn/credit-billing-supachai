@@ -1,31 +1,36 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok, formatDateBangkok } from '@/lib/date-utils';
 
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const type = searchParams.get('type') || 'daily';
-        const startDate = searchParams.get('startDate');
-        const endDate = searchParams.get('endDate');
+        const startDateParam = searchParams.get('startDate');
+        const endDateParam = searchParams.get('endDate');
 
-        // Set date range
-        const end = endDate ? new Date(endDate) : new Date();
-        end.setHours(23, 59, 59, 999);
+        // Set date range using Bangkok timezone
+        const endStr = endDateParam || getTodayBangkok();
+        const end = getEndOfDayBangkok(endStr);
 
-        let start = new Date();
-        if (startDate) {
-            start = new Date(startDate);
+        let startStr = getTodayBangkok();
+        if (startDateParam) {
+            startStr = startDateParam;
         } else {
             // Default ranges based on type
+            const today = new Date();
             if (type === 'daily') {
-                start.setDate(start.getDate() - 30); // Last 30 days
+                today.setDate(today.getDate() - 30);
             } else if (type === 'monthly') {
-                start.setMonth(start.getMonth() - 12); // Last 12 months
+                today.setMonth(today.getMonth() - 12);
             } else if (type === 'debt') {
-                start = new Date('2020-01-01'); // All time for debt
+                startStr = '2020-01-01';
+            }
+            if (type !== 'debt') {
+                startStr = today.toISOString().split('T')[0];
             }
         }
-        start.setHours(0, 0, 0, 0);
+        const start = getStartOfDayBangkok(startStr);
 
         if (type === 'daily') {
             // Daily sales report
