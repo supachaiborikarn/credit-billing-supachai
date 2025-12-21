@@ -1264,7 +1264,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                             value={dailyCashTotal}
                                             onChange={(e) => setDailyCashTotal(e.target.value)}
                                             placeholder="ใส่ยอดเงินสดรวม (บาท)"
-                                            className="input-glow flex-1"
+                                            className="input-glow flex-1 text-lg py-3"
                                         />
                                         <button
                                             onClick={async () => {
@@ -1309,7 +1309,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                             value={expenseNotes}
                                             onChange={(e) => setExpenseNotes(e.target.value)}
                                             placeholder="รายละเอียด (เช่น ค่าน้ำมัน, ค่าอาหาร)"
-                                            className="input-glow w-full"
+                                            className="input-glow w-full text-lg py-3"
                                         />
                                         <div className="flex gap-2">
                                             <input
@@ -1317,7 +1317,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                                 value={otherExpenses}
                                                 onChange={(e) => setOtherExpenses(e.target.value)}
                                                 placeholder="จำนวนเงิน (บาท)"
-                                                className="input-glow flex-1"
+                                                className="input-glow flex-1 text-lg py-3"
                                             />
                                             <button
                                                 onClick={async () => {
