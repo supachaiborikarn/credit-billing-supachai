@@ -8,7 +8,7 @@ export async function PUT(
     try {
         const { id } = await params;
         const body = await request.json();
-        const { ownerId } = body;
+        const { licensePlate, ownerId } = body;
 
         if (!ownerId) {
             return NextResponse.json({ error: 'กรุณาระบุเจ้าของรถ' }, { status: 400 });
@@ -20,10 +20,26 @@ export async function PUT(
             return NextResponse.json({ error: 'ไม่พบเจ้าของรถ' }, { status: 404 });
         }
 
+        // If licensePlate is being changed, check for duplicates
+        if (licensePlate) {
+            const existingTruck = await prisma.truck.findFirst({
+                where: {
+                    licensePlate: licensePlate.toUpperCase(),
+                    id: { not: id } // Exclude current truck
+                }
+            });
+            if (existingTruck) {
+                return NextResponse.json({ error: 'ทะเบียนรถนี้มีในระบบแล้ว' }, { status: 400 });
+            }
+        }
+
         // Update truck
         const updatedTruck = await prisma.truck.update({
             where: { id },
-            data: { ownerId },
+            data: {
+                ownerId,
+                ...(licensePlate && { licensePlate: licensePlate.toUpperCase() })
+            },
             include: {
                 owner: {
                     select: { id: true, name: true, code: true }

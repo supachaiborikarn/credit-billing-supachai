@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { LoadingState } from '@/components/Spinner';
 import { useToast } from '@/components/Toast';
-import { Truck as TruckIcon, Search, Plus, User, X, Sparkles, Edit2 } from 'lucide-react';
+import { Truck as TruckIcon, Search, Plus, User, X, Sparkles, Edit2, Trash2 } from 'lucide-react';
 
 interface Truck {
     id: string;
@@ -30,13 +30,10 @@ export default function TrucksPage() {
     const [search, setSearch] = useState('');
     const [mounted, setMounted] = useState(false);
 
-    // Add Truck Modal
+    // Add Truck Modal (supports bulk add)
     const [showAddModal, setShowAddModal] = useState(false);
     const [saving, setSaving] = useState(false);
-    const [formData, setFormData] = useState({
-        licensePlate: '',
-        ownerId: '',
-    });
+    const [truckRows, setTruckRows] = useState<{ licensePlate: string; ownerId: string }[]>([{ licensePlate: '', ownerId: '' }]);
 
     // Edit Truck Modal
     const [showEditModal, setShowEditModal] = useState(false);
@@ -73,13 +70,30 @@ export default function TrucksPage() {
         }
     };
 
-    const handleAddTruck = async () => {
-        if (!formData.licensePlate.trim()) {
-            showToast('error', 'กรุณากรอกทะเบียนรถ');
-            return;
+    // Add row for bulk add
+    const addTruckRow = () => {
+        setTruckRows(prev => [...prev, { licensePlate: '', ownerId: '' }]);
+    };
+
+    // Remove row from bulk add
+    const removeTruckRow = (index: number) => {
+        if (truckRows.length > 1) {
+            setTruckRows(prev => prev.filter((_, i) => i !== index));
         }
-        if (!formData.ownerId) {
-            showToast('error', 'กรุณาเลือกเจ้าของรถ');
+    };
+
+    // Update row data
+    const updateTruckRow = (index: number, field: 'licensePlate' | 'ownerId', value: string) => {
+        setTruckRows(prev => prev.map((row, i) =>
+            i === index ? { ...row, [field]: field === 'licensePlate' ? value.toUpperCase() : value } : row
+        ));
+    };
+
+    const handleAddTrucks = async () => {
+        // Validate all rows
+        const validRows = truckRows.filter(row => row.licensePlate.trim() && row.ownerId);
+        if (validRows.length === 0) {
+            showToast('error', 'กรุณากรอกข้อมูลรถอย่างน้อย 1 คัน');
             return;
         }
 
@@ -88,21 +102,22 @@ export default function TrucksPage() {
             const res = await fetch('/api/trucks', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(validRows.length === 1 ? validRows[0] : validRows),
             });
 
             if (res.ok) {
-                const newTruck = await res.json();
-                setTrucks(prev => [...prev, newTruck]);
+                const result = await res.json();
+                const newTrucks = Array.isArray(result) ? result : [result];
+                setTrucks(prev => [...prev, ...newTrucks]);
                 setShowAddModal(false);
-                setFormData({ licensePlate: '', ownerId: '' });
-                showToast('success', `เพิ่มรถ "${newTruck.licensePlate}" สำเร็จ`);
+                setTruckRows([{ licensePlate: '', ownerId: '' }]);
+                showToast('success', `เพิ่มรถ ${newTrucks.length} คัน สำเร็จ`);
             } else {
                 const err = await res.json();
                 showToast('error', err.error || 'เกิดข้อผิดพลาด');
             }
         } catch (error) {
-            console.error('Error adding truck:', error);
+            console.error('Error adding trucks:', error);
             showToast('error', 'เกิดข้อผิดพลาด');
         } finally {
             setSaving(false);
@@ -130,7 +145,10 @@ export default function TrucksPage() {
             const res = await fetch(`/api/trucks/${editingTruck.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ownerId: editFormData.ownerId }),
+                body: JSON.stringify({
+                    licensePlate: editFormData.licensePlate,
+                    ownerId: editFormData.ownerId
+                }),
             });
 
             if (res.ok) {
@@ -273,19 +291,22 @@ export default function TrucksPage() {
             {/* Add Truck Modal */}
             {showAddModal && (
                 <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="relative w-full max-w-md animate-fade-in">
+                    <div className="relative w-full max-w-lg animate-fade-in">
                         <div className="absolute -inset-1 bg-gradient-to-r from-green-600 via-emerald-500 to-green-600 rounded-3xl blur-xl opacity-30" />
-                        <div className="relative backdrop-blur-2xl rounded-2xl border border-white/10 p-6"
+                        <div className="relative backdrop-blur-2xl rounded-2xl border border-white/10 p-6 max-h-[80vh] overflow-y-auto"
                             style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)' }}>
                             <div className="flex items-center justify-between mb-6">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500">
                                         <TruckIcon className="text-white" size={20} />
                                     </div>
-                                    <h3 className="text-lg font-bold text-white">เพิ่มรถใหม่</h3>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-white">เพิ่มรถใหม่</h3>
+                                        <p className="text-sm text-gray-400">เพิ่มได้หลายคันพร้อมกัน</p>
+                                    </div>
                                 </div>
                                 <button
-                                    onClick={() => setShowAddModal(false)}
+                                    onClick={() => { setShowAddModal(false); setTruckRows([{ licensePlate: '', ownerId: '' }]); }}
                                     className="p-2 hover:bg-white/10 rounded-xl transition-colors"
                                 >
                                     <X size={20} className="text-gray-400" />
@@ -293,45 +314,67 @@ export default function TrucksPage() {
                             </div>
 
                             <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm text-gray-400 mb-2">ทะเบียนรถ *</label>
-                                    <input
-                                        type="text"
-                                        value={formData.licensePlate}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, licensePlate: e.target.value.toUpperCase() }))}
-                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-green-500/50 transition-all duration-300"
-                                        placeholder="เช่น 1กก-1234 กทม."
-                                    />
-                                </div>
+                                {truckRows.map((row, index) => (
+                                    <div key={index} className="flex gap-3 items-start p-3 rounded-xl bg-white/5 border border-white/10">
+                                        <div className="flex-1 space-y-3">
+                                            <div>
+                                                <label className="block text-xs text-gray-400 mb-1">ทะเบียนรถ *</label>
+                                                <input
+                                                    type="text"
+                                                    value={row.licensePlate}
+                                                    onChange={(e) => updateTruckRow(index, 'licensePlate', e.target.value)}
+                                                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-green-500/50 transition-all duration-300 font-mono"
+                                                    placeholder="เช่น กพ83-1234"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs text-gray-400 mb-1">เจ้าของรถ *</label>
+                                                <select
+                                                    value={row.ownerId}
+                                                    onChange={(e) => updateTruckRow(index, 'ownerId', e.target.value)}
+                                                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-green-500/50 transition-all duration-300"
+                                                >
+                                                    <option value="">เลือกเจ้าของ...</option>
+                                                    {owners.map(owner => (
+                                                        <option key={owner.id} value={owner.id}>
+                                                            {owner.code ? `[${owner.code}] ` : ''}{owner.name}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        {truckRows.length > 1 && (
+                                            <button
+                                                onClick={() => removeTruckRow(index)}
+                                                className="p-2 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors mt-5"
+                                                title="ลบรายการนี้"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
 
-                                <div>
-                                    <label className="block text-sm text-gray-400 mb-2">เจ้าของรถ *</label>
-                                    <select
-                                        value={formData.ownerId}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, ownerId: e.target.value }))}
-                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-green-500/50 transition-all duration-300"
-                                    >
-                                        <option value="">เลือกเจ้าของ...</option>
-                                        {owners.map(owner => (
-                                            <option key={owner.id} value={owner.id}>
-                                                {owner.code ? `[${owner.code}] ` : ''}{owner.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                                <button
+                                    onClick={addTruckRow}
+                                    className="w-full py-3 border-2 border-dashed border-white/20 hover:border-green-500/50 rounded-xl text-gray-400 hover:text-green-400 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <Plus size={18} />
+                                    เพิ่มรถอีกคัน
+                                </button>
                             </div>
 
                             <div className="flex gap-3 mt-6">
                                 <button
-                                    onClick={handleAddTruck}
+                                    onClick={handleAddTrucks}
                                     disabled={saving}
                                     className="flex-1 relative group px-6 py-3 rounded-xl font-semibold text-white overflow-hidden disabled:opacity-50"
                                 >
                                     <div className="absolute inset-0 bg-gradient-to-r from-green-600 via-emerald-500 to-green-600" />
-                                    <span className="relative">{saving ? 'กำลังบันทึก...' : 'บันทึก'}</span>
+                                    <span className="relative">{saving ? 'กำลังบันทึก...' : `บันทึกทั้งหมด (${truckRows.filter(r => r.licensePlate && r.ownerId).length} คัน)`}</span>
                                 </button>
                                 <button
-                                    onClick={() => setShowAddModal(false)}
+                                    onClick={() => { setShowAddModal(false); setTruckRows([{ licensePlate: '', ownerId: '' }]); }}
                                     className="px-6 py-3 rounded-xl font-medium text-gray-300 bg-white/5 hover:bg-white/10 transition-colors"
                                 >
                                     ยกเลิก
@@ -354,7 +397,7 @@ export default function TrucksPage() {
                                     <div className="p-2 rounded-xl bg-gradient-to-br from-yellow-500 to-amber-500">
                                         <Edit2 className="text-white" size={20} />
                                     </div>
-                                    <h3 className="text-lg font-bold text-white">แก้ไขเจ้าของรถ</h3>
+                                    <h3 className="text-lg font-bold text-white">แก้ไขข้อมูลรถ</h3>
                                 </div>
                                 <button
                                     onClick={() => { setShowEditModal(false); setEditingTruck(null); }}
@@ -366,10 +409,14 @@ export default function TrucksPage() {
 
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-sm text-gray-400 mb-2">ทะเบียนรถ</label>
-                                    <div className="w-full px-4 py-3 bg-white/10 border border-white/10 rounded-xl text-white font-mono">
-                                        {editFormData.licensePlate}
-                                    </div>
+                                    <label className="block text-sm text-gray-400 mb-2">ทะเบียนรถ *</label>
+                                    <input
+                                        type="text"
+                                        value={editFormData.licensePlate}
+                                        onChange={(e) => setEditFormData(prev => ({ ...prev, licensePlate: e.target.value.toUpperCase() }))}
+                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-mono focus:outline-none focus:border-yellow-500/50 transition-all duration-300"
+                                        placeholder="เช่น กพ83-1234"
+                                    />
                                 </div>
 
                                 <div>
