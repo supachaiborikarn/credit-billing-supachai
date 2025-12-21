@@ -1297,9 +1297,9 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                     const totalSupplyLiters = gasSupplies.reduce((sum, s) => sum + Number(s.liters), 0);
                                     const supplyPerTank = totalSupplyLiters / 3;
 
-                                    // New formula: (startLiters + supplyPerTank) - endLiters
-                                    const startLiters = reading?.startPercentage !== null ? (reading?.startPercentage || 0) * TANK_CAPACITY_LITERS / 100 : null;
-                                    const endLiters = reading?.endPercentage !== null ? (reading?.endPercentage || 0) * TANK_CAPACITY_LITERS / 100 : null;
+                                    // Formula: reading × 98 = liters (not percentage)
+                                    const startLiters = reading?.startPercentage !== null ? (reading?.startPercentage || 0) * TANK_CAPACITY_LITERS : null;
+                                    const endLiters = reading?.endPercentage !== null ? (reading?.endPercentage || 0) * TANK_CAPACITY_LITERS : null;
 
                                     const usedLiters = startLiters !== null && endLiters !== null
                                         ? (startLiters + supplyPerTank) - endLiters
@@ -1396,10 +1396,11 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
 
                             {/* Total comparison with meters */}
                             {(() => {
-                                const totalStartLiters = gaugeReadings.reduce((s, g) => s + ((g.startPercentage || 0) * TANK_CAPACITY_LITERS / 100), 0);
-                                const totalEndLiters = gaugeReadings.reduce((s, g) => s + ((g.endPercentage || 0) * TANK_CAPACITY_LITERS / 100), 0);
+                                // Formula: reading × 98 = liters (not percentage)
+                                const totalStartLiters = gaugeReadings.reduce((s, g) => s + ((g.startPercentage || 0) * TANK_CAPACITY_LITERS), 0);
+                                const totalEndLiters = gaugeReadings.reduce((s, g) => s + ((g.endPercentage || 0) * TANK_CAPACITY_LITERS), 0);
                                 const totalSupplyLiters = gasSupplies.reduce((sum, s) => sum + Number(s.liters), 0);
-                                // New formula: (startLiters + supplies) - endLiters
+                                // Formula: (startLiters + supplies) - endLiters
                                 const totalGaugeUsed = (totalStartLiters + totalSupplyLiters) - totalEndLiters;
                                 const metersTotal = meters.reduce((s, m) => s + (m.end - m.start), 0);
                                 const difference = metersTotal - totalGaugeUsed;
