@@ -1223,15 +1223,13 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                     })()}
                                 </div>
 
-                                {isAdmin && (
-                                    <button
-                                        onClick={() => setShowSupplyForm(true)}
-                                        className="btn btn-success w-full"
-                                    >
-                                        <Plus size={18} />
-                                        รับแก๊สเข้า (KG)
-                                    </button>
-                                )}
+                                <button
+                                    onClick={() => setShowSupplyForm(true)}
+                                    className="btn btn-success w-full"
+                                >
+                                    <Plus size={18} />
+                                    + รับแก๊สเข้า (KG)
+                                </button>
                             </div>
 
                             {/* Today Summary */}
