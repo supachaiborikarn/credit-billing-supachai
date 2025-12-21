@@ -183,6 +183,15 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
 
     // Tab navigation for mobile workflow
     const [activeTab, setActiveTab] = useState<'home' | 'receive' | 'meters' | 'sales'>('home');
+    const [isMobile, setIsMobile] = useState(false);
+
+    // Detect mobile screen
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     // Check user role on mount
     useEffect(() => {
@@ -1186,7 +1195,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                         )}
 
                         {/* Gas Price & Stock Summary - HOME TAB */}
-                        <div className={`grid md:grid-cols-3 gap-6 mb-6 ${activeTab !== 'home' ? 'hidden md:grid' : ''}`}>
+                        <div className="grid md:grid-cols-3 gap-6 mb-6" style={{ display: isMobile && activeTab !== 'home' ? 'none' : '' }}>
                             {/* Gas Price */}
                             <div className="glass-card p-6">
                                 <h2 className="text-lg font-bold text-white mb-4">💰 ราคาแก๊ส LPG</h2>
@@ -1207,7 +1216,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                             </div>
 
                             {/* Current Stock - RECEIVE TAB */}
-                            <div className={`glass-card p-6 ${activeTab !== 'receive' ? 'hidden md:block' : ''}`}>
+                            <div className="glass-card p-6" style={{ display: isMobile && activeTab !== 'receive' ? 'none' : '' }}>
                                 <h2 className="text-lg font-bold text-white mb-4">⛽ สต็อกแก๊สคงเหลือ</h2>
 
                                 {/* Calculated Stock */}
@@ -1271,7 +1280,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                 </div>
 
                                 {/* Daily Cash Total Input - SALES TAB */}
-                                <div className={`mt-4 pt-4 border-t border-white/10 ${activeTab !== 'sales' ? 'hidden md:block' : ''}`}>
+                                <div className="mt-4 pt-4 border-t border-white/10" style={{ display: isMobile && activeTab !== 'sales' ? 'none' : '' }}>
                                     <h3 className="font-bold text-green-400 mb-3">💵 ยอดขายเงินสดทั้งวัน</h3>
                                     <div className="flex gap-2">
                                         <input
@@ -1316,7 +1325,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                 </div>
 
                                 {/* Other Expenses Input - SALES TAB */}
-                                <div className={`mt-4 pt-4 border-t border-white/10 ${activeTab !== 'sales' ? 'hidden md:block' : ''}`}>
+                                <div className="mt-4 pt-4 border-t border-white/10" style={{ display: isMobile && activeTab !== 'sales' ? 'none' : '' }}>
                                     <h3 className="font-bold text-red-400 mb-3">📝 ค่าใช้จ่ายอื่นๆ</h3>
                                     <div className="space-y-2">
                                         <input
@@ -1374,7 +1383,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                         </div>
 
                         {/* Gauge Readings (3 Tanks) - METERS TAB */}
-                        <div className={`glass-card p-6 mb-6 ${activeTab !== 'meters' ? 'hidden md:block' : ''}`}>
+                        <div className="glass-card p-6 mb-6" style={{ display: isMobile && activeTab !== 'meters' ? 'none' : '' }}>
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
                                     <Gauge className="text-yellow-400" />
@@ -1602,7 +1611,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                         )}
 
                         {/* Meter Readings - METERS TAB */}
-                        <div className={`grid md:grid-cols-2 gap-6 mb-6 ${activeTab !== 'meters' ? 'hidden md:grid' : ''}`}>
+                        <div className="grid md:grid-cols-2 gap-6 mb-6" style={{ display: isMobile && activeTab !== 'meters' ? 'none' : '' }}>
                             {/* Start Meters */}
                             <div className="glass-card p-6">
                                 <h3 className="font-bold text-white mb-4">📟 มิเตอร์เริ่มต้น (4 หัวจ่าย)</h3>
