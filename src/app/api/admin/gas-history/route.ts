@@ -2,6 +2,30 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getStartOfDayBangkok, getEndOfDayBangkok, formatDateBangkok } from '@/lib/date-utils';
 import { cookies } from 'next/headers';
+import { STATIONS } from '@/constants';
+
+// Helper to get or create database station from config ID
+async function getDbStation(configStationId: string) {
+    const stationConfig = STATIONS.find(s => s.id === configStationId);
+    if (!stationConfig) return null;
+
+    let station = await prisma.station.findFirst({
+        where: { name: stationConfig.name }
+    });
+
+    if (!station) {
+        station = await prisma.station.create({
+            data: {
+                name: stationConfig.name,
+                type: stationConfig.type === 'GAS' ? 'GAS' : 'FUEL' as any,
+                gasPrice: 15.50,
+                gasStockAlert: 1000,
+            }
+        });
+    }
+
+    return station;
+}
 
 // GET - Fetch gas station historical data
 export async function GET(request: NextRequest) {
@@ -24,9 +48,16 @@ export async function GET(request: NextRequest) {
         }
 
         const { searchParams } = new URL(request.url);
-        const stationId = searchParams.get('stationId') || 'station-3'; // Default to gas station
+        const configStationId = searchParams.get('stationId') || 'station-5'; // Default to gas station
         const startDate = searchParams.get('startDate');
         const endDate = searchParams.get('endDate');
+
+        // Get database station ID from config
+        const dbStation = await getDbStation(configStationId);
+        if (!dbStation) {
+            return NextResponse.json({ error: 'Station not found' }, { status: 404 });
+        }
+        const stationId = dbStation.id;
 
         // Default to last 30 days
         const end = endDate ? new Date(endDate) : new Date();
@@ -135,7 +166,14 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { stationId, dateStr, gasPrice, meters, action, shiftCount = 2 } = body;
+        const { stationId: configStationId, dateStr, gasPrice, meters, action, shiftCount = 2 } = body;
+
+        // Get database station ID from config
+        const dbStation = await getDbStation(configStationId);
+        if (!dbStation) {
+            return NextResponse.json({ error: 'Station not found' }, { status: 404 });
+        }
+        const stationId = dbStation.id;
 
         const date = getStartOfDayBangkok(dateStr);
 
