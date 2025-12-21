@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { stationId, dateStr, gasPrice, meters, action } = body;
+        const { stationId, dateStr, gasPrice, meters, action, shiftCount = 2 } = body;
 
         const date = getStartOfDayBangkok(dateStr);
 
@@ -149,6 +149,7 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({ error: 'Record already exists for this date' }, { status: 400 });
             }
 
+            // Create daily record with meters
             const newRecord = await prisma.dailyRecord.create({
                 data: {
                     stationId,
@@ -165,6 +166,24 @@ export async function POST(request: NextRequest) {
                 include: { meters: true }
             });
 
+            // Create shifts based on shiftCount (1 or 2)
+            const shiftsToCreate = shiftCount === 1 ? [1] : [1, 2];
+            for (const shiftNumber of shiftsToCreate) {
+                await prisma.shift.create({
+                    data: {
+                        dailyRecordId: newRecord.id,
+                        shiftNumber,
+                        status: 'OPEN',
+                        meters: {
+                            create: [1, 2, 3, 4].map(nozzle => ({
+                                nozzleNumber: nozzle,
+                                startReading: 0,
+                            }))
+                        }
+                    }
+                });
+            }
+
             // Log audit
             await prisma.auditLog.create({
                 data: {
@@ -172,11 +191,11 @@ export async function POST(request: NextRequest) {
                     action: 'CREATE',
                     model: 'DailyRecord',
                     recordId: newRecord.id,
-                    newData: { dateStr, stationId, gasPrice },
+                    newData: { dateStr, stationId, gasPrice, shiftCount },
                 }
             });
 
-            return NextResponse.json({ success: true, record: newRecord });
+            return NextResponse.json({ success: true, record: newRecord, shiftsCreated: shiftsToCreate.length });
         }
 
         if (action === 'updateMeters') {

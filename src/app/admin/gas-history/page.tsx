@@ -76,6 +76,7 @@ export default function GasHistoryAdminPage() {
     const [saving, setSaving] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newDate, setNewDate] = useState('');
+    const [newShiftCount, setNewShiftCount] = useState<1 | 2>(2); // Default 2 shifts per day
 
     // Refs for meter inputs (to enable Enter-to-next-field)
     // Order: nozzle1-start, nozzle1-end, nozzle2-start, nozzle2-end, ...
@@ -241,14 +242,16 @@ export default function GasHistoryAdminPage() {
                     stationId: selectedStation,
                     dateStr: newDate,
                     action: 'createRecord',
+                    shiftCount: newShiftCount,
                 }),
             });
 
             if (res.ok) {
                 setShowCreateModal(false);
                 setNewDate('');
+                setNewShiftCount(2); // Reset to default
                 fetchData();
-                alert('สร้างข้อมูลสำเร็จ!');
+                alert(`สร้างข้อมูลสำเร็จ! (${newShiftCount} กะ)`);
             } else {
                 const error = await res.json();
                 alert(error.error || 'Failed to create');
@@ -687,8 +690,34 @@ export default function GasHistoryAdminPage() {
                                     />
                                 </div>
 
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-2">จำนวนกะ</label>
+                                    <div className="flex gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setNewShiftCount(1)}
+                                            className={`flex-1 px-4 py-3 rounded-xl font-medium transition-all ${newShiftCount === 1
+                                                    ? 'bg-orange-500 text-white'
+                                                    : 'bg-[#1a1a24] text-gray-400 border border-white/10 hover:border-orange-500/50'
+                                                }`}
+                                        >
+                                            🌅 1 กะ (ทั้งวัน)
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setNewShiftCount(2)}
+                                            className={`flex-1 px-4 py-3 rounded-xl font-medium transition-all ${newShiftCount === 2
+                                                    ? 'bg-indigo-500 text-white'
+                                                    : 'bg-[#1a1a24] text-gray-400 border border-white/10 hover:border-indigo-500/50'
+                                                }`}
+                                        >
+                                            🌙 2 กะ (เช้า/บ่าย)
+                                        </button>
+                                    </div>
+                                </div>
+
                                 <p className="text-sm text-gray-500">
-                                    จะสร้าง Daily Record ใหม่พร้อมมิเตอร์ 4 หัวจ่าย (ค่าเริ่มต้น 0)
+                                    จะสร้าง Daily Record ใหม่พร้อมมิเตอร์ 4 หัวจ่าย × {newShiftCount} กะ
                                 </p>
 
                                 <div className="flex gap-3">
