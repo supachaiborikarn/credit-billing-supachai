@@ -51,7 +51,9 @@ export async function GET(
         // SIMPLE/GAS stations: Staff sees only their own
         const whereClause: Record<string, unknown> = {
             stationId,
-            date: { gte: startOfDay, lte: endOfDay }
+            date: { gte: startOfDay, lte: endOfDay },
+            deletedAt: null,
+            isVoided: false,
         };
 
         // Only filter by recordedById for non-FULL stations

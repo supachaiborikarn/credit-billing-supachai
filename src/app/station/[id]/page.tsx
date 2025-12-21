@@ -589,6 +589,8 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
         setEditPaymentType(t.paymentType);
         setEditBillBookNo(t.billBookNo || '');
         setEditBillNo(t.billNo || '');
+        // Fetch owners for dropdown
+        fetchOwners();
     };
 
     const handleSaveEdit = async () => {
@@ -1650,13 +1652,19 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm text-gray-400 mb-1">เจ้าของ</label>
-                                    <input
-                                        type="text"
+                                    <label className="block text-sm text-gray-400 mb-1">เจ้าของ (เลือกจากรายชื่อ)</label>
+                                    <select
                                         value={editOwnerName}
                                         onChange={(e) => setEditOwnerName(e.target.value)}
                                         className="input-glow w-full"
-                                    />
+                                    >
+                                        <option value="">-- เลือกเจ้าของ --</option>
+                                        {owners.map((owner) => (
+                                            <option key={owner.id} value={owner.name}>
+                                                {owner.name} {owner.code ? `(${owner.code})` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
 

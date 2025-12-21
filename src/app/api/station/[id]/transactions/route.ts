@@ -194,6 +194,7 @@ export async function POST(
         const endOfDay = getEndOfDayBangkok(dateStr);
 
         // First check: exact same bill book + bill number (if provided)
+        // NOTE: This is now just informational - we don't block because same bill numbers can exist for different owners
         if (billBookNo && billNo) {
             const billDuplicate = await prisma.transaction.findFirst({
                 where: {
@@ -204,10 +205,9 @@ export async function POST(
                 }
             });
 
+            // Log duplicate for reference but don't block - different owners can have same bill numbers
             if (billDuplicate) {
-                return NextResponse.json({
-                    error: `บิลซ้ำ: เล่ม ${billBookNo} เลขที่ ${billNo} มีอยู่แล้วในระบบ (วันที่ ${billDuplicate.date.toLocaleDateString('th-TH')})`
-                }, { status: 409 });
+                console.log(`Bill duplicate info: เล่ม ${billBookNo} เลขที่ ${billNo} exists (date: ${billDuplicate.date.toLocaleDateString('th-TH')}), but allowing different owner entry`);
             }
         }
 
