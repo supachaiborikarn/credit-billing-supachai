@@ -939,7 +939,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                         ? 'bg-orange-500/20 text-orange-400'
                                         : 'bg-indigo-500/20 text-indigo-400'
                                         }`}>
-                                        {currentShift === 1 ? '🌅 กะเช้า' : '🌙 กะบ่าย'}
+                                        {currentShift === 0 ? '📅 กะทั้งวัน' : currentShift === 1 ? '🌅 กะเช้า' : '🌙 กะบ่าย'}
                                     </span>
                                 )}
                             </p>
@@ -959,12 +959,20 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                     if (val) {
                                         localStorage.setItem('selectedShift', val.toString());
                                     }
+                                    // Reset meters when switching shifts (avoid data spillover)
+                                    setMeters([
+                                        { nozzle: 1, start: 0, end: 0 },
+                                        { nozzle: 2, start: 0, end: 0 },
+                                        { nozzle: 3, start: 0, end: 0 },
+                                        { nozzle: 4, start: 0, end: 0 },
+                                    ]);
                                     // Refresh shift data
                                     fetchShiftData();
                                 }}
                                 className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
                             >
                                 <option value="" className="bg-gray-800">เลือกกะ</option>
+                                <option value="0" className="bg-gray-800">📅 กะทั้งวัน</option>
                                 <option value="1" className="bg-gray-800">🌅 กะเช้า (กะ 1)</option>
                                 <option value="2" className="bg-gray-800">🌙 กะบ่าย (กะ 2)</option>
                             </select>
