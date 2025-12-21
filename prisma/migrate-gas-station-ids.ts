@@ -2,6 +2,7 @@ import { prisma } from '../src/lib/prisma';
 import { STATIONS } from '../src/constants';
 
 // Script to migrate old gas history records to correct station ID
+// Handles duplicates by merging records
 async function migrateGasHistoryStationIds() {
     console.log('Starting gas history station ID migration...\n');
 
@@ -33,15 +34,20 @@ async function migrateGasHistoryStationIds() {
         console.log(`Found station: ${correctStation.id}`);
     }
 
-    // Find all daily records with wrong stationIds
-    const allRecords = await prisma.dailyRecord.findMany({
-        include: { station: true }
+    // Find all daily records with correct stationId first (these are the target records)
+    const correctRecords = await prisma.dailyRecord.findMany({
+        where: { stationId: correctStation.id },
+        include: { meters: true, shifts: true }
     });
 
-    console.log(`\nFound ${allRecords.length} daily records total`);
+    console.log(`\nFound ${correctRecords.length} records with correct station ID`);
+    const correctDates = new Set(correctRecords.map(r => r.date.toISOString().split('T')[0]));
 
-    // Filter records that are NOT linked to the correct station
-    const wrongRecords = allRecords.filter(r => r.stationId !== correctStation!.id);
+    // Find all daily records with wrong stationIds
+    const wrongRecords = await prisma.dailyRecord.findMany({
+        where: { stationId: { not: correctStation.id } },
+        include: { meters: true, shifts: true, transactions: true }
+    });
 
     if (wrongRecords.length === 0) {
         console.log('No records to migrate. All records have correct station ID.');
@@ -49,60 +55,69 @@ async function migrateGasHistoryStationIds() {
     }
 
     console.log(`Found ${wrongRecords.length} records with wrong station ID:`);
-    wrongRecords.forEach(r => {
-        console.log(`  - ${r.date.toISOString().split('T')[0]}: stationId=${r.stationId}`);
-    });
 
-    // Update records to use correct station ID
-    console.log('\nMigrating records...');
     let updated = 0;
+    let deleted = 0;
+
     for (const record of wrongRecords) {
-        await prisma.dailyRecord.update({
-            where: { id: record.id },
-            data: { stationId: correctStation.id }
-        });
-        updated++;
-        console.log(`  Updated: ${record.date.toISOString().split('T')[0]}`);
-    }
+        const dateStr = record.date.toISOString().split('T')[0];
+        console.log(`\nProcessing: ${dateStr}, stationId=${record.stationId}`);
 
-    console.log(`\n✅ Migration complete. Updated ${updated} records.`);
+        if (correctDates.has(dateStr)) {
+            // A record with correct stationId already exists for this date
+            // Delete the wrong record (after moving any transactions)
+            console.log(`  ⚠️ Duplicate date - correct record exists, will delete wrong record`);
 
-    // Also update transactions that might have wrong stationId
-    const transactions = await prisma.transaction.findMany({
-        where: {
-            stationId: { not: correctStation.id },
-            // Only gas station transactions (LPG)
-            productType: 'LPG'
+            // Move transactions to correct record
+            const correctRecord = correctRecords.find(r =>
+                r.date.toISOString().split('T')[0] === dateStr
+            );
+
+            if (correctRecord && record.transactions.length > 0) {
+                await prisma.transaction.updateMany({
+                    where: { dailyRecordId: record.id },
+                    data: { dailyRecordId: correctRecord.id }
+                });
+                console.log(`  ✅ Moved ${record.transactions.length} transactions`);
+            }
+
+            // Delete meters for wrong record
+            await prisma.meterReading.deleteMany({
+                where: { dailyRecordId: record.id }
+            });
+
+            // Delete shifts for wrong record
+            for (const shift of record.shifts) {
+                await prisma.shiftMeterReading.deleteMany({
+                    where: { shiftId: shift.id }
+                });
+            }
+            await prisma.shift.deleteMany({
+                where: { dailyRecordId: record.id }
+            });
+
+            // Delete the wrong daily record
+            await prisma.dailyRecord.delete({
+                where: { id: record.id }
+            });
+
+            deleted++;
+            console.log(`  ✅ Deleted duplicate record`);
+        } else {
+            // No conflict, safe to update stationId
+            await prisma.dailyRecord.update({
+                where: { id: record.id },
+                data: { stationId: correctStation.id }
+            });
+            correctDates.add(dateStr); // Add to set to track
+            updated++;
+            console.log(`  ✅ Updated stationId`);
         }
-    });
-
-    if (transactions.length > 0) {
-        console.log(`\nFound ${transactions.length} transactions to migrate...`);
-        await prisma.transaction.updateMany({
-            where: {
-                stationId: { not: correctStation.id },
-                productType: 'LPG'
-            },
-            data: { stationId: correctStation.id }
-        });
-        console.log(`✅ Updated ${transactions.length} transactions.`);
     }
 
-    // Update gas supplies
-    const supplies = await prisma.gasSupply.findMany({
-        where: {
-            stationId: { not: correctStation.id }
-        }
-    });
-
-    if (supplies.length > 0) {
-        console.log(`\nFound ${supplies.length} gas supplies to migrate...`);
-        await prisma.gasSupply.updateMany({
-            where: { stationId: { not: correctStation.id } },
-            data: { stationId: correctStation.id }
-        });
-        console.log(`✅ Updated ${supplies.length} gas supplies.`);
-    }
+    console.log(`\n✅ Migration complete.`);
+    console.log(`   Updated: ${updated} records`);
+    console.log(`   Deleted (duplicates): ${deleted} records`);
 }
 
 migrateGasHistoryStationIds()
