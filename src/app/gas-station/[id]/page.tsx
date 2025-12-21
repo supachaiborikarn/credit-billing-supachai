@@ -208,22 +208,8 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
             if (res.ok) {
                 const data = await res.json();
                 setShiftData(data);
-                // If current shift exists in data, update state
-                if (currentShift && data.shifts) {
-                    const myShift = data.shifts.find((s: any) => s.shiftNumber === currentShift);
-                    if (myShift) {
-                        // Pre-fill meter inputs from shift data
-                        const meterValues: Record<number, number> = {};
-                        myShift.meters?.forEach((m: any) => {
-                            if (m.endReading !== null) {
-                                meterValues[m.nozzleNumber] = m.endReading;
-                            } else {
-                                meterValues[m.nozzleNumber] = m.startReading;
-                            }
-                        });
-                        setShiftMeterInputs(meterValues);
-                    }
-                }
+                // Note: We don't auto-fill meters here anymore to prevent overwriting 
+                // when user switches shifts. User can use "ดึงจากกะก่อน" button instead.
             }
         } catch (error) {
             console.error('Error fetching shift data:', error);
