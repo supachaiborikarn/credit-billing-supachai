@@ -140,6 +140,10 @@ export default function GasHistoryAdminPage() {
                 endReading: values.end > 0 ? values.end : null,
             }));
 
+            // Get gas price from input
+            const gasPriceInput = document.getElementById(`gasPrice-${record.id}`) as HTMLInputElement;
+            const gasPrice = gasPriceInput ? parseFloat(gasPriceInput.value) : null;
+
             const res = await fetch('/api/admin/gas-history', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -148,6 +152,7 @@ export default function GasHistoryAdminPage() {
                     dateStr: record.date,
                     action: 'updateMeters',
                     meters,
+                    gasPrice,
                 }),
             });
 

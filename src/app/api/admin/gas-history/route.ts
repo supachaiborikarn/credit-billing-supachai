@@ -253,6 +253,14 @@ export async function POST(request: NextRequest) {
                 endReading: m.endReading ? Number(m.endReading) : null,
             }));
 
+            // Update gas price if provided
+            if (gasPrice !== null && gasPrice !== undefined) {
+                await prisma.dailyRecord.update({
+                    where: { id: record.id },
+                    data: { gasPrice }
+                });
+            }
+
             // Update each meter
             for (const meter of meters) {
                 const existingMeter = record.meters.find(m => m.nozzleNumber === meter.nozzleNumber);

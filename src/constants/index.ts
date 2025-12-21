@@ -74,7 +74,7 @@ export const OWNER_GROUPS = [
 // Default prices
 export const DEFAULT_RETAIL_PRICE = 31.34;
 export const DEFAULT_WHOLESALE_PRICE = 30.5;
-export const DEFAULT_GAS_PRICE = 15.50; // ราคาแก๊ส LPG ต่อลิตร
+export const DEFAULT_GAS_PRICE = 16.09; // ราคาแก๊ส LPG ต่อลิตร
 
 // Station staff configuration
 export const STATION_STAFF = {
