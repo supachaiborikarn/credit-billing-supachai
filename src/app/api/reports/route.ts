@@ -287,6 +287,7 @@ export async function GET(request: Request) {
                     ...(stationFilter && { stationId: stationFilter })
                 },
                 select: {
+                    id: true,
                     date: true,
                     liters: true,
                     totalCost: true,
@@ -300,10 +301,13 @@ export async function GET(request: Request) {
                 salesLiters: number;
                 salesAmount: number;
                 suppliesLiters: number;
+                supplyCount: number;
                 transactionCount: number;
                 cashAmount: number;
                 creditAmount: number;
                 cardAmount: number;
+                transferAmount: number;
+                boxTruckAmount: number;
             }> = {};
 
             gasTransactions.forEach(t => {
@@ -314,10 +318,13 @@ export async function GET(request: Request) {
                         salesLiters: 0,
                         salesAmount: 0,
                         suppliesLiters: 0,
+                        supplyCount: 0,
                         transactionCount: 0,
                         cashAmount: 0,
                         creditAmount: 0,
-                        cardAmount: 0
+                        cardAmount: 0,
+                        transferAmount: 0,
+                        boxTruckAmount: 0
                     };
                 }
                 dailyData[dateKey].salesLiters += Number(t.liters);
@@ -329,6 +336,10 @@ export async function GET(request: Request) {
                     dailyData[dateKey].creditAmount += Number(t.amount);
                 } else if (t.paymentType === 'CREDIT_CARD') {
                     dailyData[dateKey].cardAmount += Number(t.amount);
+                } else if (t.paymentType === 'TRANSFER') {
+                    dailyData[dateKey].transferAmount += Number(t.amount);
+                } else if (t.paymentType === 'BOX_TRUCK') {
+                    dailyData[dateKey].boxTruckAmount += Number(t.amount);
                 }
             });
 
@@ -340,34 +351,44 @@ export async function GET(request: Request) {
                         salesLiters: 0,
                         salesAmount: 0,
                         suppliesLiters: 0,
+                        supplyCount: 0,
                         transactionCount: 0,
                         cashAmount: 0,
                         creditAmount: 0,
-                        cardAmount: 0
+                        cardAmount: 0,
+                        transferAmount: 0,
+                        boxTruckAmount: 0
                     };
                 }
                 dailyData[dateKey].suppliesLiters += Number(s.liters);
+                dailyData[dateKey].supplyCount += 1;
             });
 
             const data = Object.values(dailyData).sort((a, b) =>
                 new Date(b.date).getTime() - new Date(a.date).getTime()
             );
 
-            // Summary
+            // Summary with more detailed stats
+            const totalSupplyCount = gasSupplies.length;
             const summary = {
                 totalSalesLiters: data.reduce((s, d) => s + d.salesLiters, 0),
                 totalSalesAmount: data.reduce((s, d) => s + d.salesAmount, 0),
                 totalSuppliesLiters: data.reduce((s, d) => s + d.suppliesLiters, 0),
+                totalSupplyCount,
                 totalTransactions: data.reduce((s, d) => s + d.transactionCount, 0),
                 totalCash: data.reduce((s, d) => s + d.cashAmount, 0),
                 totalCredit: data.reduce((s, d) => s + d.creditAmount, 0),
                 totalCard: data.reduce((s, d) => s + d.cardAmount, 0),
+                totalTransfer: data.reduce((s, d) => s + d.transferAmount, 0),
+                totalBoxTruck: data.reduce((s, d) => s + d.boxTruckAmount, 0),
+                daysWithData: data.length,
                 dateRange: { start: start.toISOString(), end: end.toISOString() }
             };
 
-            // Get current stock for each station
+            // Get current stock for each station - UNIQUE by name to avoid duplicates
             const stations = await prisma.station.findMany({
-                where: { type: 'GAS' }
+                where: { type: 'GAS' },
+                distinct: ['name']
             });
 
             const stockData = await Promise.all(stations.map(async (station) => {
@@ -387,7 +408,12 @@ export async function GET(request: Request) {
                 };
             }));
 
-            return NextResponse.json({ type: 'gas', data, summary, stockData });
+            // Remove duplicates based on station name
+            const uniqueStockData = stockData.filter((item, index, self) =>
+                index === self.findIndex(t => t.stationName === item.stationName)
+            );
+
+            return NextResponse.json({ type: 'gas', data, summary, stockData: uniqueStockData });
         }
 
         return NextResponse.json({ error: 'Invalid report type' }, { status: 400 });

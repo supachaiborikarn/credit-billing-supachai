@@ -341,14 +341,20 @@ export default function ReportsPage() {
                                     <p className="text-2xl font-bold text-green-400">
                                         {formatNumber((summary as { totalSuppliesLiters?: number }).totalSuppliesLiters || 0)}
                                     </p>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        {(summary as { totalSupplyCount?: number }).totalSupplyCount || 0} ครั้ง
+                                    </p>
                                 </div>
                                 <div className="stat-card animate-fade-in" style={{ animationDelay: '0.3s' }}>
                                     <div className="flex items-center gap-2 mb-2">
                                         <FileText className="text-purple-400" size={20} />
-                                        <span className="text-gray-400 text-sm">รายการ</span>
+                                        <span className="text-gray-400 text-sm">รายการขาย</span>
                                     </div>
                                     <p className="text-2xl font-bold text-purple-400">
                                         {formatNumber((summary as { totalTransactions?: number }).totalTransactions || 0)}
+                                    </p>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        {(summary as { daysWithData?: number }).daysWithData || 0} วัน
                                     </p>
                                 </div>
                             </>
