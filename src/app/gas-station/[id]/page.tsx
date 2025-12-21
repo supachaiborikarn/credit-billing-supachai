@@ -1376,8 +1376,16 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                             <div className="grid md:grid-cols-3 gap-4">
                                 {[1, 2, 3].map(tankNum => {
                                     const reading = gaugeReadings.find(g => g.tankNumber === tankNum);
-                                    const usedLiters = reading && reading.startPercentage !== null && reading.endPercentage !== null
-                                        ? (reading.startPercentage - reading.endPercentage) * TANK_CAPACITY_LITERS / 100
+                                    // Calculate supplies per tank (divide total by 3)
+                                    const totalSupplyLiters = gasSupplies.reduce((sum, s) => sum + Number(s.liters), 0);
+                                    const supplyPerTank = totalSupplyLiters / 3;
+
+                                    // New formula: (startLiters + supplyPerTank) - endLiters
+                                    const startLiters = reading?.startPercentage !== null ? (reading?.startPercentage || 0) * TANK_CAPACITY_LITERS / 100 : null;
+                                    const endLiters = reading?.endPercentage !== null ? (reading?.endPercentage || 0) * TANK_CAPACITY_LITERS / 100 : null;
+
+                                    const usedLiters = startLiters !== null && endLiters !== null
+                                        ? (startLiters + supplyPerTank) - endLiters
                                         : null;
                                     return (
                                         <div key={tankNum} className="bg-white/5 rounded-xl p-4">
@@ -1471,13 +1479,15 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
 
                             {/* Total comparison with meters */}
                             {(() => {
-                                const totalStartGauge = gaugeReadings.reduce((s, g) => s + (g.startPercentage || 0), 0);
-                                const totalEndGauge = gaugeReadings.reduce((s, g) => s + (g.endPercentage || 0), 0);
-                                const totalGaugeUsed = ((totalStartGauge - totalEndGauge) / 100) * TANK_CAPACITY_LITERS * 3;
+                                const totalStartLiters = gaugeReadings.reduce((s, g) => s + ((g.startPercentage || 0) * TANK_CAPACITY_LITERS / 100), 0);
+                                const totalEndLiters = gaugeReadings.reduce((s, g) => s + ((g.endPercentage || 0) * TANK_CAPACITY_LITERS / 100), 0);
+                                const totalSupplyLiters = gasSupplies.reduce((sum, s) => sum + Number(s.liters), 0);
+                                // New formula: (startLiters + supplies) - endLiters
+                                const totalGaugeUsed = (totalStartLiters + totalSupplyLiters) - totalEndLiters;
                                 const metersTotal = meters.reduce((s, m) => s + (m.end - m.start), 0);
                                 const difference = metersTotal - totalGaugeUsed;
 
-                                if (totalStartGauge > 0 && totalEndGauge > 0) {
+                                if (totalStartLiters > 0 && totalEndLiters > 0) {
                                     return (
                                         <div className="mt-4 bg-white/5 rounded-xl p-4">
                                             <h4 className="font-bold text-white mb-3">📈 เปรียบเทียบ</h4>
