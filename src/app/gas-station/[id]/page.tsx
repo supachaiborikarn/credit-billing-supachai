@@ -1047,7 +1047,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                 onChange={(e) => {
                                     const val = e.target.value ? parseInt(e.target.value) : null;
                                     setCurrentShift(val);
-                                    if (val) {
+                                    if (val !== null) {
                                         localStorage.setItem('selectedShift', val.toString());
                                     }
                                     // Reset ALL data when switching shifts (avoid data spillover)
@@ -1060,12 +1060,14 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                     ]);
                                     // Reset gauge inputs
                                     setNewGaugeValues({});
-                                    // Clear gauge readings and refetch for new shift
+                                    // Clear gauge readings
                                     setGaugeReadings([]);
-                                    // Refresh all data for the new shift
-                                    fetchDailyData();
-                                    fetchGaugeReadings();
-                                    fetchShiftData();
+                                    // Wait for state update then fetch
+                                    setTimeout(() => {
+                                        fetchDailyData();
+                                        fetchGaugeReadings();
+                                        fetchShiftData();
+                                    }, 100);
                                 }}
                                 className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
                             >
