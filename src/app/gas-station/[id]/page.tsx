@@ -423,9 +423,57 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                 setNewGaugeValues(prev => ({ ...prev, [key]: '' }));
                 fetchGaugeReadings();
                 alert(`บันทึกเกจ${type === 'start' ? 'เริ่มต้น' : 'สิ้นสุด'}ถังที่ ${tankNumber} เรียบร้อย`);
+            } else {
+                const err = await res.json();
+                alert(`ไม่สามารถบันทึกได้: ${err.error || 'เกิดข้อผิดพลาด'}`);
             }
         } catch (error) {
             console.error('Error saving gauge reading:', error);
+            alert('เกิดข้อผิดพลาดในการบันทึก');
+        }
+    };
+
+    // Fetch gauge readings from previous day (end percentages)
+    const fetchPreviousGauge = async () => {
+        try {
+            const prevDate = new Date(selectedDate);
+            prevDate.setDate(prevDate.getDate() - 1);
+            const prevDateStr = prevDate.toISOString().split('T')[0];
+
+            const res = await fetch(`/api/gas-station/${id}/gauge?date=${prevDateStr}`);
+            if (res.ok) {
+                const data = await res.json();
+                // Return end percentages from previous day
+                return data;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error fetching previous gauge:', error);
+            return null;
+        }
+    };
+
+    // Copy gauge from previous day (end -> start for new day)
+    const copyGaugeFromPreviousDay = async () => {
+        const prevGauges = await fetchPreviousGauge();
+        if (prevGauges && Array.isArray(prevGauges)) {
+            const newValues: Record<string, string> = {};
+            let copied = false;
+            prevGauges.forEach((g: { tankNumber: number; endPercentage: number | null }) => {
+                if (g.endPercentage !== null) {
+                    // Copy end percentage from previous day to start of current day
+                    newValues[`${g.tankNumber}-start`] = g.endPercentage.toString();
+                    copied = true;
+                }
+            });
+            if (copied) {
+                setNewGaugeValues(prev => ({ ...prev, ...newValues }));
+                alert('📋 คัดลอกเกจสิ้นสุดจากวันก่อนมาเป็นเกจเริ่มต้นวันนี้');
+            } else {
+                alert('⚠️ ไม่พบข้อมูลเกจสิ้นสุดของวันก่อน');
+            }
+        } else {
+            alert('⚠️ ไม่พบข้อมูลเกจของวันก่อน');
         }
     };
 
@@ -1165,10 +1213,19 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
 
                         {/* Gauge Readings (3 Tanks) */}
                         <div className="glass-card p-6 mb-6">
-                            <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                                <Gauge className="text-yellow-400" />
-                                📊 เกจถังแก๊ส (3 ถัง) - เปรียบเทียบกับมิเตอร์
-                            </h2>
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                    <Gauge className="text-yellow-400" />
+                                    📊 เกจถังแก๊ส (3 ถัง) - เปรียบเทียบกับมิเตอร์
+                                </h2>
+                                <button
+                                    onClick={copyGaugeFromPreviousDay}
+                                    className="btn btn-info btn-sm"
+                                    title="คัดลอกเกจสิ้นสุดจากวันก่อน"
+                                >
+                                    📋 ดึงเกจวันก่อน
+                                </button>
+                            </div>
                             <div className="grid md:grid-cols-3 gap-4">
                                 {[1, 2, 3].map(tankNum => {
                                     const reading = gaugeReadings.find(g => g.tankNumber === tankNum);
