@@ -262,14 +262,18 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
         }
     };
 
-    // Copy meters from previous shift
+    // Copy meters from previous shift (copy end readings to current start readings)
     const copyFromPreviousShift = async () => {
-        const meters = await fetchPreviousShift();
-        if (meters) {
-            setShiftMeterInputs(meters);
-            alert('📋 คัดลอกมิเตอร์จากกะก่อนหน้าเรียบร้อย');
+        const prevMeters = await fetchPreviousShift();
+        if (prevMeters) {
+            // Copy to meters state (start values)
+            setMeters(prev => prev.map(m => ({
+                ...m,
+                start: prevMeters[m.nozzle] ?? m.start
+            })));
+            alert('📋 คัดลอกมิเตอร์สิ้นสุดจากกะก่อน → มิเตอร์เริ่มต้นวันนี้');
         } else {
-            alert('⚠️ ไม่พบข้อมูลกะก่อนหน้า');
+            alert('⚠️ ไม่พบข้อมูลกะก่อนหน้า (อาจยังไม่ได้บันทึก)');
         }
     };
 
@@ -612,8 +616,9 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                 }
             }
 
-            // Clear gauge inputs and refresh
+            // Clear gauge inputs and refresh all data
             setNewGaugeValues({});
+            fetchDailyData();
             fetchGaugeReadings();
             fetchShiftData();
 
