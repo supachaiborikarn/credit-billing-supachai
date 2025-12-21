@@ -181,18 +181,6 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
     const [otherExpenses, setOtherExpenses] = useState<string>('');
     const [expenseNotes, setExpenseNotes] = useState<string>('');
 
-    // Tab navigation for mobile workflow
-    const [activeTab, setActiveTab] = useState<'home' | 'receive' | 'meters' | 'sales'>('home');
-    const [isMobile, setIsMobile] = useState(false);
-
-    // Detect mobile screen
-    useEffect(() => {
-        const checkMobile = () => setIsMobile(window.innerWidth < 768);
-        checkMobile();
-        window.addEventListener('resize', checkMobile);
-        return () => window.removeEventListener('resize', checkMobile);
-    }, []);
-
     // Check user role on mount
     useEffect(() => {
         const checkUser = async () => {
@@ -1199,7 +1187,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                         )}
 
                         {/* Gas Price & Stock Summary - HOME TAB */}
-                        <div className="grid md:grid-cols-3 gap-6 mb-6" style={{ display: isMobile && activeTab !== 'home' ? 'none' : '' }}>
+                        <div className="grid md:grid-cols-3 gap-6 mb-6">
                             {/* Gas Price */}
                             <div className="glass-card p-6">
                                 <h2 className="text-lg font-bold text-white mb-4">💰 ราคาแก๊ส LPG</h2>
@@ -1220,7 +1208,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                             </div>
 
                             {/* Current Stock - RECEIVE TAB */}
-                            <div className="glass-card p-6" style={{ display: isMobile && activeTab !== 'receive' ? 'none' : '' }}>
+                            <div className="glass-card p-6">
                                 <h2 className="text-lg font-bold text-white mb-4">⛽ สต็อกแก๊สคงเหลือ</h2>
 
                                 {/* Calculated Stock */}
@@ -1286,7 +1274,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                         </div>
 
                         {/* SALES TAB - บันทึกการขายแก๊ส */}
-                        <div className="glass-card p-6 mb-6" style={{ display: isMobile && activeTab !== 'sales' ? 'none' : '' }}>
+                        <div className="glass-card p-6 mb-6">
                             <h2 className="text-lg font-bold text-white mb-4">💰 บันทึกการขายแก๊ส</h2>
 
                             {/* Daily Cash Total */}
@@ -1391,7 +1379,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                         </div>
 
                         {/* Gauge Readings (3 Tanks) - METERS TAB */}
-                        <div className="glass-card p-6 mb-6" style={{ display: isMobile && activeTab !== 'meters' ? 'none' : '' }}>
+                        <div className="glass-card p-6 mb-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
                                     <Gauge className="text-yellow-400" />
@@ -1619,7 +1607,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                         )}
 
                         {/* Meter Readings - METERS TAB */}
-                        <div className="grid md:grid-cols-2 gap-6 mb-6" style={{ display: isMobile && activeTab !== 'meters' ? 'none' : '' }}>
+                        <div className="grid md:grid-cols-2 gap-6 mb-6">
                             {/* Start Meters */}
                             <div className="glass-card p-6">
                                 <h3 className="font-bold text-white mb-4">📟 มิเตอร์เริ่มต้น (4 หัวจ่าย)</h3>
@@ -2268,44 +2256,6 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                     </div>
                 </div>
             )}
-
-            {/* Bottom Tab Navigation (Mobile) */}
-            <div className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-lg border-t border-white/10 md:hidden z-40 pb-safe">
-                <div className="flex justify-around items-center py-2">
-                    <button
-                        onClick={() => setActiveTab('home')}
-                        className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${activeTab === 'home' ? 'text-cyan-400 bg-cyan-400/10' : 'text-gray-400'
-                            }`}
-                    >
-                        <span className="text-xl">🏠</span>
-                        <span className="text-xs">หน้าหลัก</span>
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('receive')}
-                        className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${activeTab === 'receive' ? 'text-green-400 bg-green-400/10' : 'text-gray-400'
-                            }`}
-                    >
-                        <span className="text-xl">📦</span>
-                        <span className="text-xs">รับแก๊ส</span>
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('meters')}
-                        className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${activeTab === 'meters' ? 'text-yellow-400 bg-yellow-400/10' : 'text-gray-400'
-                            }`}
-                    >
-                        <span className="text-xl">📟</span>
-                        <span className="text-xs">มิเตอร์</span>
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('sales')}
-                        className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${activeTab === 'sales' ? 'text-purple-400 bg-purple-400/10' : 'text-gray-400'
-                            }`}
-                    >
-                        <span className="text-xl">💰</span>
-                        <span className="text-xs">ขาย</span>
-                    </button>
-                </div>
-            </div>
 
             {/* Revenue Summary Modal */}
             {showRevenueSummary && (
