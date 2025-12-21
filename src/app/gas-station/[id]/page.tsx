@@ -17,7 +17,10 @@ import {
     Printer,
     X,
     Sparkles,
-    Clock
+    Clock,
+    DollarSign,
+    Banknote,
+    Receipt
 } from 'lucide-react';
 import { GAS_PAYMENT_TYPES, STATIONS, DEFAULT_GAS_PRICE, STATION_STAFF } from '@/constants';
 
@@ -2155,79 +2158,114 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
 
             {/* บันทึกการขายแก๊ส - ล่างสุด */}
             <div className="glass-card p-6 mb-6">
-                <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                    <span className="text-2xl">💰</span> บันทึกการขายแก๊ส
-                </h2>
+                {/* Header with gradient accent */}
+                <div className="flex items-center gap-4 mb-8">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-lg shadow-emerald-500/20">
+                        <DollarSign className="text-white" size={28} />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold text-white">บันทึกการขายแก๊ส</h2>
+                        <p className="text-gray-400 text-sm">บันทึกยอดขายเงินสดและค่าใช้จ่าย</p>
+                    </div>
+                </div>
 
-                <div className="grid md:grid-cols-2 gap-8">
-                    {/* Daily Cash Total */}
-                    <div className="bg-white/5 rounded-xl p-4">
-                        <h3 className="font-bold text-green-400 mb-4 flex items-center gap-2">
-                            <span className="text-xl">💵</span> ยอดขายเงินสดทั้งวัน
-                        </h3>
-                        <div className="flex gap-3">
-                            <input
-                                type="number"
-                                value={dailyCashTotal}
-                                onChange={(e) => setDailyCashTotal(e.target.value)}
-                                placeholder="ยอดเงินสด (บาท)"
-                                className="input-glow flex-1 py-3 text-lg"
-                            />
-                            <button
-                                onClick={async () => {
-                                    if (!dailyCashTotal) return;
-                                    try {
-                                        const res = await fetch(`/api/gas-station/${id}/transactions`, {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({
-                                                date: selectedDate,
-                                                shiftNumber: currentShift || 0,
-                                                paymentType: 'CASH',
-                                                amount: parseFloat(dailyCashTotal),
-                                                liters: parseFloat(dailyCashTotal) / gasPrice,
-                                                notes: 'ยอดขายเงินสดรวมทั้งวัน',
-                                            }),
-                                        });
-                                        if (res.ok) {
-                                            setDailyCashTotal('');
-                                            fetchDailyData();
-                                            alert('✅ บันทึกยอดเงินสดสำเร็จ');
+                <div className="grid md:grid-cols-2 gap-6">
+                    {/* Daily Cash Total Card */}
+                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-green-500/10 to-emerald-500/5 border border-green-500/20 p-6">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+
+                        <div className="relative">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="p-2 rounded-lg bg-green-500/20">
+                                    <Banknote className="text-green-400" size={20} />
+                                </div>
+                                <h3 className="font-bold text-green-400 text-lg">ยอดขายเงินสดทั้งวัน</h3>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-gray-400 text-sm mb-2">จำนวนเงิน</label>
+                                    <input
+                                        type="number"
+                                        value={dailyCashTotal}
+                                        onChange={(e) => setDailyCashTotal(e.target.value)}
+                                        placeholder="0.00"
+                                        className="w-full px-4 py-4 rounded-xl bg-white/5 border border-white/10 text-white text-xl font-mono placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                                    />
+                                    <p className="text-gray-500 text-xs mt-1">หน่วย: บาท</p>
+                                </div>
+
+                                <button
+                                    onClick={async () => {
+                                        if (!dailyCashTotal) return;
+                                        try {
+                                            const res = await fetch(`/api/gas-station/${id}/transactions`, {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({
+                                                    date: selectedDate,
+                                                    shiftNumber: currentShift || 0,
+                                                    paymentType: 'CASH',
+                                                    amount: parseFloat(dailyCashTotal),
+                                                    liters: parseFloat(dailyCashTotal) / gasPrice,
+                                                    notes: 'ยอดขายเงินสดรวมทั้งวัน',
+                                                }),
+                                            });
+                                            if (res.ok) {
+                                                setDailyCashTotal('');
+                                                fetchDailyData();
+                                                alert('✅ บันทึกยอดเงินสดสำเร็จ');
+                                            }
+                                        } catch (error) {
+                                            console.error(error);
+                                            alert('❌ เกิดข้อผิดพลาด');
                                         }
-                                    } catch (error) {
-                                        console.error(error);
-                                        alert('❌ เกิดข้อผิดพลาด');
-                                    }
-                                }}
-                                className="btn btn-success"
-                            >
-                                <Save size={16} />
-                                บันทึก
-                            </button>
+                                    }}
+                                    className="w-full py-4 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold text-lg flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-green-500/20"
+                                >
+                                    <Save size={20} />
+                                    บันทึกยอดเงินสด
+                                </button>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Other Expenses */}
-                    <div className="bg-white/5 rounded-xl p-4">
-                        <h3 className="font-bold text-red-400 mb-4 flex items-center gap-2">
-                            <span className="text-xl">📝</span> ค่าใช้จ่ายอื่นๆ
-                        </h3>
-                        <div className="space-y-3">
-                            <input
-                                type="text"
-                                value={expenseNotes}
-                                onChange={(e) => setExpenseNotes(e.target.value)}
-                                placeholder="รายละเอียด (เช่น ค่าน้ำมัน, ค่าอาหาร)"
-                                className="input-glow w-full py-3 text-lg"
-                            />
-                            <div className="flex gap-3">
-                                <input
-                                    type="number"
-                                    value={otherExpenses}
-                                    onChange={(e) => setOtherExpenses(e.target.value)}
-                                    placeholder="จำนวนเงิน (บาท)"
-                                    className="input-glow flex-1 py-3 text-lg"
-                                />
+                    {/* Other Expenses Card */}
+                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500/10 to-red-500/5 border border-orange-500/20 p-6">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+
+                        <div className="relative">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="p-2 rounded-lg bg-orange-500/20">
+                                    <Receipt className="text-orange-400" size={20} />
+                                </div>
+                                <h3 className="font-bold text-orange-400 text-lg">ค่าใช้จ่ายอื่นๆ</h3>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-gray-400 text-sm mb-2">รายละเอียด</label>
+                                    <input
+                                        type="text"
+                                        value={expenseNotes}
+                                        onChange={(e) => setExpenseNotes(e.target.value)}
+                                        placeholder="เช่น ค่าน้ำมัน, ค่าอาหาร"
+                                        className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-gray-400 text-sm mb-2">จำนวนเงิน</label>
+                                    <input
+                                        type="number"
+                                        value={otherExpenses}
+                                        onChange={(e) => setOtherExpenses(e.target.value)}
+                                        placeholder="0.00"
+                                        className="w-full px-4 py-4 rounded-xl bg-white/5 border border-white/10 text-white text-xl font-mono placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                                    />
+                                    <p className="text-gray-500 text-xs mt-1">หน่วย: บาท</p>
+                                </div>
+
                                 <button
                                     onClick={async () => {
                                         if (!otherExpenses) return;
@@ -2255,10 +2293,10 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                             alert('❌ เกิดข้อผิดพลาด');
                                         }
                                     }}
-                                    className="btn btn-warning"
+                                    className="w-full py-4 rounded-xl bg-gradient-to-r from-orange-600 to-red-600 text-white font-bold text-lg flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-orange-500/20"
                                 >
-                                    <Save size={16} />
-                                    บันทึก
+                                    <Save size={20} />
+                                    บันทึกค่าใช้จ่าย
                                 </button>
                             </div>
                         </div>
