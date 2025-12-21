@@ -1186,7 +1186,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                         )}
 
                         {/* Gas Price & Stock Summary - HOME TAB */}
-                        <div className={`grid md:grid-cols-3 gap-6 mb-6 md:block ${activeTab !== 'home' ? 'hidden md:grid' : ''}`}>
+                        <div className={`grid md:grid-cols-3 gap-6 mb-6 ${activeTab !== 'home' ? 'hidden md:grid' : ''}`}>
                             {/* Gas Price */}
                             <div className="glass-card p-6">
                                 <h2 className="text-lg font-bold text-white mb-4">💰 ราคาแก๊ส LPG</h2>
@@ -1373,8 +1373,8 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                             </div>
                         </div>
 
-                        {/* Gauge Readings (3 Tanks) */}
-                        <div className="glass-card p-6 mb-6">
+                        {/* Gauge Readings (3 Tanks) - METERS TAB */}
+                        <div className={`glass-card p-6 mb-6 ${activeTab !== 'meters' ? 'hidden md:block' : ''}`}>
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
                                     <Gauge className="text-yellow-400" />
@@ -1601,8 +1601,8 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                             </div>
                         )}
 
-                        {/* Meter Readings */}
-                        <div className="grid md:grid-cols-2 gap-6 mb-6">
+                        {/* Meter Readings - METERS TAB */}
+                        <div className={`grid md:grid-cols-2 gap-6 mb-6 ${activeTab !== 'meters' ? 'hidden md:grid' : ''}`}>
                             {/* Start Meters */}
                             <div className="glass-card p-6">
                                 <h3 className="font-bold text-white mb-4">📟 มิเตอร์เริ่มต้น (4 หัวจ่าย)</h3>
