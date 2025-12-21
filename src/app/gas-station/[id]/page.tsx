@@ -1490,25 +1490,33 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                     <p className="text-sm text-gray-400">ยอดรวมมิเตอร์</p>
                                     <p className="text-2xl font-bold text-cyan-400">{formatNumber(meterTotal)}</p>
                                     <p className="text-sm text-gray-400">ลิตร</p>
+                                    <p className="text-lg font-bold text-yellow-400 mt-2">{formatCurrency(meterTotal * gasPrice)}</p>
+                                    <p className="text-xs text-gray-500">({gasPrice} บาท/ลิตร)</p>
                                 </div>
                                 <div className="text-center p-4 bg-green-900/20 rounded-xl">
                                     <p className="text-sm text-gray-400">ยอดขายจริง</p>
                                     <p className="text-2xl font-bold text-green-400">{formatNumber(transactionsTotal)}</p>
                                     <p className="text-sm text-gray-400">ลิตร</p>
+                                    <p className="text-lg font-bold text-yellow-400 mt-2">{formatCurrency(transactions.reduce((s, t) => s + Number(t.amount), 0))}</p>
+                                    <p className="text-xs text-gray-500">จากรายการ</p>
                                 </div>
                                 <div className={`text-center p-4 rounded-xl ${Math.abs(meterDiff) < 1 ? 'bg-green-900/20' : 'bg-red-900/20'}`}>
                                     <p className="text-sm text-gray-400">ผลต่าง</p>
                                     <p className={`text-2xl font-bold ${Math.abs(meterDiff) < 1 ? 'text-green-400' : 'text-red-400'}`}>
                                         {meterDiff > 0 ? '+' : ''}{formatNumber(meterDiff)}
                                     </p>
+                                    <p className="text-sm text-gray-400">ลิตร</p>
+                                    <p className={`text-lg font-bold mt-2 ${Math.abs(meterDiff) < 1 ? 'text-green-400' : 'text-red-400'}`}>
+                                        {meterDiff > 0 ? '+' : ''}{formatCurrency(meterDiff * gasPrice)}
+                                    </p>
                                     {Math.abs(meterDiff) >= 1 ? (
-                                        <p className="text-sm text-red-400 flex items-center justify-center gap-1">
-                                            <AlertTriangle size={14} />
+                                        <p className="text-xs text-red-400 flex items-center justify-center gap-1 mt-1">
+                                            <AlertTriangle size={12} />
                                             ยอดไม่ตรงกัน
                                         </p>
                                     ) : (
-                                        <p className="text-sm text-green-400 flex items-center justify-center gap-1">
-                                            <CheckCircle size={14} />
+                                        <p className="text-xs text-green-400 flex items-center justify-center gap-1 mt-1">
+                                            <CheckCircle size={12} />
                                             ตรงกัน
                                         </p>
                                     )}
