@@ -158,7 +158,7 @@ export async function POST(
                 stationId: station.id,
                 dailyRecordId: dailyRecord.id,
                 tankNumber,
-                date: new Date(),
+                date: date, // Use selected date, not current date
                 percentage,
                 photoUrl: photoUrl || null,
                 notes: type, // Store 'start' or 'end' in notes field
