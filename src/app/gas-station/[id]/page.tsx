@@ -477,6 +477,49 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
         }
     };
 
+    // Save all gauges by type (start or end) in one click
+    const saveAllGaugesByType = async (type: 'start' | 'end') => {
+        let savedCount = 0;
+        let errorCount = 0;
+
+        for (const tankNum of [1, 2, 3]) {
+            const key = `${tankNum}-${type}`;
+            const value = newGaugeValues[key];
+            if (value) {
+                try {
+                    const res = await fetch(`/api/gas-station/${id}/gauge`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            date: selectedDate,
+                            tankNumber: tankNum,
+                            type,
+                            percentage: parseFloat(value),
+                        }),
+                    });
+                    if (res.ok) {
+                        savedCount++;
+                    } else {
+                        errorCount++;
+                    }
+                } catch {
+                    errorCount++;
+                }
+            }
+        }
+
+        if (savedCount > 0) {
+            // Clear inputs and refresh
+            const clearedValues = { ...newGaugeValues };
+            [1, 2, 3].forEach(t => { clearedValues[`${t}-${type}`] = ''; });
+            setNewGaugeValues(clearedValues);
+            fetchGaugeReadings();
+            alert(`✅ บันทึกเกจ${type === 'start' ? 'เริ่มต้น' : 'สิ้นสุด'} ${savedCount} ถังสำเร็จ${errorCount > 0 ? ` (ล้มเหลว ${errorCount})` : ''}`);
+        } else {
+            alert('⚠️ กรุณากรอกค่าเกจก่อนบันทึก');
+        }
+    };
+
     // Save All Data (Admin only) - meters + gauges in one click
     const saveAllData = async () => {
         if (!isAdmin) return;
@@ -1260,13 +1303,6 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                                         placeholder="0-100%"
                                                         className="input-glow flex-1 text-center text-sm"
                                                     />
-                                                    <button
-                                                        onClick={() => saveGaugeReading(tankNum, 'start')}
-                                                        disabled={!newGaugeValues[`${tankNum}-start`]}
-                                                        className="btn btn-info btn-sm text-xs"
-                                                    >
-                                                        <Save size={14} />
-                                                    </button>
                                                 </div>
                                             </div>
 
@@ -1294,13 +1330,6 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                                         placeholder="0-100%"
                                                         className="input-glow flex-1 text-center text-sm"
                                                     />
-                                                    <button
-                                                        onClick={() => saveGaugeReading(tankNum, 'end')}
-                                                        disabled={!newGaugeValues[`${tankNum}-end`]}
-                                                        className="btn btn-success btn-sm text-xs"
-                                                    >
-                                                        <Save size={14} />
-                                                    </button>
                                                 </div>
                                             </div>
 
@@ -1316,6 +1345,24 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                         </div>
                                     );
                                 })}
+                            </div>
+
+                            {/* Save Gauge Buttons */}
+                            <div className="flex gap-3 mt-4">
+                                <button
+                                    onClick={() => saveAllGaugesByType('start')}
+                                    className="btn btn-info flex-1"
+                                >
+                                    <Save size={16} />
+                                    บันทึกเกจเริ่มต้น (3 ถัง)
+                                </button>
+                                <button
+                                    onClick={() => saveAllGaugesByType('end')}
+                                    className="btn btn-success flex-1"
+                                >
+                                    <Save size={16} />
+                                    บันทึกเกจสิ้นสุด (3 ถัง)
+                                </button>
                             </div>
 
                             {/* Total comparison with meters */}
