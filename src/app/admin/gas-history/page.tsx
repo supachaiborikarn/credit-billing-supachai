@@ -164,6 +164,42 @@ export default function GasHistoryAdminPage() {
         }
     };
 
+    // Copy end meters from previous record as start meters
+    const handleCopyFromPreviousRecord = (currentRecord: DailyRecord) => {
+        // Find index of current record
+        const currentIndex = records.findIndex(r => r.id === currentRecord.id);
+        if (currentIndex === -1 || currentIndex === records.length - 1) {
+            alert('ไม่พบข้อมูลวันก่อนหน้า');
+            return;
+        }
+
+        // Previous record (records are sorted newest first, so next index = previous day)
+        const previousRecord = records[currentIndex + 1];
+        if (!previousRecord || !previousRecord.meters || previousRecord.meters.length === 0) {
+            alert('ไม่พบมิเตอร์จากวันก่อนหน้า');
+            return;
+        }
+
+        // Copy end readings as start readings
+        const newInputs: Record<number, { start: number; end: number }> = {};
+        previousRecord.meters.forEach(m => {
+            newInputs[m.nozzleNumber] = {
+                start: m.endReading || m.startReading || 0,
+                end: meterInputs[m.nozzleNumber]?.end || 0,
+            };
+        });
+
+        // Fill any missing nozzles
+        for (let i = 1; i <= 4; i++) {
+            if (!newInputs[i]) {
+                newInputs[i] = { start: 0, end: meterInputs[i]?.end || 0 };
+            }
+        }
+
+        setMeterInputs(newInputs);
+        alert(`✅ คัดลอกมิเตอร์จบจากวันที่ ${previousRecord.date} เรียบร้อย`);
+    };
+
     const handleDeleteRecord = async (record: DailyRecord) => {
         if (record.transactionCount > 0) {
             alert('ไม่สามารถลบได้ เพราะมีรายการขายอยู่');
@@ -233,10 +269,34 @@ export default function GasHistoryAdminPage() {
     };
 
     // Focus next meter input on Enter key
-    // Index order: 0=nozzle1-start, 1=nozzle1-end, 2=nozzle2-start, 3=nozzle2-end, etc.
+    // NEW order: Start1→Start2→Start3→Start4 (indices 0,2,4,6), then End1→End2→End3→End4 (indices 1,3,5,7)
+    // This matches user expectation: fill all starts in a row, then all ends in a row
+    const getNextMeterIndex = (currentIndex: number): number | null => {
+        // Start inputs are at even indices: 0, 2, 4, 6
+        // End inputs are at odd indices: 1, 3, 5, 7
+        const isStartField = currentIndex % 2 === 0;
+
+        if (isStartField) {
+            // Current is Start field, go to next Start (skip by 2)
+            const nextStartIndex = currentIndex + 2;
+            if (nextStartIndex <= 6) {
+                return nextStartIndex; // Next start field
+            } else {
+                return 1; // After Start4, go to End1
+            }
+        } else {
+            // Current is End field, go to next End (skip by 2)
+            const nextEndIndex = currentIndex + 2;
+            if (nextEndIndex <= 7) {
+                return nextEndIndex; // Next end field
+            }
+            return null; // After End4, no more fields
+        }
+    };
+
     const focusNextMeterInput = (currentIndex: number) => {
-        const nextIndex = currentIndex + 1;
-        if (nextIndex < 8 && meterInputRefs.current[nextIndex]) {
+        const nextIndex = getNextMeterIndex(currentIndex);
+        if (nextIndex !== null && meterInputRefs.current[nextIndex]) {
             meterInputRefs.current[nextIndex]?.focus();
             meterInputRefs.current[nextIndex]?.select();
         }
@@ -426,7 +486,14 @@ export default function GasHistoryAdminPage() {
                                                         เลขมิเตอร์
                                                     </h4>
                                                     {editingMeters === record.id ? (
-                                                        <div className="flex gap-2">
+                                                        <div className="flex gap-2 flex-wrap">
+                                                            <button
+                                                                onClick={() => handleCopyFromPreviousRecord(record)}
+                                                                className="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg flex items-center gap-1"
+                                                                title="ดึงมิเตอร์จบจากวันก่อนหน้ามาเป็นมิเตอร์เริ่มต้น"
+                                                            >
+                                                                📋 ดึงจากวันก่อน
+                                                            </button>
                                                             <button
                                                                 onClick={() => setEditingMeters(null)}
                                                                 className="px-3 py-1 bg-gray-600 text-white text-sm rounded-lg flex items-center gap-1"
