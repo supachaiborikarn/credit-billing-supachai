@@ -33,7 +33,7 @@ export async function GET(
         const endOfDay = new Date(date);
         endOfDay.setHours(23, 59, 59, 999);
 
-        // Get latest reading for each tank
+        // Get all readings for the day
         const gaugeReadings = await prisma.gaugeReading.findMany({
             where: {
                 stationId: station.id,
@@ -42,22 +42,29 @@ export async function GET(
             orderBy: { createdAt: 'desc' }
         });
 
-        // Group by tankNumber and get latest for each
-        const latestByTank: Record<number, typeof gaugeReadings[0]> = {};
+        // Group by tankNumber and type (start/end from notes field)
+        const readingsByTank: Record<number, { start?: typeof gaugeReadings[0], end?: typeof gaugeReadings[0] }> = {};
+
         gaugeReadings.forEach(g => {
-            if (!latestByTank[g.tankNumber]) {
-                latestByTank[g.tankNumber] = g;
+            if (!readingsByTank[g.tankNumber]) {
+                readingsByTank[g.tankNumber] = {};
+            }
+            // Type is stored in notes field: 'start' or 'end'
+            const type = g.notes === 'start' ? 'start' : (g.notes === 'end' ? 'end' : null);
+            if (type && !readingsByTank[g.tankNumber][type]) {
+                readingsByTank[g.tankNumber][type] = g;
             }
         });
 
-        // Return array of 3 tanks with latest readings
+        // Return array of 3 tanks with start/end percentages
         const result = [1, 2, 3].map(tankNum => {
-            const reading = latestByTank[tankNum];
+            const readings = readingsByTank[tankNum];
             return {
                 tankNumber: tankNum,
-                percentage: reading ? Number(reading.percentage) : null,
-                photoUrl: reading?.photoUrl || null,
-                createdAt: reading?.createdAt || null,
+                startPercentage: readings?.start ? Number(readings.start.percentage) : null,
+                endPercentage: readings?.end ? Number(readings.end.percentage) : null,
+                startPhoto: readings?.start?.photoUrl || null,
+                endPhoto: readings?.end?.photoUrl || null,
             };
         });
 
@@ -68,7 +75,7 @@ export async function GET(
     }
 }
 
-// POST - save a new gauge reading for a tank
+// POST - save a new gauge reading for a tank (start or end)
 export async function POST(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
@@ -83,7 +90,7 @@ export async function POST(
         }
 
         const body = await request.json();
-        const { date: dateStr, tankNumber, percentage, photoUrl, notes } = body;
+        const { date: dateStr, tankNumber, percentage, type, photoUrl } = body;
 
         if (!tankNumber || tankNumber < 1 || tankNumber > 3) {
             return NextResponse.json({ error: 'ถังต้องเป็น 1, 2 หรือ 3' }, { status: 400 });
@@ -91,6 +98,10 @@ export async function POST(
 
         if (percentage === undefined || percentage < 0 || percentage > 100) {
             return NextResponse.json({ error: 'เปอร์เซนต์ต้องอยู่ระหว่าง 0-100' }, { status: 400 });
+        }
+
+        if (!type || (type !== 'start' && type !== 'end')) {
+            return NextResponse.json({ error: 'ต้องระบุประเภท start หรือ end' }, { status: 400 });
         }
 
         // Get or create station
@@ -122,12 +133,22 @@ export async function POST(
                 data: {
                     stationId: station.id,
                     date: date,
-                    gasPrice: 15.50,
+                    gasPrice: 16.09,
                 }
             });
         }
 
-        // Create gauge reading
+        // Delete existing reading for same tank + type on this day (update)
+        await prisma.gaugeReading.deleteMany({
+            where: {
+                stationId: station.id,
+                dailyRecordId: dailyRecord.id,
+                tankNumber,
+                notes: type, // 'start' or 'end'
+            }
+        });
+
+        // Create new gauge reading with type stored in notes
         const gaugeReading = await prisma.gaugeReading.create({
             data: {
                 stationId: station.id,
@@ -136,16 +157,18 @@ export async function POST(
                 date: new Date(),
                 percentage,
                 photoUrl: photoUrl || null,
-                notes: notes || null,
+                notes: type, // Store 'start' or 'end' in notes field
             }
         });
 
         return NextResponse.json({
             ...gaugeReading,
-            percentage: Number(gaugeReading.percentage)
+            percentage: Number(gaugeReading.percentage),
+            type: type
         });
     } catch (error) {
         console.error('Gauge reading POST error:', error);
         return NextResponse.json({ error: 'Failed to save gauge reading' }, { status: 500 });
     }
 }
+

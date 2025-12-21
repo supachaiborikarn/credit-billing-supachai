@@ -148,13 +148,13 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
     const [sellQuantity, setSellQuantity] = useState<Record<string, number>>({});
     const [receiveQuantity, setReceiveQuantity] = useState<Record<string, number>>({});
 
-    // Gauge readings (3 tanks)
-    const [gaugeReadings, setGaugeReadings] = useState<{ tankNumber: number; percentage: number | null }[]>([
-        { tankNumber: 1, percentage: null },
-        { tankNumber: 2, percentage: null },
-        { tankNumber: 3, percentage: null },
+    // Gauge readings (3 tanks) with start and end for comparison
+    const [gaugeReadings, setGaugeReadings] = useState<{ tankNumber: number; startPercentage: number | null; endPercentage: number | null }[]>([
+        { tankNumber: 1, startPercentage: null, endPercentage: null },
+        { tankNumber: 2, startPercentage: null, endPercentage: null },
+        { tankNumber: 3, startPercentage: null, endPercentage: null },
     ]);
-    const [newGaugeValues, setNewGaugeValues] = useState<Record<number, string>>({});
+    const [newGaugeValues, setNewGaugeValues] = useState<Record<string, string>>({}); // key: "tankNumber-type" e.g. "1-start"
 
     // User role check
     const [isAdmin, setIsAdmin] = useState(false);
@@ -411,8 +411,9 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
         }
     };
 
-    const saveGaugeReading = async (tankNumber: number) => {
-        const value = newGaugeValues[tankNumber];
+    const saveGaugeReading = async (tankNumber: number, type: 'start' | 'end') => {
+        const key = `${tankNumber}-${type}`;
+        const value = newGaugeValues[key];
         if (!value) return;
 
         try {
@@ -422,13 +423,14 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                 body: JSON.stringify({
                     date: selectedDate,
                     tankNumber,
+                    type, // 'start' or 'end'
                     percentage: parseFloat(value),
                 }),
             });
             if (res.ok) {
-                setNewGaugeValues(prev => ({ ...prev, [tankNumber]: '' }));
+                setNewGaugeValues(prev => ({ ...prev, [key]: '' }));
                 fetchGaugeReadings();
-                alert(`บันทึกเกจถังที่ ${tankNumber} เรียบร้อย`);
+                alert(`บันทึกเกจ${type === 'start' ? 'เริ่มต้น' : 'สิ้นสุด'}ถังที่ ${tankNumber} เรียบร้อย`);
             }
         } catch (error) {
             console.error('Error saving gauge reading:', error);
@@ -934,13 +936,13 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                 <div className="bg-yellow-900/20 rounded-lg p-3 mb-4">
                                     <p className="text-sm text-gray-400 mb-1">จากเกจ 3 ถัง (ถัง×98):</p>
                                     {(() => {
-                                        const totalPercentage = gaugeReadings.reduce((sum, g) => sum + (g.percentage || 0), 0);
+                                        const totalPercentage = gaugeReadings.reduce((sum, g) => sum + (g.endPercentage || 0), 0);
                                         const gaugeEstimate = totalPercentage * TANK_CAPACITY_LITERS;
                                         const difference = gaugeEstimate - currentStock;
                                         return (
                                             <>
                                                 <p className="text-xl font-bold font-mono text-yellow-400">
-                                                    ({gaugeReadings.map(g => g.percentage || 0).join('% + ')}%) × 98
+                                                    ({gaugeReadings.map(g => g.endPercentage || 0).join('% + ')}%) × 98
                                                 </p>
                                                 <p className="text-2xl font-bold font-mono text-yellow-400">
                                                     = {formatNumber(gaugeEstimate)} <span className="text-sm">ลิตร</span>
@@ -990,50 +992,134 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                         <div className="glass-card p-6 mb-6">
                             <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                                 <Gauge className="text-yellow-400" />
-                                📊 เกจถังแก๊ส (3 ถัง)
+                                📊 เกจถังแก๊ส (3 ถัง) - เปรียบเทียบกับมิเตอร์
                             </h2>
                             <div className="grid md:grid-cols-3 gap-4">
                                 {[1, 2, 3].map(tankNum => {
                                     const reading = gaugeReadings.find(g => g.tankNumber === tankNum);
+                                    const usedLiters = reading && reading.startPercentage !== null && reading.endPercentage !== null
+                                        ? (reading.startPercentage - reading.endPercentage) * TANK_CAPACITY_LITERS / 100
+                                        : null;
                                     return (
                                         <div key={tankNum} className="bg-white/5 rounded-xl p-4">
                                             <h3 className="font-bold text-yellow-400 mb-3">ถังที่ {tankNum}</h3>
-                                            <div className="flex items-center justify-between mb-3">
-                                                <span className="text-gray-400">เปอร์เซนต์ปัจจุบัน:</span>
-                                                <span className={`text-2xl font-bold font-mono ${reading && reading.percentage !== null && reading.percentage < 20
-                                                    ? 'text-red-400'
-                                                    : 'text-green-400'
-                                                    }`}>
-                                                    {reading && reading.percentage !== null ? `${reading.percentage}%` : '-'}
-                                                </span>
+
+                                            {/* Start Gauge */}
+                                            <div className="mb-3">
+                                                <div className="flex justify-between text-sm mb-1">
+                                                    <span className="text-gray-400">🌅 เริ่มต้น:</span>
+                                                    <span className="text-cyan-400 font-mono">
+                                                        {reading?.startPercentage !== null ? `${reading?.startPercentage}%` : '-'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        max="100"
+                                                        step="1"
+                                                        value={newGaugeValues[`${tankNum}-start`] || ''}
+                                                        onChange={(e) => setNewGaugeValues(prev => ({
+                                                            ...prev,
+                                                            [`${tankNum}-start`]: e.target.value
+                                                        }))}
+                                                        placeholder="0-100%"
+                                                        className="input-glow flex-1 text-center text-sm"
+                                                    />
+                                                    <button
+                                                        onClick={() => saveGaugeReading(tankNum, 'start')}
+                                                        disabled={!newGaugeValues[`${tankNum}-start`]}
+                                                        className="btn btn-info btn-sm text-xs"
+                                                    >
+                                                        <Save size={14} />
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    max="100"
-                                                    step="1"
-                                                    value={newGaugeValues[tankNum] || ''}
-                                                    onChange={(e) => setNewGaugeValues(prev => ({
-                                                        ...prev,
-                                                        [tankNum]: e.target.value
-                                                    }))}
-                                                    placeholder="0-100%"
-                                                    className="input-glow flex-1 text-center"
-                                                />
-                                                <button
-                                                    onClick={() => saveGaugeReading(tankNum)}
-                                                    disabled={!newGaugeValues[tankNum]}
-                                                    className="btn btn-success btn-sm"
-                                                >
-                                                    <Save size={16} />
-                                                    บันทึก
-                                                </button>
+
+                                            {/* End Gauge */}
+                                            <div className="mb-3">
+                                                <div className="flex justify-between text-sm mb-1">
+                                                    <span className="text-gray-400">🌙 สิ้นสุด:</span>
+                                                    <span className={`font-mono ${reading?.endPercentage !== null && (reading?.endPercentage ?? 100) < 20 ? 'text-red-400' : 'text-green-400'}`}>
+                                                        {reading?.endPercentage !== null ? `${reading?.endPercentage}%` : '-'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        max="100"
+                                                        step="1"
+                                                        value={newGaugeValues[`${tankNum}-end`] || ''}
+                                                        onChange={(e) => setNewGaugeValues(prev => ({
+                                                            ...prev,
+                                                            [`${tankNum}-end`]: e.target.value
+                                                        }))}
+                                                        placeholder="0-100%"
+                                                        className="input-glow flex-1 text-center text-sm"
+                                                    />
+                                                    <button
+                                                        onClick={() => saveGaugeReading(tankNum, 'end')}
+                                                        disabled={!newGaugeValues[`${tankNum}-end`]}
+                                                        className="btn btn-success btn-sm text-xs"
+                                                    >
+                                                        <Save size={14} />
+                                                    </button>
+                                                </div>
                                             </div>
+
+                                            {/* Used liters from this tank */}
+                                            {usedLiters !== null && (
+                                                <div className="bg-purple-500/10 rounded-lg p-2 text-center">
+                                                    <span className="text-xs text-gray-400">ใช้ไป: </span>
+                                                    <span className="font-mono text-purple-400 font-bold">
+                                                        {formatNumber(usedLiters)} ลิตร
+                                                    </span>
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })}
                             </div>
+
+                            {/* Total comparison with meters */}
+                            {(() => {
+                                const totalStartGauge = gaugeReadings.reduce((s, g) => s + (g.startPercentage || 0), 0);
+                                const totalEndGauge = gaugeReadings.reduce((s, g) => s + (g.endPercentage || 0), 0);
+                                const totalGaugeUsed = ((totalStartGauge - totalEndGauge) / 100) * TANK_CAPACITY_LITERS * 3;
+                                const metersTotal = meters.reduce((s, m) => s + (m.end - m.start), 0);
+                                const difference = metersTotal - totalGaugeUsed;
+
+                                if (totalStartGauge > 0 && totalEndGauge > 0) {
+                                    return (
+                                        <div className="mt-4 bg-white/5 rounded-xl p-4">
+                                            <h4 className="font-bold text-white mb-3">📈 เปรียบเทียบ</h4>
+                                            <div className="grid grid-cols-3 gap-4 text-center">
+                                                <div>
+                                                    <div className="text-gray-400 text-sm">จากเกจ (ใช้ไป)</div>
+                                                    <div className="text-xl font-bold font-mono text-yellow-400">{formatNumber(totalGaugeUsed)} ลิตร</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-gray-400 text-sm">จากมิเตอร์ (ขาย)</div>
+                                                    <div className="text-xl font-bold font-mono text-cyan-400">{formatNumber(metersTotal)} ลิตร</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-gray-400 text-sm">ผลต่าง</div>
+                                                    <div className={`text-xl font-bold font-mono ${Math.abs(difference) < 10 ? 'text-green-400' : 'text-red-400'}`}>
+                                                        {difference > 0 ? '+' : ''}{formatNumber(difference)} ลิตร
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {Math.abs(difference) >= 10 && (
+                                                <div className="mt-2 text-center text-red-400 text-sm">
+                                                    ⚠️ ผลต่างมากกว่า 10 ลิตร - ตรวจสอบข้อมูล
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                }
+                                return null;
+                            })()}
                         </div>
 
                         {/* Gas Supply Form (Modal) */}
@@ -1659,14 +1745,14 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                         <div key={g.tankNumber} className="text-center">
                                             <div className="text-sm text-gray-400">ถัง {g.tankNumber}</div>
                                             <div className="text-xl font-bold font-mono text-yellow-400">
-                                                {g.percentage !== null ? `${g.percentage}%` : '-'}
+                                                {g.endPercentage !== null ? `${g.endPercentage}%` : '-'}
                                             </div>
                                         </div>
                                     ))}
                                     <div className="text-center">
                                         <div className="text-sm text-gray-400">รวม ×98</div>
                                         <div className="text-xl font-bold font-mono text-yellow-400">
-                                            {formatNumber(gaugeReadings.reduce((s, g) => s + (g.percentage || 0), 0) * TANK_CAPACITY_LITERS)} ลิตร
+                                            {formatNumber(gaugeReadings.reduce((s, g) => s + (g.endPercentage || 0), 0) * TANK_CAPACITY_LITERS)} ลิตร
                                         </div>
                                     </div>
                                 </div>
