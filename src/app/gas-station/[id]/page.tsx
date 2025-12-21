@@ -309,6 +309,15 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                             end: Number(m.endReading) || 0,
                         })));
                     }
+                } else {
+                    // Reset meters and price when no daily record exists for this date
+                    setGasPrice(DEFAULT_GAS_PRICE);
+                    setMeters([
+                        { nozzle: 1, start: 0, end: 0 },
+                        { nozzle: 2, start: 0, end: 0 },
+                        { nozzle: 3, start: 0, end: 0 },
+                        { nozzle: 4, start: 0, end: 0 },
+                    ]);
                 }
             }
         } catch (error) {
