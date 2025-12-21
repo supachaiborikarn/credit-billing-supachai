@@ -1049,14 +1049,21 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                     if (val) {
                                         localStorage.setItem('selectedShift', val.toString());
                                     }
-                                    // Reset meters when switching shifts (avoid data spillover)
+                                    // Reset ALL data when switching shifts (avoid data spillover)
+                                    // Reset meters
                                     setMeters([
                                         { nozzle: 1, start: 0, end: 0 },
                                         { nozzle: 2, start: 0, end: 0 },
                                         { nozzle: 3, start: 0, end: 0 },
                                         { nozzle: 4, start: 0, end: 0 },
                                     ]);
-                                    // Refresh shift data
+                                    // Reset gauge inputs
+                                    setNewGaugeValues({});
+                                    // Clear gauge readings and refetch for new shift
+                                    setGaugeReadings([]);
+                                    // Refresh all data for the new shift
+                                    fetchDailyData();
+                                    fetchGaugeReadings();
                                     fetchShiftData();
                                 }}
                                 className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
