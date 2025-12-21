@@ -1206,8 +1206,8 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                 </button>
                             </div>
 
-                            {/* Current Stock */}
-                            <div className="glass-card p-6">
+                            {/* Current Stock - RECEIVE TAB */}
+                            <div className={`glass-card p-6 ${activeTab !== 'receive' ? 'hidden md:block' : ''}`}>
                                 <h2 className="text-lg font-bold text-white mb-4">⛽ สต็อกแก๊สคงเหลือ</h2>
 
                                 {/* Calculated Stock */}
@@ -1270,8 +1270,8 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                     </div>
                                 </div>
 
-                                {/* Daily Cash Total Input */}
-                                <div className="mt-4 pt-4 border-t border-white/10">
+                                {/* Daily Cash Total Input - SALES TAB */}
+                                <div className={`mt-4 pt-4 border-t border-white/10 ${activeTab !== 'sales' ? 'hidden md:block' : ''}`}>
                                     <h3 className="font-bold text-green-400 mb-3">💵 ยอดขายเงินสดทั้งวัน</h3>
                                     <div className="flex gap-2">
                                         <input
@@ -1315,8 +1315,8 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                     </div>
                                 </div>
 
-                                {/* Other Expenses Input */}
-                                <div className="mt-4 pt-4 border-t border-white/10">
+                                {/* Other Expenses Input - SALES TAB */}
+                                <div className={`mt-4 pt-4 border-t border-white/10 ${activeTab !== 'sales' ? 'hidden md:block' : ''}`}>
                                     <h3 className="font-bold text-red-400 mb-3">📝 ค่าใช้จ่ายอื่นๆ</h3>
                                     <div className="space-y-2">
                                         <input
