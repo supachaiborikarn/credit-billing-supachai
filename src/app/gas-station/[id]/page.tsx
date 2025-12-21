@@ -732,6 +732,45 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
 
                     {/* Shift Controls */}
                     <div className="flex items-center gap-2 flex-wrap">
+                        {/* Shift Selector Dropdown */}
+                        <div className="flex items-center gap-2">
+                            <span className="text-gray-400 text-sm">กะ:</span>
+                            <select
+                                value={currentShift || ''}
+                                onChange={(e) => {
+                                    const val = e.target.value ? parseInt(e.target.value) : null;
+                                    setCurrentShift(val);
+                                    if (val) {
+                                        localStorage.setItem('selectedShift', val.toString());
+                                    }
+                                    // Refresh shift data
+                                    fetchShiftData();
+                                }}
+                                className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                            >
+                                <option value="" className="bg-gray-800">เลือกกะ</option>
+                                <option value="1" className="bg-gray-800">🌅 กะเช้า (กะ 1)</option>
+                                <option value="2" className="bg-gray-800">🌙 กะบ่าย (กะ 2)</option>
+                            </select>
+
+                            {/* Show shift status */}
+                            {shiftData?.shifts && shiftData.shifts.length > 0 && (
+                                <div className="flex gap-1">
+                                    {shiftData.shifts.map((s: any) => (
+                                        <span
+                                            key={s.id}
+                                            className={`px-2 py-0.5 text-xs rounded-full ${s.status === 'OPEN'
+                                                    ? 'bg-green-500/20 text-green-400'
+                                                    : 'bg-gray-500/20 text-gray-400'
+                                                }`}
+                                        >
+                                            กะ{s.shiftNumber}: {s.status === 'OPEN' ? 'เปิด' : 'ปิด'}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
                         {currentShift && (
                             <>
                                 {/* Check if shift is open */}
