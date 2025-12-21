@@ -48,6 +48,7 @@ interface DailyRecord {
     totalAmount: number;
     totalLiters: number;
     isComplete: boolean;
+    shifts: { id: string; shiftNumber: number; status: string }[];
 }
 
 interface Summary {
@@ -467,6 +468,26 @@ export default function GasHistoryAdminPage() {
                                                 <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded-full flex items-center gap-1">
                                                     <AlertTriangle size={12} />
                                                     ไม่ครบ
+                                                </span>
+                                            )}
+                                            {/* Shift badges */}
+                                            {record.shifts && record.shifts.length > 0 ? (
+                                                <div className="flex gap-1">
+                                                    {record.shifts.map(shift => (
+                                                        <span
+                                                            key={shift.id}
+                                                            className={`px-2 py-0.5 text-xs rounded-full ${shift.shiftNumber === 1
+                                                                    ? 'bg-orange-500/20 text-orange-400'
+                                                                    : 'bg-indigo-500/20 text-indigo-400'
+                                                                }`}
+                                                        >
+                                                            {shift.shiftNumber === 1 ? '🌅 กะ 1' : '🌙 กะ 2'}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <span className="px-2 py-0.5 bg-gray-500/20 text-gray-400 text-xs rounded-full">
+                                                    ไม่มีกะ
                                                 </span>
                                             )}
                                         </div>
