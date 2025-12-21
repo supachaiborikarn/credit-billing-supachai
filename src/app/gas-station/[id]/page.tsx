@@ -181,6 +181,9 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
     const [otherExpenses, setOtherExpenses] = useState<string>('');
     const [expenseNotes, setExpenseNotes] = useState<string>('');
 
+    // Tab navigation for mobile workflow
+    const [activeTab, setActiveTab] = useState<'home' | 'receive' | 'meters' | 'sales'>('home');
+
     // Check user role on mount
     useEffect(() => {
         const checkUser = async () => {
@@ -1175,8 +1178,8 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                             </div>
                         )}
 
-                        {/* Gas Price & Stock Summary */}
-                        <div className="grid md:grid-cols-3 gap-6 mb-6">
+                        {/* Gas Price & Stock Summary - HOME TAB */}
+                        <div className={`grid md:grid-cols-3 gap-6 mb-6 md:block ${activeTab !== 'home' ? 'hidden md:grid' : ''}`}>
                             {/* Gas Price */}
                             <div className="glass-card p-6">
                                 <h2 className="text-lg font-bold text-white mb-4">💰 ราคาแก๊ส LPG</h2>
@@ -2241,6 +2244,44 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                     </div>
                 </div>
             )}
+
+            {/* Bottom Tab Navigation (Mobile) */}
+            <div className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-lg border-t border-white/10 md:hidden z-40 pb-safe">
+                <div className="flex justify-around items-center py-2">
+                    <button
+                        onClick={() => setActiveTab('home')}
+                        className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${activeTab === 'home' ? 'text-cyan-400 bg-cyan-400/10' : 'text-gray-400'
+                            }`}
+                    >
+                        <span className="text-xl">🏠</span>
+                        <span className="text-xs">หน้าหลัก</span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('receive')}
+                        className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${activeTab === 'receive' ? 'text-green-400 bg-green-400/10' : 'text-gray-400'
+                            }`}
+                    >
+                        <span className="text-xl">📦</span>
+                        <span className="text-xs">รับแก๊ส</span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('meters')}
+                        className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${activeTab === 'meters' ? 'text-yellow-400 bg-yellow-400/10' : 'text-gray-400'
+                            }`}
+                    >
+                        <span className="text-xl">📟</span>
+                        <span className="text-xs">มิเตอร์</span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('sales')}
+                        className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${activeTab === 'sales' ? 'text-purple-400 bg-purple-400/10' : 'text-gray-400'
+                            }`}
+                    >
+                        <span className="text-xl">💰</span>
+                        <span className="text-xs">ขาย</span>
+                    </button>
+                </div>
+            </div>
 
             {/* Revenue Summary Modal */}
             {showRevenueSummary && (
