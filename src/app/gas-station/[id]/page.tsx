@@ -170,6 +170,12 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
     // Daily summary modal
     const [showDailySummary, setShowDailySummary] = useState(false);
 
+    // Revenue summary modal
+    const [showRevenueSummary, setShowRevenueSummary] = useState(false);
+
+    // Save all loading state
+    const [savingAll, setSavingAll] = useState(false);
+
     // Check user role on mount
     useEffect(() => {
         const checkUser = async () => {
@@ -435,6 +441,137 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
         } catch (error) {
             console.error('Error saving gauge reading:', error);
         }
+    };
+
+    // Save All Data (Admin only) - meters + gauges in one click
+    const saveAllData = async () => {
+        if (!isAdmin) return;
+
+        setSavingAll(true);
+        let savedCount = 0;
+        let errorCount = 0;
+
+        try {
+            // 1. Save start meters
+            for (const m of meters) {
+                if (m.start > 0) {
+                    try {
+                        await fetch(`/api/gas-station/${id}/meters`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                date: selectedDate,
+                                shiftNumber: currentShift,
+                                nozzleNumber: m.nozzle,
+                                type: 'start',
+                                reading: m.start,
+                            }),
+                        });
+                        savedCount++;
+                    } catch { errorCount++; }
+                }
+            }
+
+            // 2. Save end meters
+            for (const m of meters) {
+                if (m.end > 0) {
+                    try {
+                        await fetch(`/api/gas-station/${id}/meters`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                date: selectedDate,
+                                shiftNumber: currentShift,
+                                nozzleNumber: m.nozzle,
+                                type: 'end',
+                                reading: m.end,
+                            }),
+                        });
+                        savedCount++;
+                    } catch { errorCount++; }
+                }
+            }
+
+            // 3. Save gauge readings
+            for (const tankNum of [1, 2, 3]) {
+                const startKey = `${tankNum}-start`;
+                const endKey = `${tankNum}-end`;
+
+                if (newGaugeValues[startKey]) {
+                    try {
+                        await fetch(`/api/gas-station/${id}/gauge`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                date: selectedDate,
+                                tankNumber: tankNum,
+                                type: 'start',
+                                percentage: parseFloat(newGaugeValues[startKey]),
+                            }),
+                        });
+                        savedCount++;
+                    } catch { errorCount++; }
+                }
+
+                if (newGaugeValues[endKey]) {
+                    try {
+                        await fetch(`/api/gas-station/${id}/gauge`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                date: selectedDate,
+                                tankNumber: tankNum,
+                                type: 'end',
+                                percentage: parseFloat(newGaugeValues[endKey]),
+                            }),
+                        });
+                        savedCount++;
+                    } catch { errorCount++; }
+                }
+            }
+
+            // Clear gauge inputs and refresh
+            setNewGaugeValues({});
+            fetchGaugeReadings();
+            fetchShiftData();
+
+            alert(`✅ บันทึกสำเร็จ ${savedCount} รายการ${errorCount > 0 ? ` (ล้มเหลว ${errorCount})` : ''}`);
+        } catch (error) {
+            console.error('Error saving all data:', error);
+            alert('❌ เกิดข้อผิดพลาด');
+        } finally {
+            setSavingAll(false);
+        }
+    };
+
+    // Calculate revenue from transactions
+    const calculateRevenue = () => {
+        const cashTotal = transactions.filter(t => t.paymentType === 'CASH').reduce((s, t) => s + Number(t.amount), 0);
+        const creditTotal = transactions.filter(t => t.paymentType === 'CREDIT').reduce((s, t) => s + Number(t.amount), 0);
+        const cardTotal = transactions.filter(t => t.paymentType === 'CREDIT_CARD').reduce((s, t) => s + Number(t.amount), 0);
+        const transferTotal = transactions.filter(t => t.paymentType === 'TRANSFER').reduce((s, t) => s + Number(t.amount), 0);
+        const boxTruckTotal = transactions.filter(t => t.paymentType === 'BOX_TRUCK').reduce((s, t) => s + Number(t.amount), 0);
+
+        const totalLiters = transactions.reduce((s, t) => s + Number(t.liters), 0);
+        const grandTotal = cashTotal + creditTotal + cardTotal + transferTotal + boxTruckTotal;
+
+        // Calculate from meters
+        const meterTotal = meters.reduce((s, m) => s + (m.end - m.start), 0);
+        const meterRevenue = meterTotal * gasPrice;
+
+        return {
+            cashTotal,
+            creditTotal,
+            cardTotal,
+            transferTotal,
+            boxTruckTotal,
+            grandTotal,
+            totalLiters,
+            meterTotal,
+            meterRevenue,
+            difference: meterRevenue - grandTotal,
+            transactionCount: transactions.length
+        };
     };
 
     // Open shift with start meters
@@ -852,14 +989,34 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
 
                         {currentShift && (
                             <>
-                                {/* Copy from previous shift button */}
-                                <button
-                                    onClick={copyFromPreviousShift}
-                                    className="px-4 py-2 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30 transition-all flex items-center gap-2 text-sm"
-                                    title="คัดลอกมิเตอร์สิ้นสุดของกะก่อนหน้า"
-                                >
-                                    📋 ดึงจากกะก่อน
-                                </button>
+
+                                {/* Admin: Save All Button */}
+                                {isAdmin && (
+                                    <button
+                                        onClick={saveAllData}
+                                        disabled={savingAll}
+                                        className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:opacity-90 transition-all flex items-center gap-2 text-sm disabled:opacity-50"
+                                        title="บันทึกมิเตอร์และเกจทั้งหมด"
+                                    >
+                                        {savingAll ? (
+                                            <span className="animate-spin">⏳</span>
+                                        ) : (
+                                            <Save size={16} />
+                                        )}
+                                        💾 บันทึกทั้งหมด
+                                    </button>
+                                )}
+
+                                {/* Admin: View Revenue Summary */}
+                                {isAdmin && (
+                                    <button
+                                        onClick={() => setShowRevenueSummary(true)}
+                                        className="px-4 py-2 rounded-xl bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/30 transition-all flex items-center gap-2 text-sm"
+                                        title="ดูสรุปยอดขาย"
+                                    >
+                                        💰 สรุปยอด
+                                    </button>
+                                )}
 
                                 {/* Check if shift is open */}
                                 {shiftData?.shifts?.find((s: any) => s.shiftNumber === currentShift && s.status === 'OPEN') ? (
@@ -1261,10 +1418,19 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                         </div>
                                     ))}
                                 </div>
-                                <button onClick={() => saveMeters('start')} className="btn btn-success w-full mt-4">
-                                    <Save size={18} />
-                                    บันทึกมิเตอร์เริ่มต้น
-                                </button>
+                                <div className="flex gap-2 mt-4">
+                                    <button
+                                        onClick={copyFromPreviousShift}
+                                        className="btn btn-info flex-1"
+                                        title="คัดลอกมิเตอร์สิ้นสุดของกะก่อนหน้า"
+                                    >
+                                        📋 ดึงจากกะก่อน
+                                    </button>
+                                    <button onClick={() => saveMeters('start')} className="btn btn-success flex-1">
+                                        <Save size={18} />
+                                        บันทึก
+                                    </button>
+                                </div>
                             </div>
 
                             {/* End Meters */}
@@ -1846,6 +2012,111 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Revenue Summary Modal */}
+            {showRevenueSummary && (
+                <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+                    <div className="bg-[#0f0f1a] rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-white/10">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between p-6 border-b border-white/10">
+                            <div>
+                                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                    💰 สรุปยอดขาย
+                                </h2>
+                                <p className="text-gray-400 text-sm mt-1">
+                                    {new Date(selectedDate).toLocaleDateString('th-TH', {
+                                        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                                    })} | กะที่ {currentShift || '-'}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowRevenueSummary(false)}
+                                className="p-2 rounded-lg hover:bg-white/10 text-gray-400"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        {/* Modal Content */}
+                        <div className="p-6 space-y-4">
+                            {(() => {
+                                const revenue = calculateRevenue();
+                                return (
+                                    <>
+                                        {/* From Transactions */}
+                                        <div className="bg-white/5 rounded-xl p-4">
+                                            <h3 className="font-bold text-cyan-400 mb-3">📊 จากรายการขาย ({revenue.transactionCount} รายการ)</h3>
+                                            <div className="space-y-2 text-sm">
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-400">💵 เงินสด:</span>
+                                                    <span className="font-mono text-green-400 font-bold">{formatCurrency(revenue.cashTotal)} บาท</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-400">💳 เงินเชื่อ:</span>
+                                                    <span className="font-mono text-orange-400 font-bold">{formatCurrency(revenue.creditTotal)} บาท</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-400">📲 โอนเงิน:</span>
+                                                    <span className="font-mono text-blue-400 font-bold">{formatCurrency(revenue.transferTotal)} บาท</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-400">💳 บัตรเครดิต:</span>
+                                                    <span className="font-mono text-purple-400 font-bold">{formatCurrency(revenue.cardTotal)} บาท</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-400">🚛 รถกล่อง:</span>
+                                                    <span className="font-mono text-pink-400 font-bold">{formatCurrency(revenue.boxTruckTotal)} บาท</span>
+                                                </div>
+                                                <div className="border-t border-white/20 pt-2 mt-2 flex justify-between">
+                                                    <span className="font-bold text-white">รวมทั้งหมด:</span>
+                                                    <span className="font-mono text-yellow-400 font-bold text-lg">{formatCurrency(revenue.grandTotal)} บาท</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-400">ลิตรรวม:</span>
+                                                    <span className="font-mono text-cyan-400">{formatNumber(revenue.totalLiters)} ลิตร</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* From Meters */}
+                                        <div className="bg-white/5 rounded-xl p-4">
+                                            <h3 className="font-bold text-green-400 mb-3">📟 จากมิเตอร์</h3>
+                                            <div className="space-y-2 text-sm">
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-400">ลิตรจากมิเตอร์:</span>
+                                                    <span className="font-mono text-green-400 font-bold">{formatNumber(revenue.meterTotal)} ลิตร</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-400">ยอด × ราคา ({gasPrice} บาท):</span>
+                                                    <span className="font-mono text-green-400 font-bold">{formatCurrency(revenue.meterRevenue)} บาท</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Difference */}
+                                        <div className={`rounded-xl p-4 ${Math.abs(revenue.difference) < 10 ? 'bg-green-500/10 border border-green-500/30' : 'bg-red-500/10 border border-red-500/30'}`}>
+                                            <h3 className={`font-bold mb-2 ${Math.abs(revenue.difference) < 10 ? 'text-green-400' : 'text-red-400'}`}>
+                                                📈 เปรียบเทียบ
+                                            </h3>
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-gray-400">ผลต่าง (มิเตอร์ - ขาย):</span>
+                                                <span className={`font-mono font-bold text-xl ${Math.abs(revenue.difference) < 10 ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {revenue.difference > 0 ? '+' : ''}{formatCurrency(revenue.difference)} บาท
+                                                </span>
+                                            </div>
+                                            {Math.abs(revenue.difference) >= 10 && (
+                                                <p className="text-xs text-red-400 mt-2">
+                                                    ⚠️ ผลต่างมากกว่า 10 บาท - ตรวจสอบข้อมูล
+                                                </p>
+                                            )}
+                                        </div>
+                                    </>
+                                );
+                            })()}
                         </div>
                     </div>
                 </div>
