@@ -1014,8 +1014,8 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                     <div className="flex items-center gap-3">
                         <div className="relative">
                             <div className="absolute inset-0 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-2xl blur-lg opacity-50" />
-                            <div className="relative p-3 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500">
-                                <Fuel className="text-white" size={28} />
+                            <div className="relative p-4 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500">
+                                <Fuel className="text-white" size={36} />
                             </div>
                         </div>
                         <div>
@@ -1069,9 +1069,9 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                         fetchShiftData();
                                     }, 100);
                                 }}
-                                className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                                className="bg-white/10 border border-white/20 rounded-xl px-4 py-2.5 text-white font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500 min-w-[160px]"
                             >
-                                <option value="" className="bg-gray-800">เลือกกะ</option>
+                                <option value="" className="bg-gray-800">-- เลือกกะ --</option>
                                 <option value="0" className="bg-gray-800">📅 กะทั้งวัน</option>
                                 <option value="1" className="bg-gray-800">🌅 กะเช้า (กะ 1)</option>
                                 <option value="2" className="bg-gray-800">🌙 กะบ่าย (กะ 2)</option>
@@ -1103,44 +1103,42 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                     <button
                                         onClick={saveAllData}
                                         disabled={savingAll}
-                                        className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:opacity-90 transition-all flex items-center gap-2 text-sm disabled:opacity-50"
+                                        className="px-5 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold hover:opacity-90 transition-all flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-purple-500/20"
                                         title="บันทึกมิเตอร์และเกจทั้งหมด"
                                     >
                                         {savingAll ? (
-                                            <span className="animate-spin">⏳</span>
+                                            <span className="animate-spin text-xl">⏳</span>
                                         ) : (
-                                            <Save size={16} />
+                                            <Save size={20} />
                                         )}
                                         💾 บันทึกทั้งหมด
                                     </button>
                                 )}
 
-                                {/* Admin: View Revenue Summary */}
                                 {isAdmin && (
                                     <button
                                         onClick={() => setShowRevenueSummary(true)}
-                                        className="px-4 py-2 rounded-xl bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/30 transition-all flex items-center gap-2 text-sm"
+                                        className="px-5 py-3 rounded-xl bg-yellow-500/20 text-yellow-400 border-2 border-yellow-500/40 hover:bg-yellow-500/30 transition-all flex items-center gap-2 font-semibold shadow-lg shadow-yellow-500/10"
                                         title="ดูสรุปยอดขาย"
                                     >
-                                        💰 สรุปยอด
+                                        <span className="text-xl">💰</span> สรุปยอด
                                     </button>
                                 )}
 
-                                {/* Check if shift is open */}
                                 {shiftData?.shifts?.find((s: any) => s.shiftNumber === currentShift && s.status === 'OPEN') ? (
                                     <button
                                         onClick={() => setShowCloseShiftModal(true)}
-                                        className="px-4 py-2 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-all flex items-center gap-2 text-sm"
+                                        className="px-5 py-3 rounded-xl bg-red-500/20 text-red-400 border-2 border-red-500/40 hover:bg-red-500/30 transition-all flex items-center gap-2 font-semibold shadow-lg shadow-red-500/10"
                                     >
-                                        <Clock size={16} />
+                                        <Clock size={20} />
                                         ปิดกะ
                                     </button>
                                 ) : (
                                     <button
                                         onClick={() => setShowOpenShiftModal(true)}
-                                        className="px-4 py-2 rounded-xl bg-green-500/20 text-green-400 border border-green-500/30 hover:bg-green-500/30 transition-all flex items-center gap-2 text-sm"
+                                        className="px-5 py-3 rounded-xl bg-green-500/20 text-green-400 border-2 border-green-500/40 hover:bg-green-500/30 transition-all flex items-center gap-2 font-semibold shadow-lg shadow-green-500/10"
                                     >
-                                        <Clock size={16} />
+                                        <Clock size={20} />
                                         เปิดกะ
                                     </button>
                                 )}
@@ -1150,22 +1148,22 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setShowDailySummary(true)}
-                            className="relative group px-5 py-2.5 rounded-xl font-semibold text-white overflow-hidden"
+                            className="relative group px-6 py-3 rounded-xl font-bold text-white overflow-hidden"
                         >
                             <div className="absolute inset-0 bg-gradient-to-r from-cyan-600 to-blue-600" />
                             <div className="absolute inset-0 bg-gradient-to-r from-cyan-600 to-blue-600 blur-xl opacity-50 group-hover:opacity-70 transition-opacity" />
                             <span className="relative flex items-center gap-2">
-                                <FileText size={18} />
+                                <FileText size={22} />
                                 สรุปงานประจำวัน
                             </span>
                         </button>
-                        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10">
-                            <Calendar size={18} className="text-cyan-400" />
+                        <div className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white/10 border-2 border-white/20">
+                            <Calendar size={22} className="text-cyan-400" />
                             <input
                                 type="date"
                                 value={selectedDate}
                                 onChange={(e) => setSelectedDate(e.target.value)}
-                                className="bg-transparent text-white focus:outline-none w-[150px]"
+                                className="bg-transparent text-white font-medium focus:outline-none w-[150px]"
                             />
                         </div>
                     </div>
