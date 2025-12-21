@@ -572,6 +572,30 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
         }
     };
 
+    // Enter key navigation sequence
+    // มิเตอร์เริ่มต้น 1-2-3-4 → เกจเริ่มต้น 1-2-3 → มิเตอร์สิ้นสุด 1-2-3-4 → เกจสิ้นสุด 1-2-3
+    const inputSequence = [
+        'meter-start-1', 'meter-start-2', 'meter-start-3', 'meter-start-4',
+        'gauge-start-1', 'gauge-start-2', 'gauge-start-3',
+        'meter-end-1', 'meter-end-2', 'meter-end-3', 'meter-end-4',
+        'gauge-end-1', 'gauge-end-2', 'gauge-end-3',
+    ];
+
+    const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, currentId: string) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const currentIndex = inputSequence.indexOf(currentId);
+            if (currentIndex !== -1 && currentIndex < inputSequence.length - 1) {
+                const nextId = inputSequence[currentIndex + 1];
+                const nextInput = document.getElementById(nextId) as HTMLInputElement;
+                if (nextInput) {
+                    nextInput.focus();
+                    nextInput.select();
+                }
+            }
+        }
+    };
+
     const handleSubmitTransaction = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -1014,6 +1038,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <input
+                                                        id={`gauge-start-${tankNum}`}
                                                         type="number"
                                                         min="0"
                                                         max="100"
@@ -1023,6 +1048,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                                             ...prev,
                                                             [`${tankNum}-start`]: e.target.value
                                                         }))}
+                                                        onKeyDown={(e) => handleInputKeyDown(e, `gauge-start-${tankNum}`)}
                                                         placeholder="0-100%"
                                                         className="input-glow flex-1 text-center text-sm"
                                                     />
@@ -1046,6 +1072,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <input
+                                                        id={`gauge-end-${tankNum}`}
                                                         type="number"
                                                         min="0"
                                                         max="100"
@@ -1055,6 +1082,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                                             ...prev,
                                                             [`${tankNum}-end`]: e.target.value
                                                         }))}
+                                                        onKeyDown={(e) => handleInputKeyDown(e, `gauge-end-${tankNum}`)}
                                                         placeholder="0-100%"
                                                         className="input-glow flex-1 text-center text-sm"
                                                     />
@@ -1199,6 +1227,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                         <div key={i} className="flex items-center gap-2">
                                             <span className="text-cyan-400 w-16 text-sm">หัว {m.nozzle}</span>
                                             <input
+                                                id={`meter-start-${m.nozzle}`}
                                                 type="number"
                                                 value={m.start}
                                                 onChange={(e) => {
@@ -1206,6 +1235,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                                     newMeters[i].start = parseFloat(e.target.value) || 0;
                                                     setMeters(newMeters);
                                                 }}
+                                                onKeyDown={(e) => handleInputKeyDown(e, `meter-start-${m.nozzle}`)}
                                                 className="input-glow text-center font-mono flex-1"
                                             />
                                             <label className={`cursor-pointer p-2 rounded-lg transition-all ${m.startPhoto ? 'bg-green-600 text-white' : 'bg-white/10 text-gray-400 hover:bg-white/20'
@@ -1245,6 +1275,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                         <div key={i} className="flex items-center gap-2">
                                             <span className="text-cyan-400 w-16 text-sm">หัว {m.nozzle}</span>
                                             <input
+                                                id={`meter-end-${m.nozzle}`}
                                                 type="number"
                                                 value={m.end}
                                                 onChange={(e) => {
@@ -1252,6 +1283,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                                     newMeters[i].end = parseFloat(e.target.value) || 0;
                                                     setMeters(newMeters);
                                                 }}
+                                                onKeyDown={(e) => handleInputKeyDown(e, `meter-end-${m.nozzle}`)}
                                                 className="input-glow text-center font-mono flex-1"
                                             />
                                             <label className={`cursor-pointer p-2 rounded-lg transition-all ${m.endPhoto ? 'bg-green-600 text-white' : 'bg-white/10 text-gray-400 hover:bg-white/20'
