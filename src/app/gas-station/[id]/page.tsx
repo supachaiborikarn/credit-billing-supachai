@@ -2154,20 +2154,24 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
             )}
 
             {/* บันทึกการขายแก๊ส - ล่างสุด */}
-            <div className="glass-card p-6 mb-6 max-w-2xl mx-auto">
-                <h2 className="text-lg font-bold text-white mb-4 text-center">💰 บันทึกการขายแก๊ส</h2>
+            <div className="glass-card p-6 mb-6">
+                <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                    <span className="text-2xl">💰</span> บันทึกการขายแก๊ส
+                </h2>
 
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="grid md:grid-cols-2 gap-8">
                     {/* Daily Cash Total */}
-                    <div>
-                        <h3 className="font-bold text-green-400 mb-3">💵 ยอดขายเงินสดทั้งวัน</h3>
-                        <div className="flex gap-2">
+                    <div className="bg-white/5 rounded-xl p-4">
+                        <h3 className="font-bold text-green-400 mb-4 flex items-center gap-2">
+                            <span className="text-xl">💵</span> ยอดขายเงินสดทั้งวัน
+                        </h3>
+                        <div className="flex gap-3">
                             <input
                                 type="number"
                                 value={dailyCashTotal}
                                 onChange={(e) => setDailyCashTotal(e.target.value)}
                                 placeholder="ยอดเงินสด (บาท)"
-                                className="input-glow flex-1 py-2"
+                                className="input-glow flex-1 py-3 text-lg"
                             />
                             <button
                                 onClick={async () => {
@@ -2204,23 +2208,25 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                     </div>
 
                     {/* Other Expenses */}
-                    <div>
-                        <h3 className="font-bold text-red-400 mb-3">📝 ค่าใช้จ่ายอื่นๆ</h3>
-                        <div className="space-y-2">
+                    <div className="bg-white/5 rounded-xl p-4">
+                        <h3 className="font-bold text-red-400 mb-4 flex items-center gap-2">
+                            <span className="text-xl">📝</span> ค่าใช้จ่ายอื่นๆ
+                        </h3>
+                        <div className="space-y-3">
                             <input
                                 type="text"
                                 value={expenseNotes}
                                 onChange={(e) => setExpenseNotes(e.target.value)}
-                                placeholder="รายละเอียด"
-                                className="input-glow w-full py-2"
+                                placeholder="รายละเอียด (เช่น ค่าน้ำมัน, ค่าอาหาร)"
+                                className="input-glow w-full py-3 text-lg"
                             />
-                            <div className="flex gap-2">
+                            <div className="flex gap-3">
                                 <input
                                     type="number"
                                     value={otherExpenses}
                                     onChange={(e) => setOtherExpenses(e.target.value)}
                                     placeholder="จำนวนเงิน (บาท)"
-                                    className="input-glow flex-1 py-2"
+                                    className="input-glow flex-1 py-3 text-lg"
                                 />
                                 <button
                                     onClick={async () => {
