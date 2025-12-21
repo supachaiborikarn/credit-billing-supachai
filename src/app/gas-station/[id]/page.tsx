@@ -1278,21 +1278,80 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                         <span className="font-mono">{transactions.length} รายการ</span>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
 
-                                {/* Daily Cash Total Input - SALES TAB */}
-                                <div className="mt-4 pt-4 border-t border-white/10" style={{ display: isMobile && activeTab !== 'sales' ? 'none' : '' }}>
-                                    <h3 className="font-bold text-green-400 mb-3">💵 ยอดขายเงินสดทั้งวัน</h3>
+                        {/* SALES TAB - บันทึกการขายแก๊ส */}
+                        <div className="glass-card p-6 mb-6" style={{ display: isMobile && activeTab !== 'sales' ? 'none' : '' }}>
+                            <h2 className="text-lg font-bold text-white mb-4">💰 บันทึกการขายแก๊ส</h2>
+
+                            {/* Daily Cash Total */}
+                            <div className="mb-4">
+                                <h3 className="font-bold text-green-400 mb-3">💵 ยอดขายเงินสดทั้งวัน</h3>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="number"
+                                        value={dailyCashTotal}
+                                        onChange={(e) => setDailyCashTotal(e.target.value)}
+                                        placeholder="ใส่ยอดเงินสดรวม (บาท)"
+                                        className="input-glow flex-1 text-lg py-3"
+                                    />
+                                    <button
+                                        onClick={async () => {
+                                            if (!dailyCashTotal) return;
+                                            try {
+                                                const res = await fetch(`/api/gas-station/${id}/transactions`, {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                        date: selectedDate,
+                                                        shiftNumber: currentShift || 0,
+                                                        paymentType: 'CASH',
+                                                        amount: parseFloat(dailyCashTotal),
+                                                        liters: parseFloat(dailyCashTotal) / gasPrice,
+                                                        notes: 'ยอดขายเงินสดรวมทั้งวัน',
+                                                    }),
+                                                });
+                                                if (res.ok) {
+                                                    setDailyCashTotal('');
+                                                    fetchDailyData();
+                                                    alert('✅ บันทึกยอดเงินสดสำเร็จ');
+                                                }
+                                            } catch (error) {
+                                                console.error(error);
+                                                alert('❌ เกิดข้อผิดพลาด');
+                                            }
+                                        }}
+                                        className="btn btn-success"
+                                    >
+                                        <Save size={16} />
+                                        บันทึก
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Other Expenses */}
+                            <div className="pt-4 border-t border-white/10">
+                                <h3 className="font-bold text-red-400 mb-3">📝 ค่าใช้จ่ายอื่นๆ</h3>
+                                <div className="space-y-2">
+                                    <input
+                                        type="text"
+                                        value={expenseNotes}
+                                        onChange={(e) => setExpenseNotes(e.target.value)}
+                                        placeholder="รายละเอียด (เช่น ค่าน้ำมัน, ค่าอาหาร)"
+                                        className="input-glow w-full text-lg py-3"
+                                    />
                                     <div className="flex gap-2">
                                         <input
                                             type="number"
-                                            value={dailyCashTotal}
-                                            onChange={(e) => setDailyCashTotal(e.target.value)}
-                                            placeholder="ใส่ยอดเงินสดรวม (บาท)"
+                                            value={otherExpenses}
+                                            onChange={(e) => setOtherExpenses(e.target.value)}
+                                            placeholder="จำนวนเงิน (บาท)"
                                             className="input-glow flex-1 text-lg py-3"
                                         />
                                         <button
                                             onClick={async () => {
-                                                if (!dailyCashTotal) return;
+                                                if (!otherExpenses) return;
                                                 try {
                                                     const res = await fetch(`/api/gas-station/${id}/transactions`, {
                                                         method: 'POST',
@@ -1300,83 +1359,28 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                                         body: JSON.stringify({
                                                             date: selectedDate,
                                                             shiftNumber: currentShift || 0,
-                                                            paymentType: 'CASH',
-                                                            amount: parseFloat(dailyCashTotal),
-                                                            liters: parseFloat(dailyCashTotal) / gasPrice,
-                                                            notes: 'ยอดขายเงินสดรวมทั้งวัน',
+                                                            paymentType: 'EXPENSE',
+                                                            amount: -Math.abs(parseFloat(otherExpenses)),
+                                                            liters: 0,
+                                                            notes: expenseNotes || 'ค่าใช้จ่ายอื่นๆ',
                                                         }),
                                                     });
                                                     if (res.ok) {
-                                                        setDailyCashTotal('');
+                                                        setOtherExpenses('');
+                                                        setExpenseNotes('');
                                                         fetchDailyData();
-                                                        alert('✅ บันทึกยอดเงินสดสำเร็จ');
+                                                        alert('✅ บันทึกค่าใช้จ่ายสำเร็จ');
                                                     }
                                                 } catch (error) {
                                                     console.error(error);
                                                     alert('❌ เกิดข้อผิดพลาด');
                                                 }
                                             }}
-                                            className="btn btn-success"
+                                            className="btn btn-warning"
                                         >
                                             <Save size={16} />
                                             บันทึก
                                         </button>
-                                    </div>
-                                </div>
-
-                                {/* Other Expenses Input - SALES TAB */}
-                                <div className="mt-4 pt-4 border-t border-white/10" style={{ display: isMobile && activeTab !== 'sales' ? 'none' : '' }}>
-                                    <h3 className="font-bold text-red-400 mb-3">📝 ค่าใช้จ่ายอื่นๆ</h3>
-                                    <div className="space-y-2">
-                                        <input
-                                            type="text"
-                                            value={expenseNotes}
-                                            onChange={(e) => setExpenseNotes(e.target.value)}
-                                            placeholder="รายละเอียด (เช่น ค่าน้ำมัน, ค่าอาหาร)"
-                                            className="input-glow w-full text-lg py-3"
-                                        />
-                                        <div className="flex gap-2">
-                                            <input
-                                                type="number"
-                                                value={otherExpenses}
-                                                onChange={(e) => setOtherExpenses(e.target.value)}
-                                                placeholder="จำนวนเงิน (บาท)"
-                                                className="input-glow flex-1 text-lg py-3"
-                                            />
-                                            <button
-                                                onClick={async () => {
-                                                    if (!otherExpenses) return;
-                                                    try {
-                                                        // Save as negative transaction (expense)
-                                                        const res = await fetch(`/api/gas-station/${id}/transactions`, {
-                                                            method: 'POST',
-                                                            headers: { 'Content-Type': 'application/json' },
-                                                            body: JSON.stringify({
-                                                                date: selectedDate,
-                                                                shiftNumber: currentShift || 0,
-                                                                paymentType: 'EXPENSE',
-                                                                amount: -Math.abs(parseFloat(otherExpenses)),
-                                                                liters: 0,
-                                                                notes: expenseNotes || 'ค่าใช้จ่ายอื่นๆ',
-                                                            }),
-                                                        });
-                                                        if (res.ok) {
-                                                            setOtherExpenses('');
-                                                            setExpenseNotes('');
-                                                            fetchDailyData();
-                                                            alert('✅ บันทึกค่าใช้จ่ายสำเร็จ');
-                                                        }
-                                                    } catch (error) {
-                                                        console.error(error);
-                                                        alert('❌ เกิดข้อผิดพลาด');
-                                                    }
-                                                }}
-                                                className="btn btn-warning"
-                                            >
-                                                <Save size={16} />
-                                                บันทึก
-                                            </button>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
