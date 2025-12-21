@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Sidebar from '@/components/Sidebar';
 import {
     Calendar,
@@ -76,6 +76,10 @@ export default function GasHistoryAdminPage() {
     const [saving, setSaving] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newDate, setNewDate] = useState('');
+
+    // Refs for meter inputs (to enable Enter-to-next-field)
+    // Order: nozzle1-start, nozzle1-end, nozzle2-start, nozzle2-end, ...
+    const meterInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
     // Initialize date range (last 30 days)
     useEffect(() => {
@@ -226,6 +230,23 @@ export default function GasHistoryAdminPage() {
 
     const formatCurrency = (num: number) => {
         return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+    };
+
+    // Focus next meter input on Enter key
+    // Index order: 0=nozzle1-start, 1=nozzle1-end, 2=nozzle2-start, 3=nozzle2-end, etc.
+    const focusNextMeterInput = (currentIndex: number) => {
+        const nextIndex = currentIndex + 1;
+        if (nextIndex < 8 && meterInputRefs.current[nextIndex]) {
+            meterInputRefs.current[nextIndex]?.focus();
+            meterInputRefs.current[nextIndex]?.select();
+        }
+    };
+
+    const handleMeterKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            focusNextMeterInput(index);
+        }
     };
 
     return (
@@ -446,6 +467,7 @@ export default function GasHistoryAdminPage() {
                                                                         <div>
                                                                             <label className="text-xs text-gray-500">เริ่ม</label>
                                                                             <input
+                                                                                ref={(el) => { meterInputRefs.current[(nozzle - 1) * 2] = el; }}
                                                                                 type="number"
                                                                                 step="0.01"
                                                                                 value={input?.start || 0}
@@ -453,12 +475,14 @@ export default function GasHistoryAdminPage() {
                                                                                     ...meterInputs,
                                                                                     [nozzle]: { ...input, start: parseFloat(e.target.value) || 0 }
                                                                                 })}
+                                                                                onKeyDown={(e) => handleMeterKeyDown(e, (nozzle - 1) * 2)}
                                                                                 className="w-full px-2 py-1 bg-[#0a0a0f] border border-white/20 rounded text-white text-sm"
                                                                             />
                                                                         </div>
                                                                         <div>
                                                                             <label className="text-xs text-gray-500">สิ้นสุด</label>
                                                                             <input
+                                                                                ref={(el) => { meterInputRefs.current[(nozzle - 1) * 2 + 1] = el; }}
                                                                                 type="number"
                                                                                 step="0.01"
                                                                                 value={input?.end || 0}
@@ -466,6 +490,7 @@ export default function GasHistoryAdminPage() {
                                                                                     ...meterInputs,
                                                                                     [nozzle]: { ...input, end: parseFloat(e.target.value) || 0 }
                                                                                 })}
+                                                                                onKeyDown={(e) => handleMeterKeyDown(e, (nozzle - 1) * 2 + 1)}
                                                                                 className="w-full px-2 py-1 bg-[#0a0a0f] border border-white/20 rounded text-white text-sm"
                                                                             />
                                                                         </div>
