@@ -414,7 +414,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
 
     const fetchGaugeReadings = async () => {
         try {
-            const res = await fetch(`/api/gas-station/${id}/gauge?date=${selectedDate}`);
+            const res = await fetch(`/api/gas-station/${id}/gauge?date=${selectedDate}&shift=${currentShift || 0}`);
             if (res.ok) {
                 const data = await res.json();
                 setGaugeReadings(data);
@@ -438,6 +438,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                     tankNumber,
                     type, // 'start' or 'end'
                     percentage: parseFloat(value),
+                    shiftNumber: currentShift || 0,
                 }),
             });
             if (res.ok) {
@@ -516,6 +517,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                             tankNumber: tankNum,
                             type,
                             percentage: parseFloat(value),
+                            shiftNumber: currentShift || 0,
                         }),
                     });
                     if (res.ok) {
@@ -605,6 +607,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                 tankNumber: tankNum,
                                 type: 'start',
                                 percentage: parseFloat(newGaugeValues[startKey]),
+                                shiftNumber: currentShift || 0,
                             }),
                         });
                         savedCount++;
@@ -621,6 +624,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                 tankNumber: tankNum,
                                 type: 'end',
                                 percentage: parseFloat(newGaugeValues[endKey]),
+                                shiftNumber: currentShift || 0,
                             }),
                         });
                         savedCount++;

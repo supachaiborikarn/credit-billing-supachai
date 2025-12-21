@@ -228,6 +228,7 @@ model GaugeReading {
   notes         String?
   createdAt     DateTime     @default(now())
   tankNumber    Int
+  shiftNumber   Int          @default(0)
   dailyRecord   DailyRecord? @relation(fields: [dailyRecordId], references: [id])
 
   @@map("gauge_readings")

@@ -11,6 +11,8 @@ export async function GET(
         const { id } = await params;
         const { searchParams } = new URL(request.url);
         const dateStr = searchParams.get('date');
+        const shiftStr = searchParams.get('shift');
+        const shiftNumber = shiftStr ? parseInt(shiftStr) : 0;
 
         const stationIndex = parseInt(id) - 1;
         const stationConfig = STATIONS[stationIndex];
@@ -33,11 +35,12 @@ export async function GET(
         const endOfDay = new Date(date);
         endOfDay.setHours(23, 59, 59, 999);
 
-        // Get all readings for the day
+        // Get all readings for the day AND shift
         const gaugeReadings = await prisma.gaugeReading.findMany({
             where: {
                 stationId: station.id,
-                date: { gte: startOfDay, lte: endOfDay }
+                date: { gte: startOfDay, lte: endOfDay },
+                shiftNumber: shiftNumber
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -90,7 +93,7 @@ export async function POST(
         }
 
         const body = await request.json();
-        const { date: dateStr, tankNumber, percentage, type, photoUrl } = body;
+        const { date: dateStr, tankNumber, percentage, type, photoUrl, shiftNumber = 0 } = body;
 
         if (!tankNumber || tankNumber < 1 || tankNumber > 3) {
             return NextResponse.json({ error: 'ถังต้องเป็น 1, 2 หรือ 3' }, { status: 400 });
@@ -138,13 +141,14 @@ export async function POST(
             });
         }
 
-        // Delete existing reading for same tank + type on this day (update)
+        // Delete existing reading for same tank + type on this day + shift (update)
         await prisma.gaugeReading.deleteMany({
             where: {
                 stationId: station.id,
                 dailyRecordId: dailyRecord.id,
                 tankNumber,
                 notes: type, // 'start' or 'end'
+                shiftNumber: shiftNumber,
             }
         });
 
@@ -158,6 +162,7 @@ export async function POST(
                 percentage,
                 photoUrl: photoUrl || null,
                 notes: type, // Store 'start' or 'end' in notes field
+                shiftNumber: shiftNumber,
             }
         });
 
