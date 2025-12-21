@@ -21,13 +21,19 @@ export async function GET(
             return NextResponse.json({ error: 'Gas station not found' }, { status: 404 });
         }
 
-        const station = await prisma.station.findFirst({
-            where: { name: stationConfig.name }
+        // Get or create station with consistent ID
+        const stationId = `station-${id}`;
+        const station = await prisma.station.upsert({
+            where: { id: stationId },
+            update: {},
+            create: {
+                id: stationId,
+                name: stationConfig.name,
+                type: 'GAS',
+                gasPrice: 15.50,
+                gasStockAlert: 1000,
+            }
         });
-
-        if (!station) {
-            return NextResponse.json([]);
-        }
 
         const date = dateStr ? new Date(dateStr + 'T00:00:00Z') : new Date();
         const startOfDay = new Date(date);
@@ -107,19 +113,19 @@ export async function POST(
             return NextResponse.json({ error: 'ต้องระบุประเภท start หรือ end' }, { status: 400 });
         }
 
-        // Get or create station
-        let station = await prisma.station.findFirst({
-            where: { name: stationConfig.name }
+        // Get or create station with consistent ID
+        const stationId = `station-${id}`;
+        const station = await prisma.station.upsert({
+            where: { id: stationId },
+            update: {},
+            create: {
+                id: stationId,
+                name: stationConfig.name,
+                type: 'GAS',
+                gasPrice: 15.50,
+                gasStockAlert: 1000,
+            }
         });
-
-        if (!station) {
-            station = await prisma.station.create({
-                data: {
-                    name: stationConfig.name,
-                    type: 'GAS',
-                }
-            });
-        }
 
         const date = new Date(dateStr + 'T00:00:00Z');
 

@@ -19,14 +19,19 @@ export async function POST(
         const { date: dateStr, type, meters } = body;
         const date = new Date(dateStr + 'T00:00:00Z');
 
-        // Get station
-        const station = await prisma.station.findFirst({
-            where: { name: stationConfig.name }
+        // Get or create station with consistent ID
+        const stationId = `station-${id}`;
+        const station = await prisma.station.upsert({
+            where: { id: stationId },
+            update: {},
+            create: {
+                id: stationId,
+                name: stationConfig.name,
+                type: 'GAS',
+                gasPrice: 15.50,
+                gasStockAlert: 1000,
+            }
         });
-
-        if (!station) {
-            return NextResponse.json({ error: 'Station not found' }, { status: 404 });
-        }
 
         // Get or create daily record
         let dailyRecord = await prisma.dailyRecord.findFirst({

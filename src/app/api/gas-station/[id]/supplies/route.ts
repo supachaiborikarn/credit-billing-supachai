@@ -15,13 +15,19 @@ export async function GET(
             return NextResponse.json({ error: 'Gas station not found' }, { status: 404 });
         }
 
-        const station = await prisma.station.findFirst({
-            where: { name: stationConfig.name }
+        // Get or create station with consistent ID
+        const stationId = `station-${id}`;
+        const station = await prisma.station.upsert({
+            where: { id: stationId },
+            update: {},
+            create: {
+                id: stationId,
+                name: stationConfig.name,
+                type: 'GAS',
+                gasPrice: 15.50,
+                gasStockAlert: 1000,
+            }
         });
-
-        if (!station) {
-            return NextResponse.json([]);
-        }
 
         const supplies = await prisma.gasSupply.findMany({
             where: { stationId: station.id },
@@ -57,21 +63,19 @@ export async function POST(
         const body = await request.json();
         const { date: dateStr, liters, supplier, invoiceNo, pricePerLiter } = body;
 
-        // Get or create station
-        let station = await prisma.station.findFirst({
-            where: { name: stationConfig.name }
+        // Get or create station with consistent ID
+        const stationId = `station-${id}`;
+        const station = await prisma.station.upsert({
+            where: { id: stationId },
+            update: {},
+            create: {
+                id: stationId,
+                name: stationConfig.name,
+                type: 'GAS',
+                gasPrice: 15.50,
+                gasStockAlert: 1000,
+            }
         });
-
-        if (!station) {
-            station = await prisma.station.create({
-                data: {
-                    name: stationConfig.name,
-                    type: 'GAS',
-                    gasPrice: 15.50,
-                    gasStockAlert: 1000,
-                }
-            });
-        }
 
         const supply = await prisma.gasSupply.create({
             data: {

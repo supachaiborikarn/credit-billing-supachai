@@ -120,6 +120,7 @@ export async function PUT(
                         dailyRecordId: nextDailyRecord.id,
                         shiftNumber: nextShiftNumber,
                         status: 'OPEN',
+                        carryOverFromShiftId: shiftId, // Track carry-over source
                         meters: {
                             create: updatedShift.meters.map(m => ({
                                 nozzleNumber: m.nozzleNumber,
@@ -128,7 +129,7 @@ export async function PUT(
                         }
                     }
                 });
-                console.log(`Carry-over: Created shift ${nextShiftNumber} for ${nextDate.toISOString()} with startReadings from closed shift`);
+                console.log(`Carry-over: Created shift ${nextShiftNumber} for ${nextDate.toISOString()} with startReadings from closed shift ${shiftId}`);
             } else {
                 // Update existing shift's meter startReadings (if they're still 0)
                 for (const m of updatedShift.meters) {

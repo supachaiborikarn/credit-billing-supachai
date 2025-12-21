@@ -17,26 +17,25 @@ export async function GET(
 
         const url = new URL(request.url);
         const dateStr = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
+        const shiftStr = url.searchParams.get('shift');
+        const shiftNumber = shiftStr ? parseInt(shiftStr) : null;
         const date = new Date(dateStr + 'T00:00:00Z');
 
-        // Get or find station
-        let station = await prisma.station.findFirst({
-            where: { name: stationConfig.name }
+        // Get or create station with consistent ID
+        const stationId = `station-${id}`;
+        const station = await prisma.station.upsert({
+            where: { id: stationId },
+            update: {},
+            create: {
+                id: stationId,
+                name: stationConfig.name,
+                type: 'GAS',
+                gasPrice: 15.50,
+                gasStockAlert: 1000,
+            }
         });
 
-        if (!station) {
-            // Create station if not exists
-            station = await prisma.station.create({
-                data: {
-                    name: stationConfig.name,
-                    type: 'GAS',
-                    gasPrice: 15.50,
-                    gasStockAlert: 1000,
-                }
-            });
-        }
-
-        // Get daily record
+        // Get daily record with shifts
         const dailyRecord = await prisma.dailyRecord.findFirst({
             where: {
                 stationId: station.id,
@@ -44,21 +43,35 @@ export async function GET(
             },
             include: {
                 meters: true,
+                shifts: {
+                    include: {
+                        meters: true,
+                        staff: { select: { name: true } }
+                    },
+                    orderBy: { shiftNumber: 'asc' }
+                }
             }
         });
 
-        // Get transactions for the day
+        // Get transactions for the day (filtered by shift if specified)
         const startOfDay = new Date(dateStr + 'T00:00:00Z');
         const endOfDay = new Date(dateStr + 'T23:59:59Z');
 
+        const transactionWhere: Record<string, unknown> = {
+            stationId: station.id,
+            date: {
+                gte: startOfDay,
+                lte: endOfDay,
+            }
+        };
+
+        // If shift is specified, filter by shiftNumber
+        if (shiftNumber !== null) {
+            transactionWhere.shiftNumber = shiftNumber;
+        }
+
         const transactions = await prisma.transaction.findMany({
-            where: {
-                stationId: station.id,
-                date: {
-                    gte: startOfDay,
-                    lte: endOfDay,
-                }
-            },
+            where: transactionWhere,
             orderBy: { date: 'asc' },
             include: {
                 owner: {
@@ -79,6 +92,20 @@ export async function GET(
             orderBy: { date: 'desc' }
         });
 
+        // Get gauge readings for the shift (if specified)
+        const gaugeWhere: Record<string, unknown> = {
+            stationId: station.id,
+            date: { gte: startOfDay, lte: endOfDay }
+        };
+        if (shiftNumber !== null) {
+            gaugeWhere.shiftNumber = shiftNumber;
+        }
+
+        const gaugeReadings = await prisma.gaugeReading.findMany({
+            where: gaugeWhere,
+            orderBy: { createdAt: 'desc' }
+        });
+
         // Calculate current stock
         // Stock = Total supplies - Total sales (from all time)
         const totalSupplies = await prisma.gasSupply.aggregate({
@@ -96,11 +123,23 @@ export async function GET(
 
         const currentStock = Number(totalSupplies._sum.liters || 0) - Number(totalSales._sum.liters || 0);
 
+        // Get shift-specific data if shift is specified
+        const currentShiftData = shiftNumber !== null && dailyRecord?.shifts
+            ? dailyRecord.shifts.find(s => s.shiftNumber === shiftNumber)
+            : null;
+
         return NextResponse.json({
             station,
             dailyRecord: dailyRecord ? {
                 ...dailyRecord,
                 gasPrice: Number(dailyRecord.gasPrice) || station.gasPrice || 15.50,
+            } : null,
+            currentShift: currentShiftData ? {
+                id: currentShiftData.id,
+                shiftNumber: currentShiftData.shiftNumber,
+                status: currentShiftData.status,
+                meters: currentShiftData.meters,
+                staffName: currentShiftData.staff?.name,
             } : null,
             transactions: transactions.map(t => ({
                 ...t,
@@ -113,7 +152,12 @@ export async function GET(
                 ...s,
                 liters: Number(s.liters),
             })),
+            gaugeReadings: gaugeReadings.map(g => ({
+                ...g,
+                percentage: Number(g.percentage),
+            })),
             currentStock,
+            shiftFilter: shiftNumber,
         });
     } catch (error) {
         console.error('Gas station daily GET error:', error);
@@ -138,21 +182,19 @@ export async function POST(
         const { date: dateStr, gasPrice } = body;
         const date = new Date(dateStr + 'T00:00:00Z');
 
-        // Get or create station
-        let station = await prisma.station.findFirst({
-            where: { name: stationConfig.name }
+        // Get or create station with consistent ID
+        const stationId = `station-${id}`;
+        const station = await prisma.station.upsert({
+            where: { id: stationId },
+            update: {},
+            create: {
+                id: stationId,
+                name: stationConfig.name,
+                type: 'GAS',
+                gasPrice: gasPrice || 15.50,
+                gasStockAlert: 1000,
+            }
         });
-
-        if (!station) {
-            station = await prisma.station.create({
-                data: {
-                    name: stationConfig.name,
-                    type: 'GAS',
-                    gasPrice: gasPrice || 15.50,
-                    gasStockAlert: 1000,
-                }
-            });
-        }
 
         // Create or update daily record
         const existingRecord = await prisma.dailyRecord.findFirst({

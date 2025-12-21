@@ -51,23 +51,19 @@ export async function POST(
             productType
         } = body;
 
-        // Get or create station with STANDARD ID
+        // Get or create station with consistent ID
         const stationId = `station-${id}`;
-        let station = await prisma.station.findUnique({
-            where: { id: stationId }
+        const station = await prisma.station.upsert({
+            where: { id: stationId },
+            update: {},
+            create: {
+                id: stationId,
+                name: stationConfig.name,
+                type: 'GAS',
+                gasPrice: pricePerLiter || 15.50,
+                gasStockAlert: 1000,
+            }
         });
-
-        if (!station) {
-            station = await prisma.station.create({
-                data: {
-                    id: stationId, // Use standard ID format
-                    name: stationConfig.name,
-                    type: 'GAS',
-                    gasPrice: pricePerLiter || 15.50,
-                    gasStockAlert: 1000,
-                }
-            });
-        }
 
         // Get or create daily record
         const date = new Date(dateStr + 'T00:00:00Z');

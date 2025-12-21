@@ -169,6 +169,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
     const [showCloseShiftModal, setShowCloseShiftModal] = useState(false);
     const [shiftMeterInputs, setShiftMeterInputs] = useState<Record<number, number>>({});
     const [previousShiftMeters, setPreviousShiftMeters] = useState<Record<number, number> | null>(null);
+    const [hasCarryOver, setHasCarryOver] = useState(false); // Track if data was carried over
 
     // Daily summary modal
     const [showDailySummary, setShowDailySummary] = useState(false);
@@ -274,6 +275,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                 ...m,
                 start: prevMeters[m.nozzle] ?? m.start
             })));
+            setHasCarryOver(true); // Mark as carried over
             alert('📋 คัดลอกมิเตอร์สิ้นสุดจากกะก่อน → มิเตอร์เริ่มต้นวันนี้');
         } else {
             alert('⚠️ ไม่พบข้อมูลกะก่อนหน้า (อาจยังไม่ได้บันทึก)');
@@ -1509,7 +1511,14 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                         <div className="grid md:grid-cols-2 gap-6 mb-6">
                             {/* Start Meters */}
                             <div className="glass-card p-6">
-                                <h3 className="font-bold text-white mb-4">📟 มิเตอร์เริ่มต้น (4 หัวจ่าย)</h3>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="font-bold text-white">📟 มิเตอร์เริ่มต้น (4 หัวจ่าย)</h3>
+                                    {hasCarryOver && (
+                                        <span className="px-2 py-1 rounded-full text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                                            📋 จากกะก่อน
+                                        </span>
+                                    )}
+                                </div>
                                 <div className="space-y-3">
                                     {meters.map((m, i) => (
                                         <div key={i} className="flex items-center gap-2">

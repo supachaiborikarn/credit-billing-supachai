@@ -15,13 +15,20 @@ export async function GET(
             return NextResponse.json({ error: 'Gas station not found' }, { status: 404 });
         }
 
-        const station = await prisma.station.findFirst({
-            where: { name: stationConfig.name }
+        // Get or create station with consistent ID
+        const stationId = `station-${id}`;
+        const station = await prisma.station.upsert({
+            where: { id: stationId },
+            update: {},
+            create: {
+                id: stationId,
+                name: stationConfig.name,
+                type: 'GAS',
+                hasProducts: true,
+                gasPrice: 15.50,
+                gasStockAlert: 1000,
+            }
         });
-
-        if (!station) {
-            return NextResponse.json([]);
-        }
 
         // Get product inventory for this station
         const inventory = await prisma.productInventory.findMany({
@@ -65,20 +72,20 @@ export async function POST(
         const body = await request.json();
         const { action, productId, quantity, alertLevel, paymentType } = body;
 
-        // Get or create station
-        let station = await prisma.station.findFirst({
-            where: { name: stationConfig.name }
+        // Get or create station with consistent ID
+        const stationId = `station-${id}`;
+        const station = await prisma.station.upsert({
+            where: { id: stationId },
+            update: {},
+            create: {
+                id: stationId,
+                name: stationConfig.name,
+                type: 'GAS',
+                hasProducts: true,
+                gasPrice: 15.50,
+                gasStockAlert: 1000,
+            }
         });
-
-        if (!station) {
-            station = await prisma.station.create({
-                data: {
-                    name: stationConfig.name,
-                    type: 'GAS',
-                    hasProducts: true,
-                }
-            });
-        }
 
         if (action === 'add_to_inventory') {
             // Add product to station inventory
