@@ -165,6 +165,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
     const [showOpenShiftModal, setShowOpenShiftModal] = useState(false);
     const [showCloseShiftModal, setShowCloseShiftModal] = useState(false);
     const [shiftMeterInputs, setShiftMeterInputs] = useState<Record<number, number>>({});
+    const [previousShiftMeters, setPreviousShiftMeters] = useState<Record<number, number> | null>(null);
 
     // Daily summary modal
     const [showDailySummary, setShowDailySummary] = useState(false);
@@ -220,6 +221,58 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
             }
         } catch (error) {
             console.error('Error fetching shift data:', error);
+        }
+    };
+
+    // Fetch previous shift data for comparison
+    const fetchPreviousShift = async () => {
+        try {
+            // If current shift is 2 (afternoon), get shift 1 from same day
+            // If current shift is 1 (morning), get shift 2 from previous day
+            let targetDate = selectedDate;
+            let targetShift = 1;
+
+            if (currentShift === 2) {
+                // Get morning shift of same day
+                targetShift = 1;
+            } else if (currentShift === 1) {
+                // Get afternoon shift of previous day
+                const prevDate = new Date(selectedDate);
+                prevDate.setDate(prevDate.getDate() - 1);
+                targetDate = prevDate.toISOString().split('T')[0];
+                targetShift = 2;
+            }
+
+            const res = await fetch(`/api/gas-station/${id}/shifts?date=${targetDate}`);
+            if (res.ok) {
+                const data = await res.json();
+                const prevShift = data.shifts?.find((s: any) => s.shiftNumber === targetShift);
+                if (prevShift?.meters) {
+                    const meters: Record<number, number> = {};
+                    prevShift.meters.forEach((m: any) => {
+                        // Use end reading if available, otherwise start reading
+                        meters[m.nozzleNumber] = m.endReading ?? m.startReading ?? 0;
+                    });
+                    setPreviousShiftMeters(meters);
+                    return meters;
+                }
+            }
+            setPreviousShiftMeters(null);
+            return null;
+        } catch (error) {
+            console.error('Error fetching previous shift:', error);
+            return null;
+        }
+    };
+
+    // Copy meters from previous shift
+    const copyFromPreviousShift = async () => {
+        const meters = await fetchPreviousShift();
+        if (meters) {
+            setShiftMeterInputs(meters);
+            alert('📋 คัดลอกมิเตอร์จากกะก่อนหน้าเรียบร้อย');
+        } else {
+            alert('⚠️ ไม่พบข้อมูลกะก่อนหน้า');
         }
     };
 
@@ -760,8 +813,8 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                         <span
                                             key={s.id}
                                             className={`px-2 py-0.5 text-xs rounded-full ${s.status === 'OPEN'
-                                                    ? 'bg-green-500/20 text-green-400'
-                                                    : 'bg-gray-500/20 text-gray-400'
+                                                ? 'bg-green-500/20 text-green-400'
+                                                : 'bg-gray-500/20 text-gray-400'
                                                 }`}
                                         >
                                             กะ{s.shiftNumber}: {s.status === 'OPEN' ? 'เปิด' : 'ปิด'}
@@ -773,6 +826,15 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
 
                         {currentShift && (
                             <>
+                                {/* Copy from previous shift button */}
+                                <button
+                                    onClick={copyFromPreviousShift}
+                                    className="px-4 py-2 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30 transition-all flex items-center gap-2 text-sm"
+                                    title="คัดลอกมิเตอร์สิ้นสุดของกะก่อนหน้า"
+                                >
+                                    📋 ดึงจากกะก่อน
+                                </button>
+
                                 {/* Check if shift is open */}
                                 {shiftData?.shifts?.find((s: any) => s.shiftNumber === currentShift && s.status === 'OPEN') ? (
                                     <button
