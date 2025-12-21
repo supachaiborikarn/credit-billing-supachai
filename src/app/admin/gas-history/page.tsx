@@ -583,7 +583,65 @@ export default function GasHistoryAdminPage() {
                                                         );
                                                     })}
                                                 </div>
+
+                                                {/* Sales Summary - Calculate from meters */}
+                                                {(() => {
+                                                    const totalMeterLiters = record.meters.reduce((sum, m) =>
+                                                        sum + ((m.endReading || 0) - (m.startReading || 0)), 0);
+                                                    const gasPrice = record.gasPrice || 15.50;
+                                                    const meterRevenue = totalMeterLiters * gasPrice;
+                                                    const transactionRevenue = record.totalAmount;
+
+                                                    return (
+                                                        <div className="mt-4 p-3 bg-gradient-to-r from-purple-900/30 to-indigo-900/30 rounded-xl border border-purple-500/20">
+                                                            <h5 className="text-sm font-medium text-purple-300 mb-2">📊 สรุปจากมิเตอร์</h5>
+                                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                                                                <div>
+                                                                    <span className="text-gray-400">ลิตรจากมิเตอร์:</span>
+                                                                    <span className="text-white font-bold ml-2">{formatNumber(totalMeterLiters)}</span>
+                                                                </div>
+                                                                <div>
+                                                                    <span className="text-gray-400">ราคา/ลิตร:</span>
+                                                                    <span className="text-cyan-400 font-bold ml-2">฿{formatNumber(gasPrice)}</span>
+                                                                </div>
+                                                                <div>
+                                                                    <span className="text-gray-400">รายได้มิเตอร์:</span>
+                                                                    <span className="text-green-400 font-bold ml-2">฿{formatCurrency(meterRevenue)}</span>
+                                                                </div>
+                                                                <div>
+                                                                    <span className="text-gray-400">รายได้รายการขาย:</span>
+                                                                    <span className="text-purple-400 font-bold ml-2">฿{formatCurrency(transactionRevenue)}</span>
+                                                                </div>
+                                                            </div>
+                                                            {Math.abs(meterRevenue - transactionRevenue) > 1 && (
+                                                                <div className="mt-2 text-xs text-yellow-400">
+                                                                    ⚠️ ส่วนต่าง: ฿{formatCurrency(Math.abs(meterRevenue - transactionRevenue))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
+
+                                            {/* Gas Price Edit Section */}
+                                            {editingMeters === record.id && (
+                                                <div className="bg-[#1a1a24] rounded-xl p-4">
+                                                    <h4 className="text-white font-medium flex items-center gap-2 mb-3">
+                                                        💰 ราคาแก๊ส LPG
+                                                    </h4>
+                                                    <div className="flex items-center gap-3">
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            placeholder="ราคา/ลิตร"
+                                                            defaultValue={record.gasPrice || 15.50}
+                                                            className="flex-1 px-3 py-2 bg-[#0a0a0f] border border-white/20 rounded-lg text-white"
+                                                            id={`gasPrice-${record.id}`}
+                                                        />
+                                                        <span className="text-gray-400">บาท/ลิตร</span>
+                                                    </div>
+                                                </div>
+                                            )}
 
                                             {/* Transactions Section */}
                                             {record.transactions.length > 0 && (
@@ -697,8 +755,8 @@ export default function GasHistoryAdminPage() {
                                             type="button"
                                             onClick={() => setNewShiftCount(1)}
                                             className={`flex-1 px-4 py-3 rounded-xl font-medium transition-all ${newShiftCount === 1
-                                                    ? 'bg-orange-500 text-white'
-                                                    : 'bg-[#1a1a24] text-gray-400 border border-white/10 hover:border-orange-500/50'
+                                                ? 'bg-orange-500 text-white'
+                                                : 'bg-[#1a1a24] text-gray-400 border border-white/10 hover:border-orange-500/50'
                                                 }`}
                                         >
                                             🌅 1 กะ (ทั้งวัน)
@@ -707,8 +765,8 @@ export default function GasHistoryAdminPage() {
                                             type="button"
                                             onClick={() => setNewShiftCount(2)}
                                             className={`flex-1 px-4 py-3 rounded-xl font-medium transition-all ${newShiftCount === 2
-                                                    ? 'bg-indigo-500 text-white'
-                                                    : 'bg-[#1a1a24] text-gray-400 border border-white/10 hover:border-indigo-500/50'
+                                                ? 'bg-indigo-500 text-white'
+                                                : 'bg-[#1a1a24] text-gray-400 border border-white/10 hover:border-indigo-500/50'
                                                 }`}
                                         >
                                             🌙 2 กะ (เช้า/บ่าย)
