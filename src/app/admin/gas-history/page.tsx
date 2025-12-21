@@ -67,7 +67,7 @@ export default function GasHistoryAdminPage() {
     const [loading, setLoading] = useState(true);
     const [records, setRecords] = useState<DailyRecord[]>([]);
     const [summary, setSummary] = useState<Summary | null>(null);
-    const [selectedStation, setSelectedStation] = useState('station-3');
+    const [selectedStation, setSelectedStation] = useState('station-5');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
