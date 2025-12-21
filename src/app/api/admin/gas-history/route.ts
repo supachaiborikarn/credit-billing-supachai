@@ -178,16 +178,64 @@ export async function POST(request: NextRequest) {
         const date = getStartOfDayBangkok(dateStr);
 
         if (action === 'createRecord') {
-            // Create new daily record
-            const existingRecord = await prisma.dailyRecord.findUnique({
-                where: { stationId_date: { stationId, date } }
+            // Check if daily record exists
+            let existingRecord = await prisma.dailyRecord.findUnique({
+                where: { stationId_date: { stationId, date } },
+                include: { shifts: true }
             });
 
+            let dailyRecordId: string;
+
             if (existingRecord) {
-                return NextResponse.json({ error: 'Record already exists for this date' }, { status: 400 });
+                // Daily record exists - check if we can add the requested shifts
+                const existingShiftNumbers = existingRecord.shifts.map(s => s.shiftNumber);
+                const shiftsToCreate = shiftCount === 1 ? [1] : [1, 2];
+                const newShifts = shiftsToCreate.filter(s => !existingShiftNumbers.includes(s));
+
+                if (newShifts.length === 0) {
+                    return NextResponse.json({
+                        error: 'กะที่ต้องการสร้างมีอยู่แล้วในวันนี้'
+                    }, { status: 400 });
+                }
+
+                // Add new shifts to existing record
+                dailyRecordId = existingRecord.id;
+                for (const shiftNumber of newShifts) {
+                    await prisma.shift.create({
+                        data: {
+                            dailyRecordId,
+                            shiftNumber,
+                            status: 'OPEN',
+                            meters: {
+                                create: [1, 2, 3, 4].map(nozzle => ({
+                                    nozzleNumber: nozzle,
+                                    startReading: 0,
+                                }))
+                            }
+                        }
+                    });
+                }
+
+                // Log audit
+                await prisma.auditLog.create({
+                    data: {
+                        userId: session.user.id,
+                        action: 'CREATE',
+                        model: 'Shift',
+                        recordId: dailyRecordId,
+                        newData: { dateStr, stationId, newShifts },
+                    }
+                });
+
+                return NextResponse.json({
+                    success: true,
+                    record: existingRecord,
+                    shiftsCreated: newShifts.length,
+                    message: `เพิ่มกะ ${newShifts.join(', ')} สำเร็จ`
+                });
             }
 
-            // Create daily record with meters
+            // Create new daily record with meters
             const newRecord = await prisma.dailyRecord.create({
                 data: {
                     stationId,
