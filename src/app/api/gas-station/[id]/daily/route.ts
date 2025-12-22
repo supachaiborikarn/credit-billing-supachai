@@ -59,6 +59,7 @@ export async function GET(
 
         const transactionWhere: Record<string, unknown> = {
             stationId: station.id,
+            deletedAt: null,
             date: {
                 gte: startOfDay,
                 lte: endOfDay,
@@ -116,7 +117,8 @@ export async function GET(
         const totalSales = await prisma.transaction.aggregate({
             where: {
                 stationId: station.id,
-                productType: 'LPG'
+                productType: 'LPG',
+                deletedAt: null,
             },
             _sum: { liters: true }
         });
