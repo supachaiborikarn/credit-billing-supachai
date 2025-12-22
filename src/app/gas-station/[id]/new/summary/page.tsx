@@ -35,6 +35,14 @@ interface SummaryStats {
     }[];
 }
 
+interface GaugeReading {
+    id: string;
+    tankNumber: number;
+    percentage: number;
+    shiftNumber: number;
+    createdAt: string;
+}
+
 export default function GasStationSummaryPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const stationIndex = parseInt(id) - 1;
@@ -63,6 +71,8 @@ export default function GasStationSummaryPage({ params }: { params: Promise<{ id
     const [expenseNote, setExpenseNote] = useState('');
     const [saving, setSaving] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [gaugeReadings, setGaugeReadings] = useState<GaugeReading[]>([]);
+    const [currentStock, setCurrentStock] = useState(0);
 
     const handleDelete = async (transactionId: string) => {
         if (!confirm('ยืนยันลบรายการนี้?')) return;
@@ -135,6 +145,14 @@ export default function GasStationSummaryPage({ params }: { params: Promise<{ id
                     byNozzle,
                     productSales: data.productSales || [],
                 });
+
+                // Set gauge readings and stock
+                if (data.gaugeReadings) {
+                    setGaugeReadings(data.gaugeReadings);
+                }
+                if (data.currentStock !== undefined) {
+                    setCurrentStock(data.currentStock);
+                }
             }
         } catch (error) {
             console.error('Error fetching data:', error);
@@ -255,6 +273,48 @@ export default function GasStationSummaryPage({ params }: { params: Promise<{ id
                                 {stats.transactionCount} รายการ
                             </span>
                         </div>
+                    </div>
+
+                    {/* Tank Gauge & Stock Section */}
+                    <div className="bg-white rounded-2xl shadow-sm p-4">
+                        <h2 className="font-semibold text-gray-800 mb-3">⛽ สต็อกและระดับถัง</h2>
+
+                        {/* Current Stock */}
+                        <div className={`p-3 rounded-xl mb-3 ${currentStock >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+                            <p className="text-sm text-gray-600">สต็อกคงเหลือ (คำนวณ)</p>
+                            <p className={`text-2xl font-bold ${currentStock >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                {formatNumber(currentStock)} ลิตร
+                            </p>
+                        </div>
+
+                        {/* Tank Gauges */}
+                        {gaugeReadings.length > 0 && (
+                            <div>
+                                <p className="text-xs text-gray-500 mb-2">ระดับถังจริง (จากมิเตอร์)</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {[1, 2, 3].map(tankNum => {
+                                        const latestReading = gaugeReadings
+                                            .filter(g => g.tankNumber === tankNum)
+                                            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+                                        const percentage = latestReading?.percentage || 0;
+                                        const barColor = percentage > 50 ? 'bg-green-500' : percentage > 20 ? 'bg-yellow-500' : 'bg-red-500';
+
+                                        return (
+                                            <div key={tankNum} className="text-center">
+                                                <p className="text-xs text-gray-500 mb-1">ถัง {tankNum}</p>
+                                                <div className="h-16 w-8 mx-auto bg-gray-200 rounded-lg relative overflow-hidden">
+                                                    <div
+                                                        className={`absolute bottom-0 left-0 right-0 ${barColor} transition-all duration-500`}
+                                                        style={{ height: `${percentage}%` }}
+                                                    />
+                                                </div>
+                                                <p className="text-sm font-bold text-gray-800 mt-1">{percentage}%</p>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Payment Type Breakdown */}
