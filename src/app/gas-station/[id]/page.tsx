@@ -1037,6 +1037,12 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                         {currentShift === 0 ? '📅 กะทั้งวัน' : currentShift === 1 ? '🌅 กะเช้า' : '🌙 กะบ่าย'}
                                     </span>
                                 )}
+                                <a
+                                    href={`/gas-station/${id}/new/home`}
+                                    className="ml-2 px-3 py-1 rounded-full text-xs font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors flex items-center gap-1"
+                                >
+                                    📱 ใช้ UI ใหม่
+                                </a>
                             </p>
                         </div>
                     </div>
