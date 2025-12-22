@@ -36,7 +36,8 @@ export async function GET(request: Request) {
             // Daily sales report
             const transactions = await prisma.transaction.findMany({
                 where: {
-                    date: { gte: start, lte: end }
+                    date: { gte: start, lte: end },
+                    deletedAt: null,
                 },
                 select: {
                     date: true,
@@ -100,7 +101,8 @@ export async function GET(request: Request) {
             // Monthly sales report
             const transactions = await prisma.transaction.findMany({
                 where: {
-                    date: { gte: start, lte: end }
+                    date: { gte: start, lte: end },
+                    deletedAt: null,
                 },
                 select: {
                     date: true,
@@ -144,7 +146,8 @@ export async function GET(request: Request) {
             const pendingTransactions = await prisma.transaction.findMany({
                 where: {
                     paymentType: 'CREDIT',
-                    invoiceId: null
+                    invoiceId: null,
+                    deletedAt: null,
                 },
                 select: {
                     id: true,
@@ -212,7 +215,8 @@ export async function GET(request: Request) {
             // Station comparison report
             const transactions = await prisma.transaction.findMany({
                 where: {
-                    date: { gte: start, lte: end }
+                    date: { gte: start, lte: end },
+                    deletedAt: null,
                 },
                 select: {
                     amount: true,
@@ -268,6 +272,7 @@ export async function GET(request: Request) {
                 where: {
                     date: { gte: start, lte: end },
                     productType: 'LPG',
+                    deletedAt: null,
                     ...(stationFilter && { stationId: stationFilter })
                 },
                 select: {
@@ -397,7 +402,7 @@ export async function GET(request: Request) {
                     _sum: { liters: true }
                 });
                 const totalSales = await prisma.transaction.aggregate({
-                    where: { stationId: station.id, productType: 'LPG' },
+                    where: { stationId: station.id, productType: 'LPG', deletedAt: null },
                     _sum: { liters: true }
                 });
                 return {
