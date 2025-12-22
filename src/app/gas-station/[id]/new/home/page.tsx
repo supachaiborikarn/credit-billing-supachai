@@ -32,6 +32,15 @@ interface DailyStats {
     stockAlert: number;
 }
 
+interface GaugeReading {
+    id: string;
+    tankNumber: number;
+    percentage: number;
+    type: 'START' | 'END';
+    shiftNumber: number;
+    createdAt: string;
+}
+
 export default function GasStationHomePage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const stationIndex = parseInt(id) - 1;
@@ -49,6 +58,7 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
         stockAlert: 1000,
     });
     const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
+    const [gaugeReadings, setGaugeReadings] = useState<GaugeReading[]>([]);
 
     const [showShiftModal, setShowShiftModal] = useState(false);
     const [selectedStaff, setSelectedStaff] = useState('');
@@ -81,6 +91,11 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
 
                 // Set current shift
                 setCurrentShift(data.currentShift || null);
+
+                // Set gauge readings (latest for each tank)
+                if (data.gaugeReadings) {
+                    setGaugeReadings(data.gaugeReadings);
+                }
             }
         } catch (error) {
             console.error('Error fetching data:', error);
@@ -297,6 +312,38 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
                                     เหลือ {formatCurrency(stats.currentStock)} ลิตร
                                 </p>
                             </div>
+                        </div>
+                    )}
+
+                    {/* Tank Gauge Readings */}
+                    {gaugeReadings.length > 0 && (
+                        <div className="bg-white rounded-2xl shadow-sm p-4">
+                            <h2 className="font-semibold text-gray-800 mb-3">⛽ ระดับถังแก๊ส</h2>
+                            <div className="grid grid-cols-3 gap-2">
+                                {[1, 2, 3].map(tankNum => {
+                                    const latestReading = gaugeReadings
+                                        .filter(g => g.tankNumber === tankNum)
+                                        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+                                    const percentage = latestReading?.percentage || 0;
+                                    const barColor = percentage > 50 ? 'bg-green-500' : percentage > 20 ? 'bg-yellow-500' : 'bg-red-500';
+
+                                    return (
+                                        <div key={tankNum} className="text-center">
+                                            <p className="text-xs text-gray-500 mb-1">ถัง {tankNum}</p>
+                                            <div className="h-20 w-10 mx-auto bg-gray-200 rounded-lg relative overflow-hidden">
+                                                <div
+                                                    className={`absolute bottom-0 left-0 right-0 ${barColor} transition-all duration-500`}
+                                                    style={{ height: `${percentage}%` }}
+                                                />
+                                            </div>
+                                            <p className="text-sm font-bold text-gray-800 mt-1">{percentage}%</p>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <p className="text-xs text-gray-400 text-center mt-2">
+                                อัพเดท: {gaugeReadings[0] ? formatTime(gaugeReadings[0].createdAt) : '-'}
+                            </p>
                         </div>
                     )}
 
