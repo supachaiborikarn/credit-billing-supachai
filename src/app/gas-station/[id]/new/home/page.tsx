@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { Calendar, Clock, Fuel, DollarSign, FileText, AlertTriangle, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, Fuel, DollarSign, FileText, AlertTriangle, ChevronRight, Trash2 } from 'lucide-react';
 import { STATIONS, STATION_STAFF } from '@/constants';
 import Link from 'next/link';
 
@@ -50,10 +50,10 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
     });
     const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
 
-    // Shift modal
     const [showShiftModal, setShowShiftModal] = useState(false);
     const [selectedStaff, setSelectedStaff] = useState('');
     const [actionLoading, setActionLoading] = useState(false);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     useEffect(() => {
         fetchData();
@@ -144,6 +144,30 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
             console.error('Error closing shift:', error);
         } finally {
             setActionLoading(false);
+        }
+    };
+
+    const handleDelete = async (transactionId: string) => {
+        if (!confirm('ยืนยันลบรายการนี้?')) return;
+
+        setDeletingId(transactionId);
+        try {
+            const res = await fetch(`/api/gas-station/${id}/transactions/${transactionId}`, {
+                method: 'DELETE',
+            });
+
+            if (res.ok) {
+                setRecentTransactions(prev => prev.filter(t => t.id !== transactionId));
+                fetchData();
+            } else {
+                const err = await res.json();
+                alert(err.error || 'ลบไม่สำเร็จ');
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            alert('เกิดข้อผิดพลาด');
+        } finally {
+            setDeletingId(null);
         }
     };
 
@@ -291,21 +315,32 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
                             {recentTransactions.length > 0 ? (
                                 recentTransactions.map((t) => (
                                     <div key={t.id} className="px-4 py-3 flex items-center justify-between">
-                                        <div>
+                                        <div className="flex-1">
                                             <p className="font-medium text-gray-800">{t.licensePlate || '-'}</p>
                                             <p className="text-xs text-gray-500">
                                                 {formatTime(t.date)} • {t.liters} ล.
                                             </p>
                                         </div>
-                                        <div className="text-right">
+                                        <div className="text-right mr-3">
                                             <p className="font-semibold text-gray-800">฿{formatCurrency(t.amount)}</p>
                                             <p className={`text-xs ${t.paymentType === 'CASH' ? 'text-green-600' :
-                                                    t.paymentType === 'CREDIT' ? 'text-purple-600' : 'text-blue-600'
+                                                t.paymentType === 'CREDIT' ? 'text-purple-600' : 'text-blue-600'
                                                 }`}>
                                                 {t.paymentType === 'CASH' ? 'เงินสด' :
                                                     t.paymentType === 'CREDIT' ? 'เงินเชื่อ' : 'บัตร'}
                                             </p>
                                         </div>
+                                        <button
+                                            onClick={() => handleDelete(t.id)}
+                                            disabled={deletingId === t.id}
+                                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                        >
+                                            {deletingId === t.id ? (
+                                                <div className="w-5 h-5 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                                            ) : (
+                                                <Trash2 size={18} />
+                                            )}
+                                        </button>
                                     </div>
                                 ))
                             ) : (
@@ -333,8 +368,8 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
                                         key={staff}
                                         onClick={() => setSelectedStaff(staff)}
                                         className={`py-2.5 px-3 rounded-xl border-2 text-sm font-medium transition-colors ${selectedStaff === staff
-                                                ? 'border-orange-500 bg-orange-50 text-orange-700'
-                                                : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                                            ? 'border-orange-500 bg-orange-50 text-orange-700'
+                                            : 'border-gray-200 text-gray-700 hover:border-gray-300'
                                             }`}
                                     >
                                         {staff}
