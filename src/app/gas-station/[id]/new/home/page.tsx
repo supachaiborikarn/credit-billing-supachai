@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { Calendar, Clock, Fuel, DollarSign, FileText, AlertTriangle, ChevronRight, Trash2 } from 'lucide-react';
+import { Clock, Fuel, DollarSign, FileText, AlertTriangle, ChevronRight, Trash2, Calendar } from 'lucide-react';
 import { STATIONS, STATION_STAFF } from '@/constants';
 import Link from 'next/link';
 
@@ -72,12 +72,9 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
     const fetchData = async () => {
         setLoading(true);
         try {
-            // Fetch daily data
             const res = await fetch(`/api/gas-station/${id}/daily?date=${selectedDate}`);
             if (res.ok) {
                 const data = await res.json();
-
-                // Set stats
                 setStats({
                     totalLiters: data.transactions?.reduce((sum: number, t: Transaction) => sum + t.liters, 0) || 0,
                     totalAmount: data.transactions?.reduce((sum: number, t: Transaction) => sum + t.amount, 0) || 0,
@@ -85,14 +82,8 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
                     currentStock: data.currentStock || 0,
                     stockAlert: data.station?.gasStockAlert || 1000,
                 });
-
-                // Set recent transactions (last 5)
                 setRecentTransactions(data.transactions?.slice(-5).reverse() || []);
-
-                // Set current shift
                 setCurrentShift(data.currentShift || null);
-
-                // Set gauge readings (latest for each tank)
                 if (data.gaugeReadings) {
                     setGaugeReadings(data.gaugeReadings);
                 }
@@ -105,29 +96,18 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
     };
 
     const openShift = async () => {
-        if (!selectedStaff) {
-            alert('กรุณาเลือกพนักงาน');
-            return;
-        }
-
+        if (!selectedStaff) return;
         setActionLoading(true);
         try {
             const res = await fetch(`/api/gas-station/${id}/shifts`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    date: selectedDate,
-                    staffName: selectedStaff,
-                }),
+                body: JSON.stringify({ action: 'open', staffName: selectedStaff }),
             });
-
             if (res.ok) {
                 setShowShiftModal(false);
                 setSelectedStaff('');
                 fetchData();
-            } else {
-                const err = await res.json();
-                alert(err.error || 'เปิดกะไม่สำเร็จ');
             }
         } catch (error) {
             console.error('Error opening shift:', error);
@@ -137,23 +117,16 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
     };
 
     const closeShift = async () => {
-        if (!currentShift) return;
-
         if (!confirm('ยืนยันปิดกะ?')) return;
-
         setActionLoading(true);
         try {
-            const res = await fetch(`/api/gas-station/${id}/shifts/${currentShift.id}`, {
-                method: 'PUT',
+            const res = await fetch(`/api/gas-station/${id}/shifts`, {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'close' }),
+                body: JSON.stringify({ action: 'close', shiftId: currentShift?.id }),
             });
-
             if (res.ok) {
                 fetchData();
-            } else {
-                const err = await res.json();
-                alert(err.error || 'ปิดกะไม่สำเร็จ');
             }
         } catch (error) {
             console.error('Error closing shift:', error);
@@ -164,15 +137,12 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
 
     const handleDelete = async (transactionId: string) => {
         if (!confirm('ยืนยันลบรายการนี้?')) return;
-
         setDeletingId(transactionId);
         try {
             const res = await fetch(`/api/gas-station/${id}/transactions/${transactionId}`, {
                 method: 'DELETE',
             });
-
             if (res.ok) {
-                setRecentTransactions(prev => prev.filter(t => t.id !== transactionId));
                 fetchData();
             } else {
                 const err = await res.json();
@@ -194,30 +164,33 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
 
     if (!station) {
         return (
-            <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-                <p className="text-gray-500">ไม่พบสถานี</p>
+            <div className="min-h-screen bg-[#f6f6f6] flex items-center justify-center">
+                <p className="text-neutral-500 font-semibold">ไม่พบสถานี</p>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-100">
-            {/* Header */}
-            <header className="bg-white shadow-sm sticky top-0 z-40">
-                <div className="px-4 py-3 flex items-center justify-between">
+        <div className="min-h-screen bg-[#f6f6f6] text-neutral-900">
+            {/* Header - hq0 style */}
+            <header className="sticky top-0 z-50 bg-[#f6f6f6]/80 backdrop-blur border-b border-black/10">
+                <div className="px-4 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
-                            <Fuel className="text-white" size={18} />
+                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-black text-white font-black text-sm">
+                            ⛽
+                        </span>
+                        <div>
+                            <h1 className="font-extrabold tracking-tight text-lg">{station.name}</h1>
+                            <p className="text-xs text-neutral-500 font-semibold">Gas Station</p>
                         </div>
-                        <h1 className="font-bold text-gray-800 text-lg">{station.name}</h1>
                     </div>
-                    <div className="flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-lg">
-                        <Calendar size={16} className="text-orange-500" />
+                    <div className="flex items-center gap-2 rounded-full border border-black/15 bg-white px-3 py-1.5">
+                        <Calendar size={14} className="text-orange-500" />
                         <input
                             type="date"
                             value={selectedDate}
                             onChange={(e) => setSelectedDate(e.target.value)}
-                            className="bg-transparent text-gray-700 text-sm font-medium focus:outline-none"
+                            className="bg-transparent text-sm font-bold focus:outline-none w-[110px]"
                         />
                     </div>
                 </div>
@@ -228,98 +201,83 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
                 </div>
             ) : (
-                <div className="p-4 space-y-4">
-                    {/* Shift Status Card */}
-                    <div className="bg-white rounded-2xl shadow-sm p-4">
-                        {currentShift ? (
-                            <>
-                                <div className="flex items-center justify-between mb-3">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                                        <span className="font-semibold text-gray-800">
-                                            กะ{currentShift.shiftNumber === 1 ? 'เช้า' : 'บ่าย'} OPEN
-                                        </span>
-                                    </div>
-                                    <span className="text-sm text-gray-500">
-                                        <Clock size={14} className="inline mr-1" />
-                                        เปิด {formatTime(currentShift.createdAt)}
-                                    </span>
+                <main className="mx-auto max-w-6xl px-4 py-6 space-y-5">
+                    {/* Hero Stats Card */}
+                    <div className="rounded-3xl border border-black/10 bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
+                        <div className="flex flex-wrap gap-3 mb-4">
+                            <div className="inline-flex items-center gap-2 rounded-full border border-black/15 bg-[#fafafa] px-3 py-1 text-xs font-bold">
+                                <span className={`h-2 w-2 rounded-full ${currentShift ? 'bg-green-500 animate-pulse' : 'bg-neutral-400'}`}></span>
+                                <span>{currentShift ? `กะ${currentShift.shiftNumber === 1 ? 'เช้า' : 'บ่าย'} เปิดอยู่` : 'ยังไม่เปิดกะ'}</span>
+                            </div>
+                            {currentShift?.staffName && (
+                                <div className="inline-flex items-center gap-2 rounded-full border border-black/15 bg-[#fafafa] px-3 py-1 text-xs font-bold">
+                                    <span>👤 {currentShift.staffName}</span>
                                 </div>
-                                {currentShift.staffName && (
-                                    <p className="text-gray-600 text-sm mb-3">
-                                        พนักงาน: <span className="font-medium">{currentShift.staffName}</span>
-                                    </p>
-                                )}
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {/* Stock */}
+                            <div className="rounded-2xl border border-black/10 bg-gradient-to-br from-orange-50 to-orange-100 p-5">
+                                <div className="text-xs font-black text-orange-600">สต็อกแก๊ส</div>
+                                <div className="mt-2 text-3xl font-black tracking-tight">{formatCurrency(stats.currentStock)}</div>
+                                <div className="text-sm font-semibold text-neutral-600">ลิตร</div>
+                            </div>
+
+                            {/* Sales */}
+                            <div className="rounded-2xl border border-black/10 bg-gradient-to-br from-green-50 to-green-100 p-5">
+                                <div className="text-xs font-black text-green-600">ยอดขายวันนี้</div>
+                                <div className="mt-2 text-3xl font-black tracking-tight">฿{formatCurrency(stats.totalAmount)}</div>
+                                <div className="text-sm font-semibold text-neutral-600">{formatCurrency(stats.totalLiters)} ลิตร</div>
+                            </div>
+
+                            {/* Transactions */}
+                            <div className="rounded-2xl border border-black/10 bg-gradient-to-br from-blue-50 to-blue-100 p-5">
+                                <div className="text-xs font-black text-blue-600">จำนวนรายการ</div>
+                                <div className="mt-2 text-3xl font-black tracking-tight">{stats.transactionCount}</div>
+                                <div className="text-sm font-semibold text-neutral-600">รายการ</div>
+                            </div>
+                        </div>
+
+                        {/* Shift Action Button */}
+                        <div className="mt-5">
+                            {currentShift ? (
                                 <button
                                     onClick={closeShift}
                                     disabled={actionLoading}
-                                    className="w-full py-2.5 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl transition-colors disabled:opacity-50"
+                                    className="w-full rounded-full border border-black/15 bg-white px-6 py-3 text-sm font-extrabold hover:bg-neutral-50 transition disabled:opacity-50"
                                 >
-                                    {actionLoading ? 'กำลังดำเนินการ...' : 'ปิดกะ'}
+                                    {actionLoading ? 'กำลังดำเนินการ...' : '🔒 ปิดกะ'}
                                 </button>
-                            </>
-                        ) : (
-                            <>
-                                <div className="flex items-center gap-2 mb-3">
-                                    <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-                                    <span className="font-semibold text-gray-600">ยังไม่เปิดกะ</span>
-                                </div>
+                            ) : (
                                 <button
                                     onClick={() => setShowShiftModal(true)}
-                                    className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl transition-colors"
+                                    className="w-full rounded-full bg-orange-500 px-6 py-3 text-sm font-extrabold text-black hover:bg-orange-400 transition"
                                 >
-                                    เปิดกะ
+                                    🚀 เปิดกะ →
                                 </button>
-                            </>
-                        )}
-                    </div>
-
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-3 gap-3">
-                        <div className="bg-white rounded-xl p-3 shadow-sm">
-                            <div className="flex items-center gap-1.5 mb-1">
-                                <Fuel size={14} className="text-orange-500" />
-                                <span className="text-xs text-gray-500">สต็อก</span>
-                            </div>
-                            <p className="text-lg font-bold text-gray-800">{formatCurrency(stats.currentStock)}</p>
-                            <p className="text-xs text-gray-500">ลิตร</p>
-                        </div>
-                        <div className="bg-white rounded-xl p-3 shadow-sm">
-                            <div className="flex items-center gap-1.5 mb-1">
-                                <DollarSign size={14} className="text-green-500" />
-                                <span className="text-xs text-gray-500">ยอดขาย</span>
-                            </div>
-                            <p className="text-lg font-bold text-gray-800">{formatCurrency(stats.totalAmount)}</p>
-                            <p className="text-xs text-gray-500">บาท</p>
-                        </div>
-                        <div className="bg-white rounded-xl p-3 shadow-sm">
-                            <div className="flex items-center gap-1.5 mb-1">
-                                <FileText size={14} className="text-blue-500" />
-                                <span className="text-xs text-gray-500">รายการ</span>
-                            </div>
-                            <p className="text-lg font-bold text-gray-800">{stats.transactionCount}</p>
-                            <p className="text-xs text-gray-500">รายการ</p>
+                            )}
                         </div>
                     </div>
 
                     {/* Low Stock Warning */}
                     {stats.currentStock < stats.stockAlert && stats.currentStock > 0 && (
-                        <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 flex items-center gap-3">
-                            <AlertTriangle className="text-orange-500" size={20} />
+                        <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 flex items-center gap-3">
+                            <AlertTriangle className="text-orange-500" size={24} />
                             <div>
-                                <p className="text-orange-700 font-medium text-sm">สต็อกต่ำ</p>
-                                <p className="text-orange-600 text-xs">
-                                    เหลือ {formatCurrency(stats.currentStock)} ลิตร
-                                </p>
+                                <p className="font-extrabold text-orange-700">⚠️ สต็อกต่ำ</p>
+                                <p className="text-sm text-orange-600">เหลือ {formatCurrency(stats.currentStock)} ลิตร (ต่ำกว่า {formatCurrency(stats.stockAlert)})</p>
                             </div>
                         </div>
                     )}
 
-                    {/* Tank Gauge Readings */}
+                    {/* Tank Gauges Section */}
                     {gaugeReadings.length > 0 && (
-                        <div className="bg-white rounded-2xl shadow-sm p-4">
-                            <h2 className="font-semibold text-gray-800 mb-3">⛽ ระดับถังแก๊ส</h2>
-                            <div className="grid grid-cols-3 gap-2">
+                        <div className="rounded-3xl border border-black/10 bg-white p-6">
+                            <h2 className="text-xl font-black tracking-tight mb-4">
+                                ⛽ <span className="bg-orange-200 px-2 rounded">ระดับถังแก๊ส</span>
+                            </h2>
+                            <div className="grid grid-cols-3 gap-4">
                                 {[1, 2, 3].map(tankNum => {
                                     const latestReading = gaugeReadings
                                         .filter(g => g.tankNumber === tankNum)
@@ -328,59 +286,59 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
                                     const barColor = percentage > 50 ? 'bg-green-500' : percentage > 20 ? 'bg-yellow-500' : 'bg-red-500';
 
                                     return (
-                                        <div key={tankNum} className="text-center">
-                                            <p className="text-xs text-gray-500 mb-1">ถัง {tankNum}</p>
-                                            <div className="h-20 w-10 mx-auto bg-gray-200 rounded-lg relative overflow-hidden">
+                                        <div key={tankNum} className="rounded-2xl border border-black/10 bg-[#fafafa] p-4 text-center">
+                                            <div className="text-xs font-black text-neutral-500">ถัง {tankNum}</div>
+                                            <div className="h-24 w-12 mx-auto mt-2 bg-neutral-200 rounded-xl relative overflow-hidden">
                                                 <div
-                                                    className={`absolute bottom-0 left-0 right-0 ${barColor} transition-all duration-500`}
+                                                    className={`absolute bottom-0 left-0 right-0 ${barColor} transition-all duration-700`}
                                                     style={{ height: `${percentage}%` }}
                                                 />
                                             </div>
-                                            <p className="text-sm font-bold text-gray-800 mt-1">{percentage}%</p>
+                                            <div className="mt-2 text-2xl font-black">{percentage}%</div>
                                         </div>
                                     );
                                 })}
                             </div>
-                            <p className="text-xs text-gray-400 text-center mt-2">
-                                อัพเดท: {gaugeReadings[0] ? formatTime(gaugeReadings[0].createdAt) : '-'}
+                            <p className="text-xs font-bold text-neutral-400 text-center mt-3">
+                                อัพเดทล่าสุด: {gaugeReadings[0] ? formatTime(gaugeReadings[0].createdAt) : '-'}
                             </p>
                         </div>
                     )}
 
                     {/* Recent Transactions */}
-                    <div className="bg-white rounded-2xl shadow-sm">
-                        <div className="flex items-center justify-between p-4 border-b border-gray-100">
-                            <h2 className="font-semibold text-gray-800">รายการล่าสุด</h2>
+                    <div className="rounded-3xl border border-black/10 bg-white overflow-hidden">
+                        <div className="flex items-center justify-between p-5 border-b border-black/5">
+                            <h2 className="text-xl font-black tracking-tight">📋 รายการล่าสุด</h2>
                             <Link
-                                href={`/gas-station/${id}/summary`}
-                                className="text-orange-500 text-sm font-medium flex items-center gap-1"
+                                href={`/gas-station/${id}/new/summary`}
+                                className="inline-flex items-center gap-1 text-sm font-extrabold text-orange-500 hover:text-orange-600"
                             >
                                 ดูทั้งหมด <ChevronRight size={16} />
                             </Link>
                         </div>
-                        <div className="divide-y divide-gray-100">
+                        <div className="divide-y divide-black/5">
                             {recentTransactions.length > 0 ? (
                                 recentTransactions.map((t) => (
-                                    <div key={t.id} className="px-4 py-3 flex items-center justify-between">
+                                    <div key={t.id} className="px-5 py-4 flex items-center justify-between hover:bg-[#fafafa] transition">
                                         <div className="flex-1">
-                                            <p className="font-medium text-gray-800">{t.licensePlate || '-'}</p>
-                                            <p className="text-xs text-gray-500">
-                                                {formatTime(t.date)} • {t.liters} ล.
+                                            <p className="font-extrabold text-neutral-900">{t.licensePlate || '-'}</p>
+                                            <p className="text-xs font-semibold text-neutral-500">
+                                                {formatTime(t.date)} • {t.liters} ลิตร
                                             </p>
                                         </div>
-                                        <div className="text-right mr-3">
-                                            <p className="font-semibold text-gray-800">฿{formatCurrency(t.amount)}</p>
-                                            <p className={`text-xs ${t.paymentType === 'CASH' ? 'text-green-600' :
-                                                t.paymentType === 'CREDIT' ? 'text-purple-600' : 'text-blue-600'
+                                        <div className="text-right mr-4">
+                                            <p className="font-black text-neutral-900">฿{formatCurrency(t.amount)}</p>
+                                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ${t.paymentType === 'CASH' ? 'bg-green-100 text-green-700' :
+                                                    t.paymentType === 'CREDIT' ? 'bg-purple-100 text-purple-700' :
+                                                        'bg-blue-100 text-blue-700'
                                                 }`}>
-                                                {t.paymentType === 'CASH' ? 'เงินสด' :
-                                                    t.paymentType === 'CREDIT' ? 'เงินเชื่อ' : 'บัตร'}
-                                            </p>
+                                                {t.paymentType === 'CASH' ? 'เงินสด' : t.paymentType === 'CREDIT' ? 'เงินเชื่อ' : 'บัตร'}
+                                            </span>
                                         </div>
                                         <button
                                             onClick={() => handleDelete(t.id)}
                                             disabled={deletingId === t.id}
-                                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                            className="p-2 rounded-full hover:bg-red-50 text-red-400 hover:text-red-600 transition disabled:opacity-50"
                                         >
                                             {deletingId === t.id ? (
                                                 <div className="w-5 h-5 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
@@ -391,32 +349,32 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
                                     </div>
                                 ))
                             ) : (
-                                <div className="p-8 text-center text-gray-400">
-                                    <FileText size={32} className="mx-auto mb-2 opacity-50" />
-                                    <p>ยังไม่มีรายการ</p>
+                                <div className="p-10 text-center">
+                                    <FileText size={40} className="mx-auto mb-3 text-neutral-300" />
+                                    <p className="text-neutral-400 font-semibold">ยังไม่มีรายการวันนี้</p>
                                 </div>
                             )}
                         </div>
                     </div>
-                </div>
+                </main>
             )}
 
-            {/* Open Shift Modal */}
+            {/* Open Shift Modal - hq0 style */}
             {showShiftModal && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
-                    <div className="bg-white w-full max-w-lg rounded-t-3xl p-6 animate-slide-up">
-                        <h2 className="text-lg font-bold text-gray-800 mb-4">เปิดกะ</h2>
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center">
+                    <div className="bg-white w-full max-w-md rounded-t-3xl md:rounded-3xl p-6 animate-slide-up">
+                        <h2 className="text-xl font-black tracking-tight mb-5">🚀 เปิดกะ</h2>
 
-                        <div className="mb-4">
-                            <label className="block text-sm text-gray-600 mb-2">เลือกพนักงาน</label>
-                            <div className="grid grid-cols-3 gap-2">
+                        <div className="mb-5">
+                            <label className="block text-sm font-bold text-neutral-600 mb-3">เลือกพนักงาน</label>
+                            <div className="flex flex-wrap gap-2">
                                 {staffConfig?.staff?.map((staff: string) => (
                                     <button
                                         key={staff}
                                         onClick={() => setSelectedStaff(staff)}
-                                        className={`py-2.5 px-3 rounded-xl border-2 text-sm font-medium transition-colors ${selectedStaff === staff
-                                            ? 'border-orange-500 bg-orange-50 text-orange-700'
-                                            : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                                        className={`rounded-full px-4 py-2 text-sm font-extrabold transition ${selectedStaff === staff
+                                                ? 'bg-black text-white'
+                                                : 'border border-black/15 bg-white hover:bg-neutral-50'
                                             }`}
                                     >
                                         {staff}
@@ -428,16 +386,16 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
                         <div className="flex gap-3">
                             <button
                                 onClick={() => setShowShiftModal(false)}
-                                className="flex-1 py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl"
+                                className="flex-1 rounded-full border border-black/15 bg-white px-6 py-3 text-sm font-extrabold hover:bg-neutral-50 transition"
                             >
                                 ยกเลิก
                             </button>
                             <button
                                 onClick={openShift}
                                 disabled={actionLoading || !selectedStaff}
-                                className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl disabled:opacity-50"
+                                className="flex-1 rounded-full bg-orange-500 px-6 py-3 text-sm font-extrabold text-black hover:bg-orange-400 transition disabled:opacity-50"
                             >
-                                {actionLoading ? 'กำลังเปิด...' : 'เปิดกะ'}
+                                {actionLoading ? 'กำลังเปิด...' : 'เปิดกะ →'}
                             </button>
                         </div>
                     </div>
