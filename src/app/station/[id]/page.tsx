@@ -699,6 +699,12 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                             <p className="text-gray-400 flex items-center gap-2">
                                 <Sparkles size={14} className="text-purple-400" />
                                 {isFullStation ? 'ระบบเต็ม (FULL)' : 'ระบบลงบิล (SIMPLE)'}
+                                <a
+                                    href={`/station/${id}/new/home`}
+                                    className="ml-2 px-3 py-1 rounded-full text-xs font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                                >
+                                    📱 ใช้ UI ใหม่
+                                </a>
                             </p>
                         </div>
                     </div>
