@@ -1,5 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { HttpErrors, getErrorMessage } from '@/lib/api-error';
+
+interface ProductInput {
+    name: string;
+    unit: string;
+    costPrice?: number | null;
+    salePrice: number;
+}
 
 export async function GET() {
     try {
@@ -13,18 +21,18 @@ export async function GET() {
             salePrice: Number(p.salePrice),
         })));
     } catch (error) {
-        console.error('Products GET error:', error);
-        return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
+        console.error('[Products GET]:', error);
+        return HttpErrors.internal(getErrorMessage(error));
     }
 }
 
 export async function POST(request: Request) {
     try {
-        const body = await request.json();
+        const body: ProductInput = await request.json();
         const { name, unit, costPrice, salePrice } = body;
 
         if (!name || !unit || !salePrice) {
-            return NextResponse.json({ error: 'กรุณากรอกชื่อ หน่วย และราคาขาย' }, { status: 400 });
+            return HttpErrors.badRequest('กรุณากรอกชื่อ หน่วย และราคาขาย');
         }
 
         const product = await prisma.product.create({
@@ -42,7 +50,7 @@ export async function POST(request: Request) {
             salePrice: Number(product.salePrice),
         });
     } catch (error) {
-        console.error('Product POST error:', error);
-        return NextResponse.json({ error: 'Failed to create product' }, { status: 500 });
+        console.error('[Product POST]:', error);
+        return HttpErrors.internal(getErrorMessage(error));
     }
 }
