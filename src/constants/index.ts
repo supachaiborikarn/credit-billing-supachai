@@ -76,6 +76,13 @@ export const DEFAULT_RETAIL_PRICE = 31.34;
 export const DEFAULT_WHOLESALE_PRICE = 30.5;
 export const DEFAULT_GAS_PRICE = 16.09; // ราคาแก๊ส LPG ต่อลิตร
 
+// Gas station constants (extracted from inline magic numbers)
+export const GAS_TANK_CAPACITY_LITERS = 98; // Each LPG tank 100% = 98 liters
+export const KG_TO_LITERS_CONVERSION = 1.85; // LPG: 1 kg = 1.85 liters
+export const DEFAULT_STOCK_ALERT = 1000; // Alert when stock below 1000 liters
+export const NOZZLE_COUNT = 4; // Number of fuel nozzles per station
+export const TANK_COUNT = 3; // Number of LPG tanks per station
+
 // Station staff configuration
 export const STATION_STAFF = {
     'station-1': {

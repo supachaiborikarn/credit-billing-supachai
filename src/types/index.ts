@@ -2,6 +2,10 @@
  * Shared TypeScript interfaces for the Credit Billing application
  */
 
+// Re-export types from domain files
+export * from './gas-station';
+export * from './station';
+
 // ==================== API/Database Types ====================
 
 export interface TruckSearchResult {

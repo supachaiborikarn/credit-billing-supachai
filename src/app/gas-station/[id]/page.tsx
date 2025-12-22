@@ -22,7 +22,8 @@ import {
     Banknote,
     Receipt
 } from 'lucide-react';
-import { GAS_PAYMENT_TYPES, STATIONS, DEFAULT_GAS_PRICE, STATION_STAFF } from '@/constants';
+import { GAS_PAYMENT_TYPES, STATIONS, DEFAULT_GAS_PRICE, STATION_STAFF, GAS_TANK_CAPACITY_LITERS, KG_TO_LITERS_CONVERSION, DEFAULT_STOCK_ALERT, NOZZLE_COUNT, TANK_COUNT } from '@/constants';
+import type { ShiftDataResponse, Shift, GaugeReading as GaugeReadingType } from '@/types/gas-station';
 
 interface DailyRecord {
     id: string;
@@ -131,17 +132,15 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
     const [searchLoading, setSearchLoading] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    // Gas supply form - input in KG, convert × 1.85 to liters
+    // Gas supply form - input in KG, convert using KG_TO_LITERS_CONVERSION to liters
     const [showSupplyForm, setShowSupplyForm] = useState(false);
     const [supplyKg, setSupplyKg] = useState('');
     const [supplySupplier, setSupplySupplier] = useState('');
     const [supplyInvoiceNo, setSupplyInvoiceNo] = useState('');
-    const KG_TO_LITERS = 1.85; // Conversion factor
-    const TANK_CAPACITY_LITERS = 98; // Each tank 100% = 98 liters
 
     // Stock calculation
     const [currentStock, setCurrentStock] = useState(0);
-    const [stockAlert, setStockAlert] = useState(1000); // Alert when below 1000 liters
+    const [stockAlert, setStockAlert] = useState(DEFAULT_STOCK_ALERT);
 
     // Product inventory (for stations with hasProducts)
     const [productInventory, setProductInventory] = useState<ProductInventoryItem[]>([]);
@@ -164,7 +163,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
 
     // Shift management (กะเช้า/กะบ่าย)
     const [currentShift, setCurrentShift] = useState<number | null>(null); // 1=กะเช้า, 2=กะบ่าย
-    const [shiftData, setShiftData] = useState<any>(null);
+    const [shiftData, setShiftData] = useState<ShiftDataResponse | null>(null);
     const [showOpenShiftModal, setShowOpenShiftModal] = useState(false);
     const [showCloseShiftModal, setShowCloseShiftModal] = useState(false);
     const [shiftMeterInputs, setShiftMeterInputs] = useState<Record<number, number>>({});
@@ -866,7 +865,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
         e.preventDefault();
         try {
             // Convert KG to liters: KG × 1.85
-            const litersFromKg = parseFloat(supplyKg) * KG_TO_LITERS;
+            const litersFromKg = parseFloat(supplyKg) * KG_TO_LITERS_CONVERSION;
 
             const res = await fetch(`/api/gas-station/${id}/supplies`, {
                 method: 'POST',
@@ -1229,7 +1228,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                     <p className="text-sm text-gray-400 mb-1">จากเกจ 3 ถัง (ถัง×98):</p>
                                     {(() => {
                                         const totalPercentage = gaugeReadings.reduce((sum, g) => sum + (g.endPercentage || 0), 0);
-                                        const gaugeEstimate = totalPercentage * TANK_CAPACITY_LITERS;
+                                        const gaugeEstimate = totalPercentage * GAS_TANK_CAPACITY_LITERS;
                                         const difference = gaugeEstimate - currentStock;
                                         return (
                                             <>
@@ -1301,8 +1300,8 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                     const supplyPerTank = totalSupplyLiters / 3;
 
                                     // Formula: reading × 98 = liters (not percentage)
-                                    const startLiters = reading?.startPercentage !== null ? (reading?.startPercentage || 0) * TANK_CAPACITY_LITERS : null;
-                                    const endLiters = reading?.endPercentage !== null ? (reading?.endPercentage || 0) * TANK_CAPACITY_LITERS : null;
+                                    const startLiters = reading?.startPercentage !== null ? (reading?.startPercentage || 0) * GAS_TANK_CAPACITY_LITERS : null;
+                                    const endLiters = reading?.endPercentage !== null ? (reading?.endPercentage || 0) * GAS_TANK_CAPACITY_LITERS : null;
 
                                     const usedLiters = startLiters !== null && endLiters !== null
                                         ? (startLiters + supplyPerTank) - endLiters
@@ -1400,8 +1399,8 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                             {/* Total comparison with meters */}
                             {(() => {
                                 // Formula: reading × 98 = liters (not percentage)
-                                const totalStartLiters = gaugeReadings.reduce((s, g) => s + ((g.startPercentage || 0) * TANK_CAPACITY_LITERS), 0);
-                                const totalEndLiters = gaugeReadings.reduce((s, g) => s + ((g.endPercentage || 0) * TANK_CAPACITY_LITERS), 0);
+                                const totalStartLiters = gaugeReadings.reduce((s, g) => s + ((g.startPercentage || 0) * GAS_TANK_CAPACITY_LITERS), 0);
+                                const totalEndLiters = gaugeReadings.reduce((s, g) => s + ((g.endPercentage || 0) * GAS_TANK_CAPACITY_LITERS), 0);
                                 const totalSupplyLiters = gasSupplies.reduce((sum, s) => sum + Number(s.liters), 0);
                                 // Formula: (startLiters + supplies) - endLiters
                                 const totalGaugeUsed = (totalStartLiters + totalSupplyLiters) - totalEndLiters;
@@ -1462,7 +1461,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                             <label className="block text-sm text-gray-400 mb-2">แปลงเป็นลิตร (× 1.85)</label>
                                             <div className="bg-green-900/30 p-3 rounded-lg text-center">
                                                 <span className="text-2xl font-bold text-green-400 font-mono">
-                                                    {supplyKg ? (parseFloat(supplyKg) * KG_TO_LITERS).toFixed(2) : '0.00'}
+                                                    {supplyKg ? (parseFloat(supplyKg) * KG_TO_LITERS_CONVERSION).toFixed(2) : '0.00'}
                                                 </span>
                                                 <span className="text-gray-400 ml-2">ลิตร</span>
                                             </div>
@@ -2098,7 +2097,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                     <div className="text-center">
                                         <div className="text-sm text-gray-400">รวม ×98</div>
                                         <div className="text-xl font-bold font-mono text-yellow-400">
-                                            {formatNumber(gaugeReadings.reduce((s, g) => s + (g.endPercentage || 0), 0) * TANK_CAPACITY_LITERS)} ลิตร
+                                            {formatNumber(gaugeReadings.reduce((s, g) => s + (g.endPercentage || 0), 0) * GAS_TANK_CAPACITY_LITERS)} ลิตร
                                         </div>
                                     </div>
                                 </div>
