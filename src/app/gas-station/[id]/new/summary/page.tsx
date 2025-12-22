@@ -56,6 +56,12 @@ export default function GasStationSummaryPage({ params }: { params: Promise<{ id
         productSales: [],
     });
 
+    // Cash and expenses
+    const [cashReceived, setCashReceived] = useState('');
+    const [expenses, setExpenses] = useState('');
+    const [expenseNote, setExpenseNote] = useState('');
+    const [saving, setSaving] = useState(false);
+
     useEffect(() => {
         fetchData();
     }, [selectedDate]);
@@ -246,6 +252,87 @@ export default function GasStationSummaryPage({ params }: { params: Promise<{ id
                         </div>
                     </div>
 
+                    {/* Cash Received & Expenses */}
+                    <div className="bg-white rounded-2xl shadow-sm p-4">
+                        <h2 className="font-semibold text-gray-800 mb-3">💰 เงินสดรับและค่าใช้จ่าย</h2>
+
+                        <div className="space-y-4">
+                            {/* Expected Cash (from transactions) */}
+                            <div className="flex items-center justify-between bg-green-50 p-3 rounded-xl">
+                                <span className="text-green-700">เงินสดตามระบบ</span>
+                                <span className="text-green-800 font-bold">
+                                    ฿{formatCurrency(stats.byPaymentType.CASH.amount)}
+                                </span>
+                            </div>
+
+                            {/* Actual Cash Received */}
+                            <div>
+                                <label className="block text-sm text-gray-600 mb-1">เงินสดรับจริง</label>
+                                <input
+                                    type="number"
+                                    value={cashReceived}
+                                    onChange={(e) => setCashReceived(e.target.value)}
+                                    placeholder="0.00"
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg text-right font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                    inputMode="decimal"
+                                />
+                            </div>
+
+                            {/* Difference */}
+                            {cashReceived && (
+                                <div className={`flex items-center justify-between p-3 rounded-xl ${parseFloat(cashReceived) >= stats.byPaymentType.CASH.amount
+                                        ? 'bg-green-100 text-green-700'
+                                        : 'bg-red-100 text-red-700'
+                                    }`}>
+                                    <span>ส่วนต่าง</span>
+                                    <span className="font-bold">
+                                        ฿{formatCurrency(parseFloat(cashReceived) - stats.byPaymentType.CASH.amount)}
+                                    </span>
+                                </div>
+                            )}
+
+                            <hr className="border-gray-200" />
+
+                            {/* Expenses */}
+                            <div>
+                                <label className="block text-sm text-gray-600 mb-1">ค่าใช้จ่ายอื่นๆ</label>
+                                <input
+                                    type="number"
+                                    value={expenses}
+                                    onChange={(e) => setExpenses(e.target.value)}
+                                    placeholder="0.00"
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg text-right font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                    inputMode="decimal"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm text-gray-600 mb-1">หมายเหตุ (ค่าใช้จ่าย)</label>
+                                <input
+                                    type="text"
+                                    value={expenseNote}
+                                    onChange={(e) => setExpenseNote(e.target.value)}
+                                    placeholder="เช่น ค่าน้ำมันรถ, ค่าอาหาร"
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                />
+                            </div>
+
+                            {/* Net Cash */}
+                            {(cashReceived || expenses) && (
+                                <div className="bg-orange-50 p-3 rounded-xl">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-orange-700">เงินสดสุทธิ</span>
+                                        <span className="text-orange-800 font-bold text-xl">
+                                            ฿{formatCurrency(
+                                                (parseFloat(cashReceived) || 0) - (parseFloat(expenses) || 0)
+                                            )}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     {/* Nozzle Breakdown */}
                     {Object.keys(stats.byNozzle).length > 0 && (
                         <div className="bg-white rounded-2xl shadow-sm p-4">
@@ -314,7 +401,7 @@ export default function GasStationSummaryPage({ params }: { params: Promise<{ id
                                         <div className="text-right">
                                             <p className="font-semibold text-gray-800">฿{formatCurrency(t.amount)}</p>
                                             <p className={`text-xs ${t.paymentType === 'CASH' ? 'text-green-600' :
-                                                    t.paymentType === 'CREDIT' ? 'text-purple-600' : 'text-blue-600'
+                                                t.paymentType === 'CREDIT' ? 'text-purple-600' : 'text-blue-600'
                                                 }`}>
                                                 {getPaymentLabel(t.paymentType)}
                                             </p>
