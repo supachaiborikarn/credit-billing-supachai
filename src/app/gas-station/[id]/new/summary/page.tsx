@@ -56,8 +56,9 @@ export default function GasStationSummaryPage({ params }: { params: Promise<{ id
         productSales: [],
     });
 
-    // Cash and expenses
+    // Cash, credit card and expenses
     const [cashReceived, setCashReceived] = useState('');
+    const [creditCardReceived, setCreditCardReceived] = useState('');
     const [expenses, setExpenses] = useState('');
     const [expenseNote, setExpenseNote] = useState('');
     const [saving, setSaving] = useState(false);
@@ -281,12 +282,46 @@ export default function GasStationSummaryPage({ params }: { params: Promise<{ id
                             {/* Difference */}
                             {cashReceived && (
                                 <div className={`flex items-center justify-between p-3 rounded-xl ${parseFloat(cashReceived) >= stats.byPaymentType.CASH.amount
-                                        ? 'bg-green-100 text-green-700'
-                                        : 'bg-red-100 text-red-700'
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-red-100 text-red-700'
                                     }`}>
                                     <span>ส่วนต่าง</span>
                                     <span className="font-bold">
                                         ฿{formatCurrency(parseFloat(cashReceived) - stats.byPaymentType.CASH.amount)}
+                                    </span>
+                                </div>
+                            )}
+
+                            <hr className="border-gray-200" />
+
+                            {/* Credit Card Section */}
+                            <div className="flex items-center justify-between bg-blue-50 p-3 rounded-xl">
+                                <span className="text-blue-700">บัตรเครดิตตามระบบ</span>
+                                <span className="text-blue-800 font-bold">
+                                    ฿{formatCurrency(stats.byPaymentType.CREDIT_CARD.amount)}
+                                </span>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm text-gray-600 mb-1">บัตรเครดิตรับจริง</label>
+                                <input
+                                    type="number"
+                                    value={creditCardReceived}
+                                    onChange={(e) => setCreditCardReceived(e.target.value)}
+                                    placeholder="0.00"
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg text-right font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    inputMode="decimal"
+                                />
+                            </div>
+
+                            {creditCardReceived && (
+                                <div className={`flex items-center justify-between p-3 rounded-xl ${parseFloat(creditCardReceived) >= stats.byPaymentType.CREDIT_CARD.amount
+                                        ? 'bg-green-100 text-green-700'
+                                        : 'bg-red-100 text-red-700'
+                                    }`}>
+                                    <span>ส่วนต่าง (บัตร)</span>
+                                    <span className="font-bold">
+                                        ฿{formatCurrency(parseFloat(creditCardReceived) - stats.byPaymentType.CREDIT_CARD.amount)}
                                     </span>
                                 </div>
                             )}
