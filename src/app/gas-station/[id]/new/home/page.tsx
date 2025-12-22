@@ -258,6 +258,31 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
                                 </button>
                             )}
                         </div>
+
+                        {/* Quick Actions */}
+                        <div className="mt-4 grid grid-cols-3 gap-2">
+                            <Link
+                                href={`/gas-station/${id}/new/supplies`}
+                                className="rounded-xl border border-black/10 bg-[#fafafa] p-3 text-center hover:bg-neutral-100 transition"
+                            >
+                                <span className="text-lg">📦</span>
+                                <p className="text-xs font-bold text-neutral-600 mt-1">รับแก๊สเข้า</p>
+                            </Link>
+                            <Link
+                                href={`/gas-station/${id}/new/monthly-balance`}
+                                className="rounded-xl border border-black/10 bg-[#fafafa] p-3 text-center hover:bg-neutral-100 transition"
+                            >
+                                <span className="text-lg">📊</span>
+                                <p className="text-xs font-bold text-neutral-600 mt-1">บาลานซ์เดือน</p>
+                            </Link>
+                            <Link
+                                href={`/gas-station/${id}/new/summary`}
+                                className="rounded-xl border border-black/10 bg-[#fafafa] p-3 text-center hover:bg-neutral-100 transition"
+                            >
+                                <span className="text-lg">📋</span>
+                                <p className="text-xs font-bold text-neutral-600 mt-1">สรุปรายวัน</p>
+                            </Link>
+                        </div>
                     </div>
 
                     {/* Low Stock Warning */}
@@ -358,8 +383,8 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
 
                                         {/* Difference */}
                                         <div className={`rounded-2xl border p-4 ${isNormal
-                                                ? 'border-green-200 bg-green-50'
-                                                : 'border-red-200 bg-red-50'
+                                            ? 'border-green-200 bg-green-50'
+                                            : 'border-red-200 bg-red-50'
                                             }`}>
                                             <div className={`text-xs font-black ${isNormal ? 'text-green-600' : 'text-red-600'}`}>
                                                 {isNormal ? '✅ ปกติ' : '⚠️ ส่วนต่าง'}
