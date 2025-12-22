@@ -147,7 +147,10 @@ export async function POST(
 
         // Second check: same plate + same total amount + same type on same day
         // This catches true duplicates like double-clicking submit
-        if (licensePlate) {
+        // Only check if licensePlate is a valid non-empty string (not "0", not empty)
+        const hasValidPlate = licensePlate && licensePlate.trim() !== '' && licensePlate !== '0';
+
+        if (hasValidPlate) {
             const plateDuplicate = await prisma.transaction.findFirst({
                 where: {
                     stationId,
