@@ -3,6 +3,24 @@ import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { getStartOfDayBangkok, getEndOfDayBangkok, createTransactionDate, getTodayBangkok } from '@/lib/date-utils';
 import { buildTruckCodeMap, findCodeByPlate } from '@/lib/truck-utils';
+import { HttpErrors, getErrorMessage } from '@/lib/api-error';
+import { PaymentType } from '@prisma/client';
+
+interface TransactionInput {
+    date: string;
+    licensePlate?: string;
+    ownerName?: string;
+    paymentType: string;
+    nozzleNumber?: number;
+    liters: number;
+    pricePerLiter: number;
+    amount: number;
+    billBookNo?: string;
+    billNo?: string;
+    productType?: string;
+    fuelType?: string;
+    transferProofUrl?: string;
+}
 
 // GET transactions for a station by date
 export async function GET(
@@ -14,7 +32,6 @@ export async function GET(
         const stationId = `station-${id}`;
         const { searchParams } = new URL(request.url);
         const dateStr = searchParams.get('date') || getTodayBangkok();
-        const viewAll = searchParams.get('viewAll') === 'true'; // For admin toggle
 
         // Get transactions for the day (Bangkok timezone)
         const startOfDay = getStartOfDayBangkok(dateStr);
@@ -38,7 +55,7 @@ export async function GET(
             }
         }
 
-        // Build where clause - Staff sees only their own, Admin sees all (with optional filter)
+        // Build where clause - Staff sees only their own, Admin sees all
         const whereClause: Record<string, unknown> = {
             stationId,
             date: { gte: startOfDay, lte: endOfDay },
@@ -48,24 +65,16 @@ export async function GET(
         // Get optional staffId filter for admin
         const filterStaffId = searchParams.get('staffId');
 
-        // Staff role: filter by recordedById (always)
-        // Admin role: show all by default, or filter by specific staffId
         if (userRole === 'STAFF' && userId) {
             whereClause.recordedById = userId;
-        } else if (userRole === 'ADMIN') {
-            // Admin can filter by specific staff using staffId param
-            if (filterStaffId) {
-                // Find user by name to get their ID
-                const staffUser = await prisma.user.findFirst({
-                    where: { name: filterStaffId }
-                });
-                if (staffUser) {
-                    whereClause.recordedById = staffUser.id;
-                }
+        } else if (userRole === 'ADMIN' && filterStaffId) {
+            const staffUser = await prisma.user.findFirst({
+                where: { name: filterStaffId }
+            });
+            if (staffUser) {
+                whereClause.recordedById = staffUser.id;
             }
-            // If no staffId filter and viewAll=true (default), show all transactions
         }
-        // viewAll param is now only used for backward compatibility
 
         const transactions = await prisma.transaction.findMany({
             where: whereClause,
@@ -80,7 +89,6 @@ export async function GET(
         // Build truck code map for C-Code lookup
         const truckCodeMap = await buildTruckCodeMap();
 
-        // Format response for simple-station page
         const formattedTransactions = transactions.map(t => {
             const plate = t.licensePlate || t.truck?.licensePlate || '';
             return {
@@ -102,8 +110,8 @@ export async function GET(
 
         return NextResponse.json(formattedTransactions);
     } catch (error) {
-        console.error('Transactions GET error:', error);
-        return NextResponse.json({ error: 'Failed to fetch transactions' }, { status: 500 });
+        console.error('[Station Transactions GET]:', error);
+        return HttpErrors.internal(getErrorMessage(error));
     }
 }
 
@@ -114,7 +122,7 @@ export async function POST(
     try {
         const { id } = await params;
         const stationId = `station-${id}`;
-        const body = await request.json();
+        const body: TransactionInput = await request.json();
         const {
             date: dateStr,
             licensePlate,
@@ -127,7 +135,7 @@ export async function POST(
             billBookNo,
             billNo,
             productType,
-            fuelType,  // BillEntryForm sends fuelType
+            fuelType,
             transferProofUrl,
         } = body;
 
@@ -139,7 +147,7 @@ export async function POST(
         const sessionId = cookieStore.get('session')?.value;
 
         if (!sessionId) {
-            return NextResponse.json({ error: 'กรุณาเข้าสู่ระบบ' }, { status: 401 });
+            return HttpErrors.unauthorized('กรุณาเข้าสู่ระบบ');
         }
 
         const session = await prisma.session.findUnique({
@@ -148,12 +156,11 @@ export async function POST(
         });
 
         if (!session) {
-            return NextResponse.json({ error: 'Session ไม่ถูกต้อง' }, { status: 401 });
+            return HttpErrors.unauthorized('Session ไม่ถูกต้อง');
         }
 
-        // Check session expiry
         if (session.expiresAt < new Date()) {
-            return NextResponse.json({ error: 'Session หมดอายุ กรุณาเข้าสู่ระบบใหม่' }, { status: 401 });
+            return HttpErrors.unauthorized('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่');
         }
 
         const userId = session.userId;
@@ -188,13 +195,11 @@ export async function POST(
             if (owner) ownerId = owner.id;
         }
 
-        // Check for duplicates - be more strict to avoid false positives
-        // Only consider duplicate if SAME bill book+number OR same plate+amount+type on same day
+        // Check for duplicates
         const startOfDay = getStartOfDayBangkok(dateStr);
         const endOfDay = getEndOfDayBangkok(dateStr);
 
-        // First check: exact same bill book + bill number (if provided)
-        // NOTE: This is now just informational - we don't block because same bill numbers can exist for different owners
+        // Bill duplicate logging (informational only)
         if (billBookNo && billNo) {
             const billDuplicate = await prisma.transaction.findFirst({
                 where: {
@@ -205,15 +210,12 @@ export async function POST(
                 }
             });
 
-            // Log duplicate for reference but don't block - different owners can have same bill numbers
             if (billDuplicate) {
-                console.log(`Bill duplicate info: เล่ม ${billBookNo} เลขที่ ${billNo} exists (date: ${billDuplicate.date.toLocaleDateString('th-TH')}), but allowing different owner entry`);
+                console.log(`[Bill Duplicate Info] เล่ม ${billBookNo} เลขที่ ${billNo} exists`);
             }
         }
 
-        // Second check: same plate + same amount + same type on same day
-        // This catches true duplicates like double-clicking submit
-        // Only check if licensePlate is a valid non-empty string (not "0", not empty)
+        // Plate duplicate check (blocking)
         const hasValidPlate = licensePlate && licensePlate.trim() !== '' && licensePlate !== '0';
 
         if (hasValidPlate) {
@@ -223,15 +225,15 @@ export async function POST(
                     date: { gte: startOfDay, lte: endOfDay },
                     licensePlate: licensePlate,
                     amount: amount,
-                    paymentType: paymentType,
+                    paymentType: paymentType as PaymentType,
                     deletedAt: null,
                 }
             });
 
             if (plateDuplicate) {
-                return NextResponse.json({
-                    error: `รายการซ้ำ: พบรายการ ${paymentType} ทะเบียน ${licensePlate} ยอด ${amount} บาท ในวันที่ ${dateStr} แล้ว`
-                }, { status: 409 });
+                return HttpErrors.conflict(
+                    `รายการซ้ำ: พบรายการ ${paymentType} ทะเบียน ${licensePlate} ยอด ${amount} บาท ในวันที่ ${dateStr} แล้ว`
+                );
             }
         }
 
@@ -240,11 +242,11 @@ export async function POST(
             data: {
                 stationId,
                 dailyRecordId,
-                date: createTransactionDate(dateStr), // Use selected date with current Bangkok time
+                date: createTransactionDate(dateStr),
                 licensePlate,
                 ownerName,
                 ownerId,
-                paymentType,
+                paymentType: paymentType as PaymentType,
                 nozzleNumber,
                 liters,
                 pricePerLiter,
@@ -259,7 +261,7 @@ export async function POST(
 
         return NextResponse.json({ success: true, transaction });
     } catch (error) {
-        console.error('Transaction POST error:', error);
-        return NextResponse.json({ error: 'Failed to save transaction' }, { status: 500 });
+        console.error('[Station Transaction POST]:', error);
+        return HttpErrors.internal(getErrorMessage(error));
     }
 }

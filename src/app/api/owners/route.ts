@@ -1,5 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { HttpErrors, getErrorMessage } from '@/lib/api-error';
+import { OwnerGroup } from '@prisma/client';
+
+interface OwnerInput {
+    name: string;
+    phone?: string;
+    venderCode?: string;
+    groupType?: string;
+}
 
 export async function GET() {
     try {
@@ -12,34 +21,34 @@ export async function GET() {
 
         return NextResponse.json(owners);
     } catch (error) {
-        console.error('Owners GET error:', error);
-        return NextResponse.json({ error: 'Failed to fetch owners' }, { status: 500 });
+        console.error('[Owners GET]:', error);
+        return HttpErrors.internal(getErrorMessage(error));
     }
 }
 
 export async function POST(request: Request) {
     try {
-        const body = await request.json();
+        const body: OwnerInput = await request.json();
         const { name, phone, venderCode, groupType } = body;
 
         if (!name || !name.trim()) {
-            return NextResponse.json({ error: 'กรุณากรอกชื่อลูกค้า' }, { status: 400 });
+            return HttpErrors.badRequest('กรุณากรอกชื่อลูกค้า');
         }
 
-        // Check for duplicate owner name (prevent same name with different ID)
+        // Check for duplicate owner name
         const existingOwner = await prisma.owner.findFirst({
             where: {
                 name: {
                     equals: name.trim(),
-                    mode: 'insensitive' // case-insensitive comparison
+                    mode: 'insensitive'
                 }
             }
         });
 
         if (existingOwner) {
-            return NextResponse.json({
-                error: `ลูกค้าชื่อ "${name}" มีในระบบแล้ว (${existingOwner.code || 'ไม่มีรหัส'})`
-            }, { status: 400 });
+            return HttpErrors.conflict(
+                `ลูกค้าชื่อ "${name}" มีในระบบแล้ว (${existingOwner.code || 'ไม่มีรหัส'})`
+            );
         }
 
         // Generate C-code ONLY for SUGAR_FACTORY group
@@ -66,7 +75,7 @@ export async function POST(request: Request) {
                 name: name.trim(),
                 phone: phone || null,
                 venderCode: venderCode || null,
-                groupType: groupType || 'GENERAL_CREDIT',
+                groupType: (groupType as OwnerGroup) || 'GENERAL_CREDIT',
                 code: newCode,
             },
             include: {
@@ -76,7 +85,7 @@ export async function POST(request: Request) {
 
         return NextResponse.json(owner);
     } catch (error) {
-        console.error('Owner POST error:', error);
-        return NextResponse.json({ error: 'Failed to create owner' }, { status: 500 });
+        console.error('[Owner POST]:', error);
+        return HttpErrors.internal(getErrorMessage(error));
     }
 }

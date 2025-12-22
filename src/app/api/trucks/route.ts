@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { HttpErrors, getErrorMessage } from '@/lib/api-error';
+
+interface TruckInput {
+    licensePlate: string;
+    ownerId: string;
+}
 
 export async function GET() {
     try {
@@ -14,8 +20,8 @@ export async function GET() {
 
         return NextResponse.json(trucks);
     } catch (error) {
-        console.error('Trucks GET error:', error);
-        return NextResponse.json({ error: 'Failed to fetch trucks' }, { status: 500 });
+        console.error('[Trucks GET]:', error);
+        return HttpErrors.internal(getErrorMessage(error));
     }
 }
 
@@ -24,16 +30,16 @@ export async function POST(request: Request) {
         const body = await request.json();
 
         // Support both single truck and array of trucks
-        const trucksToCreate = Array.isArray(body) ? body : [body];
+        const trucksToCreate: TruckInput[] = Array.isArray(body) ? body : [body];
 
         if (trucksToCreate.length === 0) {
-            return NextResponse.json({ error: 'กรุณาเพิ่มรถอย่างน้อย 1 คัน' }, { status: 400 });
+            return HttpErrors.badRequest('กรุณาเพิ่มรถอย่างน้อย 1 คัน');
         }
 
         // Validate all trucks
         for (const truck of trucksToCreate) {
             if (!truck.licensePlate || !truck.ownerId) {
-                return NextResponse.json({ error: 'กรุณากรอกทะเบียนรถและเลือกเจ้าของ' }, { status: 400 });
+                return HttpErrors.badRequest('กรุณากรอกทะเบียนรถและเลือกเจ้าของ');
             }
         }
 
@@ -41,7 +47,7 @@ export async function POST(request: Request) {
         const licensePlates = trucksToCreate.map(t => t.licensePlate.toUpperCase());
         const uniquePlates = new Set(licensePlates);
         if (licensePlates.length !== uniquePlates.size) {
-            return NextResponse.json({ error: 'มีทะเบียนรถซ้ำกันในรายการที่เพิ่ม' }, { status: 400 });
+            return HttpErrors.badRequest('มีทะเบียนรถซ้ำกันในรายการที่เพิ่ม');
         }
 
         // Check if any license plate already exists in database
@@ -52,7 +58,7 @@ export async function POST(request: Request) {
 
         if (existing.length > 0) {
             const duplicates = existing.map(e => e.licensePlate).join(', ');
-            return NextResponse.json({ error: `ทะเบียนรถนี้มีในระบบแล้ว: ${duplicates}` }, { status: 400 });
+            return HttpErrors.conflict(`ทะเบียนรถนี้มีในระบบแล้ว: ${duplicates}`);
         }
 
         // Single truck - return the created truck with owner
@@ -91,7 +97,7 @@ export async function POST(request: Request) {
 
         return NextResponse.json(createdTrucks);
     } catch (error) {
-        console.error('Truck POST error:', error);
-        return NextResponse.json({ error: 'Failed to create truck' }, { status: 500 });
+        console.error('[Truck POST]:', error);
+        return HttpErrors.internal(getErrorMessage(error));
     }
 }
