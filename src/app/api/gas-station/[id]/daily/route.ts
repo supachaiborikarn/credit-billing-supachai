@@ -107,24 +107,23 @@ export async function GET(
             orderBy: { createdAt: 'desc' }
         });
 
-        // Calculate current stock
-        // Stock = Initial + Total supplies - Total sales (from all time)
-        const totalSupplies = await prisma.gasSupply.aggregate({
-            where: { stationId: station.id },
-            _sum: { liters: true }
-        });
+        // Calculate current stock from gauge readings
+        // Formula: (Tank1% + Tank2% + Tank3%) × 98 liters per percent
+        const LITERS_PER_PERCENT = 98;
 
-        const totalSales = await prisma.transaction.aggregate({
-            where: {
-                stationId: station.id,
-                productType: 'LPG',
-                deletedAt: null,
-            },
-            _sum: { liters: true }
-        });
-
-        const initialStock = Number(station.gasInitialStock || 0);
-        const currentStock = initialStock + Number(totalSupplies._sum.liters || 0) - Number(totalSales._sum.liters || 0);
+        // Get latest reading for each tank
+        let currentStock = 0;
+        if (gaugeReadings.length > 0) {
+            const latestByTank: Record<number, number> = {};
+            for (const g of gaugeReadings) {
+                if (!latestByTank[g.tankNumber]) {
+                    latestByTank[g.tankNumber] = Number(g.percentage);
+                }
+            }
+            // Sum all tank percentages and multiply by liters per percent
+            const totalPercentage = Object.values(latestByTank).reduce((sum, p) => sum + p, 0);
+            currentStock = totalPercentage * LITERS_PER_PERCENT;
+        }
 
         // Get shift-specific data if shift is specified
         const currentShiftData = shiftNumber !== null && dailyRecord?.shifts

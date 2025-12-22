@@ -396,20 +396,32 @@ export async function GET(request: Request) {
                 distinct: ['name']
             });
 
+            const LITERS_PER_PERCENT = 98;
+
             const stockData = await Promise.all(stations.map(async (station) => {
-                const totalSupplies = await prisma.gasSupply.aggregate({
+                // Get latest gauge readings for this station
+                const gauges = await prisma.gaugeReading.findMany({
                     where: { stationId: station.id },
-                    _sum: { liters: true }
+                    orderBy: { createdAt: 'desc' }
                 });
-                const totalSales = await prisma.transaction.aggregate({
-                    where: { stationId: station.id, productType: 'LPG', deletedAt: null },
-                    _sum: { liters: true }
-                });
-                const initialStock = Number(station.gasInitialStock || 0);
+
+                // Calculate stock from gauge readings: (sum of tank %) × 98
+                let currentStock = 0;
+                if (gauges.length > 0) {
+                    const latestByTank: Record<number, number> = {};
+                    for (const g of gauges) {
+                        if (!latestByTank[g.tankNumber]) {
+                            latestByTank[g.tankNumber] = Number(g.percentage);
+                        }
+                    }
+                    const totalPercentage = Object.values(latestByTank).reduce((sum, p) => sum + p, 0);
+                    currentStock = totalPercentage * LITERS_PER_PERCENT;
+                }
+
                 return {
                     stationId: station.id,
                     stationName: station.name,
-                    currentStock: initialStock + Number(totalSupplies._sum.liters || 0) - Number(totalSales._sum.liters || 0),
+                    currentStock,
                     alertLevel: Number(station.gasStockAlert || 1000)
                 };
             }));
