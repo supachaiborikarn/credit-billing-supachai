@@ -108,7 +108,7 @@ export async function GET(
         });
 
         // Calculate current stock
-        // Stock = Total supplies - Total sales (from all time)
+        // Stock = Initial + Total supplies - Total sales (from all time)
         const totalSupplies = await prisma.gasSupply.aggregate({
             where: { stationId: station.id },
             _sum: { liters: true }
@@ -123,7 +123,8 @@ export async function GET(
             _sum: { liters: true }
         });
 
-        const currentStock = Number(totalSupplies._sum.liters || 0) - Number(totalSales._sum.liters || 0);
+        const initialStock = Number(station.gasInitialStock || 0);
+        const currentStock = initialStock + Number(totalSupplies._sum.liters || 0) - Number(totalSales._sum.liters || 0);
 
         // Get shift-specific data if shift is specified
         const currentShiftData = shiftNumber !== null && dailyRecord?.shifts

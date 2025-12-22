@@ -405,10 +405,11 @@ export async function GET(request: Request) {
                     where: { stationId: station.id, productType: 'LPG', deletedAt: null },
                     _sum: { liters: true }
                 });
+                const initialStock = Number(station.gasInitialStock || 0);
                 return {
                     stationId: station.id,
                     stationName: station.name,
-                    currentStock: Number(totalSupplies._sum.liters || 0) - Number(totalSales._sum.liters || 0),
+                    currentStock: initialStock + Number(totalSupplies._sum.liters || 0) - Number(totalSales._sum.liters || 0),
                     alertLevel: Number(station.gasStockAlert || 1000)
                 };
             }));
