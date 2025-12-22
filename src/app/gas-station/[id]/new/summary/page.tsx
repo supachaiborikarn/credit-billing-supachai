@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { ArrowLeft, Printer, DollarSign, Fuel, FileText, CreditCard, Banknote, Wallet } from 'lucide-react';
+import { ArrowLeft, Printer, DollarSign, Fuel, FileText, CreditCard, Banknote, Wallet, Trash2 } from 'lucide-react';
 import { STATIONS } from '@/constants';
 import Link from 'next/link';
 
@@ -62,6 +62,32 @@ export default function GasStationSummaryPage({ params }: { params: Promise<{ id
     const [expenses, setExpenses] = useState('');
     const [expenseNote, setExpenseNote] = useState('');
     const [saving, setSaving] = useState(false);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+
+    const handleDelete = async (transactionId: string) => {
+        if (!confirm('ยืนยันลบรายการนี้?')) return;
+
+        setDeletingId(transactionId);
+        try {
+            const res = await fetch(`/api/gas-station/${id}/transactions/${transactionId}`, {
+                method: 'DELETE',
+            });
+
+            if (res.ok) {
+                // Remove from local state
+                setTransactions(prev => prev.filter(t => t.id !== transactionId));
+                fetchData(); // Refresh stats
+            } else {
+                const err = await res.json();
+                alert(err.error || 'ลบไม่สำเร็จ');
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            alert('เกิดข้อผิดพลาด');
+        } finally {
+            setDeletingId(null);
+        }
+    };
 
     useEffect(() => {
         fetchData();
@@ -316,8 +342,8 @@ export default function GasStationSummaryPage({ params }: { params: Promise<{ id
 
                             {creditCardReceived && (
                                 <div className={`flex items-center justify-between p-3 rounded-xl ${parseFloat(creditCardReceived) >= stats.byPaymentType.CREDIT_CARD.amount
-                                        ? 'bg-green-100 text-green-700'
-                                        : 'bg-red-100 text-red-700'
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-red-100 text-red-700'
                                     }`}>
                                     <span>ส่วนต่าง (บัตร)</span>
                                     <span className="font-bold">
@@ -425,7 +451,7 @@ export default function GasStationSummaryPage({ params }: { params: Promise<{ id
                             {transactions.length > 0 ? (
                                 transactions.map((t) => (
                                     <div key={t.id} className="px-4 py-3 flex items-center justify-between">
-                                        <div>
+                                        <div className="flex-1">
                                             <p className="font-medium text-gray-800">{t.licensePlate || '-'}</p>
                                             <p className="text-xs text-gray-500">
                                                 {new Date(t.date).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
@@ -433,7 +459,7 @@ export default function GasStationSummaryPage({ params }: { params: Promise<{ id
                                                 {' • '}{t.liters} ล.
                                             </p>
                                         </div>
-                                        <div className="text-right">
+                                        <div className="text-right mr-3">
                                             <p className="font-semibold text-gray-800">฿{formatCurrency(t.amount)}</p>
                                             <p className={`text-xs ${t.paymentType === 'CASH' ? 'text-green-600' :
                                                 t.paymentType === 'CREDIT' ? 'text-purple-600' : 'text-blue-600'
@@ -441,6 +467,17 @@ export default function GasStationSummaryPage({ params }: { params: Promise<{ id
                                                 {getPaymentLabel(t.paymentType)}
                                             </p>
                                         </div>
+                                        <button
+                                            onClick={() => handleDelete(t.id)}
+                                            disabled={deletingId === t.id}
+                                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 print:hidden"
+                                        >
+                                            {deletingId === t.id ? (
+                                                <div className="w-5 h-5 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                                            ) : (
+                                                <Trash2 size={18} />
+                                            )}
+                                        </button>
                                     </div>
                                 ))
                             ) : (
