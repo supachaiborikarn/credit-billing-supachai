@@ -2,6 +2,21 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { STATIONS } from '@/constants';
 import { cookies } from 'next/headers';
+import { HttpErrors, getErrorMessage } from '@/lib/api-error';
+import { PaymentType } from '@prisma/client';
+
+interface TransactionInput {
+    date: string;
+    licensePlate?: string;
+    ownerName?: string;
+    ownerId?: string;
+    paymentType: string;
+    nozzleNumber: number;
+    liters: number;
+    pricePerLiter: number;
+    amount: number;
+    productType?: string;
+}
 
 export async function POST(
     request: Request,
@@ -13,14 +28,14 @@ export async function POST(
         const stationConfig = STATIONS[stationIndex];
 
         if (!stationConfig || stationConfig.type !== 'GAS') {
-            return NextResponse.json({ error: 'Gas station not found' }, { status: 404 });
+            return HttpErrors.notFound('Gas station not found');
         }
 
         // Get user from session
         const cookieStore = await cookies();
         const sessionId = cookieStore.get('session')?.value;
         if (!sessionId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return HttpErrors.unauthorized('กรุณาเข้าสู่ระบบ');
         }
 
         const session = await prisma.session.findUnique({
@@ -29,15 +44,14 @@ export async function POST(
         });
 
         if (!session) {
-            return NextResponse.json({ error: 'Session ไม่ถูกต้อง' }, { status: 401 });
+            return HttpErrors.unauthorized('Session ไม่ถูกต้อง');
         }
 
-        // Check session expiry
         if (session.expiresAt < new Date()) {
-            return NextResponse.json({ error: 'Session หมดอายุ กรุณาเข้าสู่ระบบใหม่' }, { status: 401 });
+            return HttpErrors.unauthorized('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่');
         }
 
-        const body = await request.json();
+        const body: TransactionInput = await request.json();
         const {
             date: dateStr,
             licensePlate,
@@ -50,6 +64,11 @@ export async function POST(
             amount,
             productType
         } = body;
+
+        // Validate required fields
+        if (!paymentType || !liters || liters <= 0) {
+            return HttpErrors.badRequest('ข้อมูลไม่ครบถ้วน');
+        }
 
         // Get or create station with consistent ID
         const stationId = `station-${id}`;
@@ -100,7 +119,6 @@ export async function POST(
         }
 
         // ===== DUPLICATE PREVENTION =====
-        // Check if same transaction exists within last 2 minutes (double submit protection)
         const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
         const duplicateCheck = await prisma.transaction.findFirst({
             where: {
@@ -114,10 +132,7 @@ export async function POST(
         });
 
         if (duplicateCheck) {
-            return NextResponse.json({
-                error: 'รายการนี้ถูกบันทึกไปแล้ว (ป้องกันการส่งซ้ำ)',
-                duplicateId: duplicateCheck.id
-            }, { status: 409 });
+            return HttpErrors.conflict('รายการนี้ถูกบันทึกไปแล้ว (ป้องกันการส่งซ้ำ)');
         }
 
         // Create transaction
@@ -130,7 +145,7 @@ export async function POST(
                 licensePlate: licensePlate?.toUpperCase() || null,
                 ownerId: ownerId || null,
                 ownerName: ownerName || null,
-                paymentType,
+                paymentType: paymentType as PaymentType,
                 nozzleNumber,
                 liters,
                 pricePerLiter,
@@ -142,7 +157,7 @@ export async function POST(
 
         return NextResponse.json(transaction);
     } catch (error) {
-        console.error('Gas station transaction POST error:', error);
-        return NextResponse.json({ error: 'Failed to save transaction' }, { status: 500 });
+        console.error('[Gas Transaction POST]:', error);
+        return HttpErrors.internal(getErrorMessage(error));
     }
 }

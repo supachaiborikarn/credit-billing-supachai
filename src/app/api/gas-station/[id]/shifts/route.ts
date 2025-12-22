@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { getStartOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
+import { HttpErrors, getErrorMessage } from '@/lib/api-error';
+
+interface MeterInput {
+    nozzleNumber: number;
+    startReading: number;
+}
+
+interface ShiftInput {
+    shiftNumber: number;
+    meters?: MeterInput[];
+    dateStr?: string;
+}
 
 // GET shifts for a gas station by date
 export async function GET(
@@ -16,7 +28,7 @@ export async function GET(
 
         const date = getStartOfDayBangkok(dateStr);
 
-        // Get or create daily record
+        // Get daily record with shifts
         const dailyRecord = await prisma.dailyRecord.findUnique({
             where: { stationId_date: { stationId, date } },
             include: {
@@ -54,8 +66,8 @@ export async function GET(
             shifts: formattedShifts,
         });
     } catch (error) {
-        console.error('Shifts GET error:', error);
-        return NextResponse.json({ error: 'Failed to fetch shifts' }, { status: 500 });
+        console.error('[Shifts GET]:', error);
+        return HttpErrors.internal(getErrorMessage(error));
     }
 }
 
@@ -67,11 +79,11 @@ export async function POST(
     try {
         const { id } = await params;
         const stationId = `station-${id}`;
-        const body = await request.json();
+        const body: ShiftInput = await request.json();
         const { shiftNumber, meters, dateStr } = body;
 
         if (!shiftNumber || ![1, 2].includes(shiftNumber)) {
-            return NextResponse.json({ error: 'กรุณาระบุกะ (1 = กะเช้า, 2 = กะบ่าย)' }, { status: 400 });
+            return HttpErrors.badRequest('กรุณาระบุกะ (1 = กะเช้า, 2 = กะบ่าย)');
         }
 
         // Get user from session
@@ -108,9 +120,7 @@ export async function POST(
         });
 
         if (existingShift) {
-            return NextResponse.json({
-                error: `${shiftNumber === 1 ? 'กะเช้า' : 'กะบ่าย'}มีอยู่แล้ว`
-            }, { status: 400 });
+            return HttpErrors.conflict(`${shiftNumber === 1 ? 'กะเช้า' : 'กะบ่าย'}มีอยู่แล้ว`);
         }
 
         // Create shift with meters
@@ -121,7 +131,7 @@ export async function POST(
                 staffId,
                 status: 'OPEN',
                 meters: {
-                    create: (meters || []).map((m: any) => ({
+                    create: (meters || []).map((m: MeterInput) => ({
                         nozzleNumber: m.nozzleNumber,
                         startReading: m.startReading || 0,
                     }))
@@ -145,7 +155,7 @@ export async function POST(
             }
         });
     } catch (error) {
-        console.error('Shift POST error:', error);
-        return NextResponse.json({ error: 'Failed to create shift' }, { status: 500 });
+        console.error('[Shift POST]:', error);
+        return HttpErrors.internal(getErrorMessage(error));
     }
 }
