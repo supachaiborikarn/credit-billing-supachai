@@ -79,8 +79,60 @@ export async function POST(
     try {
         const { id } = await params;
         const stationId = `station-${id}`;
-        const body: ShiftInput = await request.json();
-        const { shiftNumber, meters, dateStr } = body;
+        const body = await request.json();
+        const { shiftNumber: providedShiftNumber, meters, dateStr, action, staffName } = body;
+
+        // Handle action-based requests (from simplified UI)
+        let shiftNumber = providedShiftNumber;
+        if (action === 'open' && !shiftNumber) {
+            // Auto-detect shift number based on existing shifts
+            const date = getStartOfDayBangkok(dateStr || getTodayBangkok());
+            const existingShifts = await prisma.shift.findMany({
+                where: {
+                    dailyRecord: { stationId, date }
+                },
+                orderBy: { shiftNumber: 'desc' }
+            });
+
+            if (existingShifts.length === 0) {
+                shiftNumber = 1; // First shift
+            } else if (existingShifts.some(s => s.status === 'OPEN')) {
+                return HttpErrors.badRequest('มีกะที่เปิดอยู่แล้ว กรุณาปิดกะก่อน');
+            } else if (existingShifts.length >= 2) {
+                return HttpErrors.badRequest('วันนี้เปิดครบ 2 กะแล้ว');
+            } else {
+                shiftNumber = 2; // Second shift
+            }
+        }
+
+        if (action === 'close') {
+            // Handle close action
+            const date = getStartOfDayBangkok(dateStr || getTodayBangkok());
+            const openShift = await prisma.shift.findFirst({
+                where: {
+                    dailyRecord: { stationId, date },
+                    status: 'OPEN'
+                }
+            });
+
+            if (!openShift) {
+                return HttpErrors.badRequest('ไม่มีกะที่เปิดอยู่');
+            }
+
+            const closedShift = await prisma.shift.update({
+                where: { id: openShift.id },
+                data: { status: 'CLOSED', closedAt: new Date() }
+            });
+
+            return NextResponse.json({
+                success: true,
+                shift: {
+                    id: closedShift.id,
+                    shiftNumber: closedShift.shiftNumber,
+                    status: closedShift.status
+                }
+            });
+        }
 
         if (!shiftNumber || ![1, 2].includes(shiftNumber)) {
             return HttpErrors.badRequest('กรุณาระบุกะ (1 = กะเช้า, 2 = กะบ่าย)');
