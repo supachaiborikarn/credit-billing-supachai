@@ -64,9 +64,11 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
     const [selectedStaff, setSelectedStaff] = useState('');
     const [actionLoading, setActionLoading] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [allShifts, setAllShifts] = useState<{ shiftNumber: number; status: string }[]>([]);
 
     useEffect(() => {
         fetchData();
+        fetchShifts();
     }, [selectedDate]);
 
     const fetchData = async () => {
@@ -95,16 +97,31 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
         }
     };
 
-    const openShift = async () => {
+    const fetchShifts = async () => {
+        try {
+            const res = await fetch(`/api/gas-station/${id}/shifts?date=${selectedDate}`);
+            if (res.ok) {
+                const data = await res.json();
+                setAllShifts(data.shifts || []);
+                const openShift = data.shifts?.find((s: { status: string }) => s.status === 'OPEN');
+                setCurrentShift(openShift || null);
+            }
+        } catch (error) {
+            console.error('Error fetching shifts:', error);
+        }
+    };
+
+    const openShift = async (shiftNumber: number) => {
         setActionLoading(true);
         try {
             const res = await fetch(`/api/gas-station/${id}/shifts`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'open', staffName: 'ระบบ' }),
+                body: JSON.stringify({ shiftNumber, action: 'open' }),
             });
             if (res.ok) {
                 fetchData();
+                fetchShifts();
             } else {
                 const err = await res.json();
                 alert(err.error || 'เปิดกะไม่สำเร็จ');
@@ -128,6 +145,7 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
             });
             if (res.ok) {
                 fetchData();
+                fetchShifts();
             }
         } catch (error) {
             console.error('Error closing shift:', error);
@@ -240,24 +258,45 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
                             </div>
                         </div>
 
-                        {/* Shift Action Button */}
+                        {/* Shift Action Buttons */}
                         <div className="mt-5">
                             {currentShift ? (
-                                <button
-                                    onClick={closeShift}
-                                    disabled={actionLoading}
-                                    className="w-full rounded-full border border-black/15 bg-white px-6 py-3 text-sm font-extrabold hover:bg-neutral-50 transition disabled:opacity-50"
-                                >
-                                    {actionLoading ? 'กำลังดำเนินการ...' : '🔒 ปิดกะ'}
-                                </button>
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2 text-sm font-semibold text-green-600">
+                                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                        กะ{currentShift.shiftNumber === 1 ? 'เช้า' : 'บ่าย'} เปิดอยู่
+                                    </div>
+                                    <button
+                                        onClick={closeShift}
+                                        disabled={actionLoading}
+                                        className="w-full rounded-full border border-black/15 bg-white px-6 py-3 text-sm font-extrabold hover:bg-neutral-50 transition disabled:opacity-50"
+                                    >
+                                        {actionLoading ? 'กำลังดำเนินการ...' : '🔒 ปิดกะ'}
+                                    </button>
+                                </div>
                             ) : (
-                                <button
-                                    onClick={openShift}
-                                    disabled={actionLoading}
-                                    className="w-full rounded-full bg-orange-500 px-6 py-3 text-sm font-extrabold text-black hover:bg-orange-400 transition disabled:opacity-50"
-                                >
-                                    {actionLoading ? 'กำลังเปิดกะ...' : '🚀 เปิดกะ →'}
-                                </button>
+                                <div className="space-y-2">
+                                    <p className="text-sm font-semibold text-neutral-600">เลือกกะที่ต้องการเปิด:</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {[1, 2].map((shiftNum) => {
+                                            const shift = allShifts.find(s => s.shiftNumber === shiftNum);
+                                            const isClosed = shift?.status === 'CLOSED';
+                                            return (
+                                                <button
+                                                    key={shiftNum}
+                                                    onClick={() => openShift(shiftNum)}
+                                                    disabled={actionLoading || isClosed}
+                                                    className={`rounded-full px-6 py-3 text-sm font-extrabold transition disabled:opacity-50 ${isClosed
+                                                        ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
+                                                        : 'bg-orange-500 text-black hover:bg-orange-400'
+                                                        }`}
+                                                >
+                                                    {isClosed ? `✓ กะ${shiftNum === 1 ? 'เช้า' : 'บ่าย'} (ปิดแล้ว)` : `🚀 กะ${shiftNum === 1 ? 'เช้า' : 'บ่าย'}`}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
                             )}
                         </div>
 
@@ -467,48 +506,7 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
                 </main>
             )}
 
-            {/* Open Shift Modal - hq0 style */}
-            {showShiftModal && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center">
-                    <div className="bg-white w-full max-w-md rounded-t-3xl md:rounded-3xl p-6 animate-slide-up">
-                        <h2 className="text-xl font-black tracking-tight mb-5">🚀 เปิดกะ</h2>
 
-                        <div className="mb-5">
-                            <label className="block text-sm font-bold text-neutral-600 mb-3">เลือกพนักงาน</label>
-                            <div className="flex flex-wrap gap-2">
-                                {staffConfig?.staff?.map((staff: string) => (
-                                    <button
-                                        key={staff}
-                                        onClick={() => setSelectedStaff(staff)}
-                                        className={`rounded-full px-4 py-2 text-sm font-extrabold transition ${selectedStaff === staff
-                                            ? 'bg-black text-white'
-                                            : 'border border-black/15 bg-white hover:bg-neutral-50'
-                                            }`}
-                                    >
-                                        {staff}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setShowShiftModal(false)}
-                                className="flex-1 rounded-full border border-black/15 bg-white px-6 py-3 text-sm font-extrabold hover:bg-neutral-50 transition"
-                            >
-                                ยกเลิก
-                            </button>
-                            <button
-                                onClick={openShift}
-                                disabled={actionLoading || !selectedStaff}
-                                className="flex-1 rounded-full bg-orange-500 px-6 py-3 text-sm font-extrabold text-black hover:bg-orange-400 transition disabled:opacity-50"
-                            >
-                                {actionLoading ? 'กำลังเปิด...' : 'เปิดกะ →'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
