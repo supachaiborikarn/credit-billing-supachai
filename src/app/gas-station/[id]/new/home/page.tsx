@@ -96,21 +96,22 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
     };
 
     const openShift = async () => {
-        if (!selectedStaff) return;
         setActionLoading(true);
         try {
             const res = await fetch(`/api/gas-station/${id}/shifts`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'open', staffName: selectedStaff }),
+                body: JSON.stringify({ action: 'open', staffName: 'ระบบ' }),
             });
             if (res.ok) {
-                setShowShiftModal(false);
-                setSelectedStaff('');
                 fetchData();
+            } else {
+                const err = await res.json();
+                alert(err.error || 'เปิดกะไม่สำเร็จ');
             }
         } catch (error) {
             console.error('Error opening shift:', error);
+            alert('เกิดข้อผิดพลาด');
         } finally {
             setActionLoading(false);
         }
@@ -251,10 +252,11 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
                                 </button>
                             ) : (
                                 <button
-                                    onClick={() => setShowShiftModal(true)}
-                                    className="w-full rounded-full bg-orange-500 px-6 py-3 text-sm font-extrabold text-black hover:bg-orange-400 transition"
+                                    onClick={openShift}
+                                    disabled={actionLoading}
+                                    className="w-full rounded-full bg-orange-500 px-6 py-3 text-sm font-extrabold text-black hover:bg-orange-400 transition disabled:opacity-50"
                                 >
-                                    🚀 เปิดกะ →
+                                    {actionLoading ? 'กำลังเปิดกะ...' : '🚀 เปิดกะ →'}
                                 </button>
                             )}
                         </div>

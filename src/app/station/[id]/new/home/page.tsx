@@ -107,17 +107,14 @@ export default function StationHomePage({ params }: { params: Promise<{ id: stri
     };
 
     const openShift = async () => {
-        if (!selectedStaff) return;
         setActionLoading(true);
         try {
             const res = await fetch(`/api/station/${id}/shifts`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'open', staffName: selectedStaff }),
+                body: JSON.stringify({ action: 'open', staffName: 'ระบบ' }),
             });
             if (res.ok) {
-                setShowShiftModal(false);
-                setSelectedStaff('');
                 fetchShifts();
             } else {
                 const err = await res.json();
@@ -125,6 +122,7 @@ export default function StationHomePage({ params }: { params: Promise<{ id: stri
             }
         } catch (error) {
             console.error('Error opening shift:', error);
+            alert('เกิดข้อผิดพลาด');
         } finally {
             setActionLoading(false);
         }
@@ -231,10 +229,11 @@ export default function StationHomePage({ params }: { params: Promise<{ id: stri
                                     <span className="font-semibold text-gray-600">ยังไม่เปิดกะ</span>
                                 </div>
                                 <button
-                                    onClick={() => setShowShiftModal(true)}
-                                    className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl transition-colors"
+                                    onClick={openShift}
+                                    disabled={actionLoading}
+                                    className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl transition-colors disabled:opacity-50"
                                 >
-                                    🚀 เปิดกะ
+                                    {actionLoading ? 'กำลังเปิดกะ...' : '🚀 เปิดกะ'}
                                 </button>
                             </>
                         )}
