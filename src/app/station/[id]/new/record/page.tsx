@@ -349,8 +349,8 @@ export default function StationRecordPage({ params }: { params: Promise<{ id: st
                                 type="button"
                                 onClick={() => setPaymentType(type.value)}
                                 className={`py-3 px-4 rounded-xl font-medium transition ${paymentType === type.value
-                                        ? 'bg-blue-500 text-white'
-                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    ? 'bg-blue-500 text-white'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                     }`}
                             >
                                 {type.label}
@@ -392,7 +392,13 @@ export default function StationRecordPage({ params }: { params: Promise<{ id: st
                                 type="number"
                                 value={liters}
                                 onChange={(e) => setLiters(e.target.value)}
-                                placeholder="0"
+                                onBlur={(e) => {
+                                    if (e.target.value) {
+                                        setLiters(parseFloat(e.target.value).toFixed(2));
+                                    }
+                                }}
+                                placeholder="0.00"
+                                step="0.01"
                                 className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg font-mono text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 inputMode="decimal"
                             />
@@ -403,6 +409,11 @@ export default function StationRecordPage({ params }: { params: Promise<{ id: st
                                 type="number"
                                 value={pricePerLiter}
                                 onChange={(e) => setPricePerLiter(e.target.value)}
+                                onBlur={(e) => {
+                                    if (e.target.value) {
+                                        setPricePerLiter(parseFloat(e.target.value).toFixed(2));
+                                    }
+                                }}
                                 placeholder="0.00"
                                 step="0.01"
                                 className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg font-mono text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
