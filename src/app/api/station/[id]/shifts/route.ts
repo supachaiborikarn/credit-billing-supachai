@@ -48,7 +48,7 @@ export async function GET(
                 shiftNumber: currentShift.shiftNumber,
                 status: currentShift.status,
                 staffName: currentShift.staffId,
-                createdAt: currentShift.openedAt,
+                createdAt: currentShift.createdAt,
                 closedAt: currentShift.closedAt
             } : null
         });
@@ -86,7 +86,7 @@ export async function POST(
             create: {
                 id: stationId,
                 name: stationConfig.name,
-                type: stationConfig.type === 'OIL' ? 'OIL' : 'GAS',
+                type: 'GAS',
             }
         });
 
@@ -131,8 +131,7 @@ export async function POST(
                     dailyRecordId: dailyRecord.id,
                     shiftNumber,
                     staffId: staffName || null,
-                    status: 'OPEN',
-                    openedAt: new Date()
+                    status: 'OPEN'
                 }
             });
 
@@ -143,7 +142,7 @@ export async function POST(
                     shiftNumber: newShift.shiftNumber,
                     status: newShift.status,
                     staffName: newShift.staffId,
-                    createdAt: newShift.openedAt
+                    createdAt: newShift.createdAt
                 }
             });
         }
