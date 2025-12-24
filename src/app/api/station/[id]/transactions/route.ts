@@ -215,24 +215,34 @@ export async function POST(
             }
         }
 
-        // Plate duplicate check (blocking)
+        // Plate duplicate check (blocking) - Must also have same bill to be considered duplicate
         const hasValidPlate = licensePlate && licensePlate.trim() !== '' && licensePlate !== '0';
 
         if (hasValidPlate) {
+            // Build duplicate check criteria
+            const duplicateWhere: Record<string, unknown> = {
+                stationId,
+                date: { gte: startOfDay, lte: endOfDay },
+                licensePlate: licensePlate,
+                amount: amount,
+                paymentType: paymentType as PaymentType,
+                deletedAt: null,
+            };
+
+            // If bill info is provided, add to duplicate check
+            // This allows same plate/amount/date if bill is different (e.g., red plate vehicles)
+            if (billBookNo && billNo) {
+                duplicateWhere.billBookNo = billBookNo;
+                duplicateWhere.billNo = billNo;
+            }
+
             const plateDuplicate = await prisma.transaction.findFirst({
-                where: {
-                    stationId,
-                    date: { gte: startOfDay, lte: endOfDay },
-                    licensePlate: licensePlate,
-                    amount: amount,
-                    paymentType: paymentType as PaymentType,
-                    deletedAt: null,
-                }
+                where: duplicateWhere
             });
 
             if (plateDuplicate) {
                 return HttpErrors.conflict(
-                    `รายการซ้ำ: พบรายการ ${paymentType} ทะเบียน ${licensePlate} ยอด ${amount} บาท ในวันที่ ${dateStr} แล้ว`
+                    `รายการซ้ำ: พบรายการ ${paymentType} ทะเบียน ${licensePlate} ยอด ${amount} บาท${billBookNo ? ` เล่ม ${billBookNo}/${billNo}` : ''} ในวันที่ ${dateStr} แล้ว`
                 );
             }
         }

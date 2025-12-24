@@ -148,24 +148,35 @@ export async function POST(
         // Second check: same plate + same total amount + same type on same day
         // This catches true duplicates like double-clicking submit
         // Only check if licensePlate is a valid non-empty string (not "0", not empty)
+        // Must also have same bill to be considered duplicate (for red plate vehicles)
         const hasValidPlate = licensePlate && licensePlate.trim() !== '' && licensePlate !== '0';
 
         if (hasValidPlate) {
+            // Build duplicate check criteria
+            const duplicateWhere: Record<string, unknown> = {
+                stationId,
+                date: { gte: startOfDay, lte: endOfDay },
+                licensePlate: licensePlate,
+                amount: totalAmount,
+                paymentType: paymentType as PaymentType,
+                deletedAt: null,
+                isVoided: false,
+            };
+
+            // If bill info is provided, add to duplicate check
+            // This allows same plate/amount/date if bill is different (e.g., red plate vehicles)
+            if (billBookNo && billNo) {
+                duplicateWhere.billBookNo = billBookNo;
+                duplicateWhere.billNo = billNo;
+            }
+
             const plateDuplicate = await prisma.transaction.findFirst({
-                where: {
-                    stationId,
-                    date: { gte: startOfDay, lte: endOfDay },
-                    licensePlate: licensePlate,
-                    amount: totalAmount,
-                    paymentType: paymentType as PaymentType,
-                    deletedAt: null,
-                    isVoided: false,
-                }
+                where: duplicateWhere
             });
 
             if (plateDuplicate) {
                 return NextResponse.json({
-                    error: `รายการซ้ำ: พบรายการ ${paymentType} ทะเบียน ${licensePlate} ยอด ${totalAmount.toFixed(2)} บาท ในวันที่ ${dateStr} แล้ว`
+                    error: `รายการซ้ำ: พบรายการ ${paymentType} ทะเบียน ${licensePlate} ยอด ${totalAmount.toFixed(2)} บาท${billBookNo ? ` เล่ม ${billBookNo}/${billNo}` : ''} ในวันที่ ${dateStr} แล้ว`
                 }, { status: 409 });
             }
         }
