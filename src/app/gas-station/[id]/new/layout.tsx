@@ -27,7 +27,7 @@ export default function GasStationLayout({ children, params }: GasStationLayoutP
     return (
         <div className="min-h-screen bg-gray-100">
             {/* Main content with padding for bottom nav */}
-            <main className="pb-24">
+            <main className="pb-32">
                 {children}
             </main>
 
