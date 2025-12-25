@@ -136,7 +136,7 @@ function LoginContent() {
         localStorage.setItem('selectedShiftName', shiftNumber === 1 ? 'กะเช้า' : 'กะบ่าย');
 
         setRedirecting(true);
-        router.push(`/gas-station/${pendingRedirect.stationNum}?shift=${shiftNumber}`);
+        router.push(`/gas-station/${pendingRedirect.stationNum}/new/home`);
     };
 
     return (
