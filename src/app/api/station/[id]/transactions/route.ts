@@ -142,6 +142,11 @@ export async function POST(
         // Use fuelType if provided, fallback to productType
         const actualProductType = fuelType || productType;
 
+        // CREDIT transactions require owner name
+        if (paymentType === 'CREDIT' && !ownerName) {
+            return HttpErrors.badRequest('รายการเงินเชื่อต้องระบุชื่อเจ้าของ');
+        }
+
         // Get user from session - REQUIRE authentication
         const cookieStore = await cookies();
         const sessionId = cookieStore.get('session')?.value;

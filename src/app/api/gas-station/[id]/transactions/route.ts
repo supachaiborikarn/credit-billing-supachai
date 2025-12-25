@@ -70,6 +70,11 @@ export async function POST(
             return HttpErrors.badRequest('ข้อมูลไม่ครบถ้วน');
         }
 
+        // CREDIT transactions require owner name
+        if (paymentType === 'CREDIT' && !ownerName && !ownerId) {
+            return HttpErrors.badRequest('รายการเงินเชื่อต้องระบุชื่อเจ้าของ');
+        }
+
         // Get or create station with consistent ID
         const stationId = `station-${id}`;
         const station = await prisma.station.upsert({

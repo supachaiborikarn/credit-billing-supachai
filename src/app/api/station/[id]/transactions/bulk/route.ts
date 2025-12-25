@@ -50,6 +50,11 @@ export async function POST(
             return NextResponse.json({ error: 'ต้องมีอย่างน้อย 1 รายการ' }, { status: 400 });
         }
 
+        // CREDIT transactions require owner name
+        if (paymentType === 'CREDIT' && !ownerName && !ownerId) {
+            return NextResponse.json({ error: 'รายการเงินเชื่อต้องระบุชื่อเจ้าของ' }, { status: 400 });
+        }
+
         // Get user from session
         const cookieStore = await cookies();
         const sessionId = cookieStore.get('session')?.value;

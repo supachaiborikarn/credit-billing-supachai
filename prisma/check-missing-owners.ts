@@ -1,53 +1,74 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-async function check() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+async function checkMissingOwners() {
+    console.log('=== ตรวจสอบรายการ CREDIT ที่ไม่มีชื่อเจ้าของ ===\n');
 
-    // หา transactions วันนี้ที่ CREDIT
-    const txs = await prisma.transaction.findMany({
+    // Find all CREDIT transactions without owner name
+    const noOwner = await prisma.transaction.findMany({
         where: {
-            stationId: 'station-1',
-            date: { gte: today },
-            paymentType: 'CREDIT'
+            paymentType: 'CREDIT',
+            OR: [
+                { ownerName: null },
+                { ownerName: '' },
+            ],
+            deletedAt: null,
         },
         select: {
             id: true,
             licensePlate: true,
             ownerName: true,
-            ownerId: true,
-            owner: { select: { name: true } }
+            amount: true,
+            date: true,
+            station: { select: { name: true } }
         },
+        orderBy: { date: 'desc' },
         take: 50
     });
 
-    console.log('CREDIT transactions today:', txs.length);
+    console.log(`Found ${noOwner.length} CREDIT transactions without owner name:\n`);
 
-    const missing = txs.filter((t: { owner?: { name: string } | null; ownerName: string | null }) =>
-        !t.owner?.name && !t.ownerName
-    );
-    const withOwner = txs.filter((t: { owner?: { name: string } | null; ownerName: string | null }) =>
-        t.owner?.name || t.ownerName
-    );
+    // Group by license plate
+    const byPlate: Record<string, any[]> = {};
+    noOwner.forEach((t: any) => {
+        const plate = t.licensePlate || 'NO_PLATE';
+        if (!byPlate[plate]) byPlate[plate] = [];
+        byPlate[plate].push(t);
+    });
 
-    console.log('With owner name:', withOwner.length);
-    console.log('Missing owner name:', missing.length);
-
-    if (missing.length > 0) {
-        console.log('\nTransactions missing owner:');
-        for (const t of missing) {
-            console.log(`- License: ${t.licensePlate} | ownerId: ${t.ownerId || 'NULL'}`);
-        }
+    for (const [plate, txns] of Object.entries(byPlate)) {
+        console.log(`\n📌 ${plate} (${txns.length} รายการ)`);
+        txns.forEach((t: any) => {
+            const date = t.date.toISOString().split('T')[0];
+            console.log(`   - ${date} | ฿${t.amount} | ${t.station?.name}`);
+        });
     }
 
-    // แสดงตัวอย่างที่มีชื่อ
-    console.log('\nSample with owner:');
-    for (const t of withOwner.slice(0, 5)) {
-        console.log(`- License: ${t.licensePlate} | name: ${t.owner?.name || t.ownerName}`);
+    // Also check for plates with weird data (C-codes mixed in)
+    console.log('\n\n=== ตรวจสอบทะเบียนที่มีรูปแบบผิดปกติ ===\n');
+
+    const weirdPlates = await prisma.transaction.findMany({
+        where: {
+            OR: [
+                { licensePlate: { contains: ' C' } },
+                { licensePlate: { startsWith: 'C' } },
+            ],
+            deletedAt: null,
+        },
+        select: { licensePlate: true, ownerName: true },
+        distinct: ['licensePlate']
+    });
+
+    if (weirdPlates.length > 0) {
+        console.log('Plates with C-Code pattern:');
+        weirdPlates.forEach((t: any) => {
+            console.log(`- ${t.licensePlate} → ${t.ownerName || 'NO OWNER'}`);
+        });
+    } else {
+        console.log('✅ No plates with C-Code mixed in');
     }
 
     await prisma.$disconnect();
 }
 
-check();
+checkMissingOwners();
