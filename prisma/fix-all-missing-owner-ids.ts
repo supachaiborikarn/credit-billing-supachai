@@ -1,97 +1,122 @@
-import { PrismaClient } from '@prisma/client';
-
+const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-async function main() {
-    console.log('🔧 แก้ไข ownerId ที่หายไปทั้งหมด...\n');
+async function fixAllMissingOwnerIds() {
+    console.log('=== ตรวจสอบและแก้ไข transactions ที่ขาด ownerId ทั้งหมด ===\n');
 
-    // 1. หา transactions ที่มี ownerName แต่ไม่มี ownerId (ทุกประเภท)
-    const txsWithMissingOwnerId = await prisma.transaction.findMany({
+    // 1. หา transactions ที่มี ownerName แต่ไม่มี ownerId
+    const transactionsWithoutOwnerId = await prisma.transaction.findMany({
         where: {
-            OR: [
-                { ownerName: { not: '' } },
-            ],
+            ownerName: { not: null },
             ownerId: null,
+            deletedAt: null,
+            paymentType: { in: ['CREDIT', 'BOX_TRUCK'] }
         },
-        select: { id: true, ownerName: true, date: true, amount: true, paymentType: true }
+        orderBy: { date: 'desc' },
+        select: {
+            id: true,
+            date: true,
+            ownerName: true,
+            paymentType: true,
+            amount: true
+        }
     });
 
-    console.log(`พบ ${txsWithMissingOwnerId.length} รายการที่มี ownerName แต่ไม่มี ownerId\n`);
+    console.log(`🔍 พบ ${transactionsWithoutOwnerId.length} transactions ที่ขาด ownerId\n`);
 
-    // 2. หา owners ทั้งหมด
-    const owners = await prisma.owner.findMany({
+    if (transactionsWithoutOwnerId.length === 0) {
+        console.log('✅ ไม่มี transactions ที่ต้องแก้ไข');
+        await prisma.$disconnect();
+        return;
+    }
+
+    // 2. จัดกลุ่มตาม ownerName
+    const groupedByOwner: Record<string, any[]> = {};
+    transactionsWithoutOwnerId.forEach((t: any) => {
+        const name = t.ownerName || 'Unknown';
+        if (!groupedByOwner[name]) {
+            groupedByOwner[name] = [];
+        }
+        groupedByOwner[name].push(t);
+    });
+
+    console.log('📊 สรุปตามเจ้าของ:');
+    console.log('─'.repeat(80));
+
+    const ownerNames = Object.keys(groupedByOwner).sort();
+    ownerNames.forEach((name, i) => {
+        const txns = groupedByOwner[name];
+        const total = txns.reduce((sum: number, t: any) => sum + Number(t.amount), 0);
+        console.log(`${i + 1}. ${name.padEnd(25)} | ${txns.length.toString().padStart(3)} รายการ | ${total.toLocaleString().padStart(15)} บาท`);
+    });
+
+    // 3. หา owners ทั้งหมดจาก database
+    const allOwners = await prisma.owner.findMany({
+        where: { deletedAt: null },
         select: { id: true, name: true }
     });
 
-    // สร้าง map สำหรับ lookup (case-insensitive)
-    const ownerMap = new Map<string, string>();
-    owners.forEach(o => ownerMap.set(o.name.toLowerCase().trim(), o.id));
+    console.log(`\n📋 มี owners ในระบบทั้งหมด ${allOwners.length} ราย\n`);
 
-    let updated = 0;
-    const notFoundNames = new Set<string>();
+    // 4. Match และ update
+    let fixedCount = 0;
+    let notFoundCount = 0;
+    const notFoundOwners: string[] = [];
 
-    // 3. Batch update
-    console.log('กำลัง update...');
+    console.log('🔧 กำลังแก้ไข...\n');
 
-    for (const tx of txsWithMissingOwnerId) {
-        if (!tx.ownerName || tx.ownerName.trim() === '') continue;
+    for (const ownerName of ownerNames) {
+        // หา owner ที่ตรงกัน
+        const matchedOwner = allOwners.find((o: any) =>
+            o.name === ownerName ||
+            o.name.includes(ownerName) ||
+            ownerName.includes(o.name)
+        );
 
-        const normalizedName = tx.ownerName.toLowerCase().trim();
-        const ownerId = ownerMap.get(normalizedName);
-
-        if (ownerId) {
-            await prisma.transaction.update({
-                where: { id: tx.id },
-                data: { ownerId }
+        if (matchedOwner) {
+            const result = await prisma.transaction.updateMany({
+                where: {
+                    ownerName: ownerName,
+                    ownerId: null,
+                    deletedAt: null
+                },
+                data: {
+                    ownerId: matchedOwner.id
+                }
             });
-            updated++;
-            if (updated % 10 === 0) {
-                console.log(`  ✅ Updated ${updated} รายการ...`);
-            }
+
+            console.log(`✅ ${ownerName}: อัปเดต ${result.count} รายการ -> ${matchedOwner.name} (${matchedOwner.id.slice(0, 8)}...)`);
+            fixedCount += result.count;
         } else {
-            notFoundNames.add(tx.ownerName);
+            console.log(`❌ ${ownerName}: ไม่พบ owner ในระบบ (${groupedByOwner[ownerName].length} รายการ)`);
+            notFoundCount += groupedByOwner[ownerName].length;
+            notFoundOwners.push(ownerName);
         }
     }
 
-    console.log(`\n✅ แก้ไขสำเร็จ: ${updated} รายการ`);
+    console.log('\n' + '═'.repeat(80));
+    console.log(`📊 สรุปผล:`);
+    console.log(`   ✅ แก้ไขสำเร็จ: ${fixedCount} รายการ`);
+    console.log(`   ❌ ไม่พบ owner: ${notFoundCount} รายการ`);
 
-    if (notFoundNames.size > 0) {
-        console.log(`\n⚠️ ไม่พบ owner ในระบบสำหรับชื่อเหล่านี้ (${notFoundNames.size} ชื่อ):`);
-        Array.from(notFoundNames).forEach(name => console.log(`  - "${name}"`));
+    if (notFoundOwners.length > 0) {
+        console.log(`\n⚠️ ต้องสร้าง owner ใหม่หรือ merge สำหรับ:`);
+        notFoundOwners.forEach(name => console.log(`   - ${name}`));
     }
 
-    // 4. สรุปผลหลังแก้ไข
-    console.log('\n=== สรุปผลหลังแก้ไข ===');
-
-    const stillMissing = await prisma.transaction.count({
+    // 5. ตรวจสอบสถานะสุดท้าย
+    const remainingWithoutOwnerId = await prisma.transaction.count({
         where: {
-            ownerName: { not: '' },
+            ownerName: { not: null },
             ownerId: null,
+            deletedAt: null,
             paymentType: { in: ['CREDIT', 'BOX_TRUCK'] }
         }
     });
-    console.log(`จำนวน CREDIT/BOX_TRUCK ที่ยังไม่มี ownerId: ${stillMissing}`);
 
-    // 5. ตรวจสอบ pending ของ แสบ
-    const saebOwner = await prisma.owner.findFirst({ where: { name: 'แสบ' } });
-    if (saebOwner) {
-        const pendingTxs = await prisma.transaction.findMany({
-            where: {
-                ownerId: saebOwner.id,
-                paymentType: { in: ['CREDIT', 'BOX_TRUCK'] },
-                invoiceId: null
-            },
-            orderBy: { date: 'desc' },
-            take: 10,
-            select: { date: true, amount: true }
-        });
-        console.log(`\n📊 แสบ - Pending transactions: ${pendingTxs.length} รายการล่าสุด:`);
-        pendingTxs.forEach(tx => {
-            console.log(`  ${tx.date.toISOString().split('T')[0]} | ${tx.amount.toLocaleString()} บาท`);
-        });
-    }
+    console.log(`\n📈 Transactions ที่ยังขาด ownerId: ${remainingWithoutOwnerId} รายการ`);
+
+    await prisma.$disconnect();
 }
 
-main()
-    .catch(console.error)
-    .finally(() => prisma.$disconnect());
+fixAllMissingOwnerIds().catch(console.error);

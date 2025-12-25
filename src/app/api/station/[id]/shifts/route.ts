@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { STATIONS } from '@/constants';
+import { STATIONS, STATION_STAFF } from '@/constants';
 import { getStartOfDayBangkok, getEndOfDayBangkok } from '@/lib/date-utils';
 
 export async function GET(
@@ -86,7 +86,7 @@ export async function POST(
             create: {
                 id: stationId,
                 name: stationConfig.name,
-                type: 'GAS',
+                type: stationConfig.type,
             }
         });
 
@@ -121,8 +121,12 @@ export async function POST(
             const closedShifts = dailyRecord.shifts.filter(s => s.status === 'CLOSED');
             const shiftNumber = closedShifts.length + 1;
 
-            if (shiftNumber > 2) {
-                return NextResponse.json({ error: 'วันนี้เปิดครบ 2 กะแล้ว' }, { status: 400 });
+            // Get maxShifts from config (default 2)
+            const stationStaffConfig = STATION_STAFF[stationId as keyof typeof STATION_STAFF];
+            const maxShifts = stationStaffConfig?.maxShifts || 2;
+
+            if (shiftNumber > maxShifts) {
+                return NextResponse.json({ error: `วันนี้เปิดครบ ${maxShifts} กะแล้ว` }, { status: 400 });
             }
 
             // Create new shift

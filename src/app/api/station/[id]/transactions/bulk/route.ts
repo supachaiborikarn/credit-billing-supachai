@@ -97,7 +97,7 @@ export async function POST(
 
         // Find owner if provided
         let resolvedOwnerId: string | null = ownerId || null;
-        if (!resolvedOwnerId && paymentType === 'CREDIT' && ownerName) {
+        if (!resolvedOwnerId && ['CREDIT', 'BOX_TRUCK'].includes(paymentType) && ownerName) {
             const owner = await prisma.owner.findFirst({
                 where: { name: { contains: ownerName }, deletedAt: null }
             });

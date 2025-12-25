@@ -89,31 +89,37 @@ export const STATION_STAFF = {
         name: 'แท๊งลอยวัชรเกียรติ',
         staff: ['วุฒิ', 'หญิง', 'ณัช'],
         allowConcurrentShifts: true, // พนักงานทำงานพร้อมกันได้
+        maxShifts: 2,
     },
     'station-2': {
         name: 'วัชรเกียรติออยล์',
         staff: ['โส', 'แป้ง'],
         allowConcurrentShifts: false,
+        maxShifts: 2, // กะเช้า, กะบ่าย
     },
     'station-3': {
         name: 'พงษ์อนันต์ปิโตรเลียม',
         staff: ['ติว', 'ดรีม', 'กาย'],
         allowConcurrentShifts: false,
+        maxShifts: 2, // กะเช้า, กะบ่าย
     },
     'station-4': {
         name: 'ศุภชัยบริการ',
         staff: ['อ้อม', 'ใหม่', 'รงค์'],
         allowConcurrentShifts: false,
+        maxShifts: 3, // กะเช้า, กะบ่าย, กะดึก
     },
     'station-5': {
         name: 'ปั๊มแก๊สพงษ์อนันต์',
         staff: ['กุ้ง', 'เล็ก'],
         allowConcurrentShifts: false,
+        maxShifts: 2,
     },
     'station-6': {
         name: 'ปั๊มแก๊สศุภชัย',
         staff: ['เหน่ง', 'คนอง'],
         allowConcurrentShifts: false,
+        maxShifts: 2,
     },
 } as const;
 

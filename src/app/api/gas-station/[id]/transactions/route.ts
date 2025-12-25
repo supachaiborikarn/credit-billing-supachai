@@ -123,6 +123,15 @@ export async function POST(
             }
         }
 
+        // Resolve ownerId from ownerName if provided
+        let resolvedOwnerId = ownerId || null;
+        if (!resolvedOwnerId && ownerName && ['CREDIT', 'BOX_TRUCK'].includes(paymentType)) {
+            const owner = await prisma.owner.findFirst({
+                where: { name: { contains: ownerName }, deletedAt: null }
+            });
+            if (owner) resolvedOwnerId = owner.id;
+        }
+
         // ===== DUPLICATE PREVENTION =====
         const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
         const duplicateCheck = await prisma.transaction.findFirst({
@@ -148,7 +157,7 @@ export async function POST(
                 date: new Date(),
                 truckId,
                 licensePlate: licensePlate?.toUpperCase() || null,
-                ownerId: ownerId || null,
+                ownerId: resolvedOwnerId,
                 ownerName: ownerName || null,
                 paymentType: paymentType as PaymentType,
                 nozzleNumber,

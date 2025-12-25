@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import Sidebar from '@/components/Sidebar';
 import BillEntryForm from '@/components/BillEntryForm';
+import SimpleShiftControls from './components/SimpleShiftControls';
 import { Calendar, Fuel, Trash2, FileText, Printer, X, Sparkles, Edit, Save, List, PlusCircle, BarChart3 } from 'lucide-react';
 import { STATIONS, PAYMENT_TYPES, FUEL_TYPES } from '@/constants';
 
@@ -54,6 +55,19 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
     // Print state
     const [printingTransaction, setPrintingTransaction] = useState<Transaction | null>(null);
 
+    // Shift state
+    interface ShiftData {
+        id: string;
+        shiftNumber: number;
+        status: string;
+        staffName?: string;
+        createdAt: string;
+        closedAt?: string | null;
+    }
+    const [currentShift, setCurrentShift] = useState<ShiftData | null>(null);
+    const [allShifts, setAllShifts] = useState<ShiftData[]>([]);
+    const [shiftLoading, setShiftLoading] = useState(false);
+
     // Fetch user info on mount
     useEffect(() => {
         const fetchUserInfo = async () => {
@@ -85,6 +99,70 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
         };
         fetchStaffList();
     }, [userRole, selectedDate, station, id]);
+
+    // Fetch shift data
+    useEffect(() => {
+        const fetchShifts = async () => {
+            if (!station) return;
+            try {
+                const res = await fetch(`/api/station/${id}/shifts?date=${selectedDate}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setAllShifts(data.shifts || []);
+                    setCurrentShift(data.currentShift || null);
+                }
+            } catch (e) { /* ignore */ }
+        };
+        fetchShifts();
+    }, [station, id, selectedDate]);
+
+    // Open shift handler
+    const handleOpenShift = async (shiftNumber: number) => {
+        setShiftLoading(true);
+        try {
+            const res = await fetch(`/api/station/${id}/shifts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'open', shiftNumber }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setCurrentShift(data.shift);
+                setAllShifts(prev => [...prev, data.shift]);
+            } else {
+                const error = await res.json();
+                alert(error.error || 'เปิดกะไม่สำเร็จ');
+            }
+        } catch (e) {
+            alert('เกิดข้อผิดพลาด');
+        } finally {
+            setShiftLoading(false);
+        }
+    };
+
+    // Close shift handler
+    const handleCloseShift = async () => {
+        if (!currentShift) return;
+        setShiftLoading(true);
+        try {
+            const res = await fetch(`/api/station/${id}/shifts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'close', shiftId: currentShift.id }),
+            });
+            if (res.ok) {
+                setAllShifts(prev => prev.map(s => s.id === currentShift.id ? { ...s, status: 'CLOSED' } : s));
+                setCurrentShift(null);
+            } else {
+                const error = await res.json();
+                alert(error.error || 'ปิดกะไม่สำเร็จ');
+            }
+        } catch (e) {
+            alert('เกิดข้อผิดพลาด');
+        } finally {
+            setShiftLoading(false);
+        }
+    };
 
     useEffect(() => {
         setMounted(true);
@@ -242,45 +320,105 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
                     style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.3) 0%, transparent 70%)' }} />
 
                 {/* Header */}
-                <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
-                            <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-2xl blur-lg opacity-50" />
-                            <div className="relative p-3 rounded-2xl bg-gradient-to-br from-orange-500 to-yellow-500">
-                                <Fuel className="text-white" size={28} />
+                <div className={`flex flex-col gap-4 mb-8 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+                    {/* Top row: Title & Date */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-2xl blur-lg opacity-50" />
+                                <div className="relative p-3 rounded-2xl bg-gradient-to-br from-orange-500 to-yellow-500">
+                                    <Fuel className="text-white" size={28} />
+                                </div>
+                            </div>
+                            <div>
+                                <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-white via-orange-200 to-white bg-clip-text text-transparent">
+                                    {station.name}
+                                </h1>
+                                <p className="text-gray-400 flex items-center gap-2 flex-wrap">
+                                    <Sparkles size={14} className="text-orange-400" />
+                                    ⛽ ปั๊มน้ำมัน
+                                    {currentShift && (
+                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${currentShift.shiftNumber === 1 ? 'bg-orange-500/20 text-orange-400' :
+                                            currentShift.shiftNumber === 2 ? 'bg-indigo-500/20 text-indigo-400' :
+                                                'bg-purple-500/20 text-purple-400'
+                                            }`}>
+                                            {currentShift.shiftNumber === 1 ? '🌅 กะเช้า' :
+                                                currentShift.shiftNumber === 2 ? '🌙 กะบ่าย' : '🌃 กะดึก'}
+                                        </span>
+                                    )}
+                                </p>
                             </div>
                         </div>
-                        <div>
-                            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-white via-orange-200 to-white bg-clip-text text-transparent">
-                                {station.name}
-                            </h1>
-                            <p className="text-gray-400 flex items-center gap-2">
-                                <Sparkles size={14} className="text-orange-400" />
-                                ระบบลงบิล (หลายประเภทน้ำมัน)
-                            </p>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => setShowDailySummary(true)}
+                                className="relative group px-5 py-2.5 rounded-xl font-semibold text-white overflow-hidden"
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-r from-orange-600 to-yellow-600" />
+                                <div className="absolute inset-0 bg-gradient-to-r from-orange-600 to-yellow-600 blur-xl opacity-50 group-hover:opacity-70 transition-opacity" />
+                                <span className="relative flex items-center gap-2">
+                                    <FileText size={18} />
+                                    สรุปงาน
+                                </span>
+                            </button>
+                            <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10">
+                                <Calendar size={18} className="text-orange-400" />
+                                <input
+                                    type="date"
+                                    value={selectedDate}
+                                    onChange={(e) => setSelectedDate(e.target.value)}
+                                    className="bg-transparent text-white focus:outline-none w-[130px]"
+                                />
+                            </div>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => setShowDailySummary(true)}
-                            className="relative group px-5 py-2.5 rounded-xl font-semibold text-white overflow-hidden"
-                        >
-                            <div className="absolute inset-0 bg-gradient-to-r from-orange-600 to-yellow-600" />
-                            <div className="absolute inset-0 bg-gradient-to-r from-orange-600 to-yellow-600 blur-xl opacity-50 group-hover:opacity-70 transition-opacity" />
-                            <span className="relative flex items-center gap-2">
-                                <FileText size={18} />
-                                สรุปงานประจำวัน
-                            </span>
-                        </button>
-                        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10">
-                            <Calendar size={18} className="text-orange-400" />
-                            <input
-                                type="date"
-                                value={selectedDate}
-                                onChange={(e) => setSelectedDate(e.target.value)}
-                                className="bg-transparent text-white focus:outline-none w-[150px]"
-                            />
+
+                    {/* Shift Controls Row */}
+                    <div className="flex flex-wrap items-center gap-3 bg-white/5 backdrop-blur-xl rounded-2xl p-4 border border-white/10">
+                        {/* Shift Status Badges */}
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-400">กะ:</span>
+                            {allShifts.length > 0 ? (
+                                allShifts.map((shift) => (
+                                    <span
+                                        key={shift.id}
+                                        className={`px-3 py-1 text-xs rounded-full font-medium ${shift.status === 'OPEN'
+                                            ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                                            : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+                                            }`}
+                                    >
+                                        {shift.shiftNumber === 1 ? 'เช้า' : shift.shiftNumber === 2 ? 'บ่าย' : 'ดึก'}:
+                                        {shift.status === 'OPEN' ? ' เปิด' : ' ปิด'}
+                                    </span>
+                                ))
+                            ) : (
+                                <span className="px-3 py-1 text-xs rounded-full bg-gray-500/20 text-gray-400">
+                                    ยังไม่มีกะ
+                                </span>
+                            )}
                         </div>
+
+                        <div className="flex-1" />
+
+                        {/* Shift Actions */}
+                        {currentShift ? (
+                            <button
+                                onClick={handleCloseShift}
+                                disabled={shiftLoading}
+                                className="px-4 py-2 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-all font-semibold disabled:opacity-50"
+                            >
+                                {shiftLoading ? '⏳' : '🔒'} ปิดกะ
+                            </button>
+                        ) : (
+                            <SimpleShiftControls
+                                stationId={`station-${id}`}
+                                currentShift={currentShift}
+                                allShifts={allShifts}
+                                actionLoading={shiftLoading}
+                                onOpenShift={handleOpenShift}
+                                onCloseShift={handleCloseShift}
+                            />
+                        )}
                     </div>
                 </div>
 
@@ -314,31 +452,95 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
                             )}
                         </div>
 
-                        {/* Summary Cards */}
-                        <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`} style={{ transitionDelay: '200ms' }}>
-                            <div className="backdrop-blur-xl rounded-2xl border border-white/10 p-4 text-center group hover:border-white/20 transition-all duration-300"
-                                style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)' }}>
-                                <p className="text-sm text-gray-400">จำนวนบิล</p>
-                                <p className="text-2xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">{transactions.length}</p>
+                        {/* Summary Cards - 3 Column Layout */}
+                        <div className={`grid md:grid-cols-3 gap-6 mb-6 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`} style={{ transitionDelay: '200ms' }}>
+                            {/* Today's Summary */}
+                            <div className="glass-card p-6">
+                                <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                                    📊 สรุปวันนี้
+                                </h2>
+                                <div className="space-y-3">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-400">รายการทั้งหมด:</span>
+                                        <span className="font-mono text-white font-bold text-xl">{transactions.length}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-400">รวมลิตร:</span>
+                                        <span className="font-mono text-cyan-400 font-bold">{formatCurrency(totalLiters)} ลิตร</span>
+                                    </div>
+                                    <div className="flex justify-between items-center pt-2 border-t border-white/10">
+                                        <span className="text-gray-400">รวมยอดขาย:</span>
+                                        <span className="font-mono text-green-400 font-bold text-xl">{formatCurrency(totalAmount)} ฿</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="backdrop-blur-xl rounded-2xl border border-white/10 p-4 text-center group hover:border-blue-500/30 transition-all duration-300"
-                                style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)' }}>
-                                <p className="text-sm text-gray-400">รวมลิตร</p>
-                                <p className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">{formatCurrency(totalLiters)}</p>
+
+                            {/* Payment Type Breakdown */}
+                            <div className="glass-card p-6">
+                                <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                                    💳 แยกตามประเภทชำระ
+                                </h2>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center">
+                                        <span className="flex items-center gap-2">
+                                            <span className="w-3 h-3 rounded-full bg-green-500"></span>
+                                            <span className="text-gray-400">เงินสด</span>
+                                        </span>
+                                        <span className="font-mono text-green-400">{formatCurrency(transactions.filter(t => t.paymentType === 'CASH').reduce((s, t) => s + Number(t.amount), 0))}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="flex items-center gap-2">
+                                            <span className="w-3 h-3 rounded-full bg-purple-500"></span>
+                                            <span className="text-gray-400">เงินเชื่อ</span>
+                                        </span>
+                                        <span className="font-mono text-purple-400">{formatCurrency(transactions.filter(t => t.paymentType === 'CREDIT').reduce((s, t) => s + Number(t.amount), 0))}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="flex items-center gap-2">
+                                            <span className="w-3 h-3 rounded-full bg-blue-500"></span>
+                                            <span className="text-gray-400">โอนเงิน</span>
+                                        </span>
+                                        <span className="font-mono text-blue-400">{formatCurrency(transactions.filter(t => t.paymentType === 'TRANSFER').reduce((s, t) => s + Number(t.amount), 0))}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="flex items-center gap-2">
+                                            <span className="w-3 h-3 rounded-full bg-orange-500"></span>
+                                            <span className="text-gray-400">รถตู้ทึบ</span>
+                                        </span>
+                                        <span className="font-mono text-orange-400">{formatCurrency(transactions.filter(t => t.paymentType === 'BOX_TRUCK').reduce((s, t) => s + Number(t.amount), 0))}</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="backdrop-blur-xl rounded-2xl border border-white/10 p-4 text-center group hover:border-green-500/30 transition-all duration-300"
-                                style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)' }}>
-                                <p className="text-sm text-gray-400">รวมเงินสด</p>
-                                <p className="text-2xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
-                                    {formatCurrency(transactions.filter(t => t.paymentType === 'CASH').reduce((s, t) => s + Number(t.amount), 0))}
-                                </p>
-                            </div>
-                            <div className="backdrop-blur-xl rounded-2xl border border-white/10 p-4 text-center group hover:border-purple-500/30 transition-all duration-300"
-                                style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)' }}>
-                                <p className="text-sm text-gray-400">รวมเงินเชื่อ</p>
-                                <p className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-                                    {formatCurrency(transactions.filter(t => t.paymentType === 'CREDIT').reduce((s, t) => s + Number(t.amount), 0))}
-                                </p>
+
+                            {/* Shift Summary */}
+                            <div className="glass-card p-6">
+                                <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                                    ⏰ สถานะกะ
+                                </h2>
+                                <div className="space-y-3">
+                                    {currentShift ? (
+                                        <>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                                                <span className="text-green-400 font-bold">
+                                                    {currentShift.shiftNumber === 1 ? 'กะเช้า' : currentShift.shiftNumber === 2 ? 'กะบ่าย' : 'กะดึก'} เปิดอยู่
+                                                </span>
+                                            </div>
+                                            <p className="text-sm text-gray-400">
+                                                เปิดเมื่อ: {new Date(currentShift.createdAt).toLocaleTimeString('th-TH')}
+                                            </p>
+                                            <div className="pt-2 border-t border-white/10">
+                                                <p className="text-sm text-gray-400">รายการในกะนี้:</p>
+                                                <p className="font-mono text-white font-bold">{transactions.length} รายการ</p>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="text-center py-4">
+                                            <p className="text-gray-400">ยังไม่มีกะที่เปิดอยู่</p>
+                                            <p className="text-sm text-gray-500 mt-1">เลือกกะด้านบนเพื่อเริ่มงาน</p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 

@@ -40,8 +40,8 @@ model Station {
   type               StationType
   gasPrice           Decimal?
   gasStockAlert      Decimal?
-  gasInitialStock    Decimal?           @default(0)
   hasProducts        Boolean            @default(false)
+  gasInitialStock    Decimal?           @default(0)
   dailyRecords       DailyRecord[]
   gasSupplies        GasSupply[]
   productInventories ProductInventory[]
@@ -101,19 +101,19 @@ model DailyRecord {
 }
 
 model Shift {
-  id                  String         @id @default(uuid())
-  dailyRecordId       String
-  shiftNumber         Int
-  staffId             String?
-  status              String         @default("OPEN")
-  createdAt           DateTime       @default(now())
-  closedAt            DateTime?
-  openingStock        Float?
-  closingStock        Float?
-  carryOverFromShiftId String?       // Track which shift the data was carried over from
-  meters              MeterReading[]
-  dailyRecord         DailyRecord    @relation(fields: [dailyRecordId], references: [id])
-  staff               User?          @relation("ShiftStaff", fields: [staffId], references: [id])
+  id                   String         @id @default(uuid())
+  dailyRecordId        String
+  shiftNumber          Int
+  staffId              String?
+  status               String         @default("OPEN")
+  createdAt            DateTime       @default(now())
+  closedAt             DateTime?
+  carryOverFromShiftId String?
+  closingStock         Float?
+  openingStock         Float?
+  meters               MeterReading[]
+  dailyRecord          DailyRecord    @relation(fields: [dailyRecordId], references: [id])
+  staff                User?          @relation("ShiftStaff", fields: [staffId], references: [id])
 
   @@unique([dailyRecordId, shiftNumber])
   @@map("shifts")
