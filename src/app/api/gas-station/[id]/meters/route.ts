@@ -16,7 +16,7 @@ export async function POST(
         }
 
         const body = await request.json();
-        const { date: dateStr, type, meters } = body;
+        const { date: dateStr, type, meters, shiftId } = body;
         const date = new Date(dateStr + 'T00:00:00Z');
 
         // Get or create station with consistent ID
@@ -33,7 +33,50 @@ export async function POST(
             }
         });
 
-        // Get or create daily record
+        // ===== SHIFT-BASED METER SAVING (NEW) =====
+        if (shiftId) {
+            // Verify shift exists
+            const shift = await prisma.shift.findUnique({
+                where: { id: shiftId },
+                include: { meters: true }
+            });
+
+            if (!shift) {
+                return NextResponse.json({ error: 'ไม่พบกะนี้' }, { status: 404 });
+            }
+
+            // Update shift's meter readings
+            for (const meter of meters) {
+                const existingMeter = shift.meters.find(m => m.nozzleNumber === meter.nozzleNumber);
+
+                if (existingMeter) {
+                    await prisma.meterReading.update({
+                        where: { id: existingMeter.id },
+                        data: type === 'start'
+                            ? { startReading: meter.reading }
+                            : { endReading: meter.reading }
+                    });
+                } else {
+                    // Create new meter reading for this shift
+                    await prisma.meterReading.create({
+                        data: {
+                            shiftId: shiftId,
+                            nozzleNumber: meter.nozzleNumber,
+                            startReading: type === 'start' ? meter.reading : 0,
+                            endReading: type === 'end' ? meter.reading : null,
+                        }
+                    });
+                }
+            }
+
+            return NextResponse.json({
+                success: true,
+                savedTo: 'shift',
+                shiftId: shiftId
+            });
+        }
+
+        // ===== LEGACY: DAILY RECORD BASED (BACKWARD COMPATIBLE) =====
         let dailyRecord = await prisma.dailyRecord.findFirst({
             where: {
                 stationId: station.id,
@@ -64,7 +107,7 @@ export async function POST(
             }
         }
 
-        // Update meter readings
+        // Update meter readings (legacy dailyRecord-based)
         for (const meter of meters) {
             const existingMeter = await prisma.meterReading.findFirst({
                 where: {
@@ -92,7 +135,11 @@ export async function POST(
             }
         }
 
-        return NextResponse.json({ success: true });
+        return NextResponse.json({
+            success: true,
+            savedTo: 'dailyRecord',
+            dailyRecordId: dailyRecord.id
+        });
     } catch (error) {
         console.error('Gas station meters POST error:', error);
         return NextResponse.json({ error: 'Failed to save meters' }, { status: 500 });

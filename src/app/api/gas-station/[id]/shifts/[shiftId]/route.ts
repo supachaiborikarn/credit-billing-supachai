@@ -44,12 +44,32 @@ export async function PUT(
             }
         }
 
-        // Close the shift
+        // Calculate closingStock from gauge readings for this shift
+        const LITERS_PER_PERCENT = 98;
+        let closingStock: number | null = null;
+
+        const gaugeReadings = await prisma.gaugeReading.findMany({
+            where: {
+                stationId: shift.dailyRecord.stationId,
+                shiftNumber: shift.shiftNumber,
+                dailyRecordId: shift.dailyRecordId,
+                notes: 'end', // Only end readings
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        if (gaugeReadings.length > 0) {
+            const totalPercentage = gaugeReadings.reduce((sum, g) => sum + Number(g.percentage), 0);
+            closingStock = totalPercentage * LITERS_PER_PERCENT;
+        }
+
+        // Close the shift with closingStock
         const updatedShift = await prisma.shift.update({
             where: { id: shiftId },
             data: {
                 status: 'CLOSED',
                 closedAt: new Date(),
+                closingStock: closingStock,
             },
             include: {
                 staff: { select: { name: true } },
@@ -114,13 +134,14 @@ export async function PUT(
             });
 
             if (!existingNextShift) {
-                // Create next shift with carried-over meter readings
+                // Create next shift with carried-over meter readings and stock
                 await prisma.shift.create({
                     data: {
                         dailyRecordId: nextDailyRecord.id,
                         shiftNumber: nextShiftNumber,
                         status: 'OPEN',
                         carryOverFromShiftId: shiftId, // Track carry-over source
+                        openingStock: closingStock, // Carry-over closing stock as opening stock
                         meters: {
                             create: updatedShift.meters.map(m => ({
                                 nozzleNumber: m.nozzleNumber,
@@ -129,7 +150,7 @@ export async function PUT(
                         }
                     }
                 });
-                console.log(`Carry-over: Created shift ${nextShiftNumber} for ${nextDate.toISOString()} with startReadings from closed shift ${shiftId}`);
+                console.log(`Carry-over: Created shift ${nextShiftNumber} for ${nextDate.toISOString()} with startReadings and openingStock=${closingStock} from closed shift ${shiftId}`);
             } else {
                 // Update existing shift's meter startReadings (if they're still 0)
                 for (const m of updatedShift.meters) {

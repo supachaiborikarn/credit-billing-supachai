@@ -142,6 +142,9 @@ export async function GET(
                 status: currentShiftData.status,
                 meters: currentShiftData.meters,
                 staffName: currentShiftData.staff?.name,
+                openingStock: currentShiftData.openingStock,
+                closingStock: currentShiftData.closingStock,
+                carryOverFromShiftId: currentShiftData.carryOverFromShiftId,
             } : null,
             transactions: transactions.map(t => ({
                 ...t,
