@@ -212,7 +212,7 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
                 </div>
             ) : (
-                <main className="mx-auto max-w-6xl px-4 py-6 space-y-5">
+                <main className="mx-auto max-w-6xl px-4 py-6 pb-24 space-y-5">
                     {/* Hero Stats Card */}
                     <div className="rounded-3xl border border-black/10 bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
                         {/* Shift Status Badge */}
