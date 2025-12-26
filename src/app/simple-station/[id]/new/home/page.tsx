@@ -41,6 +41,7 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
     const [allShifts, setAllShifts] = useState<ShiftData[]>([]);
     const [actionLoading, setActionLoading] = useState(false);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [isAdmin, setIsAdmin] = useState(false);
 
     // Stats
     const [stats, setStats] = useState({
@@ -50,6 +51,20 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
         creditTotal: 0,
         txnCount: 0,
     });
+
+    // Check user role
+    useEffect(() => {
+        const checkUser = async () => {
+            try {
+                const res = await fetch('/api/auth/me');
+                if (res.ok) {
+                    const data = await res.json();
+                    setIsAdmin(data.user?.role === 'ADMIN');
+                }
+            } catch (e) { /* ignore */ }
+        };
+        checkUser();
+    }, []);
 
     // Fetch data
     useEffect(() => {
@@ -170,14 +185,24 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                             <p className="text-xs text-neutral-500 font-semibold">ปั๊มน้ำมัน</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2 rounded-full border border-black/15 bg-white px-3 py-1.5">
-                        <Calendar size={14} className="text-orange-500" />
-                        <input
-                            type="date"
-                            value={selectedDate}
-                            onChange={(e) => setSelectedDate(e.target.value)}
-                            className="bg-transparent text-sm font-bold focus:outline-none w-[110px]"
-                        />
+                    <div className="flex items-center gap-2">
+                        {isAdmin && (
+                            <Link
+                                href={`/simple-station/${id}`}
+                                className="px-3 py-1.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700 border border-purple-200 hover:bg-purple-200 transition-colors"
+                            >
+                                ← UI เดิม
+                            </Link>
+                        )}
+                        <div className="flex items-center gap-2 rounded-full border border-black/15 bg-white px-3 py-1.5">
+                            <Calendar size={14} className="text-orange-500" />
+                            <input
+                                type="date"
+                                value={selectedDate}
+                                onChange={(e) => setSelectedDate(e.target.value)}
+                                className="bg-transparent text-sm font-bold focus:outline-none w-[110px]"
+                            />
+                        </div>
                     </div>
                 </div>
             </header>

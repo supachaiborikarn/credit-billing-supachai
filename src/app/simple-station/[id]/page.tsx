@@ -4,8 +4,9 @@ import { useState, useEffect, use } from 'react';
 import Sidebar from '@/components/Sidebar';
 import BillEntryForm from '@/components/BillEntryForm';
 import SimpleShiftControls from './components/SimpleShiftControls';
-import { Calendar, Fuel, Trash2, FileText, Printer, X, Sparkles, Edit, Save, List, PlusCircle, BarChart3 } from 'lucide-react';
+import { Calendar, Fuel, Trash2, FileText, Printer, X, Sparkles, Edit, Save, List, PlusCircle, BarChart3, ExternalLink } from 'lucide-react';
 import { STATIONS, PAYMENT_TYPES, FUEL_TYPES } from '@/constants';
+import Link from 'next/link';
 
 interface Transaction {
     id: string;
@@ -361,6 +362,15 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
                                     สรุปงาน
                                 </span>
                             </button>
+                            {userRole === 'ADMIN' && (
+                                <Link
+                                    href={`/simple-station/${id}/new/home`}
+                                    className="px-4 py-2.5 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/30 transition-all font-semibold flex items-center gap-2"
+                                >
+                                    <ExternalLink size={16} />
+                                    UI ใหม่
+                                </Link>
+                            )}
                             <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10">
                                 <Calendar size={18} className="text-orange-400" />
                                 <input
