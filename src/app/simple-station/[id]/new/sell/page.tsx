@@ -189,7 +189,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                 </div>
             </header>
 
-            <div className="p-4 space-y-4">
+            <div className="p-4 pb-24 space-y-4">
                 {/* Book & Bill Number */}
                 <div className="bg-white rounded-2xl shadow-sm p-4">
                     <label className="block text-sm font-medium text-gray-700 mb-2">

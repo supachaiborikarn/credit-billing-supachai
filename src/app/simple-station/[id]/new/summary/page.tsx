@@ -119,7 +119,7 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                 </div>
             </header>
 
-            <div className="p-4 space-y-4">
+            <div className="p-4 pb-24 space-y-4">
                 {/* Summary Card */}
                 <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl p-4 text-white">
                     <div className="grid grid-cols-3 gap-4 text-center">
@@ -143,8 +143,8 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                     <button
                         onClick={() => setActiveFilter('all')}
                         className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeFilter === 'all'
-                                ? 'bg-orange-500 text-white'
-                                : 'bg-white text-gray-700 border border-gray-200'
+                            ? 'bg-orange-500 text-white'
+                            : 'bg-white text-gray-700 border border-gray-200'
                             }`}
                     >
                         ทั้งหมด ({transactions.length})
@@ -156,8 +156,8 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                                 key={pt.value}
                                 onClick={() => setActiveFilter(pt.value)}
                                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeFilter === pt.value
-                                        ? 'bg-orange-500 text-white'
-                                        : 'bg-white text-gray-700 border border-gray-200'
+                                    ? 'bg-orange-500 text-white'
+                                    : 'bg-white text-gray-700 border border-gray-200'
                                     }`}
                             >
                                 {pt.label} ({count})
@@ -184,8 +184,8 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                                         <div className="flex items-center gap-2 mb-1">
                                             <span className="font-bold text-gray-800">{txn.licensePlate || 'ไม่ระบุ'}</span>
                                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${txn.paymentType === 'CASH' ? 'bg-green-100 text-green-700' :
-                                                    txn.paymentType === 'CREDIT' ? 'bg-purple-100 text-purple-700' :
-                                                        'bg-blue-100 text-blue-700'
+                                                txn.paymentType === 'CREDIT' ? 'bg-purple-100 text-purple-700' :
+                                                    'bg-blue-100 text-blue-700'
                                                 }`}>
                                                 {getPaymentLabel(txn.paymentType)}
                                             </span>
