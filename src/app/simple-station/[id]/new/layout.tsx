@@ -27,7 +27,7 @@ export default function SimpleStationLayout({ children, params }: SimpleStationL
     return (
         <div className="min-h-screen bg-gray-100">
             {/* Main content with padding for bottom nav */}
-            <main className="pb-32">
+            <main style={{ paddingBottom: '100px' }}>
                 {children}
             </main>
 
