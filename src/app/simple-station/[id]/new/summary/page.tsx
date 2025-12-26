@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
-import { ArrowLeft, Trash2, Calendar } from 'lucide-react';
+import { useState, useEffect, use, useRef } from 'react';
+import { ArrowLeft, Trash2, Calendar, Edit, Printer, X, Image } from 'lucide-react';
 import { STATIONS, PAYMENT_TYPES, FUEL_TYPES } from '@/constants';
 import Link from 'next/link';
 
@@ -29,6 +29,25 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [activeFilter, setActiveFilter] = useState('all');
     const [deletingId, setDeletingId] = useState<string | null>(null);
+
+    // Edit Modal State
+    const [editingTxn, setEditingTxn] = useState<Transaction | null>(null);
+    const [editLicensePlate, setEditLicensePlate] = useState('');
+    const [editOwnerName, setEditOwnerName] = useState('');
+    const [editLiters, setEditLiters] = useState('');
+    const [editPricePerLiter, setEditPricePerLiter] = useState('');
+    const [editPaymentType, setEditPaymentType] = useState('');
+    const [editBookNo, setEditBookNo] = useState('');
+    const [editBillNo, setEditBillNo] = useState('');
+    const [editSaving, setEditSaving] = useState(false);
+
+    // Print Modal State
+    const [printingTxn, setPrintingTxn] = useState<Transaction | null>(null);
+
+    // Image Upload State
+    const [imageUploadTxn, setImageUploadTxn] = useState<Transaction | null>(null);
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Fetch transactions
     useEffect(() => {
@@ -90,6 +109,86 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
     const getFuelLabel = (value: string) => {
         const ft = FUEL_TYPES.find(f => f.value === value);
         return ft ? ft.label : value;
+    };
+
+    // Open Edit Modal
+    const openEditModal = (txn: Transaction) => {
+        setEditingTxn(txn);
+        setEditLicensePlate(txn.licensePlate || '');
+        setEditOwnerName(txn.ownerName || '');
+        setEditLiters(txn.liters?.toString() || '');
+        setEditPricePerLiter(txn.pricePerLiter?.toString() || '');
+        setEditPaymentType(txn.paymentType || 'CASH');
+        setEditBookNo(txn.bookNo || '');
+        setEditBillNo(txn.billNo || '');
+    };
+
+    // Save Edit
+    const handleSaveEdit = async () => {
+        if (!editingTxn) return;
+        setEditSaving(true);
+        try {
+            const res = await fetch(`/api/station/${id}/transactions/${editingTxn.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    licensePlate: editLicensePlate,
+                    ownerName: editOwnerName,
+                    liters: parseFloat(editLiters) || 0,
+                    pricePerLiter: parseFloat(editPricePerLiter) || 0,
+                    amount: (parseFloat(editLiters) || 0) * (parseFloat(editPricePerLiter) || 0),
+                    paymentType: editPaymentType,
+                    bookNo: editBookNo,
+                    billNo: editBillNo,
+                }),
+            });
+            if (res.ok) {
+                const updated = await res.json();
+                setTransactions(prev => prev.map(t => t.id === editingTxn.id ? { ...t, ...updated } : t));
+                setEditingTxn(null);
+            } else {
+                alert('บันทึกไม่สำเร็จ');
+            }
+        } catch (e) {
+            alert('เกิดข้อผิดพลาด');
+        } finally {
+            setEditSaving(false);
+        }
+    };
+
+    // Handle Image Upload
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !imageUploadTxn) return;
+
+        setUploadingImage(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('transactionId', imageUploadTxn.id);
+
+            const res = await fetch('/api/upload/slip', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (res.ok) {
+                alert('อัปโหลดสำเร็จ!');
+                setImageUploadTxn(null);
+            } else {
+                alert('อัปโหลดไม่สำเร็จ');
+            }
+        } catch (e) {
+            alert('เกิดข้อผิดพลาด');
+        } finally {
+            setUploadingImage(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    // Print Bill
+    const handlePrint = () => {
+        window.print();
     };
 
     if (!station) {
@@ -198,17 +297,46 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                                     <div className="text-right">
                                         <p className="font-bold text-lg text-green-600">{formatCurrency(txn.amount)} ฿</p>
                                         <p className="text-sm text-gray-500">{txn.liters} ลิตร</p>
-                                        <button
-                                            onClick={() => handleDelete(txn.id)}
-                                            disabled={deletingId === txn.id}
-                                            className="mt-2 p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                                        >
-                                            {deletingId === txn.id ? (
-                                                <div className="animate-spin h-4 w-4 border-2 border-red-400 border-t-transparent rounded-full"></div>
-                                            ) : (
-                                                <Trash2 size={16} />
+                                        <div className="flex items-center justify-end gap-1 mt-2">
+                                            {txn.paymentType === 'CREDIT' && (
+                                                <button
+                                                    onClick={() => setPrintingTxn(txn)}
+                                                    className="p-2 text-purple-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                                                    title="พิมพ์บิล"
+                                                >
+                                                    <Printer size={16} />
+                                                </button>
                                             )}
-                                        </button>
+                                            <button
+                                                onClick={() => {
+                                                    setImageUploadTxn(txn);
+                                                    fileInputRef.current?.click();
+                                                }}
+                                                className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                title="แนบรูป"
+                                            >
+                                                <Image size={16} />
+                                            </button>
+                                            <button
+                                                onClick={() => openEditModal(txn)}
+                                                className="p-2 text-orange-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                                                title="แก้ไข"
+                                            >
+                                                <Edit size={16} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(txn.id)}
+                                                disabled={deletingId === txn.id}
+                                                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                                title="ลบ"
+                                            >
+                                                {deletingId === txn.id ? (
+                                                    <div className="animate-spin h-4 w-4 border-2 border-red-400 border-t-transparent rounded-full"></div>
+                                                ) : (
+                                                    <Trash2 size={16} />
+                                                )}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -216,6 +344,107 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                     </div>
                 )}
             </div>
+
+            {/* Hidden File Input */}
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageUpload}
+                accept="image/*"
+                className="hidden"
+            />
+
+            {/* Edit Modal */}
+            {editingTxn && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+                        <div className="flex items-center justify-between p-4 border-b">
+                            <h2 className="text-lg font-bold text-gray-800">แก้ไขรายการ</h2>
+                            <button onClick={() => setEditingTxn(null)} className="p-2 rounded-lg hover:bg-gray-100">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-4 space-y-3">
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="text-xs text-gray-500">เล่มที่</label>
+                                    <input type="text" value={editBookNo} onChange={(e) => setEditBookNo(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-gray-800" />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-gray-500">เลขที่</label>
+                                    <input type="text" value={editBillNo} onChange={(e) => setEditBillNo(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-gray-800" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-500">ทะเบียน</label>
+                                <input type="text" value={editLicensePlate} onChange={(e) => setEditLicensePlate(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-gray-800" />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-500">ชื่อลูกค้า</label>
+                                <input type="text" value={editOwnerName} onChange={(e) => setEditOwnerName(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-gray-800" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="text-xs text-gray-500">ลิตร</label>
+                                    <input type="number" value={editLiters} onChange={(e) => setEditLiters(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-gray-800" />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-gray-500">ราคา/ลิตร</label>
+                                    <input type="number" value={editPricePerLiter} onChange={(e) => setEditPricePerLiter(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-gray-800" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-500">ประเภทชำระ</label>
+                                <select value={editPaymentType} onChange={(e) => setEditPaymentType(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-gray-800">
+                                    {PAYMENT_TYPES.slice(0, 4).map(pt => (
+                                        <option key={pt.value} value={pt.value}>{pt.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="pt-2">
+                                <p className="text-center text-lg font-bold text-orange-600">
+                                    รวม: {formatCurrency((parseFloat(editLiters) || 0) * (parseFloat(editPricePerLiter) || 0))} ฿
+                                </p>
+                            </div>
+                        </div>
+                        <div className="p-4 border-t flex gap-2">
+                            <button onClick={() => setEditingTxn(null)} className="flex-1 py-2 rounded-xl border text-gray-600 hover:bg-gray-50">ยกเลิก</button>
+                            <button onClick={handleSaveEdit} disabled={editSaving} className="flex-1 py-2 rounded-xl bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50">
+                                {editSaving ? 'กำลังบันทึก...' : 'บันทึก'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Print Modal */}
+            {printingTxn && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl print:shadow-none">
+                        <div className="flex items-center justify-between p-4 border-b print:hidden">
+                            <h2 className="text-lg font-bold text-gray-800">บิลเงินเชื่อ</h2>
+                            <button onClick={() => setPrintingTxn(null)} className="p-2 rounded-lg hover:bg-gray-100">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-3 text-center">
+                            <h3 className="font-bold text-xl">{station.name}</h3>
+                            <p className="text-gray-500 text-sm">วันที่: {selectedDate}</p>
+                            <div className="border-t border-b py-4 my-4 text-left space-y-2">
+                                <p><span className="text-gray-500">เล่ม/เลขที่:</span> {printingTxn.bookNo || '-'}/{printingTxn.billNo || '-'}</p>
+                                <p><span className="text-gray-500">ทะเบียน:</span> {printingTxn.licensePlate || '-'}</p>
+                                <p><span className="text-gray-500">ลูกค้า:</span> {printingTxn.ownerName || '-'}</p>
+                                <p><span className="text-gray-500">จำนวน:</span> {printingTxn.liters} ลิตร x {printingTxn.pricePerLiter} บาท</p>
+                            </div>
+                            <p className="text-2xl font-bold text-green-600">{formatCurrency(printingTxn.amount)} บาท</p>
+                        </div>
+                        <div className="p-4 border-t flex gap-2 print:hidden">
+                            <button onClick={() => setPrintingTxn(null)} className="flex-1 py-2 rounded-xl border text-gray-600 hover:bg-gray-50">ปิด</button>
+                            <button onClick={handlePrint} className="flex-1 py-2 rounded-xl bg-purple-500 text-white hover:bg-purple-600">พิมพ์</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
