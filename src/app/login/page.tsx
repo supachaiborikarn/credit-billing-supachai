@@ -108,7 +108,7 @@ function LoginContent() {
                             setShowShiftModal(true);
                             setRedirecting(false);
                         } else {
-                            router.push(`/simple-station/${stationNum}`);
+                            router.push(`/simple-station/${stationNum}/new/home`);
                         }
                     } else {
                         // Fallback
