@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { Calendar, Clock } from 'lucide-react';
+import { Calendar, Clock, LogOut } from 'lucide-react';
 import { STATIONS, STATION_STAFF } from '@/constants';
 import Link from 'next/link';
 import DailyCashEntry from '../../components/DailyCashEntry';
+import { useRouter } from 'next/navigation';
 
 interface ShiftData {
     id: string;
@@ -34,6 +35,7 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
     const stationId = `station-${id}`;
     const stationConfig = STATION_STAFF[stationId as keyof typeof STATION_STAFF];
     const maxShifts = stationConfig?.maxShifts || 2;
+    const router = useRouter();
 
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [loading, setLoading] = useState(true);
@@ -163,6 +165,16 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
     const formatTime = (dateStr: string) =>
         new Date(dateStr).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 
+    const handleLogout = async () => {
+        if (!confirm('ต้องการออกจากระบบหรือไม่?')) return;
+        try {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            router.push('/login');
+        } catch (e) {
+            alert('เกิดข้อผิดพลาด');
+        }
+    };
+
     if (!station) {
         return (
             <div className="min-h-screen bg-[#f6f6f6] flex items-center justify-center">
@@ -203,6 +215,13 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                                 className="bg-transparent text-sm font-bold focus:outline-none w-[110px]"
                             />
                         </div>
+                        <button
+                            onClick={handleLogout}
+                            className="p-2 rounded-full bg-red-50 text-red-500 border border-red-200 hover:bg-red-100 transition-colors"
+                            title="ออกจากระบบ"
+                        >
+                            <LogOut size={16} />
+                        </button>
                     </div>
                 </div>
             </header>
