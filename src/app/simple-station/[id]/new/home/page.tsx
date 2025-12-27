@@ -360,6 +360,28 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                                 <span className="text-2xl">📋</span>
                                 <p className="text-sm font-bold text-neutral-600 mt-1">สรุปรายวัน</p>
                             </Link>
+                            <button
+                                onClick={() => {
+                                    // Load existing prices
+                                    const storageKey = `fuelPrices_station${id}_${selectedDate}`;
+                                    const stored = localStorage.getItem(storageKey);
+                                    if (stored) {
+                                        const prices = JSON.parse(stored);
+                                        setFuelPriceInputs({
+                                            DIESEL: prices.DIESEL?.toString() || '',
+                                            GASOHOL_91: prices.GASOHOL_91?.toString() || '',
+                                            GASOHOL_95: prices.GASOHOL_95?.toString() || '',
+                                            GASOHOL_E20: prices.GASOHOL_E20?.toString() || '',
+                                        });
+                                    }
+                                    setPendingShiftNumber(null); // so modal knows we're just editing
+                                    setShowFuelPriceModal(true);
+                                }}
+                                className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-center hover:bg-orange-100 transition"
+                            >
+                                <span className="text-2xl">⛽</span>
+                                <p className="text-sm font-bold text-orange-600 mt-1">ตั้งราคาน้ำมัน</p>
+                            </button>
                         </div>
                     </div>
 
@@ -458,13 +480,34 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                             >
                                 ยกเลิก
                             </button>
-                            <button
-                                onClick={confirmOpenShift}
-                                disabled={actionLoading}
-                                className="flex-1 py-3 rounded-xl bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 font-bold"
-                            >
-                                {actionLoading ? 'กำลังเปิดกะ...' : 'เปิดกะ'}
-                            </button>
+                            {pendingShiftNumber ? (
+                                <button
+                                    onClick={confirmOpenShift}
+                                    disabled={actionLoading}
+                                    className="flex-1 py-3 rounded-xl bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 font-bold"
+                                >
+                                    {actionLoading ? 'กำลังเปิดกะ...' : `เปิด${SHIFT_NAMES[pendingShiftNumber - 1]}`}
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => {
+                                        // Just save prices without opening shift
+                                        const prices: Record<string, number> = {};
+                                        if (fuelPriceInputs.DIESEL) prices.DIESEL = parseFloat(fuelPriceInputs.DIESEL);
+                                        if (fuelPriceInputs.GASOHOL_91) prices.GASOHOL_91 = parseFloat(fuelPriceInputs.GASOHOL_91);
+                                        if (fuelPriceInputs.GASOHOL_95) prices.GASOHOL_95 = parseFloat(fuelPriceInputs.GASOHOL_95);
+                                        if (fuelPriceInputs.GASOHOL_E20) prices.GASOHOL_E20 = parseFloat(fuelPriceInputs.GASOHOL_E20);
+
+                                        const storageKey = `fuelPrices_station${id}_${selectedDate}`;
+                                        localStorage.setItem(storageKey, JSON.stringify(prices));
+                                        setShowFuelPriceModal(false);
+                                        alert('✅ บันทึกราคาน้ำมันแล้ว');
+                                    }}
+                                    className="flex-1 py-3 rounded-xl bg-orange-500 text-white hover:bg-orange-600 font-bold"
+                                >
+                                    บันทึกราคา
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
