@@ -58,6 +58,28 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
 
     const [saving, setSaving] = useState(false);
 
+    // Input mode: 'liters' or 'amount'
+    const [inputMode, setInputMode] = useState<'liters' | 'amount'>('liters');
+    const [amountInputs, setAmountInputs] = useState<Record<string, string>>({});
+
+    // Fuel prices from localStorage
+    const [storedFuelPrices, setStoredFuelPrices] = useState<Record<string, number>>({});
+
+    // Load fuel prices from localStorage on mount
+    useEffect(() => {
+        const storageKey = `fuelPrices_station${stationId}_${selectedDate}`;
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+            const prices = JSON.parse(stored);
+            setStoredFuelPrices(prices);
+            // Update first fuel line with stored price if available
+            setFuelLines(prev => prev.map(line => ({
+                ...line,
+                pricePerLiter: prices[line.fuelType]?.toString() || line.pricePerLiter
+            })));
+        }
+    }, [stationId, selectedDate]);
+
     // Transfer proof upload
     const [transferProofUrl, setTransferProofUrl] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
@@ -231,11 +253,15 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
         setFuelLines(fuelLines.map(line => {
             if (line.id === id) {
                 const updated = { ...line, [field]: value };
-                // Auto-update price when fuel type changes
+                // Auto-update price when fuel type changes - prefer stored prices
                 if (field === 'fuelType') {
-                    const fuel = FUEL_TYPES.find(f => f.value === value);
-                    if (fuel) {
-                        updated.pricePerLiter = fuel.defaultPrice.toFixed(2);
+                    if (storedFuelPrices[value]) {
+                        updated.pricePerLiter = storedFuelPrices[value].toString();
+                    } else {
+                        const fuel = FUEL_TYPES.find(f => f.value === value);
+                        if (fuel) {
+                            updated.pricePerLiter = fuel.defaultPrice.toFixed(2);
+                        }
                     }
                 }
                 return updated;

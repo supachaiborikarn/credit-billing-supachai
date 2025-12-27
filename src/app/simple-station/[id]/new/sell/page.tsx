@@ -33,18 +33,60 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
     const [bookNo, setBookNo] = useState('');
     const [billNo, setBillNo] = useState('');
 
+    // Fuel prices from localStorage
+    const [fuelPrices, setFuelPrices] = useState<Record<string, number>>({});
+
+    // Input mode: 'liters' or 'amount'
+    const [inputMode, setInputMode] = useState<'liters' | 'amount'>('liters');
+    const [amountInput, setAmountInput] = useState('');
+
     // Search
     const [searchResults, setSearchResults] = useState<TruckResult[]>([]);
     const [showResults, setShowResults] = useState(false);
     const [searchLoading, setSearchLoading] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
 
-    // Calculate amount
+    // Load fuel prices from localStorage
     useEffect(() => {
-        const l = parseFloat(liters) || 0;
+        const storageKey = `fuelPrices_station${id}_${selectedDate}`;
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+            const prices = JSON.parse(stored);
+            setFuelPrices(prices);
+            // Auto-fill price for currently selected fuel type
+            if (prices[fuelType]) {
+                const p = prices[fuelType];
+                setPricePerLiter(p.toString());
+                setPriceDisplay(Math.round(p * 100).toString());
+            }
+        }
+    }, [id, selectedDate]);
+
+    // Auto-fill price when fuel type changes
+    useEffect(() => {
+        if (fuelPrices[fuelType]) {
+            const p = fuelPrices[fuelType];
+            setPricePerLiter(p.toString());
+            setPriceDisplay(Math.round(p * 100).toString());
+        }
+    }, [fuelType, fuelPrices]);
+
+    // Calculate based on input mode
+    useEffect(() => {
         const p = parseFloat(pricePerLiter) || 0;
-        setAmount(l * p);
-    }, [liters, pricePerLiter]);
+        if (inputMode === 'liters') {
+            const l = parseFloat(liters) || 0;
+            setAmount(l * p);
+        } else {
+            // Amount mode: calculate liters from amount
+            const a = parseFloat(amountInput) || 0;
+            setAmount(a);
+            if (p > 0) {
+                const calculatedLiters = a / p;
+                setLiters(calculatedLiters.toFixed(2));
+            }
+        }
+    }, [liters, pricePerLiter, inputMode, amountInput]);
 
     // Search trucks
     useEffect(() => {
@@ -300,24 +342,62 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                     </div>
                 </div>
 
-                {/* Liters & Price */}
+                {/* Liters/Amount Input with Mode Toggle */}
                 <div className="bg-white rounded-2xl shadow-sm p-4 space-y-3">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            🔢 จำนวนลิตร
-                        </label>
-                        <input
-                            type="number"
-                            value={liters}
-                            onChange={(e) => setLiters(e.target.value)}
-                            placeholder="0.00"
-                            className="w-full px-4 py-4 border border-gray-200 rounded-xl text-2xl text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800"
-                            inputMode="decimal"
-                        />
+                    {/* Mode Toggle */}
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                        <button
+                            onClick={() => setInputMode('liters')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${inputMode === 'liters' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600'}`}
+                        >
+                            กรอกลิตร
+                        </button>
+                        <button
+                            onClick={() => setInputMode('amount')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${inputMode === 'amount' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600'}`}
+                        >
+                            กรอกเงิน
+                        </button>
                     </div>
+
+                    {inputMode === 'liters' ? (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                🔢 จำนวนลิตร
+                            </label>
+                            <input
+                                type="number"
+                                value={liters}
+                                onChange={(e) => setLiters(e.target.value)}
+                                placeholder="0.00"
+                                className="w-full px-4 py-4 border border-gray-200 rounded-xl text-2xl text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800"
+                                inputMode="decimal"
+                            />
+                        </div>
+                    ) : (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                💵 จำนวนเงิน (บาท)
+                            </label>
+                            <input
+                                type="number"
+                                value={amountInput}
+                                onChange={(e) => setAmountInput(e.target.value)}
+                                placeholder="0"
+                                className="w-full px-4 py-4 border border-gray-200 rounded-xl text-2xl text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800"
+                                inputMode="decimal"
+                            />
+                            {liters && parseFloat(liters) > 0 && (
+                                <p className="text-center text-sm text-gray-500 mt-2">
+                                    = {parseFloat(liters).toFixed(2)} ลิตร
+                                </p>
+                            )}
+                        </div>
+                    )}
+
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            💰 ราคาต่อลิตร <span className="text-gray-400 text-xs">(พิมพ์ 3299 = 32.99)</span>
+                            💰 ราคาต่อลิตร {fuelPrices[fuelType] && <span className="text-green-600 text-xs">(ตั้งไว้แล้ว)</span>}
                         </label>
                         <input
                             type="text"

@@ -45,6 +45,16 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isAdmin, setIsAdmin] = useState(false);
 
+    // Fuel price setup modal
+    const [showFuelPriceModal, setShowFuelPriceModal] = useState(false);
+    const [pendingShiftNumber, setPendingShiftNumber] = useState<number | null>(null);
+    const [fuelPriceInputs, setFuelPriceInputs] = useState({
+        DIESEL: '',
+        GASOHOL_91: '',
+        GASOHOL_95: '',
+        GASOHOL_E20: '',
+    });
+
     // Stats
     const [stats, setStats] = useState({
         totalAmount: 0,
@@ -111,14 +121,48 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
         if (station) fetchData();
     }, [station, id, selectedDate]);
 
-    // Open shift
-    const openShift = async (shiftNumber: number) => {
+    // Open shift - show fuel price modal first
+    const openShift = (shiftNumber: number) => {
+        setPendingShiftNumber(shiftNumber);
+        // Load existing prices if any
+        const storageKey = `fuelPrices_station${id}_${selectedDate}`;
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+            const prices = JSON.parse(stored);
+            setFuelPriceInputs({
+                DIESEL: prices.DIESEL?.toString() || '',
+                GASOHOL_91: prices.GASOHOL_91?.toString() || '',
+                GASOHOL_95: prices.GASOHOL_95?.toString() || '',
+                GASOHOL_E20: prices.GASOHOL_E20?.toString() || '',
+            });
+        } else {
+            setFuelPriceInputs({ DIESEL: '', GASOHOL_91: '', GASOHOL_95: '', GASOHOL_E20: '' });
+        }
+        setShowFuelPriceModal(true);
+    };
+
+    // Confirm open shift after setting fuel prices
+    const confirmOpenShift = async () => {
+        if (!pendingShiftNumber) return;
+
+        // Save fuel prices to localStorage
+        const prices: Record<string, number> = {};
+        if (fuelPriceInputs.DIESEL) prices.DIESEL = parseFloat(fuelPriceInputs.DIESEL);
+        if (fuelPriceInputs.GASOHOL_91) prices.GASOHOL_91 = parseFloat(fuelPriceInputs.GASOHOL_91);
+        if (fuelPriceInputs.GASOHOL_95) prices.GASOHOL_95 = parseFloat(fuelPriceInputs.GASOHOL_95);
+        if (fuelPriceInputs.GASOHOL_E20) prices.GASOHOL_E20 = parseFloat(fuelPriceInputs.GASOHOL_E20);
+
+        const storageKey = `fuelPrices_station${id}_${selectedDate}`;
+        localStorage.setItem(storageKey, JSON.stringify(prices));
+
+        setShowFuelPriceModal(false);
         setActionLoading(true);
+
         try {
             const res = await fetch(`/api/station/${id}/shifts`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'open', shiftNumber }),
+                body: JSON.stringify({ action: 'open', shiftNumber: pendingShiftNumber }),
             });
             if (res.ok) {
                 const data = await res.json();
@@ -132,6 +176,7 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
             alert('เกิดข้อผิดพลาด');
         } finally {
             setActionLoading(false);
+            setPendingShiftNumber(null);
         }
     };
 
@@ -350,6 +395,79 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                         )}
                     </div>
                 </main>
+            )}
+
+            {/* Fuel Price Setup Modal */}
+            {showFuelPriceModal && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+                        <div className="p-4 border-b">
+                            <h2 className="text-lg font-bold text-gray-800 text-center">⛽ ตั้งราคาน้ำมันวันนี้</h2>
+                            <p className="text-sm text-gray-500 text-center mt-1">กรอกราคาที่จะใช้ในการลงบิล</p>
+                        </div>
+                        <div className="p-4 space-y-3">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">🛢️ ดีเซล (บาท/ลิตร)</label>
+                                <input
+                                    type="number"
+                                    value={fuelPriceInputs.DIESEL}
+                                    onChange={(e) => setFuelPriceInputs(prev => ({ ...prev, DIESEL: e.target.value }))}
+                                    placeholder="เช่น 32.99"
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800"
+                                    inputMode="decimal"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">⛽ แก๊สโซฮอล์ 91 (บาท/ลิตร)</label>
+                                <input
+                                    type="number"
+                                    value={fuelPriceInputs.GASOHOL_91}
+                                    onChange={(e) => setFuelPriceInputs(prev => ({ ...prev, GASOHOL_91: e.target.value }))}
+                                    placeholder="เช่น 35.99"
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800"
+                                    inputMode="decimal"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">⛽ แก๊สโซฮอล์ 95 (บาท/ลิตร)</label>
+                                <input
+                                    type="number"
+                                    value={fuelPriceInputs.GASOHOL_95}
+                                    onChange={(e) => setFuelPriceInputs(prev => ({ ...prev, GASOHOL_95: e.target.value }))}
+                                    placeholder="เช่น 42.99"
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800"
+                                    inputMode="decimal"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">🍃 E20 (บาท/ลิตร)</label>
+                                <input
+                                    type="number"
+                                    value={fuelPriceInputs.GASOHOL_E20}
+                                    onChange={(e) => setFuelPriceInputs(prev => ({ ...prev, GASOHOL_E20: e.target.value }))}
+                                    placeholder="เช่น 33.99"
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800"
+                                    inputMode="decimal"
+                                />
+                            </div>
+                        </div>
+                        <div className="p-4 border-t flex gap-2">
+                            <button
+                                onClick={() => { setShowFuelPriceModal(false); setPendingShiftNumber(null); }}
+                                className="flex-1 py-3 rounded-xl border text-gray-600 hover:bg-gray-50"
+                            >
+                                ยกเลิก
+                            </button>
+                            <button
+                                onClick={confirmOpenShift}
+                                disabled={actionLoading}
+                                className="flex-1 py-3 rounded-xl bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 font-bold"
+                            >
+                                {actionLoading ? 'กำลังเปิดกะ...' : 'เปิดกะ'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
