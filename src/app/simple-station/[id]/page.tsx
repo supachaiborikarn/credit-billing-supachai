@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
+import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import BillEntryForm from '@/components/BillEntryForm';
 import SimpleShiftControls from './components/SimpleShiftControls';
-import { Calendar, Fuel, Trash2, FileText, Printer, X, Sparkles, Edit, Save, List, PlusCircle, BarChart3, ExternalLink } from 'lucide-react';
+import { Calendar, Fuel, Trash2, FileText, Printer, X, Sparkles, Edit, Save, List, PlusCircle, BarChart3, ExternalLink, LogOut } from 'lucide-react';
 import { STATIONS, PAYMENT_TYPES, FUEL_TYPES } from '@/constants';
 import Link from 'next/link';
 
@@ -26,6 +27,7 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
     const { id } = use(params);
     const stationIndex = parseInt(id) - 1;
     const station = STATIONS[stationIndex];
+    const router = useRouter();
 
     const [loading, setLoading] = useState(true);
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -303,6 +305,17 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
         return mapping[value] || value;
     };
 
+    // Handle logout
+    const handleLogout = async () => {
+        if (!confirm('ต้องการออกจากระบบหรือไม่?')) return;
+        try {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            router.push('/login');
+        } catch (e) {
+            alert('เกิดข้อผิดพลาด');
+        }
+    };
+
     if (!station) {
         return (
             <Sidebar>
@@ -380,6 +393,13 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
                                     className="bg-transparent text-white focus:outline-none w-[130px]"
                                 />
                             </div>
+                            <button
+                                onClick={handleLogout}
+                                className="p-2.5 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-all"
+                                title="ออกจากระบบ"
+                            >
+                                <LogOut size={18} />
+                            </button>
                         </div>
                     </div>
 
