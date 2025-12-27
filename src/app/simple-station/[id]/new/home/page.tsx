@@ -50,8 +50,10 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
     const [pendingShiftNumber, setPendingShiftNumber] = useState<number | null>(null);
     const [fuelPriceInputs, setFuelPriceInputs] = useState({
         DIESEL: '',
+        POWER_DIESEL: '',
         GASOHOL_91: '',
         GASOHOL_95: '',
+        GASOLINE_95: '',
         GASOHOL_E20: '',
     });
 
@@ -131,12 +133,14 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
             const prices = JSON.parse(stored);
             setFuelPriceInputs({
                 DIESEL: prices.DIESEL?.toString() || '',
+                POWER_DIESEL: prices.POWER_DIESEL?.toString() || '',
                 GASOHOL_91: prices.GASOHOL_91?.toString() || '',
                 GASOHOL_95: prices.GASOHOL_95?.toString() || '',
+                GASOLINE_95: prices.GASOLINE_95?.toString() || '',
                 GASOHOL_E20: prices.GASOHOL_E20?.toString() || '',
             });
         } else {
-            setFuelPriceInputs({ DIESEL: '', GASOHOL_91: '', GASOHOL_95: '', GASOHOL_E20: '' });
+            setFuelPriceInputs({ DIESEL: '', POWER_DIESEL: '', GASOHOL_91: '', GASOHOL_95: '', GASOLINE_95: '', GASOHOL_E20: '' });
         }
         setShowFuelPriceModal(true);
     };
@@ -148,8 +152,10 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
         // Save fuel prices to localStorage
         const prices: Record<string, number> = {};
         if (fuelPriceInputs.DIESEL) prices.DIESEL = parseFloat(fuelPriceInputs.DIESEL);
+        if (fuelPriceInputs.POWER_DIESEL) prices.POWER_DIESEL = parseFloat(fuelPriceInputs.POWER_DIESEL);
         if (fuelPriceInputs.GASOHOL_91) prices.GASOHOL_91 = parseFloat(fuelPriceInputs.GASOHOL_91);
         if (fuelPriceInputs.GASOHOL_95) prices.GASOHOL_95 = parseFloat(fuelPriceInputs.GASOHOL_95);
+        if (fuelPriceInputs.GASOLINE_95) prices.GASOLINE_95 = parseFloat(fuelPriceInputs.GASOLINE_95);
         if (fuelPriceInputs.GASOHOL_E20) prices.GASOHOL_E20 = parseFloat(fuelPriceInputs.GASOHOL_E20);
 
         const storageKey = `fuelPrices_station${id}_${selectedDate}`;
@@ -369,8 +375,10 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                                         const prices = JSON.parse(stored);
                                         setFuelPriceInputs({
                                             DIESEL: prices.DIESEL?.toString() || '',
+                                            POWER_DIESEL: prices.POWER_DIESEL?.toString() || '',
                                             GASOHOL_91: prices.GASOHOL_91?.toString() || '',
                                             GASOHOL_95: prices.GASOHOL_95?.toString() || '',
+                                            GASOLINE_95: prices.GASOLINE_95?.toString() || '',
                                             GASOHOL_E20: prices.GASOHOL_E20?.toString() || '',
                                         });
                                     }
@@ -440,6 +448,17 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                                 />
                             </div>
                             <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">⚡ พาวเวอร์ดีเซล (บาท/ลิตร)</label>
+                                <input
+                                    type="number"
+                                    value={fuelPriceInputs.POWER_DIESEL}
+                                    onChange={(e) => setFuelPriceInputs(prev => ({ ...prev, POWER_DIESEL: e.target.value }))}
+                                    placeholder="เช่น 35.99"
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800"
+                                    inputMode="decimal"
+                                />
+                            </div>
+                            <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">⛽ แก๊สโซฮอล์ 91 (บาท/ลิตร)</label>
                                 <input
                                     type="number"
@@ -457,6 +476,17 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                                     value={fuelPriceInputs.GASOHOL_95}
                                     onChange={(e) => setFuelPriceInputs(prev => ({ ...prev, GASOHOL_95: e.target.value }))}
                                     placeholder="เช่น 42.99"
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800"
+                                    inputMode="decimal"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">🔴 เบนซิน 95 (บาท/ลิตร)</label>
+                                <input
+                                    type="number"
+                                    value={fuelPriceInputs.GASOLINE_95}
+                                    onChange={(e) => setFuelPriceInputs(prev => ({ ...prev, GASOLINE_95: e.target.value }))}
+                                    placeholder="เช่น 45.99"
                                     className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800"
                                     inputMode="decimal"
                                 />
@@ -494,8 +524,10 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                                         // Just save prices without opening shift
                                         const prices: Record<string, number> = {};
                                         if (fuelPriceInputs.DIESEL) prices.DIESEL = parseFloat(fuelPriceInputs.DIESEL);
+                                        if (fuelPriceInputs.POWER_DIESEL) prices.POWER_DIESEL = parseFloat(fuelPriceInputs.POWER_DIESEL);
                                         if (fuelPriceInputs.GASOHOL_91) prices.GASOHOL_91 = parseFloat(fuelPriceInputs.GASOHOL_91);
                                         if (fuelPriceInputs.GASOHOL_95) prices.GASOHOL_95 = parseFloat(fuelPriceInputs.GASOHOL_95);
+                                        if (fuelPriceInputs.GASOLINE_95) prices.GASOLINE_95 = parseFloat(fuelPriceInputs.GASOLINE_95);
                                         if (fuelPriceInputs.GASOHOL_E20) prices.GASOHOL_E20 = parseFloat(fuelPriceInputs.GASOHOL_E20);
 
                                         const storageKey = `fuelPrices_station${id}_${selectedDate}`;
