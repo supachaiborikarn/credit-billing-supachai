@@ -489,14 +489,34 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
                                     onCancel={() => setShowForm(false)}
                                 />
                             ) : (
-                                <button
-                                    onClick={() => setShowForm(true)}
-                                    className="w-full glass-card p-8 text-center hover:bg-purple-500/10 transition-colors border-2 border-dashed border-purple-500/30 hover:border-purple-500/50"
-                                >
-                                    <span className="text-4xl">📝</span>
-                                    <p className="text-xl font-bold text-white mt-3">ลงบิลใหม่</p>
-                                    <p className="text-gray-400 mt-1">คลิกเพื่อบันทึกรายการเติมน้ำมัน</p>
-                                </button>
+                                <div className="space-y-3">
+                                    <button
+                                        onClick={() => setShowForm(true)}
+                                        className="w-full glass-card p-8 text-center hover:bg-purple-500/10 transition-colors border-2 border-dashed border-purple-500/30 hover:border-purple-500/50"
+                                    >
+                                        <span className="text-4xl">📝</span>
+                                        <p className="text-xl font-bold text-white mt-3">ลงบิลใหม่</p>
+                                        <p className="text-gray-400 mt-1">คลิกเพื่อบันทึกรายการเติมน้ำมัน</p>
+                                    </button>
+
+                                    {/* Quick Actions */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <Link
+                                            href={`/simple-station/${id}/new/shift-end`}
+                                            className="glass-card p-4 text-center hover:bg-orange-500/10 transition-colors border border-orange-500/30 rounded-xl"
+                                        >
+                                            <span className="text-2xl">📊</span>
+                                            <p className="text-sm font-bold text-orange-400 mt-2">ลงมิเตอร์/ปิดกะ</p>
+                                        </Link>
+                                        <Link
+                                            href={`/simple-station/${id}/new/summary`}
+                                            className="glass-card p-4 text-center hover:bg-cyan-500/10 transition-colors border border-cyan-500/30 rounded-xl"
+                                        >
+                                            <span className="text-2xl">📋</span>
+                                            <p className="text-sm font-bold text-cyan-400 mt-2">ดูสรุปกะ</p>
+                                        </Link>
+                                    </div>
+                                </div>
                             )}
                         </div>
 
