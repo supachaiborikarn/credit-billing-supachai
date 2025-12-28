@@ -35,9 +35,10 @@ const PRODUCTS = [
 
 // สถานีที่ต้องเพิ่มสินค้า
 const STATIONS = [
-    'station-1', // ปั๊มสุภชัย 1 (วัชรเกียรติ)
-    'station-2', // ปั๊มสุภชัย 2
-    'station-3', // ปั๊มสุภชัย 3
+    'station-1', // แท๊งลอยวัชรเกียรติ
+    'station-2', // วัชรเกียรติออยล์
+    'station-3', // ท่าน้ำมัน
+    'station-4', // ศุภชัยบริการ
 ];
 
 async function main() {
