@@ -197,7 +197,7 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
                     <div className="line"></div>
 
                     {/* Receipt ID */}
-                    <div className="text-center text-[9px] text-gray-500 pt-1">
+                    <div className="text-center text-[9px] text-black pt-1">
                         #{txn.id.slice(-8).toUpperCase()}
                     </div>
                 </div>
