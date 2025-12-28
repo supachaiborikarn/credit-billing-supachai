@@ -212,6 +212,12 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
 
     // Save shift end
     const handleSubmit = async () => {
+        // Validate shift exists
+        if (!shift?.id) {
+            alert('❌ ไม่พบกะที่เปิดอยู่ กรุณาเปิดกะก่อน');
+            return;
+        }
+
         if (varianceStatus === 'RED' && !confirm('ยอดต่างเกิน 500 บาท ยืนยันปิดกะหรือไม่?')) {
             return;
         }

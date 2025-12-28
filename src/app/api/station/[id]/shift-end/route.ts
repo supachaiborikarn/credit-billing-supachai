@@ -143,6 +143,11 @@ export async function POST(
             if (session) userId = session.userId;
         }
 
+        // Validate shiftId
+        if (!shiftId) {
+            return NextResponse.json({ error: '❌ ไม่พบกะที่เปิดอยู่ กรุณาเปิดกะก่อน' }, { status: 400 });
+        }
+
         // Validate shift exists and is open
         const shift = await prisma.shift.findUnique({
             where: { id: shiftId },
@@ -150,11 +155,11 @@ export async function POST(
         });
 
         if (!shift) {
-            return NextResponse.json({ error: 'ไม่พบกะนี้' }, { status: 404 });
+            return NextResponse.json({ error: '❌ ไม่พบกะนี้ในระบบ' }, { status: 404 });
         }
 
         if (shift.status !== 'OPEN') {
-            return NextResponse.json({ error: 'กะนี้ปิดไปแล้ว' }, { status: 400 });
+            return NextResponse.json({ error: '❌ กะนี้ปิดไปแล้ว' }, { status: 400 });
         }
 
         // Save meter readings
