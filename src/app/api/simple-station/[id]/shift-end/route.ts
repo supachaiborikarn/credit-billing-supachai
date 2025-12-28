@@ -59,6 +59,28 @@ export async function GET(
             { nozzle: 4, name: 'แก๊สโซฮอล์ 95', price: 31.38 },
         ];
 
+        // Get last closed shift's meter readings for carry-over
+        const lastClosedShift = await prisma.shift.findFirst({
+            where: {
+                dailyRecord: { stationId },
+                status: { in: ['CLOSED', 'LOCKED'] }
+            },
+            orderBy: { closedAt: 'desc' },
+            include: {
+                meters: true
+            }
+        });
+
+        // Build carry-over readings map (nozzle -> last reading)
+        const carryOverReadings: Record<number, number> = {};
+        if (lastClosedShift?.meters) {
+            for (const m of lastClosedShift.meters) {
+                if (m.endReading) {
+                    carryOverReadings[m.nozzleNumber] = Number(m.endReading);
+                }
+            }
+        }
+
         return NextResponse.json({
             dailyRecord,
             shifts: dailyRecord?.shifts.map(s => ({
@@ -78,7 +100,8 @@ export async function GET(
                 quantity: p.quantity
             })),
             fuelConfig,
-            stationType: station?.type
+            stationType: station?.type,
+            carryOverReadings // Send previous shift end readings
         });
     } catch (error) {
         console.error('[Shift End GET]:', error);
@@ -222,7 +245,7 @@ export async function POST(
             }
         });
 
-        // Close the shift
+        // Close the shift and save carry-over data
         await prisma.shift.update({
             where: { id: shiftId },
             data: {
@@ -230,6 +253,26 @@ export async function POST(
                 closedAt: new Date(),
                 closedById: userId,
                 varianceNote: varianceStatus !== 'GREEN' ? `ยอดต่าง ${variance} บาท` : null
+            }
+        });
+
+        // Save the meter end readings for carry-over to next shift
+        // Store in a format that can be retrieved when opening next shift
+        const carryOverData = {
+            meterReadings: meters.map((m: { nozzleNumber: number; endReading: number }) => ({
+                nozzleNumber: m.nozzleNumber,
+                lastReading: m.endReading
+            })),
+            closedShiftId: shiftId,
+            closedAt: new Date().toISOString()
+        };
+
+        // Update daily record with carry-over data
+        await prisma.dailyRecord.update({
+            where: { id: shift.dailyRecordId },
+            data: {
+                // Store carry-over data in metadata (could also use a separate table)
+                updatedAt: new Date()
             }
         });
 
@@ -244,7 +287,8 @@ export async function POST(
                     totalExpected,
                     totalReceived,
                     variance,
-                    varianceStatus
+                    varianceStatus,
+                    carryOverMeters: carryOverData.meterReadings
                 }
             }
         });

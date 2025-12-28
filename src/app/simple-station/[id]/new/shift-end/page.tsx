@@ -100,9 +100,9 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
     const fetchShiftData = async () => {
         setLoading(true);
         try {
-            // Fetch current shift
+            // Fetch shift-end data (includes carry-over readings)
             const today = new Date().toISOString().split('T')[0];
-            const res = await fetch(`/api/simple-station/${id}/daily?date=${today}`);
+            const res = await fetch(`/api/simple-station/${id}/shift-end?date=${today}`);
 
             if (res.ok) {
                 const data = await res.json();
@@ -118,17 +118,20 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                     });
                 }
 
-                // Initialize meters from config or defaults
+                // Initialize meters from config with carry-over readings
                 const fuelConfig = data.fuelConfig || DEFAULT_FUEL_TYPES;
                 const existingMeters = data.meters || [];
+                const carryOver = data.carryOverReadings || {};
 
                 setMeters(fuelConfig.map((fuel: { nozzle: number; name: string; price: number }) => {
                     const existing = existingMeters.find((m: { nozzleNumber: number }) => m.nozzleNumber === fuel.nozzle);
+                    // Use carry-over reading as startReading if no existing reading
+                    const startReading = existing?.startReading || carryOver[fuel.nozzle] || 0;
                     return {
                         nozzleNumber: fuel.nozzle,
                         fuelType: fuel.name,
                         price: fuel.price,
-                        startReading: existing?.startReading || 0,
+                        startReading: Number(startReading),
                         endReading: existing?.endReading || 0,
                         liters: 0,
                         amount: 0
@@ -293,8 +296,8 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${activeTab === tab.id
-                                ? 'text-purple-400 border-b-2 border-purple-400 bg-purple-500/10'
-                                : 'text-gray-500 hover:text-gray-300'
+                            ? 'text-purple-400 border-b-2 border-purple-400 bg-purple-500/10'
+                            : 'text-gray-500 hover:text-gray-300'
                             }`}
                     >
                         <tab.icon size={18} />
@@ -606,8 +609,8 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
 
                             {/* Variance */}
                             <div className={`card-glass p-4 rounded-xl ${varianceStatus === 'GREEN' ? 'bg-green-500/10 border border-green-500/30' :
-                                    varianceStatus === 'YELLOW' ? 'bg-yellow-500/10 border border-yellow-500/30' :
-                                        'bg-red-500/10 border border-red-500/30'
+                                varianceStatus === 'YELLOW' ? 'bg-yellow-500/10 border border-yellow-500/30' :
+                                    'bg-red-500/10 border border-red-500/30'
                                 }`}>
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
@@ -619,8 +622,8 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                                         <span className="text-gray-300">ยอดต่าง</span>
                                     </div>
                                     <span className={`text-2xl font-bold ${varianceStatus === 'GREEN' ? 'text-green-300' :
-                                            varianceStatus === 'YELLOW' ? 'text-yellow-300' :
-                                                'text-red-300'
+                                        varianceStatus === 'YELLOW' ? 'text-yellow-300' :
+                                            'text-red-300'
                                         }`}>
                                         {variance >= 0 ? '+' : ''}{formatCurrency(variance)} ฿
                                     </span>
