@@ -3,6 +3,7 @@
 import { useEffect, useState, use } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { STATIONS } from '@/constants';
+import Image from 'next/image';
 
 interface Transaction {
     id: string;
@@ -30,22 +31,22 @@ const RECEIPT_CONFIG: Record<string, {
 }> = {
     'station-1': {
         name: 'ศุภชัยบริการ(กำแพงเพชร)',
-        address: '172 หมู่ 1 ถ.พหลโยธิน ต.นครชุม\nอ.เมือง จ.กำแพงเพชร 62000',
+        address: '172 หมู่ 1 ถ.พหลโยธิน ต.นครชุม อ.เมือง จ.กำแพงเพชร 62000',
         tel: '055-840585, 055-773003',
     },
     'station-2': {
         name: 'ศุภชัยบริการ(กำแพงเพชร)',
-        address: '172 หมู่ 1 ถ.พหลโยธิน ต.นครชุม\nอ.เมือง จ.กำแพงเพชร 62000',
+        address: '172 หมู่ 1 ถ.พหลโยธิน ต.นครชุม อ.เมือง จ.กำแพงเพชร 62000',
         tel: '055-840585, 055-773003',
     },
     'station-3': {
         name: 'ศุภชัยบริการ(กำแพงเพชร)',
-        address: '172 หมู่ 1 ถ.พหลโยธิน ต.นครชุม\nอ.เมือง จ.กำแพงเพชร 62000',
+        address: '172 หมู่ 1 ถ.พหลโยธิน ต.นครชุม อ.เมือง จ.กำแพงเพชร 62000',
         tel: '055-840585, 055-773003',
     },
     'station-4': {
         name: 'ศุภชัยบริการ(กำแพงเพชร)',
-        address: '172 หมู่ 1 ถ.พหลโยธิน ต.นครชุม\nอ.เมือง จ.กำแพงเพชร 62000',
+        address: '172 หมู่ 1 ถ.พหลโยธิน ต.นครชุม อ.เมือง จ.กำแพงเพชร 62000',
         tel: '055-840585, 055-773003',
     },
 };
@@ -108,8 +109,8 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
         const date = new Date(dateStr);
         return date.toLocaleDateString('th-TH', {
             year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
+            month: 'long',
+            day: 'numeric',
         });
     };
 
@@ -128,7 +129,7 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-100">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
             </div>
         );
     }
@@ -136,7 +137,7 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
     if (!transaction) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-100">
-                <p className="text-gray-500">ไม่พบรายการ</p>
+                <p className="text-gray-600 font-medium">ไม่พบรายการ</p>
             </div>
         );
     }
@@ -153,6 +154,8 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
                     body {
                         margin: 0;
                         padding: 0;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
                     }
                     .no-print {
                         display: none !important;
@@ -160,140 +163,152 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
                     .receipt-container {
                         width: 80mm !important;
                         max-width: 80mm !important;
-                        padding: 3mm !important;
+                        padding: 4mm !important;
                         margin: 0 !important;
                         box-shadow: none !important;
-                        border: none !important;
                     }
                 }
             `}</style>
 
             {/* Print Button (hidden when printing) */}
-            <div className="no-print fixed top-4 right-4 z-50">
+            <div className="no-print fixed top-4 right-4 z-50 flex gap-2">
+                <button
+                    onClick={() => window.history.back()}
+                    className="px-4 py-3 bg-gray-500 text-white font-bold rounded-xl shadow-lg hover:bg-gray-600 transition"
+                >
+                    ← กลับ
+                </button>
                 <button
                     onClick={handlePrint}
-                    className="px-6 py-3 bg-orange-500 text-white font-bold rounded-xl shadow-lg hover:bg-orange-600 transition flex items-center gap-2"
+                    className="px-6 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg hover:bg-red-700 transition flex items-center gap-2"
                 >
                     🖨️ พิมพ์ใบเสร็จ
                 </button>
             </div>
 
             {/* Receipt */}
-            <div className="min-h-screen bg-gray-100 flex items-start justify-center py-8 no-print:py-8">
-                <div className="receipt-container bg-white w-[80mm] p-4 shadow-lg font-mono text-sm" style={{ fontFamily: 'monospace' }}>
+            <div className="min-h-screen bg-gray-200 flex items-start justify-center py-8">
+                <div className="receipt-container bg-white w-[80mm] shadow-2xl border border-gray-300" style={{ fontFamily: 'Tahoma, sans-serif' }}>
 
-                    {/* Header */}
-                    <div className="text-center mb-3">
-                        <div className="text-lg font-bold border-2 border-black py-1 mb-2">
-                            ใบส่งของเงินเชื่อ
-                        </div>
+                    {/* Header with Red Background */}
+                    <div className="bg-red-600 text-white p-3 text-center">
                         {/* Caltex Logo */}
                         <div className="flex justify-center mb-2">
-                            <svg width="80" height="40" viewBox="0 0 200 100" className="mx-auto">
-                                <circle cx="100" cy="50" r="45" fill="#E31937" />
-                                <polygon points="100,15 110,45 145,45 115,65 125,95 100,75 75,95 85,65 55,45 90,45" fill="white" />
-                            </svg>
+                            <Image
+                                src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/76/Caltex_logo.svg/200px-Caltex_logo.svg.png"
+                                alt="Caltex"
+                                width={80}
+                                height={50}
+                                className="brightness-0 invert"
+                                unoptimized
+                            />
                         </div>
-                        <div className="text-base font-bold mb-1">Caltex</div>
-                        <div className="text-lg font-bold mb-1">{receiptConfig.name}</div>
-                        <div className="text-xs whitespace-pre-line text-gray-600">
-                            {receiptConfig.address}
-                        </div>
-                        <div className="text-xs text-gray-600">
-                            โทร: {receiptConfig.tel}
-                        </div>
+                        <div className="text-lg font-bold">{receiptConfig.name}</div>
                     </div>
 
-                    {/* Divider */}
-                    <div className="border-t-2 border-dashed border-gray-400 my-2"></div>
+                    {/* Document Title */}
+                    <div className="bg-gray-900 text-white py-2 text-center">
+                        <span className="text-lg font-bold tracking-wider">ใบส่งของเงินเชื่อ</span>
+                    </div>
 
-                    {/* Receipt Info */}
-                    <div className="space-y-1 text-xs">
-                        <div className="flex justify-between">
-                            <span>วันที่:</span>
-                            <span>{formatDate(transaction.createdAt)} {formatTime(transaction.createdAt)}</span>
+                    {/* Station Info */}
+                    <div className="p-3 bg-gray-50 border-b-2 border-gray-300 text-center text-xs text-gray-700">
+                        <p>{receiptConfig.address}</p>
+                        <p className="font-medium">โทร: {receiptConfig.tel}</p>
+                    </div>
+
+                    {/* Receipt Details */}
+                    <div className="p-3 space-y-2 text-sm text-gray-900">
+                        <div className="flex justify-between border-b border-gray-200 pb-1">
+                            <span className="font-medium">วันที่:</span>
+                            <span className="font-bold">{formatDate(transaction.createdAt)}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-gray-200 pb-1">
+                            <span className="font-medium">เวลา:</span>
+                            <span className="font-bold">{formatTime(transaction.createdAt)} น.</span>
                         </div>
                         {(transaction.billBookNo || transaction.billNo) && (
-                            <div className="flex justify-between">
-                                <span>เลขที่บิล:</span>
-                                <span>{transaction.billBookNo}/{transaction.billNo}</span>
-                            </div>
-                        )}
-                        {transaction.recordedBy?.name && (
-                            <div className="flex justify-between">
-                                <span>พนักงาน:</span>
-                                <span>{transaction.recordedBy.name}</span>
+                            <div className="flex justify-between border-b border-gray-200 pb-1">
+                                <span className="font-medium">เลขที่บิล:</span>
+                                <span className="font-bold text-red-600">{transaction.billBookNo}/{transaction.billNo}</span>
                             </div>
                         )}
                     </div>
-
-                    {/* Divider */}
-                    <div className="border-t-2 border-dashed border-gray-400 my-2"></div>
 
                     {/* Customer Info */}
-                    {(transaction.licensePlate || transaction.ownerName) && (
-                        <>
-                            <div className="space-y-1 text-xs">
-                                {transaction.licensePlate && (
-                                    <div className="flex justify-between">
-                                        <span>ทะเบียน:</span>
-                                        <span className="font-bold">{transaction.licensePlate}</span>
-                                    </div>
-                                )}
-                                {transaction.ownerName && (
-                                    <div className="flex justify-between">
-                                        <span>ชื่อ:</span>
-                                        <span>{transaction.ownerName}</span>
-                                    </div>
-                                )}
+                    <div className="bg-yellow-50 p-3 border-y-2 border-yellow-400">
+                        <div className="text-xs text-gray-600 mb-1">ข้อมูลลูกค้า</div>
+                        <div className="space-y-1 text-sm">
+                            <div className="flex justify-between">
+                                <span className="text-gray-700">ทะเบียน:</span>
+                                <span className="font-bold text-lg text-gray-900">{transaction.licensePlate || '-'}</span>
                             </div>
-                            <div className="border-t border-gray-300 my-2"></div>
-                        </>
-                    )}
+                            <div className="flex justify-between">
+                                <span className="text-gray-700">ชื่อ:</span>
+                                <span className="font-bold text-gray-900">{transaction.ownerName || '-'}</span>
+                            </div>
+                        </div>
+                    </div>
 
                     {/* Items */}
-                    <div className="space-y-2">
-                        {transaction.liters > 0 && (
-                            <div>
-                                <div className="flex justify-between text-xs">
-                                    <span className="font-medium">{FUEL_LABELS[transaction.fuelType] || transaction.fuelType}</span>
-                                    <span>{formatCurrency(transaction.liters)} ลิตร</span>
-                                </div>
-                                <div className="flex justify-between text-xs text-gray-500">
-                                    <span>@ {formatCurrency(transaction.pricePerLiter)} บาท/ลิตร</span>
-                                    <span>{formatCurrency(transaction.liters * transaction.pricePerLiter)} ฿</span>
-                                </div>
-                            </div>
-                        )}
+                    <div className="p-3">
+                        <div className="text-xs text-gray-600 mb-2">รายการ</div>
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="border-b-2 border-gray-400">
+                                    <th className="text-left py-1 text-gray-700">รายการ</th>
+                                    <th className="text-right py-1 text-gray-700">จำนวน</th>
+                                    <th className="text-right py-1 text-gray-700">ราคา</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {transaction.liters > 0 && (
+                                    <tr className="border-b border-gray-200">
+                                        <td className="py-2 font-medium text-gray-900">
+                                            {FUEL_LABELS[transaction.fuelType] || transaction.fuelType}
+                                            <div className="text-xs text-gray-600">@{formatCurrency(transaction.pricePerLiter)} บ./ลิตร</div>
+                                        </td>
+                                        <td className="py-2 text-right text-gray-900">{formatCurrency(transaction.liters)} ลิตร</td>
+                                        <td className="py-2 text-right font-bold text-gray-900">{formatCurrency(transaction.liters * transaction.pricePerLiter)}</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
                     </div>
-
-                    {/* Divider */}
-                    <div className="border-t-2 border-double border-gray-600 my-3"></div>
 
                     {/* Total */}
-                    <div className="flex justify-between items-center">
-                        <span className="text-base font-bold">รวมทั้งสิ้น</span>
-                        <span className="text-xl font-bold">{formatCurrency(transaction.amount)} ฿</span>
+                    <div className="bg-red-600 text-white p-4">
+                        <div className="flex justify-between items-center">
+                            <span className="text-lg font-bold">รวมทั้งสิ้น</span>
+                            <span className="text-2xl font-bold">{formatCurrency(transaction.amount)} ฿</span>
+                        </div>
+                        <div className="text-right text-xs mt-1 text-red-200">
+                            ชำระ: {PAYMENT_LABELS[transaction.paymentType] || transaction.paymentType}
+                        </div>
                     </div>
 
-                    {/* Payment Type */}
-                    <div className="flex justify-between text-xs mt-2">
-                        <span>ชำระโดย:</span>
-                        <span className="font-medium">{PAYMENT_LABELS[transaction.paymentType] || transaction.paymentType}</span>
+                    {/* Signature Area */}
+                    <div className="p-3 border-b-2 border-gray-300">
+                        <div className="flex justify-between text-xs text-gray-600">
+                            <div className="text-center flex-1">
+                                <div className="border-b border-gray-400 h-8 mb-1"></div>
+                                <span>ผู้รับสินค้า</span>
+                            </div>
+                            <div className="w-4"></div>
+                            <div className="text-center flex-1">
+                                <div className="border-b border-gray-400 h-8 mb-1"></div>
+                                <span>ผู้ส่งสินค้า</span>
+                            </div>
+                        </div>
                     </div>
-
-                    {/* Divider */}
-                    <div className="border-t-2 border-dashed border-gray-400 my-3"></div>
 
                     {/* Footer */}
-                    <div className="text-center">
-                        <div className="text-sm font-medium mb-2">ขอบคุณที่ใช้บริการ</div>
+                    <div className="p-3 text-center bg-gray-100">
+                        <div className="text-sm font-bold text-gray-800 mb-1">ขอบคุณที่ใช้บริการ</div>
                         <div className="text-xs text-gray-500">Thank you for your patronage</div>
-                    </div>
-
-                    {/* Receipt ID (small) */}
-                    <div className="text-center mt-3 text-[10px] text-gray-400">
-                        #{transaction.id.slice(-8).toUpperCase()}
+                        <div className="text-[10px] text-gray-400 mt-2">
+                            #{transaction.id.slice(-8).toUpperCase()}
+                        </div>
                     </div>
                 </div>
             </div>
