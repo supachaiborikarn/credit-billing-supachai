@@ -316,6 +316,20 @@ export default function StationHomePage({ params }: { params: Promise<{ id: stri
                                 <TrendingUp size={24} />
                                 <span>ดูรายการ</span>
                             </Link>
+                            <Link
+                                href={`/station/${id}/new/meters`}
+                                className="flex items-center gap-3 bg-orange-500 text-white p-4 rounded-xl hover:bg-orange-600 transition"
+                            >
+                                <Fuel size={24} />
+                                <span>ลงมิเตอร์</span>
+                            </Link>
+                            <Link
+                                href={`/station/${id}/new/summary`}
+                                className="flex items-center gap-3 bg-cyan-500 text-white p-4 rounded-xl hover:bg-cyan-600 transition"
+                            >
+                                <Calendar size={24} />
+                                <span>สรุปกะ</span>
+                            </Link>
                         </div>
                     </div>
                 </div>
