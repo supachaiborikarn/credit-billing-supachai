@@ -70,8 +70,10 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
     // New truck modal
     const [showNewTruckModal, setShowNewTruckModal] = useState(false);
     const [newTruckPlate, setNewTruckPlate] = useState('');
-    const [newOwnerName, setNewOwnerName] = useState('');
+    const [selectedOwnerId, setSelectedOwnerId] = useState('');
     const [savingNewTruck, setSavingNewTruck] = useState(false);
+    const [ownersList, setOwnersList] = useState<Array<{ id: string; name: string; code: string }>>([]);
+    const [loadingOwners, setLoadingOwners] = useState(false);
 
     // Load products for this station
     useEffect(() => {
@@ -182,8 +184,8 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
 
     // Add new truck
     const handleAddNewTruck = async () => {
-        if (!newTruckPlate.trim() || !newOwnerName.trim()) {
-            alert('กรุณากรอกทะเบียนและชื่อเจ้าของ');
+        if (!newTruckPlate.trim() || !selectedOwnerId) {
+            alert('กรุณากรอกทะเบียนและเลือกเจ้าของ');
             return;
         }
 
@@ -194,7 +196,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     licensePlate: newTruckPlate.trim(),
-                    ownerName: newOwnerName.trim(),
+                    ownerId: selectedOwnerId,
                 }),
             });
 
@@ -202,11 +204,12 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                 const data = await res.json();
                 // Use the new truck
                 setLicensePlate(newTruckPlate.trim());
-                setOwnerName(newOwnerName.trim());
-                setOwnerId(data.ownerId || null);
+                const selectedOwner = ownersList.find(o => o.id === selectedOwnerId);
+                setOwnerName(selectedOwner?.name || '');
+                setOwnerId(selectedOwnerId);
                 setShowNewTruckModal(false);
                 setNewTruckPlate('');
-                setNewOwnerName('');
+                setSelectedOwnerId('');
                 alert('✅ เพิ่มทะเบียนใหม่สำเร็จ!');
             } else {
                 const err = await res.json();
@@ -217,6 +220,28 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
             alert('เกิดข้อผิดพลาด');
         } finally {
             setSavingNewTruck(false);
+        }
+    };
+
+    // Fetch owners when modal opens
+    const openNewTruckModal = async () => {
+        setNewTruckPlate(licensePlate);
+        setShowNewTruckModal(true);
+        setShowResults(false);
+
+        if (ownersList.length === 0) {
+            setLoadingOwners(true);
+            try {
+                const res = await fetch('/api/owners');
+                if (res.ok) {
+                    const data = await res.json();
+                    setOwnersList(data);
+                }
+            } catch (e) {
+                console.error('Error loading owners:', e);
+            } finally {
+                setLoadingOwners(false);
+            }
         }
     };
 
@@ -429,11 +454,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                     {/* Show add new option when no results */}
                     {showResults && searchResults.length === 0 && licensePlate.length >= 2 && !searchLoading && (
                         <button
-                            onClick={() => {
-                                setNewTruckPlate(licensePlate);
-                                setShowNewTruckModal(true);
-                                setShowResults(false);
-                            }}
+                            onClick={openNewTruckModal}
                             className="mt-2 w-full px-4 py-3 flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 hover:bg-blue-100 transition"
                         >
                             <UserPlus size={18} />
@@ -703,15 +724,27 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    ชื่อเจ้าของ
+                                    เลือกเจ้าของ
                                 </label>
-                                <input
-                                    type="text"
-                                    value={newOwnerName}
-                                    onChange={(e) => setNewOwnerName(e.target.value)}
-                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    placeholder="เช่น สมชาย การค้า"
-                                />
+                                {loadingOwners ? (
+                                    <div className="flex items-center justify-center py-3">
+                                        <div className="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                                        <span className="ml-2 text-gray-500">กำลังโหลด...</span>
+                                    </div>
+                                ) : (
+                                    <select
+                                        value={selectedOwnerId}
+                                        onChange={(e) => setSelectedOwnerId(e.target.value)}
+                                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    >
+                                        <option value="">-- เลือกเจ้าของ --</option>
+                                        {ownersList.map(owner => (
+                                            <option key={owner.id} value={owner.id}>
+                                                {owner.code} - {owner.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
                         </div>
                         <div className="p-4 border-t flex gap-2">
@@ -723,7 +756,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                             </button>
                             <button
                                 onClick={handleAddNewTruck}
-                                disabled={savingNewTruck || !newTruckPlate.trim() || !newOwnerName.trim()}
+                                disabled={savingNewTruck || !newTruckPlate.trim() || !selectedOwnerId}
                                 className="flex-1 py-3 rounded-xl bg-blue-500 text-white font-bold hover:bg-blue-600 disabled:opacity-50"
                             >
                                 {savingNewTruck ? 'กำลังบันทึก...' : '✓ เพิ่มทะเบียน'}
