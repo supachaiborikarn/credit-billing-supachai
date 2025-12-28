@@ -308,7 +308,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                     liters: hasFuel ? parseFloat(liters) : 0,
                     pricePerLiter: hasFuel ? parseFloat(pricePerLiter) : 0,
                     amount: grandTotal,
-                    bookNo: bookNo || null,
+                    billBookNo: bookNo || null,
                     billNo: billNo || null,
                     products: selectedProducts, // Send selected products
                 }),
