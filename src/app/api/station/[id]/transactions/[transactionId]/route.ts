@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
+import { checkShiftModifiable } from '@/services/shift-service';
 
 // GET single transaction
 export async function GET(
@@ -66,11 +67,31 @@ export async function PUT(
 
         // Get old data for audit log
         const oldTransaction = await prisma.transaction.findUnique({
-            where: { id: transactionId }
+            where: { id: transactionId },
+            include: {
+                dailyRecord: {
+                    include: {
+                        shifts: { where: { status: { not: 'OPEN' } } }
+                    }
+                }
+            }
         });
 
         if (!oldTransaction) {
             return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
+        }
+
+        // Anti-Fraud: Check if shift is closed/locked
+        const closedShifts = oldTransaction.dailyRecord?.shifts || [];
+        if (closedShifts.length > 0) {
+            // Find if any shift for this day is locked
+            const lockedShift = closedShifts.find(s => s.status === 'LOCKED');
+            if (lockedShift) {
+                return NextResponse.json(
+                    { error: '🔒 ไม่สามารถแก้ไขได้ กะนี้ถูกล็อกแล้ว' },
+                    { status: 403 }
+                );
+            }
         }
 
         // Update transaction
@@ -156,11 +177,30 @@ export async function DELETE(
 
         // Get old data for audit log
         const oldTransaction = await prisma.transaction.findUnique({
-            where: { id: transactionId }
+            where: { id: transactionId },
+            include: {
+                dailyRecord: {
+                    include: {
+                        shifts: { where: { status: { not: 'OPEN' } } }
+                    }
+                }
+            }
         });
 
         if (!oldTransaction) {
             return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
+        }
+
+        // Anti-Fraud: Check if shift is closed/locked
+        const closedShifts = oldTransaction.dailyRecord?.shifts || [];
+        if (closedShifts.length > 0) {
+            const lockedShift = closedShifts.find(s => s.status === 'LOCKED');
+            if (lockedShift) {
+                return NextResponse.json(
+                    { error: '🔒 ไม่สามารถลบได้ กะนี้ถูกล็อกแล้ว' },
+                    { status: 403 }
+                );
+            }
         }
 
         // Soft delete: set isVoided = true, deletedAt = now()

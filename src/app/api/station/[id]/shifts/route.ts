@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { cookies } from 'next/headers';
 import { STATIONS, STATION_STAFF } from '@/constants';
 import { getStartOfDayBangkok, getEndOfDayBangkok } from '@/lib/date-utils';
+import { closeShift as closeShiftService, lockShift, validateCloseShift, calculateReconciliation } from '@/services/shift-service';
+import { auditShift } from '@/services/audit-service';
 
 export async function GET(
     request: Request,
@@ -156,24 +159,96 @@ export async function POST(
                 return NextResponse.json({ error: 'Shift ID required' }, { status: 400 });
             }
 
-            // Close the shift
-            const closedShift = await prisma.shift.update({
-                where: { id: shiftId },
-                data: {
-                    status: 'CLOSED',
-                    closedAt: new Date()
-                }
+            // Get user from session
+            const cookieStore = await cookies();
+            const sessionId = cookieStore.get('session')?.value;
+
+            let userId = 'system';
+            if (sessionId) {
+                const session = await prisma.session.findUnique({
+                    where: { id: sessionId },
+                    select: { userId: true }
+                });
+                if (session) userId = session.userId;
+            }
+
+            // Validate before closing
+            const validation = await validateCloseShift(shiftId);
+            if (!validation.valid) {
+                return NextResponse.json({
+                    error: validation.errors.join(', '),
+                    warnings: validation.warnings
+                }, { status: 400 });
+            }
+
+            // Calculate reconciliation
+            const reconciliation = await calculateReconciliation(shiftId);
+
+            // Get varianceNote from body if variance is not green
+            const { varianceNote } = body;
+            if (reconciliation.varianceStatus !== 'GREEN' && !varianceNote) {
+                return NextResponse.json({
+                    error: `ยอดต่าง ${reconciliation.variance.toFixed(2)} บาท (${reconciliation.varianceStatus}) กรุณาระบุเหตุผล`,
+                    requiresNote: true,
+                    reconciliation
+                }, { status: 400 });
+            }
+
+            // Close with reconciliation
+            const result = await closeShiftService(shiftId, userId, varianceNote);
+
+            if (!result.success) {
+                return NextResponse.json({ error: result.error }, { status: 500 });
+            }
+
+            // Audit log
+            await auditShift('CLOSE', userId, shiftId, null, {
+                reconciliation: result.reconciliation,
+                closedAt: new Date().toISOString()
             });
+
+            const closedShift = await prisma.shift.findUnique({ where: { id: shiftId } });
 
             return NextResponse.json({
                 success: true,
                 shift: {
-                    id: closedShift.id,
-                    shiftNumber: closedShift.shiftNumber,
-                    status: closedShift.status,
-                    closedAt: closedShift.closedAt
-                }
+                    id: closedShift?.id,
+                    shiftNumber: closedShift?.shiftNumber,
+                    status: closedShift?.status,
+                    closedAt: closedShift?.closedAt
+                },
+                reconciliation: result.reconciliation
             });
+        }
+
+        if (action === 'lock') {
+            if (!shiftId) {
+                return NextResponse.json({ error: 'Shift ID required' }, { status: 400 });
+            }
+
+            // Get user from session
+            const cookieStore = await cookies();
+            const sessionId = cookieStore.get('session')?.value;
+
+            let userId = 'system';
+            if (sessionId) {
+                const session = await prisma.session.findUnique({
+                    where: { id: sessionId },
+                    select: { userId: true }
+                });
+                if (session) userId = session.userId;
+            }
+
+            const result = await lockShift(shiftId, userId);
+
+            if (!result.success) {
+                return NextResponse.json({ error: result.error }, { status: 400 });
+            }
+
+            // Audit log
+            await auditShift('LOCK', userId, shiftId, null, { lockedAt: new Date().toISOString() });
+
+            return NextResponse.json({ success: true, message: '🔒 กะถูกล็อกเรียบร้อย ไม่สามารถแก้ไขได้อีก' });
         }
 
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
