@@ -40,3 +40,41 @@ export {
     type MeterReading,
     type MeterSaveResult,
 } from './meter-service';
+
+// Shift Service (Anti-Fraud)
+export {
+    isShiftLocked,
+    canModifyShift,
+    validateCloseShift,
+    calculateVarianceStatus,
+    calculateReconciliation,
+    closeShift,
+    lockShift,
+    checkShiftModifiable,
+    type ShiftStatus,
+    type VarianceStatus,
+    type CloseShiftValidation,
+    type ReconciliationData,
+} from './shift-service';
+
+// Device Service (Device Binding)
+export {
+    registerDevice,
+    validateDeviceStation,
+    countDevicesForStation,
+    isDeviceLimitExceeded,
+    deactivateDevice,
+    getStationDevices,
+    generateDeviceId,
+    type DeviceInfo,
+} from './device-service';
+
+// Price Service (Price Book)
+export {
+    getCurrentPrice,
+    calculateAmount,
+    setPrice,
+    getPriceHistory,
+    PRODUCT_TYPES,
+    type PriceInfo,
+} from './price-service';
