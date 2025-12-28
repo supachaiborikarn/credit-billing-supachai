@@ -259,7 +259,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
     // Select an owner
     const selectOwner = (owner: { id: string; name: string; code: string }) => {
         setSelectedOwnerId(owner.id);
-        setOwnerSearch(`${owner.code} - ${owner.name}`);
+        setOwnerSearch(owner.code ? `${owner.code} - ${owner.name}` : owner.name);
         setShowOwnerDropdown(false);
     };
 
@@ -777,8 +777,8 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                                                             onClick={() => selectOwner(owner)}
                                                             className="w-full px-4 py-2 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
                                                         >
-                                                            <span className="font-medium text-gray-800">{owner.code}</span>
-                                                            <span className="text-gray-500"> - {owner.name}</span>
+                                                            {owner.code && <span className="font-medium text-gray-800">{owner.code} - </span>}
+                                                            <span className="text-gray-700">{owner.name}</span>
                                                         </button>
                                                     ))
                                                 )}
