@@ -64,7 +64,6 @@ export default function GasStationSummaryPage({ params }: { params: Promise<{ id
         productSales: [],
     });
 
-    // Cash, credit card and expenses
     const [cashReceived, setCashReceived] = useState('');
     const [creditCardReceived, setCreditCardReceived] = useState('');
     const [expenses, setExpenses] = useState('');
@@ -73,7 +72,26 @@ export default function GasStationSummaryPage({ params }: { params: Promise<{ id
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [gaugeReadings, setGaugeReadings] = useState<GaugeReading[]>([]);
     const [currentStock, setCurrentStock] = useState(0);
-    const [isLocked, setIsLocked] = useState(false);  // Anti-Fraud: Track if shift is locked
+    const [isLocked, setIsLocked] = useState(false);
+    const [userRole, setUserRole] = useState('STAFF');
+    const [shifts, setShifts] = useState<{ status: string; closedAt?: string | null }[]>([]);
+
+    // Helper: Check if transactions can be modified
+    const canModify = () => {
+        // Admin can always modify
+        if (userRole === 'ADMIN') return true;
+
+        if (isLocked) return false;
+
+        // Auto-lock: Check if any shift closed more than 24 hours ago
+        const closedShift = shifts.find(s => s.status === 'CLOSED' && s.closedAt);
+        if (closedShift && closedShift.closedAt) {
+            const hoursSinceClosed = (Date.now() - new Date(closedShift.closedAt).getTime()) / (1000 * 60 * 60);
+            if (hoursSinceClosed > 24) return false;
+        }
+
+        return true;
+    };
 
     const handleDelete = async (transactionId: string) => {
         if (!confirm('ยืนยันลบรายการนี้?')) return;
@@ -103,6 +121,22 @@ export default function GasStationSummaryPage({ params }: { params: Promise<{ id
     useEffect(() => {
         fetchData();
     }, [selectedDate]);
+
+    // Fetch user role
+    useEffect(() => {
+        const fetchUserRole = async () => {
+            try {
+                const res = await fetch('/api/auth/me');
+                if (res.ok) {
+                    const data = await res.json();
+                    setUserRole(data.user?.role || 'STAFF');
+                }
+            } catch {
+                // Ignore error
+            }
+        };
+        fetchUserRole();
+    }, []);
 
     const fetchData = async () => {
         setLoading(true);
@@ -156,6 +190,7 @@ export default function GasStationSummaryPage({ params }: { params: Promise<{ id
                 }
                 // Check if any shift is locked
                 if (data.shifts) {
+                    setShifts(data.shifts);
                     const hasLockedShift = data.shifts.some((s: { status: string }) => s.status === 'LOCKED');
                     setIsLocked(hasLockedShift);
                 }
@@ -533,7 +568,7 @@ export default function GasStationSummaryPage({ params }: { params: Promise<{ id
                                                 {getPaymentLabel(t.paymentType)}
                                             </p>
                                         </div>
-                                        {!isLocked ? (
+                                        {canModify() ? (
                                             <button
                                                 onClick={() => handleDelete(t.id)}
                                                 disabled={deletingId === t.id}

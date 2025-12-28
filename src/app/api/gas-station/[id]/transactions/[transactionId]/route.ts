@@ -11,17 +11,21 @@ export async function DELETE(
         const { id, transactionId } = await params;
         const stationId = `station-${id}`;
 
-        // Get user from session
+        // Get user from session with role
         const cookieStore = await cookies();
         const sessionId = cookieStore.get('session')?.value;
 
         let userId = 'system';
+        let userRole = 'STAFF';
         if (sessionId) {
             const session = await prisma.session.findUnique({
                 where: { id: sessionId },
-                select: { userId: true }
+                include: { user: { select: { id: true, role: true } } }
             });
-            if (session) userId = session.userId;
+            if (session) {
+                userId = session.userId;
+                userRole = session.user.role;
+            }
         }
 
         // Find the transaction with dailyRecord and shifts for Anti-Fraud check
@@ -34,7 +38,7 @@ export async function DELETE(
             include: {
                 dailyRecord: {
                     include: {
-                        shifts: { where: { status: 'LOCKED' } }
+                        shifts: { where: { status: { not: 'OPEN' } } }
                     }
                 }
             }
@@ -44,13 +48,30 @@ export async function DELETE(
             return HttpErrors.notFound('ไม่พบรายการ');
         }
 
-        // Anti-Fraud: Check if any shift is locked
-        const lockedShifts = transaction.dailyRecord?.shifts || [];
-        if (lockedShifts.length > 0) {
-            return NextResponse.json(
-                { error: '🔒 ไม่สามารถลบได้ กะนี้ถูกล็อกแล้ว' },
-                { status: 403 }
-            );
+        // Anti-Fraud: Check if locked (Admin can bypass)
+        if (userRole !== 'ADMIN') {
+            const closedShifts = transaction.dailyRecord?.shifts || [];
+            if (closedShifts.length > 0) {
+                const lockedShift = closedShifts.find(s => s.status === 'LOCKED');
+                if (lockedShift) {
+                    return NextResponse.json(
+                        { error: '🔒 ไม่สามารถลบได้ กะนี้ถูกล็อกแล้ว' },
+                        { status: 403 }
+                    );
+                }
+
+                // Auto-lock: Check if closed more than 24 hours ago
+                const closedShift = closedShifts.find(s => s.status === 'CLOSED' && s.closedAt);
+                if (closedShift && closedShift.closedAt) {
+                    const hoursSinceClosed = (Date.now() - new Date(closedShift.closedAt).getTime()) / (1000 * 60 * 60);
+                    if (hoursSinceClosed > 24) {
+                        return NextResponse.json(
+                            { error: '🔒 ไม่สามารถลบได้ กะปิดเกิน 24 ชั่วโมงแล้ว' },
+                            { status: 403 }
+                        );
+                    }
+                }
+            }
         }
 
         // Soft delete the transaction

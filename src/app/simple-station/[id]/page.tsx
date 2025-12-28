@@ -71,11 +71,23 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
     const [allShifts, setAllShifts] = useState<ShiftData[]>([]);
     const [shiftLoading, setShiftLoading] = useState(false);
 
-    // Helper: Check if transactions can be modified (not locked)
+    // Helper: Check if transactions can be modified
     const canModify = () => {
-        // Users can modify if no shift is LOCKED
+        // Admin can always modify
+        if (userRole === 'ADMIN') return true;
+
+        // Check for locked shifts
         const hasLockedShift = allShifts.some(s => s.status === 'LOCKED');
-        return !hasLockedShift;
+        if (hasLockedShift) return false;
+
+        // Auto-lock: Check if any shift closed more than 24 hours ago
+        const closedShift = allShifts.find(s => s.status === 'CLOSED' && s.closedAt);
+        if (closedShift && closedShift.closedAt) {
+            const hoursSinceClosed = (Date.now() - new Date(closedShift.closedAt).getTime()) / (1000 * 60 * 60);
+            if (hoursSinceClosed > 24) return false;
+        }
+
+        return true;
     };
 
     // Fetch user info on mount
