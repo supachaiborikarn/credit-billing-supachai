@@ -365,6 +365,13 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                                 <span className="text-2xl">📋</span>
                                 <p className="text-sm font-bold text-neutral-600 mt-1">สรุปรายวัน</p>
                             </Link>
+                            <Link
+                                href={`/simple-station/${id}/new/products`}
+                                className="rounded-xl border border-purple-200 bg-purple-50 p-4 text-center hover:bg-purple-100 transition"
+                            >
+                                <span className="text-2xl">🛒</span>
+                                <p className="text-sm font-bold text-purple-600 mt-1">จัดการสินค้า</p>
+                            </Link>
                             <button
                                 onClick={() => {
                                     // Load existing prices
