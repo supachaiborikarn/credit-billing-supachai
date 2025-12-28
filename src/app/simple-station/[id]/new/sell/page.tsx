@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use, useRef } from 'react';
-import { ArrowLeft, Search, User, Check } from 'lucide-react';
+import { ArrowLeft, Search, User, Check, Plus, Minus, ShoppingCart } from 'lucide-react';
 import { STATIONS, PAYMENT_TYPES, FUEL_TYPES } from '@/constants';
 import Link from 'next/link';
 
@@ -10,6 +10,22 @@ interface TruckResult {
     licensePlate: string;
     ownerName: string;
     ownerId?: string;
+}
+
+interface Product {
+    id: string;
+    name: string;
+    unit: string;
+    salePrice: number;
+    quantity: number; // stock
+}
+
+interface SelectedProduct {
+    productId: string;
+    name: string;
+    unit: string;
+    price: number;
+    qty: number;
 }
 
 export default function SimpleStationSellPage({ params }: { params: Promise<{ id: string }> }) {
@@ -33,6 +49,11 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
     const [bookNo, setBookNo] = useState('');
     const [billNo, setBillNo] = useState('');
 
+    // Product selection
+    const [products, setProducts] = useState<Product[]>([]);
+    const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
+    const [showProductPicker, setShowProductPicker] = useState(false);
+
     // Fuel prices from localStorage
     const [fuelPrices, setFuelPrices] = useState<Record<string, number>>({});
 
@@ -45,6 +66,22 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
     const [showResults, setShowResults] = useState(false);
     const [searchLoading, setSearchLoading] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
+
+    // Load products for this station
+    useEffect(() => {
+        const fetchProducts = async () => {
+            try {
+                const res = await fetch(`/api/simple-station/${id}/products`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setProducts(data.products || []);
+                }
+            } catch (error) {
+                console.error('Error fetching products:', error);
+            }
+        };
+        fetchProducts();
+    }, [id]);
 
     // Load fuel prices from localStorage
     useEffect(() => {
@@ -87,6 +124,10 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
             }
         }
     }, [liters, pricePerLiter, inputMode, amountInput]);
+
+    // Calculate total including products
+    const productsTotal = selectedProducts.reduce((sum, p) => sum + p.price * p.qty, 0);
+    const grandTotal = amount + productsTotal;
 
     // Search trucks
     useEffect(() => {
@@ -156,12 +197,52 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
         return num.toFixed(2);
     };
 
+    // Add product to selection
+    const addProduct = (product: Product) => {
+        const existing = selectedProducts.find(p => p.productId === product.id);
+        if (existing) {
+            // Increase qty
+            setSelectedProducts(prev =>
+                prev.map(p => p.productId === product.id ? { ...p, qty: p.qty + 1 } : p)
+            );
+        } else {
+            setSelectedProducts(prev => [
+                ...prev,
+                {
+                    productId: product.id,
+                    name: product.name,
+                    unit: product.unit,
+                    price: product.salePrice,
+                    qty: 1,
+                },
+            ]);
+        }
+        setShowProductPicker(false);
+    };
+
+    // Update product qty
+    const updateProductQty = (productId: string, delta: number) => {
+        setSelectedProducts(prev =>
+            prev.map(p => {
+                if (p.productId === productId) {
+                    const newQty = Math.max(0, p.qty + delta);
+                    return { ...p, qty: newQty };
+                }
+                return p;
+            }).filter(p => p.qty > 0)
+        );
+    };
+
     const handleSubmit = async () => {
-        if (!liters || parseFloat(liters) <= 0) {
-            alert('กรุณาใส่จำนวนลิตร');
+        // Allow either fuel or products
+        const hasFuel = liters && parseFloat(liters) > 0;
+        const hasProducts = selectedProducts.length > 0;
+
+        if (!hasFuel && !hasProducts) {
+            alert('กรุณาใส่จำนวนลิตร หรือเลือกสินค้า');
             return;
         }
-        if (!pricePerLiter || parseFloat(pricePerLiter) <= 0) {
+        if (hasFuel && (!pricePerLiter || parseFloat(pricePerLiter) <= 0)) {
             alert('กรุณาใส่ราคาต่อลิตร');
             return;
         }
@@ -177,12 +258,13 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                     ownerName: ownerName || null,
                     ownerId: ownerId || null,
                     paymentType,
-                    fuelType,
-                    liters: parseFloat(liters),
-                    pricePerLiter: parseFloat(pricePerLiter),
-                    amount,
+                    fuelType: hasFuel ? fuelType : null,
+                    liters: hasFuel ? parseFloat(liters) : 0,
+                    pricePerLiter: hasFuel ? parseFloat(pricePerLiter) : 0,
+                    amount: grandTotal,
                     bookNo: bookNo || null,
                     billNo: billNo || null,
+                    products: selectedProducts, // Send selected products
                 }),
             });
 
@@ -197,7 +279,15 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                 setBookNo('');
                 setBillNo('');
                 setPaymentType('CASH');
+                setSelectedProducts([]);
                 alert('✅ บันทึกเรียบร้อย!');
+
+                // Refresh products to update stock
+                const prodRes = await fetch(`/api/simple-station/${id}/products`);
+                if (prodRes.ok) {
+                    const data = await prodRes.json();
+                    setProducts(data.products || []);
+                }
             } else {
                 const err = await res.json();
                 alert(err.error || 'บันทึกไม่สำเร็จ');
@@ -410,21 +500,119 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                     </div>
                 </div>
 
+                {/* Product Selection */}
+                <div className="bg-white rounded-2xl shadow-sm p-4">
+                    <div className="flex items-center justify-between mb-3">
+                        <label className="text-sm font-medium text-gray-700">
+                            🛒 สินค้าเพิ่มเติม (น้ำมันเครื่อง/อุปกรณ์)
+                        </label>
+                        <button
+                            onClick={() => setShowProductPicker(true)}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-purple-500 text-white text-sm font-medium rounded-lg hover:bg-purple-600 transition"
+                        >
+                            <Plus size={16} />
+                            เพิ่ม
+                        </button>
+                    </div>
+
+                    {selectedProducts.length > 0 ? (
+                        <div className="space-y-2">
+                            {selectedProducts.map((item) => (
+                                <div key={item.productId} className="flex items-center justify-between bg-purple-50 p-3 rounded-xl">
+                                    <div>
+                                        <p className="font-medium text-gray-800">{item.name}</p>
+                                        <p className="text-sm text-gray-500">{formatCurrency(item.price)} ฿/{item.unit}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => updateProductQty(item.productId, -1)}
+                                            className="w-8 h-8 flex items-center justify-center bg-gray-200 rounded-full hover:bg-gray-300"
+                                        >
+                                            <Minus size={16} />
+                                        </button>
+                                        <span className="w-8 text-center font-bold">{item.qty}</span>
+                                        <button
+                                            onClick={() => updateProductQty(item.productId, 1)}
+                                            className="w-8 h-8 flex items-center justify-center bg-purple-500 text-white rounded-full hover:bg-purple-600"
+                                        >
+                                            <Plus size={16} />
+                                        </button>
+                                        <span className="ml-2 font-bold text-purple-700">{formatCurrency(item.price * item.qty)} ฿</span>
+                                    </div>
+                                </div>
+                            ))}
+                            <div className="flex justify-between pt-2 border-t border-gray-200">
+                                <span className="font-medium text-gray-600">รวมสินค้า</span>
+                                <span className="font-bold text-purple-700">{formatCurrency(productsTotal)} ฿</span>
+                            </div>
+                        </div>
+                    ) : (
+                        <p className="text-sm text-gray-400 text-center py-3">ยังไม่มีสินค้า กดปุ่ม "เพิ่ม" เพื่อเลือก</p>
+                    )}
+                </div>
+
                 {/* Total Amount */}
                 <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl p-4 text-center">
                     <p className="text-orange-100 text-sm mb-1">รวมทั้งสิ้น</p>
-                    <p className="text-white text-4xl font-bold">฿{formatCurrency(amount)}</p>
+                    <p className="text-white text-4xl font-bold">฿{formatCurrency(grandTotal)}</p>
+                    {productsTotal > 0 && (
+                        <p className="text-orange-100 text-xs mt-1">
+                            (น้ำมัน {formatCurrency(amount)} + สินค้า {formatCurrency(productsTotal)})
+                        </p>
+                    )}
                 </div>
 
                 {/* Submit Button */}
                 <button
                     onClick={handleSubmit}
-                    disabled={loading || !liters || parseFloat(liters) <= 0}
+                    disabled={loading || ((!liters || parseFloat(liters) <= 0) && selectedProducts.length === 0)}
                     className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white text-lg font-bold rounded-2xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                 >
                     {loading ? 'กำลังบันทึก...' : '✅ บันทึก'}
                 </button>
             </div>
+
+            {/* Product Picker Modal */}
+            {showProductPicker && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+                    <div className="bg-white w-full max-w-lg rounded-t-3xl max-h-[80vh] overflow-hidden flex flex-col">
+                        <div className="p-4 border-b flex items-center justify-between">
+                            <h2 className="text-lg font-bold text-gray-800">🛒 เลือกสินค้า</h2>
+                            <button onClick={() => setShowProductPicker(false)} className="text-gray-500">✕</button>
+                        </div>
+                        <div className="flex-1 overflow-auto p-4">
+                            {products.length === 0 ? (
+                                <div className="text-center py-8">
+                                    <p className="text-gray-400">ยังไม่มีสินค้า</p>
+                                    <Link href={`/simple-station/${id}/new/products`} className="text-purple-500 text-sm mt-2 inline-block">
+                                        → ไปเพิ่มสินค้า
+                                    </Link>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {products.map((product) => (
+                                        <button
+                                            key={product.id}
+                                            onClick={() => addProduct(product)}
+                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-purple-50 transition text-left"
+                                        >
+                                            <div>
+                                                <p className="font-medium text-gray-800">{product.name}</p>
+                                                <p className="text-sm text-gray-500">
+                                                    {formatCurrency(product.salePrice)} ฿/{product.unit} • คงเหลือ {product.quantity}
+                                                </p>
+                                            </div>
+                                            <div className="w-8 h-8 flex items-center justify-center bg-purple-500 text-white rounded-full">
+                                                <Plus size={18} />
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -20,6 +20,7 @@ interface TransactionInput {
     productType?: string;
     fuelType?: string;
     transferProofUrl?: string;
+    products?: Array<{ productId: string; qty: number }>;
 }
 
 // GET transactions for a station by date
@@ -273,6 +274,28 @@ export async function POST(
                 recordedById: userId,
             }
         });
+
+        // Deduct stock for products (if any)
+        const products = body.products as Array<{ productId: string; qty: number }> | undefined;
+        if (products && products.length > 0) {
+            for (const item of products) {
+                // Deduct from inventory
+                await prisma.productInventory.updateMany({
+                    where: {
+                        productId: item.productId,
+                        stationId,
+                    },
+                    data: {
+                        quantity: {
+                            decrement: item.qty
+                        }
+                    }
+                });
+
+                // Log the product sale (optional - for tracking)
+                console.log(`[Product Sale] ${item.productId} x${item.qty} at ${stationId}`);
+            }
+        }
 
         return NextResponse.json({ success: true, transaction });
     } catch (error) {
