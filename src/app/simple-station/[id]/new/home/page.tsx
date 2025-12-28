@@ -321,14 +321,13 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                         {/* Shift Actions */}
                         <div className="flex flex-wrap gap-2">
                             {currentShift ? (
-                                <button
-                                    onClick={closeShift}
-                                    disabled={actionLoading}
-                                    className="flex-1 py-3 px-4 rounded-xl bg-red-500 text-white font-bold hover:bg-red-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                                <Link
+                                    href={`/simple-station/${id}/new/shift-end`}
+                                    className="flex-1 py-3 px-4 rounded-xl bg-red-500 text-white font-bold hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
                                 >
                                     <Clock size={18} />
-                                    ปิดกะ
-                                </button>
+                                    ลงมิเตอร์/ปิดกะ
+                                </Link>
                             ) : (
                                 Array.from({ length: maxShifts }, (_, i) => i + 1).map(num => {
                                     const isOpened = allShifts.some(s => s.shiftNumber === num);

@@ -1,6 +1,7 @@
 'use client';
 
 import { STATION_STAFF } from '@/constants';
+import Link from 'next/link';
 
 interface ShiftData {
     id: string;
@@ -28,11 +29,13 @@ export default function SimpleShiftControls({
     allShifts,
     actionLoading,
     onOpenShift,
-    onCloseShift,
 }: SimpleShiftControlsProps) {
     // Get max shifts for this station
     const stationConfig = STATION_STAFF[stationId as keyof typeof STATION_STAFF];
     const maxShifts = stationConfig?.maxShifts || 2;
+
+    // Extract station number from stationId (e.g. "station-2" -> "2")
+    const stationNumber = stationId.replace('station-', '');
 
     // Generate shift options based on maxShifts
     const shiftOptions = Array.from({ length: maxShifts }, (_, i) => ({
@@ -53,13 +56,12 @@ export default function SimpleShiftControls({
                             <span className="text-green-400 ml-2">เปิดอยู่</span>
                         </div>
                     </div>
-                    <button
-                        onClick={onCloseShift}
-                        disabled={actionLoading}
-                        className="px-4 py-2 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition disabled:opacity-50"
+                    <Link
+                        href={`/simple-station/${stationNumber}/new/shift-end`}
+                        className="px-4 py-2 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition"
                     >
-                        {actionLoading ? 'กำลังดำเนินการ...' : '🔒 ปิดกะ'}
-                    </button>
+                        📊 ลงมิเตอร์/ปิดกะ
+                    </Link>
                 </div>
             </div>
         );
@@ -80,8 +82,8 @@ export default function SimpleShiftControls({
                             onClick={() => onOpenShift(shift.number)}
                             disabled={actionLoading || isClosed}
                             className={`rounded-xl px-4 py-3 text-sm font-bold transition ${isClosed
-                                    ? 'bg-white/5 text-gray-500 cursor-not-allowed'
-                                    : 'bg-gradient-to-r from-orange-500 to-yellow-500 text-black hover:shadow-lg hover:shadow-orange-500/25'
+                                ? 'bg-white/5 text-gray-500 cursor-not-allowed'
+                                : 'bg-gradient-to-r from-orange-500 to-yellow-500 text-black hover:shadow-lg hover:shadow-orange-500/25'
                                 }`}
                         >
                             {isClosed ? `✓ ${shift.name}` : `🚀 ${shift.name}`}
