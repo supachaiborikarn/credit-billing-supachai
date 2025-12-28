@@ -350,6 +350,8 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                             startPhoto: m.startPhoto || undefined,
                             endPhoto: m.endPhoto || undefined,
                         }));
+                        // Sort by nozzle number to ensure display order 1, 2, 3, 4
+                        currentMeters.sort((a: { nozzle: number }, b: { nozzle: number }) => a.nozzle - b.nozzle);
                         setMeters(currentMeters);
 
                         // Check meter continuity warnings
