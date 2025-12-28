@@ -451,13 +451,12 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
 
                         {/* Shift Actions */}
                         {currentShift ? (
-                            <button
-                                onClick={handleCloseShift}
-                                disabled={shiftLoading}
-                                className="px-4 py-2 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-all font-semibold disabled:opacity-50"
+                            <Link
+                                href={`/simple-station/${id}/new/shift-end`}
+                                className="px-4 py-2 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-all font-semibold"
                             >
-                                {shiftLoading ? '⏳' : '🔒'} ปิดกะ
-                            </button>
+                                🔒 ปิดกะ
+                            </Link>
                         ) : (
                             <SimpleShiftControls
                                 stationId={`station-${id}`}
