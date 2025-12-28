@@ -252,8 +252,8 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
 
     // Filter owners based on search
     const filteredOwners = ownersList.filter(o =>
-        o.name.toLowerCase().includes(ownerSearch.toLowerCase()) ||
-        o.code.toLowerCase().includes(ownerSearch.toLowerCase())
+        (o.name || '').toLowerCase().includes(ownerSearch.toLowerCase()) ||
+        (o.code || '').toLowerCase().includes(ownerSearch.toLowerCase())
     ).slice(0, 20); // Limit to 20 results
 
     // Select an owner
