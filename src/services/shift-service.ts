@@ -72,18 +72,22 @@ export async function validateCloseShift(shiftId: string): Promise<CloseShiftVal
         errors.push('กะนี้ปิดหรือล็อกไปแล้ว');
     }
 
-    // 2. ตรวจสอบมิเตอร์ครบทุกหัว
-    const expectedNozzles = shift.dailyRecord?.station?.type === 'GAS' ? 4 : 4;
-    const completedMeters = shift.meters.filter(m => m.endReading !== null);
+    // 2. Skip meter validation for SIMPLE stations (no meters yet)
+    const stationType = shift.dailyRecord?.station?.type;
+    if (stationType !== 'SIMPLE') {
+        // ตรวจสอบมิเตอร์ครบทุกหัว (สำหรับ FULL และ GAS เท่านั้น)
+        const expectedNozzles = stationType === 'GAS' ? 4 : 4;
+        const completedMeters = shift.meters.filter(m => m.endReading !== null);
 
-    if (completedMeters.length < expectedNozzles) {
-        errors.push(`มิเตอร์ยังไม่ครบ (${completedMeters.length}/${expectedNozzles} หัว)`);
-    }
+        if (completedMeters.length < expectedNozzles) {
+            errors.push(`มิเตอร์ยังไม่ครบ (${completedMeters.length}/${expectedNozzles} หัว)`);
+        }
 
-    // 3. ตรวจสอบมิเตอร์ไม่มีค่าติดลบ
-    for (const meter of shift.meters) {
-        if (meter.soldQty && Number(meter.soldQty) < 0) {
-            errors.push(`มิเตอร์หัว ${meter.nozzleNumber} มียอดติดลบ`);
+        // 3. ตรวจสอบมิเตอร์ไม่มีค่าติดลบ
+        for (const meter of shift.meters) {
+            if (meter.soldQty && Number(meter.soldQty) < 0) {
+                errors.push(`มิเตอร์หัว ${meter.nozzleNumber} มียอดติดลบ`);
+            }
         }
     }
 
