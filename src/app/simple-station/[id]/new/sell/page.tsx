@@ -74,6 +74,8 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
     const [savingNewTruck, setSavingNewTruck] = useState(false);
     const [ownersList, setOwnersList] = useState<Array<{ id: string; name: string; code: string }>>([]);
     const [loadingOwners, setLoadingOwners] = useState(false);
+    const [ownerSearch, setOwnerSearch] = useState('');
+    const [showOwnerDropdown, setShowOwnerDropdown] = useState(false);
 
     // Load products for this station
     useEffect(() => {
@@ -228,6 +230,8 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
         setNewTruckPlate(licensePlate);
         setShowNewTruckModal(true);
         setShowResults(false);
+        setOwnerSearch('');
+        setSelectedOwnerId('');
 
         if (ownersList.length === 0) {
             setLoadingOwners(true);
@@ -235,6 +239,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                 const res = await fetch('/api/owners');
                 if (res.ok) {
                     const data = await res.json();
+                    // Show all owners
                     setOwnersList(data);
                 }
             } catch (e) {
@@ -243,6 +248,19 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                 setLoadingOwners(false);
             }
         }
+    };
+
+    // Filter owners based on search
+    const filteredOwners = ownersList.filter(o =>
+        o.name.toLowerCase().includes(ownerSearch.toLowerCase()) ||
+        o.code.toLowerCase().includes(ownerSearch.toLowerCase())
+    ).slice(0, 20); // Limit to 20 results
+
+    // Select an owner
+    const selectOwner = (owner: { id: string; name: string; code: string }) => {
+        setSelectedOwnerId(owner.id);
+        setOwnerSearch(`${owner.code} - ${owner.name}`);
+        setShowOwnerDropdown(false);
     };
 
     // Handle price input - auto format to XX.XX
@@ -722,9 +740,9 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                                     placeholder="เช่น กก-1234"
                                 />
                             </div>
-                            <div>
+                            <div className="relative">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    เลือกเจ้าของ
+                                    ค้นหาเจ้าของ
                                 </label>
                                 {loadingOwners ? (
                                     <div className="flex items-center justify-center py-3">
@@ -732,24 +750,50 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                                         <span className="ml-2 text-gray-500">กำลังโหลด...</span>
                                     </div>
                                 ) : (
-                                    <select
-                                        value={selectedOwnerId}
-                                        onChange={(e) => setSelectedOwnerId(e.target.value)}
-                                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    >
-                                        <option value="">-- เลือกเจ้าของ --</option>
-                                        {ownersList.map(owner => (
-                                            <option key={owner.id} value={owner.id}>
-                                                {owner.code} - {owner.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <>
+                                        <input
+                                            type="text"
+                                            value={ownerSearch}
+                                            onChange={(e) => {
+                                                setOwnerSearch(e.target.value);
+                                                setSelectedOwnerId('');
+                                                setShowOwnerDropdown(true);
+                                            }}
+                                            onFocus={() => setShowOwnerDropdown(true)}
+                                            placeholder="พิมพ์ชื่อหรือรหัสเพื่อค้นหา..."
+                                            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                        {showOwnerDropdown && (
+                                            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-auto">
+                                                {filteredOwners.length === 0 ? (
+                                                    <div className="px-4 py-3 text-gray-500 text-center">
+                                                        ไม่พบเจ้าของ
+                                                    </div>
+                                                ) : (
+                                                    filteredOwners.map(owner => (
+                                                        <button
+                                                            key={owner.id}
+                                                            type="button"
+                                                            onClick={() => selectOwner(owner)}
+                                                            className="w-full px-4 py-2 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
+                                                        >
+                                                            <span className="font-medium text-gray-800">{owner.code}</span>
+                                                            <span className="text-gray-500"> - {owner.name}</span>
+                                                        </button>
+                                                    ))
+                                                )}
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         </div>
                         <div className="p-4 border-t flex gap-2">
                             <button
-                                onClick={() => setShowNewTruckModal(false)}
+                                onClick={() => {
+                                    setShowNewTruckModal(false);
+                                    setShowOwnerDropdown(false);
+                                }}
                                 className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50"
                             >
                                 ยกเลิก
