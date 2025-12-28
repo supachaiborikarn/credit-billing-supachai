@@ -19,6 +19,7 @@ model User {
   sessions     Session[]
   shifts       Shift[]       @relation("ShiftStaff")
   transactions Transaction[]
+  meterReadings MeterReading[] @relation("MeterCapturedBy")
   station      Station?      @relation(fields: [stationId], references: [id])
 
   @@map("users")
@@ -125,11 +126,16 @@ model MeterReading {
   nozzleNumber  Int
   startReading  Decimal      @default(0)
   endReading    Decimal?
+  soldQty       Decimal?     // Auto-calculated: endReading - startReading
   startPhoto    String?
   endPhoto      String?
   shiftId       String?
+  capturedById  String?      // Who recorded this reading
+  capturedAt    DateTime?    // When was it recorded
+  note          String?      // Optional note
   dailyRecord   DailyRecord? @relation(fields: [dailyRecordId], references: [id])
   shift         Shift?       @relation(fields: [shiftId], references: [id])
+  capturedBy    User?        @relation("MeterCapturedBy", fields: [capturedById], references: [id])
 
   @@unique([dailyRecordId, nozzleNumber])
   @@unique([shiftId, nozzleNumber])

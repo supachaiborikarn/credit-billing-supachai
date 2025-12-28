@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { STATIONS } from '@/constants';
+import { prepareMeterSaveData } from '@/services';
 
 export async function POST(
     request: Request,
@@ -16,7 +17,7 @@ export async function POST(
         }
 
         const body = await request.json();
-        const { date: dateStr, type, meters, shiftId } = body;
+        const { date: dateStr, type, meters, shiftId, userId } = body;
         const date = new Date(dateStr + 'T00:00:00Z');
 
         // Get or create station with consistent ID
@@ -45,25 +46,38 @@ export async function POST(
                 return NextResponse.json({ error: 'ไม่พบกะนี้' }, { status: 404 });
             }
 
-            // Update shift's meter readings
+            // Update shift's meter readings with auto-calculation
+            const savedMeters = [];
             for (const meter of meters) {
                 const existingMeter = shift.meters.find(m => m.nozzleNumber === meter.nozzleNumber);
 
                 if (existingMeter) {
+                    // Use service to prepare data with auto-calculation
+                    const updateData = prepareMeterSaveData(
+                        type,
+                        meter.reading,
+                        existingMeter.startReading ? Number(existingMeter.startReading) : null,
+                        userId
+                    );
+
                     await prisma.meterReading.update({
                         where: { id: existingMeter.id },
-                        data: type === 'start'
-                            ? { startReading: meter.reading }
-                            : { endReading: meter.reading }
+                        data: updateData
+                    });
+
+                    savedMeters.push({
+                        nozzleNumber: meter.nozzleNumber,
+                        ...updateData
                     });
                 } else {
                     // Create new meter reading for this shift
+                    const createData = prepareMeterSaveData(type, meter.reading, null, userId);
+
                     await prisma.meterReading.create({
                         data: {
                             shiftId: shiftId,
                             nozzleNumber: meter.nozzleNumber,
-                            startReading: type === 'start' ? meter.reading : 0,
-                            endReading: type === 'end' ? meter.reading : null,
+                            ...createData,
                         }
                     });
                 }
@@ -72,7 +86,8 @@ export async function POST(
             return NextResponse.json({
                 success: true,
                 savedTo: 'shift',
-                shiftId: shiftId
+                shiftId: shiftId,
+                meters: savedMeters
             });
         }
 
