@@ -73,6 +73,7 @@ export default function GasStationSummaryPage({ params }: { params: Promise<{ id
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [gaugeReadings, setGaugeReadings] = useState<GaugeReading[]>([]);
     const [currentStock, setCurrentStock] = useState(0);
+    const [isLocked, setIsLocked] = useState(false);  // Anti-Fraud: Track if shift is locked
 
     const handleDelete = async (transactionId: string) => {
         if (!confirm('ยืนยันลบรายการนี้?')) return;
@@ -152,6 +153,11 @@ export default function GasStationSummaryPage({ params }: { params: Promise<{ id
                 }
                 if (data.currentStock !== undefined) {
                     setCurrentStock(data.currentStock);
+                }
+                // Check if any shift is locked
+                if (data.shifts) {
+                    const hasLockedShift = data.shifts.some((s: { status: string }) => s.status === 'LOCKED');
+                    setIsLocked(hasLockedShift);
                 }
             }
         } catch (error) {
@@ -527,17 +533,21 @@ export default function GasStationSummaryPage({ params }: { params: Promise<{ id
                                                 {getPaymentLabel(t.paymentType)}
                                             </p>
                                         </div>
-                                        <button
-                                            onClick={() => handleDelete(t.id)}
-                                            disabled={deletingId === t.id}
-                                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 print:hidden"
-                                        >
-                                            {deletingId === t.id ? (
-                                                <div className="w-5 h-5 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
-                                            ) : (
-                                                <Trash2 size={18} />
-                                            )}
-                                        </button>
+                                        {!isLocked ? (
+                                            <button
+                                                onClick={() => handleDelete(t.id)}
+                                                disabled={deletingId === t.id}
+                                                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 print:hidden"
+                                            >
+                                                {deletingId === t.id ? (
+                                                    <div className="w-5 h-5 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                                                ) : (
+                                                    <Trash2 size={18} />
+                                                )}
+                                            </button>
+                                        ) : (
+                                            <span className="text-xs text-gray-400 print:hidden" title="กะถูกล็อกแล้ว">🔒</span>
+                                        )}
                                     </div>
                                 ))
                             ) : (

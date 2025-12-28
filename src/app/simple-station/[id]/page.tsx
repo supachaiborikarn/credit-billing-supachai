@@ -71,6 +71,13 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
     const [allShifts, setAllShifts] = useState<ShiftData[]>([]);
     const [shiftLoading, setShiftLoading] = useState(false);
 
+    // Helper: Check if transactions can be modified (not locked)
+    const canModify = () => {
+        // Users can modify if no shift is LOCKED
+        const hasLockedShift = allShifts.some(s => s.status === 'LOCKED');
+        return !hasLockedShift;
+    };
+
     // Fetch user info on mount
     useEffect(() => {
         const fetchUserInfo = async () => {
@@ -680,7 +687,7 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
                                                         </div>
                                                     </div>
                                                 </div>
-                                                {/* Action Buttons - Always Visible */}
+                                                {/* Action Buttons - Only show if not locked */}
                                                 <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
                                                     {txn.paymentType === 'CREDIT' && (
                                                         <button
@@ -691,20 +698,28 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
                                                             พิมพ์
                                                         </button>
                                                     )}
-                                                    <button
-                                                        onClick={() => openEditModal(txn)}
-                                                        className="flex items-center gap-1 px-3 py-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors text-sm"
-                                                    >
-                                                        <Edit size={16} />
-                                                        แก้ไข
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteTransaction(txn.id)}
-                                                        className="flex items-center gap-1 px-3 py-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors text-sm"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                        ลบ
-                                                    </button>
+                                                    {canModify() ? (
+                                                        <>
+                                                            <button
+                                                                onClick={() => openEditModal(txn)}
+                                                                className="flex items-center gap-1 px-3 py-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors text-sm"
+                                                            >
+                                                                <Edit size={16} />
+                                                                แก้ไข
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteTransaction(txn.id)}
+                                                                className="flex items-center gap-1 px-3 py-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors text-sm"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                                ลบ
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-xs text-gray-500 flex items-center gap-1">
+                                                            🔒 ล็อกแล้ว
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}
@@ -781,20 +796,26 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
                                                                         <Printer size={16} />
                                                                     </button>
                                                                 )}
-                                                                <button
-                                                                    onClick={() => openEditModal(txn)}
-                                                                    className="text-blue-400 hover:text-blue-300 p-1"
-                                                                    title="แก้ไข"
-                                                                >
-                                                                    <Edit size={16} />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleDeleteTransaction(txn.id)}
-                                                                    className="text-red-400 hover:text-red-300 p-1"
-                                                                    title="ลบ"
-                                                                >
-                                                                    <Trash2 size={16} />
-                                                                </button>
+                                                                {canModify() ? (
+                                                                    <>
+                                                                        <button
+                                                                            onClick={() => openEditModal(txn)}
+                                                                            className="text-blue-400 hover:text-blue-300 p-1"
+                                                                            title="แก้ไข"
+                                                                        >
+                                                                            <Edit size={16} />
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleDeleteTransaction(txn.id)}
+                                                                            className="text-red-400 hover:text-red-300 p-1"
+                                                                            title="ลบ"
+                                                                        >
+                                                                            <Trash2 size={16} />
+                                                                        </button>
+                                                                    </>
+                                                                ) : (
+                                                                    <span className="text-xs text-gray-500" title="กะถูกล็อกแล้ว">🔒</span>
+                                                                )}
                                                             </div>
                                                         </td>
                                                     </tr>

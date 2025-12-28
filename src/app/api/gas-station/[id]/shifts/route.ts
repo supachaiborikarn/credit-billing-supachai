@@ -124,12 +124,92 @@ export async function POST(
                 data: { status: 'CLOSED', closedAt: new Date() }
             });
 
+            // Get user for audit
+            const cookieStore = await cookies();
+            const sessionId = cookieStore.get('session')?.value;
+            let userId = 'system';
+            if (sessionId) {
+                const session = await prisma.session.findUnique({
+                    where: { id: sessionId },
+                    select: { userId: true }
+                });
+                if (session) userId = session.userId;
+            }
+
+            // Audit log
+            await prisma.auditLog.create({
+                data: {
+                    userId,
+                    action: 'CLOSE',
+                    model: 'Shift',
+                    recordId: closedShift.id,
+                    newData: { closedAt: new Date().toISOString() }
+                }
+            });
+
             return NextResponse.json({
                 success: true,
                 shift: {
                     id: closedShift.id,
                     shiftNumber: closedShift.shiftNumber,
                     status: closedShift.status
+                }
+            });
+        }
+
+        if (action === 'lock') {
+            // Handle lock action (Admin only - ล็อกกะถาวร)
+            const date = getStartOfDayBangkok(dateStr || getTodayBangkok());
+            const closedShift = await prisma.shift.findFirst({
+                where: {
+                    dailyRecord: { stationId, date },
+                    status: 'CLOSED'
+                }
+            });
+
+            if (!closedShift) {
+                return HttpErrors.badRequest('ไม่มีกะที่ปิดแล้ว');
+            }
+
+            // Get user for audit
+            const cookieStore = await cookies();
+            const sessionId = cookieStore.get('session')?.value;
+            let userId = 'system';
+            if (sessionId) {
+                const session = await prisma.session.findUnique({
+                    where: { id: sessionId },
+                    select: { userId: true }
+                });
+                if (session) userId = session.userId;
+            }
+
+            const lockedShift = await prisma.shift.update({
+                where: { id: closedShift.id },
+                data: {
+                    status: 'LOCKED',
+                    lockedAt: new Date(),
+                    lockedById: userId
+                }
+            });
+
+            // Audit log
+            await prisma.auditLog.create({
+                data: {
+                    userId,
+                    action: 'LOCK',
+                    model: 'Shift',
+                    recordId: lockedShift.id,
+                    newData: { lockedAt: new Date().toISOString() }
+                }
+            });
+
+            return NextResponse.json({
+                success: true,
+                message: '🔒 กะถูกล็อกเรียบร้อย ไม่สามารถแก้ไขได้อีก',
+                shift: {
+                    id: lockedShift.id,
+                    shiftNumber: lockedShift.shiftNumber,
+                    status: lockedShift.status
                 }
             });
         }
