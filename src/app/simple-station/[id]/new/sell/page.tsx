@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use, useRef } from 'react';
-import { ArrowLeft, Search, User, Check, Plus, Minus, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Search, User, Check, Plus, Minus, ShoppingCart, UserPlus } from 'lucide-react';
 import { STATIONS, PAYMENT_TYPES, FUEL_TYPES } from '@/constants';
 import Link from 'next/link';
 
@@ -66,6 +66,12 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
     const [showResults, setShowResults] = useState(false);
     const [searchLoading, setSearchLoading] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
+
+    // New truck modal
+    const [showNewTruckModal, setShowNewTruckModal] = useState(false);
+    const [newTruckPlate, setNewTruckPlate] = useState('');
+    const [newOwnerName, setNewOwnerName] = useState('');
+    const [savingNewTruck, setSavingNewTruck] = useState(false);
 
     // Load products for this station
     useEffect(() => {
@@ -172,6 +178,46 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
         setOwnerName(truck.ownerName);
         setOwnerId(truck.ownerId || null);
         setShowResults(false);
+    };
+
+    // Add new truck
+    const handleAddNewTruck = async () => {
+        if (!newTruckPlate.trim() || !newOwnerName.trim()) {
+            alert('กรุณากรอกทะเบียนและชื่อเจ้าของ');
+            return;
+        }
+
+        setSavingNewTruck(true);
+        try {
+            const res = await fetch('/api/trucks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    licensePlate: newTruckPlate.trim(),
+                    ownerName: newOwnerName.trim(),
+                }),
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                // Use the new truck
+                setLicensePlate(newTruckPlate.trim());
+                setOwnerName(newOwnerName.trim());
+                setOwnerId(data.ownerId || null);
+                setShowNewTruckModal(false);
+                setNewTruckPlate('');
+                setNewOwnerName('');
+                alert('✅ เพิ่มทะเบียนใหม่สำเร็จ!');
+            } else {
+                const err = await res.json();
+                alert(err.error || 'เพิ่มไม่สำเร็จ');
+            }
+        } catch (error) {
+            console.error('Error adding truck:', error);
+            alert('เกิดข้อผิดพลาด');
+        } finally {
+            setSavingNewTruck(false);
+        }
     };
 
     // Handle price input - auto format to XX.XX
@@ -378,6 +424,21 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                                 </button>
                             ))}
                         </div>
+                    )}
+
+                    {/* Show add new option when no results */}
+                    {showResults && searchResults.length === 0 && licensePlate.length >= 2 && !searchLoading && (
+                        <button
+                            onClick={() => {
+                                setNewTruckPlate(licensePlate);
+                                setShowNewTruckModal(true);
+                                setShowResults(false);
+                            }}
+                            className="mt-2 w-full px-4 py-3 flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 hover:bg-blue-100 transition"
+                        >
+                            <UserPlus size={18} />
+                            <span>เพิ่มทะเบียนใหม่ "{licensePlate}"</span>
+                        </button>
                     )}
 
                     {ownerName && (
@@ -613,6 +674,65 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                     </div>
                 </div>
             )}
+
+            {/* New Truck Modal */}
+            {showNewTruckModal && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+                        <div className="p-4 border-b flex items-center justify-between">
+                            <h2 className="text-lg font-bold text-gray-800">🚗 เพิ่มทะเบียนใหม่</h2>
+                            <button
+                                onClick={() => setShowNewTruckModal(false)}
+                                className="text-gray-500 text-xl"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className="p-4 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    ทะเบียนรถ
+                                </label>
+                                <input
+                                    type="text"
+                                    value={newTruckPlate}
+                                    onChange={(e) => setNewTruckPlate(e.target.value)}
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="เช่น กก-1234"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    ชื่อเจ้าของ
+                                </label>
+                                <input
+                                    type="text"
+                                    value={newOwnerName}
+                                    onChange={(e) => setNewOwnerName(e.target.value)}
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="เช่น สมชาย การค้า"
+                                />
+                            </div>
+                        </div>
+                        <div className="p-4 border-t flex gap-2">
+                            <button
+                                onClick={() => setShowNewTruckModal(false)}
+                                className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50"
+                            >
+                                ยกเลิก
+                            </button>
+                            <button
+                                onClick={handleAddNewTruck}
+                                disabled={savingNewTruck || !newTruckPlate.trim() || !newOwnerName.trim()}
+                                className="flex-1 py-3 rounded-xl bg-blue-500 text-white font-bold hover:bg-blue-600 disabled:opacity-50"
+                            >
+                                {savingNewTruck ? 'กำลังบันทึก...' : '✓ เพิ่มทะเบียน'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
+
