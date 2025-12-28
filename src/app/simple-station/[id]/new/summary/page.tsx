@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use, useRef } from 'react';
-import { ArrowLeft, Trash2, Calendar, Edit, Printer, X, Image } from 'lucide-react';
+import { ArrowLeft, Trash2, Calendar, Edit, Printer, X, Image, Download, FileText } from 'lucide-react';
 import { STATIONS, PAYMENT_TYPES, FUEL_TYPES } from '@/constants';
 import Link from 'next/link';
 
@@ -191,6 +191,108 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
         window.print();
     };
 
+    // Export to Excel/CSV
+    const handleExportExcel = () => {
+        const headers = ['ลำดับ', 'เล่ม', 'เลขที่', 'ทะเบียน', 'ชื่อลูกค้า', 'ประเภทน้ำมัน', 'ลิตร', 'ราคา/ลิตร', 'ยอดเงิน', 'ชำระ'];
+        const rows = filteredTransactions.map((t, i) => [
+            i + 1,
+            t.bookNo || '-',
+            t.billNo || '-',
+            t.licensePlate || '-',
+            t.ownerName || '-',
+            getFuelLabel(t.fuelType),
+            t.liters,
+            t.pricePerLiter,
+            t.amount,
+            getPaymentLabel(t.paymentType)
+        ]);
+
+        // Add summary row
+        rows.push([]);
+        rows.push(['รวม', '', '', '', '', '', totalLiters, '', totalAmount, '']);
+
+        const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
+        const BOM = '\uFEFF';
+        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `สรุปรายการ_${station?.name || ''}_${selectedDate}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    // Print Report
+    const handlePrintReport = () => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>สรุปรายการ ${selectedDate}</title>
+                <style>
+                    body { font-family: 'Sarabun', sans-serif; padding: 20px; }
+                    h1 { text-align: center; margin-bottom: 5px; }
+                    h2 { text-align: center; color: #666; margin-top: 0; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th, td { border: 1px solid #000; padding: 8px; text-align: left; font-size: 12px; }
+                    th { background: #f0f0f0; }
+                    .text-right { text-align: right; }
+                    .summary { font-weight: bold; background: #e0e0e0; }
+                    .header { margin-bottom: 20px; }
+                    @media print { body { padding: 0; } }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>${station?.name || 'ปั๊ม'}</h1>
+                    <h2>สรุปรายการประจำวัน ${selectedDate}</h2>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ลำดับ</th>
+                            <th>เล่ม/เลขที่</th>
+                            <th>ทะเบียน</th>
+                            <th>ชื่อ</th>
+                            <th>น้ำมัน</th>
+                            <th class="text-right">ลิตร</th>
+                            <th class="text-right">ยอดเงิน</th>
+                            <th>ชำระ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filteredTransactions.map((t, i) => `
+                            <tr>
+                                <td>${i + 1}</td>
+                                <td>${t.bookNo || '-'}/${t.billNo || '-'}</td>
+                                <td>${t.licensePlate || '-'}</td>
+                                <td>${t.ownerName || '-'}</td>
+                                <td>${getFuelLabel(t.fuelType)}</td>
+                                <td class="text-right">${formatCurrency(t.liters)}</td>
+                                <td class="text-right">${formatCurrency(t.amount)}</td>
+                                <td>${getPaymentLabel(t.paymentType)}</td>
+                            </tr>
+                        `).join('')}
+                        <tr class="summary">
+                            <td colspan="5">รวมทั้งสิ้น (${filteredTransactions.length} รายการ)</td>
+                            <td class="text-right">${formatCurrency(totalLiters)}</td>
+                            <td class="text-right">${formatCurrency(totalAmount)} ฿</td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <script>window.onload = function() { window.print(); }</script>
+            </body>
+            </html>
+        `;
+        printWindow.document.write(html);
+        printWindow.document.close();
+    };
+
     if (!station) {
         return <div className="p-4 text-gray-500">ไม่พบสถานี</div>;
     }
@@ -206,14 +308,30 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                         </Link>
                         <h1 className="font-bold text-gray-800 text-lg">สรุปรายวัน</h1>
                     </div>
-                    <div className="flex items-center gap-2 rounded-full border border-black/15 bg-white px-3 py-1.5">
-                        <Calendar size={14} className="text-orange-500" />
-                        <input
-                            type="date"
-                            value={selectedDate}
-                            onChange={(e) => setSelectedDate(e.target.value)}
-                            className="bg-transparent text-sm font-bold focus:outline-none w-[110px]"
-                        />
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleExportExcel}
+                            className="p-2 rounded-lg bg-green-500 text-white hover:bg-green-600"
+                            title="Export Excel"
+                        >
+                            <Download size={18} />
+                        </button>
+                        <button
+                            onClick={handlePrintReport}
+                            className="p-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600"
+                            title="พิมพ์รายงาน"
+                        >
+                            <FileText size={18} />
+                        </button>
+                        <div className="flex items-center gap-2 rounded-full border border-black/15 bg-white px-3 py-1.5">
+                            <Calendar size={14} className="text-orange-500" />
+                            <input
+                                type="date"
+                                value={selectedDate}
+                                onChange={(e) => setSelectedDate(e.target.value)}
+                                className="bg-transparent text-sm font-bold focus:outline-none w-[110px]"
+                            />
+                        </div>
                     </div>
                 </div>
             </header>

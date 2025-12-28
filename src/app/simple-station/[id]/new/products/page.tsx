@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { ArrowLeft, Plus, Pencil, Trash2, Save, X } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, Save, X, Download, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { STATIONS } from '@/constants';
 
@@ -105,6 +105,99 @@ export default function ProductsPage({ params }: { params: Promise<{ id: string 
     const formatCurrency = (num: number) =>
         new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2 }).format(num);
 
+    // Export to Excel/CSV
+    const handleExportExcel = () => {
+        const headers = ['ลำดับ', 'ชื่อสินค้า', 'หน่วย', 'ราคา', 'คงเหลือ', 'มูลค่า'];
+        const rows = products.map((p, i) => [
+            i + 1,
+            p.name,
+            p.unit,
+            p.salePrice,
+            p.quantity || 0,
+            (p.quantity || 0) * p.salePrice
+        ]);
+
+        const totalValue = products.reduce((s, p) => s + (p.quantity || 0) * p.salePrice, 0);
+        rows.push([]);
+        rows.push(['รวม', '', '', '', products.reduce((s, p) => s + (p.quantity || 0), 0), totalValue]);
+
+        const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
+        const BOM = '\uFEFF';
+        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `สต็อกสินค้า_${station?.name || ''}_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    // Print Report
+    const handlePrintReport = () => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const totalQty = products.reduce((s, p) => s + (p.quantity || 0), 0);
+        const totalValue = products.reduce((s, p) => s + (p.quantity || 0) * p.salePrice, 0);
+
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>สต็อกสินค้า ${station?.name}</title>
+                <style>
+                    body { font-family: 'Sarabun', sans-serif; padding: 20px; }
+                    h1 { text-align: center; margin-bottom: 5px; }
+                    h2 { text-align: center; color: #666; margin-top: 0; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th, td { border: 1px solid #000; padding: 8px; text-align: left; font-size: 12px; }
+                    th { background: #f0f0f0; }
+                    .text-right { text-align: right; }
+                    .summary { font-weight: bold; background: #e0e0e0; }
+                    @media print { body { padding: 0; } }
+                </style>
+            </head>
+            <body>
+                <h1>${station?.name || 'ปั๊ม'}</h1>
+                <h2>รายงานสต็อกสินค้า - ${new Date().toLocaleDateString('th-TH')}</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ลำดับ</th>
+                            <th>ชื่อสินค้า</th>
+                            <th>หน่วย</th>
+                            <th class="text-right">ราคา</th>
+                            <th class="text-right">คงเหลือ</th>
+                            <th class="text-right">มูลค่า</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${products.map((p, i) => `
+                            <tr>
+                                <td>${i + 1}</td>
+                                <td>${p.name}</td>
+                                <td>${p.unit}</td>
+                                <td class="text-right">${formatCurrency(p.salePrice)}</td>
+                                <td class="text-right">${p.quantity || 0}</td>
+                                <td class="text-right">${formatCurrency((p.quantity || 0) * p.salePrice)}</td>
+                            </tr>
+                        `).join('')}
+                        <tr class="summary">
+                            <td colspan="4">รวมทั้งสิ้น (${products.length} รายการ)</td>
+                            <td class="text-right">${totalQty}</td>
+                            <td class="text-right">${formatCurrency(totalValue)} ฿</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <script>window.onload = function() { window.print(); }</script>
+            </body>
+            </html>
+        `;
+        printWindow.document.write(html);
+        printWindow.document.close();
+    };
+
     if (!station) {
         return <div className="p-4 text-gray-500">ไม่พบสถานี</div>;
     }
@@ -123,16 +216,32 @@ export default function ProductsPage({ params }: { params: Promise<{ id: string 
                             <p className="text-xs text-gray-400">{station.name}</p>
                         </div>
                     </div>
-                    <button
-                        onClick={() => {
-                            setShowAddForm(true);
-                            setEditing({ name: '', unit: 'ชิ้น', salePrice: '', quantity: '10' });
-                        }}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500 text-white font-bold hover:bg-green-600 transition"
-                    >
-                        <Plus size={18} />
-                        เพิ่มสินค้า
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleExportExcel}
+                            className="p-2 rounded-lg bg-green-500/80 text-white hover:bg-green-600"
+                            title="Export Excel"
+                        >
+                            <Download size={18} />
+                        </button>
+                        <button
+                            onClick={handlePrintReport}
+                            className="p-2 rounded-lg bg-purple-500/80 text-white hover:bg-purple-600"
+                            title="พิมพ์รายงาน"
+                        >
+                            <FileText size={18} />
+                        </button>
+                        <button
+                            onClick={() => {
+                                setShowAddForm(true);
+                                setEditing({ name: '', unit: 'ชิ้น', salePrice: '', quantity: '10' });
+                            }}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500 text-white font-bold hover:bg-green-600 transition"
+                        >
+                            <Plus size={18} />
+                            เพิ่มสินค้า
+                        </button>
+                    </div>
                 </div>
             </header>
 
