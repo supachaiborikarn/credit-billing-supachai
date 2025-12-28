@@ -57,55 +57,54 @@ interface ShiftInfo {
 // Default fuel types with prices (configurable per station)
 // วัชรเกียรติ: 42 หัวจ่าย
 const DEFAULT_FUEL_TYPES = [
-    // กลุ่ม 1: พาวเวอร์ (6 หัว)
-    { nozzle: 1, name: 'พาวเวอร์', price: 44.85 },
-    { nozzle: 2, name: 'พาวเวอร์', price: 44.85 },
-    { nozzle: 31, name: 'พาวเวอร์', price: 44.85 },
-    { nozzle: 32, name: 'พาวเวอร์', price: 44.85 },
-    { nozzle: 33, name: 'พาวเวอร์', price: 44.85 },
-    { nozzle: 34, name: 'พาวเวอร์', price: 44.85 },
-    // กลุ่ม 2: ดีเซล B7 (10 หัว)
+    // ดีเซล B7 (14 หัว) - ราคา 30.84
+    { nozzle: 1, name: 'ดีเซล B7', price: 30.84 },
+    { nozzle: 2, name: 'ดีเซล B7', price: 30.84 },
     { nozzle: 3, name: 'ดีเซล B7', price: 30.84 },
     { nozzle: 4, name: 'ดีเซล B7', price: 30.84 },
     { nozzle: 5, name: 'ดีเซล B7', price: 30.84 },
     { nozzle: 6, name: 'ดีเซล B7', price: 30.84 },
     { nozzle: 7, name: 'ดีเซล B7', price: 30.84 },
     { nozzle: 8, name: 'ดีเซล B7', price: 30.84 },
-    { nozzle: 35, name: 'ดีเซล B7', price: 30.84 },
-    { nozzle: 36, name: 'ดีเซล B7', price: 30.84 },
-    { nozzle: 37, name: 'ดีเซล B7', price: 30.84 },
-    { nozzle: 38, name: 'ดีเซล B7', price: 30.84 },
-    // กลุ่ม 3: ดีเซล B7 (10 หัว)
     { nozzle: 9, name: 'ดีเซล B7', price: 30.84 },
     { nozzle: 10, name: 'ดีเซล B7', price: 30.84 },
     { nozzle: 11, name: 'ดีเซล B7', price: 30.84 },
     { nozzle: 12, name: 'ดีเซล B7', price: 30.84 },
     { nozzle: 13, name: 'ดีเซล B7', price: 30.84 },
     { nozzle: 14, name: 'ดีเซล B7', price: 30.84 },
-    { nozzle: 39, name: 'ดีเซล B7', price: 30.84 },
-    { nozzle: 40, name: 'ดีเซล B7', price: 30.84 },
-    { nozzle: 41, name: 'ดีเซล B7', price: 30.84 },
-    { nozzle: 42, name: 'ดีเซล B7', price: 30.84 },
-    // กลุ่ม 4: แก๊สโซฮอล์ 95 (6 หัว)
-    { nozzle: 21, name: 'แก๊สโซฮอล์ 95', price: 31.38 },
-    { nozzle: 22, name: 'แก๊สโซฮอล์ 95', price: 31.38 },
-    { nozzle: 23, name: 'แก๊สโซฮอล์ 95', price: 31.38 },
-    { nozzle: 24, name: 'แก๊สโซฮอล์ 95', price: 31.38 },
-    { nozzle: 25, name: 'แก๊สโซฮอล์ 95', price: 31.38 },
-    { nozzle: 26, name: 'แก๊สโซฮอล์ 95', price: 31.38 },
-    // กลุ่ม 5: แก๊สโซฮอล์ 91 (4 หัว)
-    { nozzle: 27, name: 'แก๊สโซฮอล์ 91', price: 31.75 },
-    { nozzle: 28, name: 'แก๊สโซฮอล์ 91', price: 31.75 },
-    { nozzle: 29, name: 'แก๊สโซฮอล์ 91', price: 31.75 },
-    { nozzle: 30, name: 'แก๊สโซฮอล์ 91', price: 31.75 },
-    // กลุ่ม 6: เบนซิน 95 (2 หัว)
-    { nozzle: 15, name: 'เบนซิน 95', price: 41.54 },
-    { nozzle: 16, name: 'เบนซิน 95', price: 41.54 },
-    // กลุ่ม 7: E20 (4 หัว)
+    // เบนซิน 95 (2 หัว) - ราคา 44.85
+    { nozzle: 15, name: 'เบนซิน 95', price: 44.85 },
+    { nozzle: 16, name: 'เบนซิน 95', price: 44.85 },
+    // E20 (8 หัว) - ราคา 29.54
     { nozzle: 17, name: 'E20', price: 29.54 },
     { nozzle: 18, name: 'E20', price: 29.54 },
     { nozzle: 19, name: 'E20', price: 29.54 },
     { nozzle: 20, name: 'E20', price: 29.54 },
+    { nozzle: 21, name: 'E20', price: 29.54 },
+    { nozzle: 22, name: 'E20', price: 29.54 },
+    { nozzle: 23, name: 'E20', price: 29.54 },
+    { nozzle: 24, name: 'E20', price: 29.54 },
+    // G95 - แก๊สโซฮอล์ 95 (8 หัว) - ราคา 31.75
+    { nozzle: 25, name: 'แก๊สโซฮอล์ 95', price: 31.75 },
+    { nozzle: 26, name: 'แก๊สโซฮอล์ 95', price: 31.75 },
+    { nozzle: 27, name: 'แก๊สโซฮอล์ 95', price: 31.75 },
+    { nozzle: 28, name: 'แก๊สโซฮอล์ 95', price: 31.75 },
+    { nozzle: 29, name: 'แก๊สโซฮอล์ 95', price: 31.75 },
+    { nozzle: 30, name: 'แก๊สโซฮอล์ 95', price: 31.75 },
+    { nozzle: 31, name: 'แก๊สโซฮอล์ 95', price: 31.75 },
+    { nozzle: 32, name: 'แก๊สโซฮอล์ 95', price: 31.75 },
+    // G91 - แก๊สโซฮอล์ 91 (8 หัว) - ราคา 31.38
+    { nozzle: 33, name: 'แก๊สโซฮอล์ 91', price: 31.38 },
+    { nozzle: 34, name: 'แก๊สโซฮอล์ 91', price: 31.38 },
+    { nozzle: 35, name: 'แก๊สโซฮอล์ 91', price: 31.38 },
+    { nozzle: 36, name: 'แก๊สโซฮอล์ 91', price: 31.38 },
+    { nozzle: 37, name: 'แก๊สโซฮอล์ 91', price: 31.38 },
+    { nozzle: 38, name: 'แก๊สโซฮอล์ 91', price: 31.38 },
+    { nozzle: 39, name: 'แก๊สโซฮอล์ 91', price: 31.38 },
+    { nozzle: 40, name: 'แก๊สโซฮอล์ 91', price: 31.38 },
+    // พาวเวอร์ดีเซล (2 หัว) - ราคา 44.85
+    { nozzle: 41, name: 'พาวเวอร์ดีเซล', price: 44.85 },
+    { nozzle: 42, name: 'พาวเวอร์ดีเซล', price: 44.85 },
 ];
 
 export default function ShiftEndPage({ params }: { params: Promise<{ id: string }> }) {
