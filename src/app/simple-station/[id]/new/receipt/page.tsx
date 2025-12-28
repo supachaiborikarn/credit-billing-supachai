@@ -58,12 +58,18 @@ function ReceiptContent({ txn, config, docNo, copyType }: {
 
             {/* Header */}
             <div className="line"></div>
-            <div className="text-center py-1">
-                <div className="font-bold text-lg">★ CALTEX ★</div>
+            <div className="text-center py-2">
+                {/* Caltex Logo */}
+                <img
+                    src="/caltex-logo.jpg"
+                    alt="Caltex"
+                    className="mx-auto mb-2 grayscale"
+                    style={{ width: '60px', height: 'auto' }}
+                />
                 <div className="font-bold">{config.name}</div>
-                <div>{config.address1}</div>
-                <div>{config.address2}</div>
-                <div>โทร: {config.tel}</div>
+                <div className="text-[10px]">{config.address1}</div>
+                <div className="text-[10px]">{config.address2}</div>
+                <div className="text-[10px]">โทร: {config.tel}</div>
             </div>
             <div className="line"></div>
 
