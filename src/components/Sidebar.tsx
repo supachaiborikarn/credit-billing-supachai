@@ -17,7 +17,8 @@ import {
     Sun,
     Moon,
     Sparkles,
-    Edit
+    Edit,
+    Shield
 } from 'lucide-react';
 import { STATIONS } from '@/constants';
 import { useTheme } from '@/components/ThemeProvider';
@@ -72,6 +73,7 @@ export default function Sidebar({ children }: SidebarProps) {
     ];
 
     const adminMenuItems = [
+        { href: '/admin/alerts', icon: Shield, label: '🛡️ Anti-Fraud', gradient: 'from-purple-500 to-pink-500' },
         { href: '/admin/transactions', icon: Edit, label: 'แก้ไขรายการ', gradient: 'from-red-500 to-orange-500' },
         { href: '/admin/owners', icon: Users, label: 'รวมเจ้าของ', gradient: 'from-indigo-500 to-blue-500' },
         { href: '/invoices', icon: FileText, label: 'วางบิล/ชำระเงิน', gradient: 'from-pink-500 to-rose-500' },
