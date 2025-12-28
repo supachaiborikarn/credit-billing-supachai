@@ -29,22 +29,22 @@ const RECEIPT_CONFIG: Record<string, {
     tel: string;
 }> = {
     'station-1': {
-        name: 'ปั๊มคาลเท็กซ์',
+        name: 'ศุภชัยบริการ(กำแพงเพชร)',
         address: '172 หมู่ 1 ถ.พหลโยธิน ต.นครชุม\nอ.เมือง จ.กำแพงเพชร 62000',
         tel: '055-840585, 055-773003',
     },
     'station-2': {
-        name: 'วัชรเกียรติออยล์',
+        name: 'ศุภชัยบริการ(กำแพงเพชร)',
         address: '172 หมู่ 1 ถ.พหลโยธิน ต.นครชุม\nอ.เมือง จ.กำแพงเพชร 62000',
         tel: '055-840585, 055-773003',
     },
     'station-3': {
-        name: 'ท่าน้ำมัน',
+        name: 'ศุภชัยบริการ(กำแพงเพชร)',
         address: '172 หมู่ 1 ถ.พหลโยธิน ต.นครชุม\nอ.เมือง จ.กำแพงเพชร 62000',
         tel: '055-840585, 055-773003',
     },
     'station-4': {
-        name: 'ศุภชัยบริการ',
+        name: 'ศุภชัยบริการ(กำแพงเพชร)',
         address: '172 หมู่ 1 ถ.พหลโยธิน ต.นครชุม\nอ.เมือง จ.กำแพงเพชร 62000',
         tel: '055-840585, 055-773003',
     },
@@ -187,7 +187,15 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
                         <div className="text-lg font-bold border-2 border-black py-1 mb-2">
                             ใบส่งของเงินเชื่อ
                         </div>
-                        <div className="text-xl font-bold mb-1">⛽ {receiptConfig.name}</div>
+                        {/* Caltex Logo */}
+                        <div className="flex justify-center mb-2">
+                            <svg width="80" height="40" viewBox="0 0 200 100" className="mx-auto">
+                                <circle cx="100" cy="50" r="45" fill="#E31937" />
+                                <polygon points="100,15 110,45 145,45 115,65 125,95 100,75 75,95 85,65 55,45 90,45" fill="white" />
+                            </svg>
+                        </div>
+                        <div className="text-base font-bold mb-1">Caltex</div>
+                        <div className="text-lg font-bold mb-1">{receiptConfig.name}</div>
                         <div className="text-xs whitespace-pre-line text-gray-600">
                             {receiptConfig.address}
                         </div>

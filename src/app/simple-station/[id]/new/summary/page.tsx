@@ -299,13 +299,13 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                                         <p className="text-sm text-gray-500">{txn.liters} ลิตร</p>
                                         <div className="flex items-center justify-end gap-1 mt-2">
                                             {txn.paymentType === 'CREDIT' && (
-                                                <button
-                                                    onClick={() => setPrintingTxn(txn)}
+                                                <Link
+                                                    href={`/simple-station/${id}/new/receipt?txn=${txn.id}`}
                                                     className="p-2 text-purple-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                                                    title="พิมพ์บิล"
+                                                    title="พิมพ์ใบส่งของ"
                                                 >
                                                     <Printer size={16} />
-                                                </button>
+                                                </Link>
                                             )}
                                             <button
                                                 onClick={() => {
