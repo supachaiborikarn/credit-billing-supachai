@@ -317,11 +317,11 @@ export default function StationHomePage({ params }: { params: Promise<{ id: stri
                                 <span>ดูรายการ</span>
                             </Link>
                             <Link
-                                href={`/station/${id}/new/meters`}
+                                href={`/station/${id}/new/shift-end`}
                                 className="flex items-center gap-3 bg-orange-500 text-white p-4 rounded-xl hover:bg-orange-600 transition"
                             >
                                 <Fuel size={24} />
-                                <span>ลงมิเตอร์</span>
+                                <span>ลงมิเตอร์/ปิดกะ</span>
                             </Link>
                             <Link
                                 href={`/station/${id}/new/summary`}
