@@ -51,57 +51,38 @@ export async function GET(
             include: { product: true }
         });
 
-        // Default fuel configuration (วัชรเกียรติ: 42 หัวจ่าย)
-        const fuelConfig = [
-            // ดีเซล B7 (14 หัว) - ราคา 30.84
-            { nozzle: 1, name: 'ดีเซล B7', price: 30.84 },
-            { nozzle: 2, name: 'ดีเซล B7', price: 30.84 },
-            { nozzle: 3, name: 'ดีเซล B7', price: 30.84 },
-            { nozzle: 4, name: 'ดีเซล B7', price: 30.84 },
-            { nozzle: 5, name: 'ดีเซล B7', price: 30.84 },
-            { nozzle: 6, name: 'ดีเซล B7', price: 30.84 },
-            { nozzle: 7, name: 'ดีเซล B7', price: 30.84 },
-            { nozzle: 8, name: 'ดีเซล B7', price: 30.84 },
-            { nozzle: 9, name: 'ดีเซล B7', price: 30.84 },
-            { nozzle: 10, name: 'ดีเซล B7', price: 30.84 },
-            { nozzle: 11, name: 'ดีเซล B7', price: 30.84 },
-            { nozzle: 12, name: 'ดีเซล B7', price: 30.84 },
-            { nozzle: 13, name: 'ดีเซล B7', price: 30.84 },
-            { nozzle: 14, name: 'ดีเซล B7', price: 30.84 },
-            // เบนซิน 95 (2 หัว) - ราคา 44.85
-            { nozzle: 15, name: 'เบนซิน 95', price: 44.85 },
-            { nozzle: 16, name: 'เบนซิน 95', price: 44.85 },
-            // E20 (8 หัว) - ราคา 29.54
-            { nozzle: 17, name: 'E20', price: 29.54 },
-            { nozzle: 18, name: 'E20', price: 29.54 },
-            { nozzle: 19, name: 'E20', price: 29.54 },
-            { nozzle: 20, name: 'E20', price: 29.54 },
-            { nozzle: 21, name: 'E20', price: 29.54 },
-            { nozzle: 22, name: 'E20', price: 29.54 },
-            { nozzle: 23, name: 'E20', price: 29.54 },
-            { nozzle: 24, name: 'E20', price: 29.54 },
-            // G95 - แก๊สโซฮอล์ 95 (8 หัว) - ราคา 31.75
-            { nozzle: 25, name: 'แก๊สโซฮอล์ 95', price: 31.75 },
-            { nozzle: 26, name: 'แก๊สโซฮอล์ 95', price: 31.75 },
-            { nozzle: 27, name: 'แก๊สโซฮอล์ 95', price: 31.75 },
-            { nozzle: 28, name: 'แก๊สโซฮอล์ 95', price: 31.75 },
-            { nozzle: 29, name: 'แก๊สโซฮอล์ 95', price: 31.75 },
-            { nozzle: 30, name: 'แก๊สโซฮอล์ 95', price: 31.75 },
-            { nozzle: 31, name: 'แก๊สโซฮอล์ 95', price: 31.75 },
-            { nozzle: 32, name: 'แก๊สโซฮอล์ 95', price: 31.75 },
-            // G91 - แก๊สโซฮอล์ 91 (8 หัว) - ราคา 31.38
-            { nozzle: 33, name: 'แก๊สโซฮอล์ 91', price: 31.38 },
-            { nozzle: 34, name: 'แก๊สโซฮอล์ 91', price: 31.38 },
-            { nozzle: 35, name: 'แก๊สโซฮอล์ 91', price: 31.38 },
-            { nozzle: 36, name: 'แก๊สโซฮอล์ 91', price: 31.38 },
-            { nozzle: 37, name: 'แก๊สโซฮอล์ 91', price: 31.38 },
-            { nozzle: 38, name: 'แก๊สโซฮอล์ 91', price: 31.38 },
-            { nozzle: 39, name: 'แก๊สโซฮอล์ 91', price: 31.38 },
-            { nozzle: 40, name: 'แก๊สโซฮอล์ 91', price: 31.38 },
-            // พาวเวอร์ดีเซล (2 หัว) - ราคา 44.85
-            { nozzle: 41, name: 'พาวเวอร์ดีเซล', price: 44.85 },
-            { nozzle: 42, name: 'พาวเวอร์ดีเซล', price: 44.85 },
-        ];
+        // Fuel configs per station
+        const STATION_FUEL_CONFIGS: Record<string, Array<{ nozzle: number; name: string; price: number }>> = {
+            // station-1 ศุภชัยบริการ: 42 หัว
+            'station-1': [
+                // ดีเซล (20 หัว)
+                ...Array.from({ length: 20 }, (_, i) => ({ nozzle: i + 1, name: 'ดีเซล', price: 30.84 })),
+                // พาวเวอร์ดีเซล (6 หัว)
+                ...Array.from({ length: 6 }, (_, i) => ({ nozzle: i + 21, name: 'พาวเวอร์ดีเซล', price: 44.85 })),
+                // แก๊สโซฮอล์ 95 (6 หัว)
+                ...Array.from({ length: 6 }, (_, i) => ({ nozzle: i + 27, name: 'แก๊สโซฮอล์ 95', price: 31.75 })),
+                // แก๊สโซฮอล์ 91 (4 หัว)
+                ...Array.from({ length: 4 }, (_, i) => ({ nozzle: i + 33, name: 'แก๊สโซฮอล์ 91', price: 31.38 })),
+                // เบนซิน 95 (2 หัว)
+                ...Array.from({ length: 2 }, (_, i) => ({ nozzle: i + 37, name: 'เบนซิน 95', price: 44.85 })),
+                // E20 (4 หัว)
+                ...Array.from({ length: 4 }, (_, i) => ({ nozzle: i + 39, name: 'E20', price: 29.54 })),
+            ],
+            // station-2 วัชรเกียรติออยล์: 42 หัว
+            'station-2': [
+                ...Array.from({ length: 14 }, (_, i) => ({ nozzle: i + 1, name: 'ดีเซล B7', price: 30.84 })),
+                { nozzle: 15, name: 'เบนซิน 95', price: 44.85 },
+                { nozzle: 16, name: 'เบนซิน 95', price: 44.85 },
+                ...Array.from({ length: 8 }, (_, i) => ({ nozzle: i + 17, name: 'E20', price: 29.54 })),
+                ...Array.from({ length: 8 }, (_, i) => ({ nozzle: i + 25, name: 'แก๊สโซฮอล์ 95', price: 31.75 })),
+                ...Array.from({ length: 8 }, (_, i) => ({ nozzle: i + 33, name: 'แก๊สโซฮอล์ 91', price: 31.38 })),
+                { nozzle: 41, name: 'พาวเวอร์ดีเซล', price: 44.85 },
+                { nozzle: 42, name: 'พาวเวอร์ดีเซล', price: 44.85 },
+            ],
+        };
+
+        // Get fuel config for this station
+        const fuelConfig = STATION_FUEL_CONFIGS[stationId] || STATION_FUEL_CONFIGS['station-2'];
 
         // Get last closed shift's meter readings for carry-over
         const lastClosedShift = await prisma.shift.findFirst({
