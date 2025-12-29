@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use, useRef } from 'react';
-import { ArrowLeft, Fuel, Search, User, Check } from 'lucide-react';
+import { ArrowLeft, Fuel, Search, User, Check, ChevronDown } from 'lucide-react';
 import { STATIONS, GAS_PAYMENT_TYPES, DEFAULT_GAS_PRICE } from '@/constants';
 import Link from 'next/link';
 
@@ -10,6 +10,13 @@ interface TruckResult {
     licensePlate: string;
     ownerName: string;
     ownerCode?: string;
+    ownerId?: string;
+}
+
+interface Owner {
+    id: string;
+    name: string;
+    code: string;
 }
 
 export default function GasStationSellPage({ params }: { params: Promise<{ id: string }> }) {
@@ -24,6 +31,7 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
     // Form state
     const [licensePlate, setLicensePlate] = useState('');
     const [ownerName, setOwnerName] = useState('');
+    const [ownerId, setOwnerId] = useState<string | null>(null);
     const [paymentType, setPaymentType] = useState('CASH');
     const [nozzleNumber, setNozzleNumber] = useState(1);
     const [liters, setLiters] = useState('');
@@ -34,6 +42,13 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
     const [showResults, setShowResults] = useState(false);
     const [searchLoading, setSearchLoading] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
+
+    // Owner selection for credit
+    const [ownersList, setOwnersList] = useState<Owner[]>([]);
+    const [ownerSearch, setOwnerSearch] = useState('');
+    const [showOwnerDropdown, setShowOwnerDropdown] = useState(false);
+    const [loadingOwners, setLoadingOwners] = useState(false);
+    const ownerDropdownRef = useRef<HTMLDivElement>(null);
 
     // Calculate amount when liters or price changes
     useEffect(() => {
@@ -58,6 +73,20 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
         };
         fetchPrice();
     }, [id, selectedDate]);
+
+    // Fetch owners list when payment type is CREDIT
+    useEffect(() => {
+        if (paymentType === 'CREDIT' && ownersList.length === 0) {
+            setLoadingOwners(true);
+            fetch('/api/owners')
+                .then(res => res.json())
+                .then(data => {
+                    setOwnersList(data || []);
+                })
+                .catch(err => console.error('Error loading owners:', err))
+                .finally(() => setLoadingOwners(false));
+        }
+    }, [paymentType, ownersList.length]);
 
     // Search trucks/owners
     useEffect(() => {
@@ -92,6 +121,9 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
             if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
                 setShowResults(false);
             }
+            if (ownerDropdownRef.current && !ownerDropdownRef.current.contains(e.target as Node)) {
+                setShowOwnerDropdown(false);
+            }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -100,12 +132,34 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
     const selectTruck = (truck: TruckResult) => {
         setLicensePlate(truck.licensePlate);
         setOwnerName(truck.ownerName);
+        setOwnerId(truck.ownerId || null);
+        setOwnerSearch(truck.ownerName);
         setShowResults(false);
+    };
+
+    // Filter owners for dropdown
+    const filteredOwners = ownersList.filter(o =>
+        (o.name || '').toLowerCase().includes(ownerSearch.toLowerCase()) ||
+        (o.code || '').toLowerCase().includes(ownerSearch.toLowerCase())
+    ).slice(0, 20);
+
+    // Select owner from dropdown
+    const selectOwner = (owner: Owner) => {
+        setOwnerId(owner.id);
+        setOwnerName(owner.name);
+        setOwnerSearch(owner.code ? `${owner.code} - ${owner.name}` : owner.name);
+        setShowOwnerDropdown(false);
     };
 
     const handleSubmit = async () => {
         if (!liters || parseFloat(liters) <= 0) {
             alert('กรุณาใส่จำนวนลิตร');
+            return;
+        }
+
+        // Validate owner for credit transactions
+        if (paymentType === 'CREDIT' && !ownerName) {
+            alert('รายการเงินเชื่อต้องเลือกเจ้าของ');
             return;
         }
 
@@ -118,6 +172,7 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
                     date: selectedDate,
                     licensePlate: licensePlate || null,
                     ownerName: ownerName || null,
+                    ownerId: ownerId || null,
                     paymentType,
                     nozzleNumber,
                     liters: parseFloat(liters),
@@ -130,6 +185,8 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
                 // Reset form
                 setLicensePlate('');
                 setOwnerName('');
+                setOwnerId(null);
+                setOwnerSearch('');
                 setLiters('');
                 setNozzleNumber(1);
                 setPaymentType('CASH');
@@ -217,6 +274,57 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
                     )}
                 </div>
 
+                {/* Owner Selection for Credit */}
+                {paymentType === 'CREDIT' && (
+                    <div className="bg-white rounded-2xl shadow-sm p-4" ref={ownerDropdownRef}>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            👤 เลือกเจ้าของ (เงินเชื่อ) *
+                        </label>
+                        {loadingOwners ? (
+                            <div className="flex items-center justify-center py-3">
+                                <div className="animate-spin h-5 w-5 border-2 border-orange-500 border-t-transparent rounded-full"></div>
+                                <span className="ml-2 text-gray-500">กำลังโหลด...</span>
+                            </div>
+                        ) : (
+                            <>
+                                <input
+                                    type="text"
+                                    value={ownerSearch}
+                                    onChange={(e) => {
+                                        setOwnerSearch(e.target.value);
+                                        setOwnerId(null);
+                                        setOwnerName('');
+                                        setShowOwnerDropdown(true);
+                                    }}
+                                    onFocus={() => setShowOwnerDropdown(true)}
+                                    placeholder="พิมพ์ชื่อหรือรหัสเพื่อค้นหา..."
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                />
+                                {showOwnerDropdown && (
+                                    <div className="mt-2 border border-gray-200 rounded-xl overflow-hidden max-h-48 overflow-auto">
+                                        {filteredOwners.length === 0 ? (
+                                            <div className="px-4 py-3 text-gray-500 text-center">
+                                                ไม่พบเจ้าของ
+                                            </div>
+                                        ) : (
+                                            filteredOwners.map(owner => (
+                                                <button
+                                                    key={owner.id}
+                                                    onClick={() => selectOwner(owner)}
+                                                    className="w-full px-4 py-3 text-left hover:bg-orange-50 border-b border-gray-100 last:border-b-0"
+                                                >
+                                                    {owner.code && <span className="font-medium text-gray-800">{owner.code} - </span>}
+                                                    <span className="text-gray-700">{owner.name}</span>
+                                                </button>
+                                            ))
+                                        )}
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+                )}
+
                 {/* Payment Type */}
                 <div className="bg-white rounded-2xl shadow-sm p-4">
                     <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -228,8 +336,8 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
                                 key={type.value}
                                 onClick={() => setPaymentType(type.value)}
                                 className={`py-3 px-2 rounded-xl border-2 text-sm font-medium transition-all ${paymentType === type.value
-                                        ? 'border-orange-500 bg-orange-50 text-orange-700'
-                                        : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                                    ? 'border-orange-500 bg-orange-50 text-orange-700'
+                                    : 'border-gray-200 text-gray-700 hover:border-gray-300'
                                     }`}
                             >
                                 {paymentType === type.value && (
@@ -252,8 +360,8 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
                                 key={num}
                                 onClick={() => setNozzleNumber(num)}
                                 className={`py-3 rounded-xl border-2 text-xl font-bold transition-all ${nozzleNumber === num
-                                        ? 'border-orange-500 bg-orange-500 text-white'
-                                        : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                                    ? 'border-orange-500 bg-orange-500 text-white'
+                                    : 'border-gray-200 text-gray-700 hover:border-gray-300'
                                     }`}
                             >
                                 {num}
