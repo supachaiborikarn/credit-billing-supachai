@@ -145,19 +145,54 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
         try {
             // Fetch shift-end data (includes carry-over readings)
             const today = new Date().toISOString().split('T')[0];
-            const res = await fetch(`/api/simple-station/${id}/shift-end?date=${today}`);
+            let res = await fetch(`/api/simple-station/${id}/shift-end?date=${today}`);
 
             if (res.ok) {
-                const data = await res.json();
+                let data = await res.json();
+
+                // If no open shift today, check for old unclosed shifts
+                let currentShift = data.shifts?.find((s: { status: string }) => s.status === 'OPEN');
+
+                if (!currentShift) {
+                    // Try to find any open shift from previous days
+                    const oldShiftRes = await fetch(`/api/admin/fix-shift`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'list-open' })
+                    });
+                    if (oldShiftRes.ok) {
+                        const oldData = await oldShiftRes.json();
+                        const stationShifts = oldData.openShifts?.filter(
+                            (s: { stationId: string }) => s.stationId === `station-${id}`
+                        );
+                        if (stationShifts && stationShifts.length > 0) {
+                            // Found old unclosed shift - fetch its data
+                            const oldShift = stationShifts[0];
+                            const oldDate = new Date(oldShift.date).toISOString().split('T')[0];
+                            res = await fetch(`/api/simple-station/${id}/shift-end?date=${oldDate}`);
+                            if (res.ok) {
+                                data = await res.json();
+                                currentShift = data.shifts?.find((s: { status: string }) => s.status === 'OPEN');
+                            }
+                        }
+                    }
+                }
 
                 // Set shift info
-                if (data.shifts && data.shifts.length > 0) {
-                    const currentShift = data.shifts.find((s: { status: string }) => s.status === 'OPEN') || data.shifts[data.shifts.length - 1];
+                if (currentShift) {
                     setShift({
                         id: currentShift.id,
                         shiftNumber: currentShift.shiftNumber,
                         staffName: currentShift.staffName || 'ไม่ระบุ',
                         openedAt: currentShift.createdAt
+                    });
+                } else if (data.shifts && data.shifts.length > 0) {
+                    const lastShift = data.shifts[data.shifts.length - 1];
+                    setShift({
+                        id: lastShift.id,
+                        shiftNumber: lastShift.shiftNumber,
+                        staffName: lastShift.staffName || 'ไม่ระบุ',
+                        openedAt: lastShift.createdAt
                     });
                 }
 

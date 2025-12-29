@@ -176,7 +176,16 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                 setAllShifts(prev => [...prev, data.shift]);
             } else {
                 const err = await res.json();
-                alert(err.error || 'เปิดกะไม่สำเร็จ');
+                // Check if there's an old unclosed shift that needs to be closed first
+                if (err.requiresCloseOldShift && err.oldShift) {
+                    const confirmClose = confirm(`${err.error}\n\nต้องการไปหน้าปิดกะเก่าหรือไม่?`);
+                    if (confirmClose) {
+                        // Redirect to shift-end page
+                        window.location.href = `/simple-station/${id}/new/shift-end`;
+                    }
+                } else {
+                    alert(err.error || 'เปิดกะไม่สำเร็จ');
+                }
             }
         } catch (e) {
             alert('เกิดข้อผิดพลาด');

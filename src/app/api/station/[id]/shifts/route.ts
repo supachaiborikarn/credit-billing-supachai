@@ -114,7 +114,37 @@ export async function POST(
         }
 
         if (action === 'open') {
-            // Check if there's already an open shift
+            // Check for old unclosed shifts from previous days
+            const oldUnclosedShift = await prisma.shift.findFirst({
+                where: {
+                    dailyRecord: { stationId },
+                    status: 'OPEN',
+                    createdAt: { lt: startOfDay } // From before today
+                },
+                include: {
+                    dailyRecord: { select: { date: true } }
+                },
+                orderBy: { createdAt: 'desc' }
+            });
+
+            if (oldUnclosedShift) {
+                const oldDate = new Date(oldUnclosedShift.dailyRecord.date);
+                const dateStr = oldDate.toLocaleDateString('th-TH', {
+                    day: 'numeric', month: 'short', year: 'numeric'
+                });
+                return NextResponse.json({
+                    error: `มีกะวันที่ ${dateStr} ที่ยังไม่ปิด กรุณาปิดกะเก่าก่อน`,
+                    requiresCloseOldShift: true,
+                    oldShift: {
+                        id: oldUnclosedShift.id,
+                        shiftNumber: oldUnclosedShift.shiftNumber,
+                        date: oldUnclosedShift.dailyRecord.date,
+                        createdAt: oldUnclosedShift.createdAt
+                    }
+                }, { status: 400 });
+            }
+
+            // Check if there's already an open shift today
             const openShift = dailyRecord.shifts.find(s => s.status === 'OPEN');
             if (openShift) {
                 return NextResponse.json({ error: 'มีกะที่เปิดอยู่แล้ว กรุณาปิดกะก่อน' }, { status: 400 });
