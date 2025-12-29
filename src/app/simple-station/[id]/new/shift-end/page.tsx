@@ -121,6 +121,29 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
         discountNote: ''
     });
 
+    // LocalStorage key for auto-save
+    const getStorageKey = () => `shift-meters-${id}-${shift?.id || 'draft'}`;
+
+    // Auto-save meters to localStorage when changed
+    useEffect(() => {
+        if (meters.length > 0 && shift?.id) {
+            const storageKey = `shift-meters-${id}-${shift.id}`;
+            const dataToSave = meters.map(m => ({
+                nozzleNumber: m.nozzleNumber,
+                endReading: m.endReading,
+            }));
+            localStorage.setItem(storageKey, JSON.stringify(dataToSave));
+        }
+    }, [meters, id, shift?.id]);
+
+    // Auto-save cash data
+    useEffect(() => {
+        if (shift?.id) {
+            const cashKey = `shift-cash-${id}-${shift.id}`;
+            localStorage.setItem(cashKey, JSON.stringify(cash));
+        }
+    }, [cash, id, shift?.id]);
+
     // Fetch station config and current shift data
     useEffect(() => {
         fetchShiftData();
@@ -188,20 +211,53 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                 const existingMeters = data.meters || [];
                 const carryOver = data.carryOverReadings || {};
 
-                setMeters(fuelConfig.map((fuel: { nozzle: number; name: string; price: number }) => {
+                // Try to load saved readings from localStorage
+                let savedReadings: Record<number, number> = {};
+                if (currentShift?.id) {
+                    const storageKey = `shift-meters-${id}-${currentShift.id}`;
+                    try {
+                        const saved = localStorage.getItem(storageKey);
+                        if (saved) {
+                            const parsed = JSON.parse(saved) as Array<{ nozzleNumber: number; endReading: number }>;
+                            savedReadings = Object.fromEntries(parsed.map(p => [p.nozzleNumber, p.endReading]));
+                        }
+                    } catch (e) {
+                        console.error('Error loading saved meters:', e);
+                    }
+                }
+
+                const initialMeters = fuelConfig.map((fuel: { nozzle: number; name: string; price: number }) => {
                     const existing = existingMeters.find((m: { nozzleNumber: number }) => m.nozzleNumber === fuel.nozzle);
                     // Use carry-over reading as startReading if no existing reading
                     const startReading = existing?.startReading || carryOver[fuel.nozzle] || 0;
+                    // Use saved endReading from localStorage, or existing, or 0
+                    const endReading = savedReadings[fuel.nozzle] || existing?.endReading || 0;
+                    const liters = endReading > startReading ? endReading - startReading : 0;
                     return {
                         nozzleNumber: fuel.nozzle,
                         fuelType: fuel.name,
                         price: fuel.price,
                         startReading: Number(startReading),
-                        endReading: existing?.endReading || 0,
-                        liters: 0,
-                        amount: 0
+                        endReading: Number(endReading),
+                        liters: liters,
+                        amount: liters * fuel.price
                     };
-                }));
+                });
+                setMeters(initialMeters);
+
+                // Load saved cash data
+                if (currentShift?.id) {
+                    const cashKey = `shift-cash-${id}-${currentShift.id}`;
+                    try {
+                        const savedCash = localStorage.getItem(cashKey);
+                        if (savedCash) {
+                            const parsedCash = JSON.parse(savedCash);
+                            setCash(prev => ({ ...prev, ...parsedCash }));
+                        }
+                    } catch (e) {
+                        console.error('Error loading saved cash:', e);
+                    }
+                }
 
                 // Initialize products
                 if (data.products) {
@@ -307,8 +363,13 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
             });
 
             if (res.ok) {
+                // Clear saved data from localStorage
+                if (shift?.id) {
+                    localStorage.removeItem(`shift-meters-${id}-${shift.id}`);
+                    localStorage.removeItem(`shift-cash-${id}-${shift.id}`);
+                }
                 alert('✅ ปิดกะเรียบร้อย');
-                window.location.href = `/simple-station/${id}`;
+                window.location.href = `/simple-station/${id}/new/home`;
             } else {
                 const err = await res.json();
                 alert(err.error || 'เกิดข้อผิดพลาด');
