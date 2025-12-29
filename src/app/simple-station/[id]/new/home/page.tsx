@@ -405,6 +405,20 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                                 <span className="text-2xl">⛽</span>
                                 <p className="text-sm font-bold text-orange-600 mt-1">ตั้งราคาน้ำมัน</p>
                             </button>
+                            <Link
+                                href={`/simple-station/${id}/new/meter-summary`}
+                                className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-center hover:bg-blue-100 transition"
+                            >
+                                <span className="text-2xl">📊</span>
+                                <p className="text-sm font-bold text-blue-600 mt-1">สรุปมิเตอร์</p>
+                            </Link>
+                            <Link
+                                href={`/simple-station/${id}/new/shift-end`}
+                                className="rounded-xl border border-red-200 bg-red-50 p-4 text-center hover:bg-red-100 transition"
+                            >
+                                <span className="text-2xl">🔒</span>
+                                <p className="text-sm font-bold text-red-600 mt-1">ปิดกะ</p>
+                            </Link>
                         </div>
                     </div>
 
