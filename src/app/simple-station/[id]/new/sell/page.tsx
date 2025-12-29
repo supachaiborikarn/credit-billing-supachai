@@ -358,10 +358,13 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
             });
 
             if (res.ok) {
-                // Reset form
+                // Full form reset for next entry
                 setLicensePlate('');
                 setOwnerName('');
                 setOwnerId(null);
+                setOwnerSearch('');
+                setShowOwnerDropdown(false);
+                setFuelType('DIESEL');
                 setLiters('');
                 setPricePerLiter('');
                 setPriceDisplay('');
@@ -369,6 +372,8 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                 setBillNo('');
                 setPaymentType('CASH');
                 setSelectedProducts([]);
+                setSearchResults([]);
+                setShowResults(false);
                 alert('✅ บันทึกเรียบร้อย!');
 
                 // Refresh products to update stock
