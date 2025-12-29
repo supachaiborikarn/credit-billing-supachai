@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { RefreshCw, Package, Check, User } from 'lucide-react';
+import { RefreshCw, Package, Check, User, X, Plus, Minus, ShoppingCart } from 'lucide-react';
 import { STATIONS, PAYMENT_TYPES } from '@/constants';
 import SimpleBottomNav from '../../components/SimpleBottomNav';
 
@@ -25,10 +25,15 @@ export default function OilSellPage({ params }: { params: Promise<{ id: string }
     const station = STATIONS[stationIndex];
 
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState<string | null>(null);
+    const [saving, setSaving] = useState(false);
     const [products, setProducts] = useState<Product[]>([]);
     const [paymentType, setPaymentType] = useState('CASH');
-    const [recentSales, setRecentSales] = useState<{ productId: string; time: string }[]>([]);
+    const [recentSales, setRecentSales] = useState<{ name: string; qty: number; time: string }[]>([]);
+
+    // Confirm Modal
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const [sellQty, setSellQty] = useState(1);
 
     // Owner selection for credit
     const [ownersList, setOwnersList] = useState<Owner[]>([]);
@@ -72,20 +77,34 @@ export default function OilSellPage({ params }: { params: Promise<{ id: string }
         (o.code || '').toLowerCase().includes(ownerSearch.toLowerCase())
     ).slice(0, 15);
 
-    // Quick sell - tap to sell immediately
-    const quickSell = async (product: Product) => {
-        if (paymentType === 'CREDIT' && !selectedOwner) {
-            alert('กรุณาเลือกเจ้าของก่อน');
-            return;
-        }
-
+    // Open confirm modal
+    const openSellModal = (product: Product) => {
         if (product.quantity <= 0) {
             alert('สินค้าหมด!');
             return;
         }
+        setSelectedProduct(product);
+        setSellQty(1);
+        setShowConfirmModal(true);
+    };
 
-        setSaving(product.id);
+    // Confirm sell
+    const confirmSell = async () => {
+        if (!selectedProduct) return;
+
+        if (paymentType === 'CREDIT' && !selectedOwner) {
+            alert('กรุณาเลือกเจ้าของก่อน (เงินเชื่อ)');
+            return;
+        }
+
+        if (sellQty > selectedProduct.quantity) {
+            alert(`สต็อกไม่พอ! มีแค่ ${selectedProduct.quantity} ${selectedProduct.unit}`);
+            return;
+        }
+
+        setSaving(true);
         try {
+            const totalAmount = selectedProduct.salePrice * sellQty;
             const res = await fetch(`/api/station/${id}/transactions`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -98,13 +117,13 @@ export default function OilSellPage({ params }: { params: Promise<{ id: string }
                     fuelType: 'ENGINE_OIL',
                     liters: 0,
                     pricePerLiter: 0,
-                    amount: product.salePrice,
+                    amount: totalAmount,
                     products: [{
-                        productId: product.id,
-                        name: product.name,
-                        unit: product.unit,
-                        price: product.salePrice,
-                        qty: 1
+                        productId: selectedProduct.id,
+                        name: selectedProduct.name,
+                        unit: selectedProduct.unit,
+                        price: selectedProduct.salePrice,
+                        qty: sellQty
                     }],
                 }),
             });
@@ -112,28 +131,27 @@ export default function OilSellPage({ params }: { params: Promise<{ id: string }
             if (res.ok) {
                 // Update local stock
                 setProducts(prev => prev.map(p =>
-                    p.id === product.id ? { ...p, quantity: p.quantity - 1 } : p
+                    p.id === selectedProduct.id ? { ...p, quantity: p.quantity - sellQty } : p
                 ));
 
-                // Add to recent sales (for visual feedback)
+                // Add to recent sales
                 setRecentSales(prev => [...prev.slice(-4), {
-                    productId: product.id,
+                    name: selectedProduct.name,
+                    qty: sellQty,
                     time: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
                 }]);
 
-                // Show success briefly
-                setTimeout(() => {
-                    setSaving(null);
-                }, 500);
+                setShowConfirmModal(false);
+                setSelectedProduct(null);
             } else {
                 const err = await res.json();
                 alert(err.error || 'บันทึกไม่สำเร็จ');
-                setSaving(null);
             }
         } catch (error) {
             console.error('Error saving:', error);
             alert('เกิดข้อผิดพลาด');
-            setSaving(null);
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -253,61 +271,55 @@ export default function OilSellPage({ params }: { params: Promise<{ id: string }
                 ) : (
                     <div className="grid grid-cols-2 gap-3">
                         {products.map(product => {
-                            const isSaving = saving === product.id;
-                            const justSold = recentSales.some(s => s.productId === product.id);
                             const isOutOfStock = product.quantity <= 0;
+                            const isLowStock = product.quantity <= 5 && product.quantity > 0;
 
                             return (
                                 <button
                                     key={product.id}
-                                    onClick={() => quickSell(product)}
-                                    disabled={isSaving || isOutOfStock}
+                                    onClick={() => openSellModal(product)}
+                                    disabled={isOutOfStock}
                                     className={`relative p-4 rounded-2xl text-left transition-all transform active:scale-95 ${isOutOfStock
                                             ? 'bg-gray-800 opacity-50 cursor-not-allowed'
-                                            : isSaving
-                                                ? 'bg-green-600 scale-95'
-                                                : justSold
-                                                    ? 'bg-gradient-to-br from-orange-500 to-amber-500 ring-2 ring-orange-300'
-                                                    : 'bg-gray-800 hover:bg-gray-700 active:bg-orange-600'
+                                            : isLowStock
+                                                ? 'bg-gradient-to-br from-yellow-700 to-orange-800 hover:from-yellow-600 hover:to-orange-700'
+                                                : 'bg-gradient-to-br from-green-700 to-emerald-800 hover:from-green-600 hover:to-emerald-700'
                                         }`}
                                 >
-                                    {/* Success Checkmark */}
-                                    {isSaving && (
-                                        <div className="absolute inset-0 flex items-center justify-center bg-green-600 rounded-2xl">
-                                            <Check size={48} className="text-white" />
+                                    <h3 className="text-white font-bold text-lg mb-1">{product.name}</h3>
+
+                                    {/* Price */}
+                                    <p className="text-2xl font-extrabold text-white">
+                                        ฿{formatCurrency(product.salePrice)}
+                                    </p>
+
+                                    {/* Stock Display */}
+                                    <div className={`mt-3 py-2 px-3 rounded-lg ${isOutOfStock
+                                            ? 'bg-red-900/50 text-red-300'
+                                            : isLowStock
+                                                ? 'bg-yellow-900/50 text-yellow-300'
+                                                : 'bg-green-900/50 text-green-300'
+                                        }`}>
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span>📦 สต็อก</span>
+                                            <span className="font-bold text-lg">{product.quantity}</span>
+                                        </div>
+                                        <span className="text-xs opacity-75">{product.unit}</span>
+                                    </div>
+
+                                    {/* Out of Stock Badge */}
+                                    {isOutOfStock && (
+                                        <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                                            หมด
                                         </div>
                                     )}
 
-                                    {/* Product Info */}
-                                    <div className={isSaving ? 'opacity-0' : ''}>
-                                        <h3 className="text-white font-bold text-lg mb-1">{product.name}</h3>
-
-                                        {/* Price */}
-                                        <p className="text-2xl font-extrabold text-orange-400">
-                                            ฿{formatCurrency(product.salePrice)}
-                                        </p>
-
-                                        {/* Stock Display */}
-                                        <div className={`mt-3 py-2 px-3 rounded-lg ${isOutOfStock
-                                                ? 'bg-red-900/50 text-red-400'
-                                                : product.quantity <= 5
-                                                    ? 'bg-yellow-900/50 text-yellow-400'
-                                                    : 'bg-green-900/50 text-green-400'
-                                            }`}>
-                                            <div className="flex items-center justify-between text-sm">
-                                                <span>📦 สต็อก</span>
-                                                <span className="font-bold text-lg">{product.quantity}</span>
-                                            </div>
-                                            <span className="text-xs opacity-75">{product.unit}</span>
+                                    {/* Tap to sell hint */}
+                                    {!isOutOfStock && (
+                                        <div className="mt-2 text-center text-white/70 text-xs">
+                                            👆 กดเพื่อขาย
                                         </div>
-
-                                        {/* Out of Stock Badge */}
-                                        {isOutOfStock && (
-                                            <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                                                หมด
-                                            </div>
-                                        )}
-                                    </div>
+                                    )}
                                 </button>
                             );
                         })}
@@ -321,14 +333,124 @@ export default function OilSellPage({ params }: { params: Promise<{ id: string }
                     <div className="flex items-center gap-2 text-sm text-gray-300 overflow-x-auto">
                         <span className="text-green-400">✓</span>
                         <span className="whitespace-nowrap">ขายล่าสุด:</span>
-                        {recentSales.slice(-3).map((sale, i) => {
-                            const product = products.find(p => p.id === sale.productId);
-                            return (
-                                <span key={i} className="bg-gray-700 px-2 py-1 rounded text-xs whitespace-nowrap">
-                                    {product?.name} ({sale.time})
+                        {recentSales.slice(-3).map((sale, i) => (
+                            <span key={i} className="bg-gray-700 px-2 py-1 rounded text-xs whitespace-nowrap">
+                                {sale.name} x{sale.qty} ({sale.time})
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Confirm Sell Modal */}
+            {showConfirmModal && selectedProduct && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden">
+                        {/* Modal Header */}
+                        <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-white">
+                                <ShoppingCart size={24} />
+                                <h3 className="font-bold text-lg">ยืนยันขาย</h3>
+                            </div>
+                            <button
+                                onClick={() => setShowConfirmModal(false)}
+                                className="p-1 hover:bg-white/20 rounded-lg"
+                            >
+                                <X size={24} className="text-white" />
+                            </button>
+                        </div>
+
+                        {/* Modal Content */}
+                        <div className="p-5 space-y-4">
+                            {/* Product Info */}
+                            <div className="text-center">
+                                <h4 className="text-xl font-bold text-gray-800">{selectedProduct.name}</h4>
+                                <p className="text-2xl font-extrabold text-orange-500 mt-1">
+                                    ฿{formatCurrency(selectedProduct.salePrice)} / {selectedProduct.unit}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                    สต็อกคงเหลือ: <span className="font-bold text-gray-700">{selectedProduct.quantity}</span> {selectedProduct.unit}
+                                </p>
+                            </div>
+
+                            {/* Quantity Selector */}
+                            <div className="bg-gray-100 rounded-xl p-4">
+                                <label className="block text-sm font-medium text-gray-600 text-center mb-3">
+                                    จำนวนที่ต้องการขาย
+                                </label>
+                                <div className="flex items-center justify-center gap-4">
+                                    <button
+                                        onClick={() => setSellQty(Math.max(1, sellQty - 1))}
+                                        className="w-12 h-12 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center"
+                                    >
+                                        <Minus size={24} className="text-gray-600" />
+                                    </button>
+                                    <input
+                                        type="number"
+                                        value={sellQty}
+                                        onChange={(e) => setSellQty(Math.max(1, Math.min(selectedProduct.quantity, parseInt(e.target.value) || 1)))}
+                                        className="w-20 text-center text-3xl font-bold border-2 border-gray-200 rounded-xl py-2"
+                                        min="1"
+                                        max={selectedProduct.quantity}
+                                    />
+                                    <button
+                                        onClick={() => setSellQty(Math.min(selectedProduct.quantity, sellQty + 1))}
+                                        className="w-12 h-12 rounded-full bg-orange-100 hover:bg-orange-200 flex items-center justify-center"
+                                    >
+                                        <Plus size={24} className="text-orange-600" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Total */}
+                            <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl p-4 text-center">
+                                <p className="text-orange-100 text-sm">ยอดรวม</p>
+                                <p className="text-white text-3xl font-extrabold">
+                                    ฿{formatCurrency(selectedProduct.salePrice * sellQty)}
+                                </p>
+                            </div>
+
+                            {/* Payment Info */}
+                            <div className="text-center text-sm">
+                                <span className="text-gray-500">ประเภท: </span>
+                                <span className="font-bold text-gray-700">
+                                    {paymentType === 'CASH' ? '💵 เงินสด' : paymentType === 'CREDIT' ? '📝 เงินเชื่อ' : '💸 โอนเงิน'}
                                 </span>
-                            );
-                        })}
+                                {selectedOwner && (
+                                    <span className="block text-gray-600 mt-1">
+                                        <User size={14} className="inline mr-1" />
+                                        {selectedOwner.name}
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowConfirmModal(false)}
+                                    className="flex-1 py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-600 hover:bg-gray-50"
+                                >
+                                    ยกเลิก
+                                </button>
+                                <button
+                                    onClick={confirmSell}
+                                    disabled={saving}
+                                    className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-bold hover:from-green-600 hover:to-emerald-600 disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    {saving ? (
+                                        <>
+                                            <RefreshCw size={18} className="animate-spin" />
+                                            กำลังบันทึก...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Check size={18} />
+                                            ยืนยันขาย
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
