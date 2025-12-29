@@ -53,8 +53,19 @@ export async function GET(
 
         // Fuel configs per station
         const STATION_FUEL_CONFIGS: Record<string, Array<{ nozzle: number; name: string; price: number }>> = {
-            // station-1 ศุภชัยบริการ: 42 หัว
-            'station-1': [
+            // station-2 วัชรเกียรติออยล์: 42 หัว
+            'station-2': [
+                ...Array.from({ length: 14 }, (_, i) => ({ nozzle: i + 1, name: 'ดีเซล B7', price: 30.84 })),
+                { nozzle: 15, name: 'เบนซิน 95', price: 44.85 },
+                { nozzle: 16, name: 'เบนซิน 95', price: 44.85 },
+                ...Array.from({ length: 8 }, (_, i) => ({ nozzle: i + 17, name: 'E20', price: 29.54 })),
+                ...Array.from({ length: 8 }, (_, i) => ({ nozzle: i + 25, name: 'แก๊สโซฮอล์ 95', price: 31.75 })),
+                ...Array.from({ length: 8 }, (_, i) => ({ nozzle: i + 33, name: 'แก๊สโซฮอล์ 91', price: 31.38 })),
+                { nozzle: 41, name: 'พาวเวอร์ดีเซล', price: 44.85 },
+                { nozzle: 42, name: 'พาวเวอร์ดีเซล', price: 44.85 },
+            ],
+            // station-4 ศุภชัยบริการ: 42 หัว
+            'station-4': [
                 // ดีเซล (20 หัว)
                 ...Array.from({ length: 20 }, (_, i) => ({ nozzle: i + 1, name: 'ดีเซล', price: 30.84 })),
                 // พาวเวอร์ดีเซล (6 หัว)
@@ -67,17 +78,6 @@ export async function GET(
                 ...Array.from({ length: 2 }, (_, i) => ({ nozzle: i + 37, name: 'เบนซิน 95', price: 44.85 })),
                 // E20 (4 หัว)
                 ...Array.from({ length: 4 }, (_, i) => ({ nozzle: i + 39, name: 'E20', price: 29.54 })),
-            ],
-            // station-2 วัชรเกียรติออยล์: 42 หัว
-            'station-2': [
-                ...Array.from({ length: 14 }, (_, i) => ({ nozzle: i + 1, name: 'ดีเซล B7', price: 30.84 })),
-                { nozzle: 15, name: 'เบนซิน 95', price: 44.85 },
-                { nozzle: 16, name: 'เบนซิน 95', price: 44.85 },
-                ...Array.from({ length: 8 }, (_, i) => ({ nozzle: i + 17, name: 'E20', price: 29.54 })),
-                ...Array.from({ length: 8 }, (_, i) => ({ nozzle: i + 25, name: 'แก๊สโซฮอล์ 95', price: 31.75 })),
-                ...Array.from({ length: 8 }, (_, i) => ({ nozzle: i + 33, name: 'แก๊สโซฮอล์ 91', price: 31.38 })),
-                { nozzle: 41, name: 'พาวเวอร์ดีเซล', price: 44.85 },
-                { nozzle: 42, name: 'พาวเวอร์ดีเซล', price: 44.85 },
             ],
         };
 
