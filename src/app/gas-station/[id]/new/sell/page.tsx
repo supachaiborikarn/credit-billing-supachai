@@ -50,6 +50,14 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
     const [loadingOwners, setLoadingOwners] = useState(false);
     const ownerDropdownRef = useRef<HTMLDivElement>(null);
 
+    // New Truck Modal
+    const [showNewTruckModal, setShowNewTruckModal] = useState(false);
+    const [newTruckPlate, setNewTruckPlate] = useState('');
+    const [selectedOwnerId, setSelectedOwnerId] = useState('');
+    const [newTruckOwnerSearch, setNewTruckOwnerSearch] = useState('');
+    const [showNewTruckOwnerDropdown, setShowNewTruckOwnerDropdown] = useState(false);
+    const [savingNewTruck, setSavingNewTruck] = useState(false);
+
     // Calculate amount when liters or price changes
     useEffect(() => {
         const l = parseFloat(liters) || 0;
@@ -149,6 +157,84 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
         setOwnerName(owner.name);
         setOwnerSearch(owner.code ? `${owner.code} - ${owner.name}` : owner.name);
         setShowOwnerDropdown(false);
+    };
+
+    // Open new truck modal
+    const openNewTruckModal = async () => {
+        setNewTruckPlate(licensePlate);
+        setShowNewTruckModal(true);
+        setShowResults(false);
+        setNewTruckOwnerSearch('');
+        setSelectedOwnerId('');
+
+        if (ownersList.length === 0) {
+            setLoadingOwners(true);
+            try {
+                const res = await fetch('/api/owners');
+                if (res.ok) {
+                    const data = await res.json();
+                    setOwnersList(data || []);
+                }
+            } catch (e) {
+                console.error('Error loading owners:', e);
+            } finally {
+                setLoadingOwners(false);
+            }
+        }
+    };
+
+    // Filter owners for new truck modal
+    const filteredNewTruckOwners = ownersList.filter(o =>
+        (o.name || '').toLowerCase().includes(newTruckOwnerSearch.toLowerCase()) ||
+        (o.code || '').toLowerCase().includes(newTruckOwnerSearch.toLowerCase())
+    ).slice(0, 20);
+
+    // Select owner for new truck
+    const selectNewTruckOwner = (owner: Owner) => {
+        setSelectedOwnerId(owner.id);
+        setNewTruckOwnerSearch(owner.code ? `${owner.code} - ${owner.name}` : owner.name);
+        setShowNewTruckOwnerDropdown(false);
+    };
+
+    // Handle add new truck
+    const handleAddNewTruck = async () => {
+        if (!newTruckPlate.trim() || !selectedOwnerId) {
+            alert('กรุณากรอกทะเบียนและเลือกเจ้าของ');
+            return;
+        }
+
+        setSavingNewTruck(true);
+        try {
+            const res = await fetch('/api/trucks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    licensePlate: newTruckPlate.trim(),
+                    ownerId: selectedOwnerId,
+                }),
+            });
+
+            if (res.ok) {
+                // Use the new truck
+                setLicensePlate(newTruckPlate.trim());
+                const selectedOwner = ownersList.find(o => o.id === selectedOwnerId);
+                setOwnerName(selectedOwner?.name || '');
+                setOwnerId(selectedOwnerId);
+                setOwnerSearch(selectedOwner?.code ? `${selectedOwner.code} - ${selectedOwner.name}` : selectedOwner?.name || '');
+                setShowNewTruckModal(false);
+                setNewTruckPlate('');
+                setSelectedOwnerId('');
+                alert('✅ เพิ่มทะเบียนใหม่สำเร็จ!');
+            } else {
+                const err = await res.json();
+                alert(err.error || 'เพิ่มไม่สำเร็จ');
+            }
+        } catch (error) {
+            console.error('Error adding truck:', error);
+            alert('เกิดข้อผิดพลาด');
+        } finally {
+            setSavingNewTruck(false);
+        }
     };
 
     const handleSubmit = async () => {
@@ -263,6 +349,19 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
                                     <p className="text-sm text-gray-500">{truck.ownerName}</p>
                                 </button>
                             ))}
+                        </div>
+                    )}
+
+                    {/* No results - show add button */}
+                    {showResults && searchResults.length === 0 && licensePlate.length >= 2 && !searchLoading && (
+                        <div className="mt-2 border border-gray-200 rounded-xl p-4 text-center">
+                            <p className="text-gray-500 text-sm mb-2">ไม่พบทะเบียน "{licensePlate}"</p>
+                            <button
+                                onClick={openNewTruckModal}
+                                className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600"
+                            >
+                                + เพิ่มทะเบียนใหม่
+                            </button>
                         </div>
                     )}
 
@@ -400,6 +499,98 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
                     {loading ? 'กำลังบันทึก...' : '✅ บันทึกขาย'}
                 </button>
             </div>
+
+            {/* New Truck Modal */}
+            {showNewTruckModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-md p-5 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="font-bold text-lg">เพิ่มทะเบียนใหม่</h3>
+                            <button
+                                onClick={() => {
+                                    setShowNewTruckModal(false);
+                                    setShowNewTruckOwnerDropdown(false);
+                                }}
+                                className="p-1 hover:bg-gray-100 rounded-lg"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">ทะเบียนรถ</label>
+                            <input
+                                type="text"
+                                value={newTruckPlate}
+                                onChange={(e) => setNewTruckPlate(e.target.value)}
+                                placeholder="กรอกทะเบียนรถ"
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                            />
+                        </div>
+
+                        <div className="relative">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">เลือกเจ้าของ</label>
+                            {loadingOwners ? (
+                                <div className="flex items-center justify-center py-3">
+                                    <div className="animate-spin h-5 w-5 border-2 border-orange-500 border-t-transparent rounded-full"></div>
+                                    <span className="ml-2 text-gray-500">กำลังโหลด...</span>
+                                </div>
+                            ) : (
+                                <>
+                                    <input
+                                        type="text"
+                                        value={newTruckOwnerSearch}
+                                        onChange={(e) => {
+                                            setNewTruckOwnerSearch(e.target.value);
+                                            setSelectedOwnerId('');
+                                            setShowNewTruckOwnerDropdown(true);
+                                        }}
+                                        onFocus={() => setShowNewTruckOwnerDropdown(true)}
+                                        placeholder="พิมพ์ชื่อหรือรหัสเพื่อค้นหา..."
+                                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                    />
+                                    {showNewTruckOwnerDropdown && (
+                                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl overflow-hidden max-h-48 overflow-y-auto shadow-lg">
+                                            {filteredNewTruckOwners.length === 0 ? (
+                                                <div className="px-4 py-3 text-gray-500 text-center">
+                                                    ไม่พบเจ้าของ
+                                                </div>
+                                            ) : (
+                                                filteredNewTruckOwners.map(owner => (
+                                                    <button
+                                                        key={owner.id}
+                                                        onClick={() => selectNewTruckOwner(owner)}
+                                                        className="w-full px-4 py-3 text-left hover:bg-orange-50 border-b border-gray-100 last:border-b-0"
+                                                    >
+                                                        {owner.code && <span className="font-medium text-gray-800">{owner.code} - </span>}
+                                                        <span className="text-gray-700">{owner.name}</span>
+                                                    </button>
+                                                ))
+                                            )}
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+
+                        <div className="flex gap-2 pt-2">
+                            <button
+                                onClick={() => setShowNewTruckModal(false)}
+                                className="flex-1 py-3 border border-gray-200 rounded-xl font-medium hover:bg-gray-50"
+                            >
+                                ยกเลิก
+                            </button>
+                            <button
+                                onClick={handleAddNewTruck}
+                                disabled={savingNewTruck || !newTruckPlate.trim() || !selectedOwnerId}
+                                className="flex-1 py-3 bg-orange-500 text-white rounded-xl font-medium hover:bg-orange-600 disabled:opacity-50"
+                            >
+                                {savingNewTruck ? 'กำลังบันทึก...' : 'บันทึก'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
