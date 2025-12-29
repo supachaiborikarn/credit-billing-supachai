@@ -56,6 +56,13 @@ interface ShiftInfo {
 
 // Fuel configs per station
 const STATION_FUEL_CONFIGS: Record<string, Array<{ nozzle: number; name: string; price: number }>> = {
+    // station-1 แท๊งลอยวัชรเกียรติ: 4 หัว
+    'station-1': [
+        { nozzle: 1, name: 'ดีเซล B7', price: 30.84 },
+        { nozzle: 2, name: 'ดีเซล B7', price: 30.84 },
+        { nozzle: 3, name: 'แก๊สโซฮอล์ 91', price: 31.38 },
+        { nozzle: 4, name: 'แก๊สโซฮอล์ 95', price: 31.75 },
+    ],
     // station-2 วัชรเกียรติออยล์: 42 หัว
     'station-2': [
         // ดีเซล B7 (14 หัว) - ราคา 30.84
