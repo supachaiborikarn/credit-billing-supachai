@@ -419,6 +419,13 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                                 <span className="text-2xl">🔒</span>
                                 <p className="text-sm font-bold text-red-600 mt-1">ปิดกะ</p>
                             </Link>
+                            <Link
+                                href={`/simple-station/${id}/new/shift-history`}
+                                className="rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-center hover:bg-indigo-100 transition"
+                            >
+                                <span className="text-2xl">📋</span>
+                                <p className="text-sm font-bold text-indigo-600 mt-1">ประวัติกะ</p>
+                            </Link>
                         </div>
                     </div>
 
