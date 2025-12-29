@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, FileText, BarChart3 } from 'lucide-react';
+import { Home, FileText, BarChart3, Droplets, Gauge } from 'lucide-react';
 
 interface SimpleBottomNavProps {
     stationId: string;
@@ -11,6 +11,8 @@ interface SimpleBottomNavProps {
 const navItems = [
     { href: 'home', label: 'หน้าหลัก', icon: Home },
     { href: 'sell', label: 'ลงบิล', icon: FileText },
+    { href: 'oil-sell', label: 'น้ำมันเครื่อง', icon: Droplets },
+    { href: 'shift-end', label: 'มิเตอร์', icon: Gauge },
     { href: 'summary', label: 'สรุป', icon: BarChart3 },
 ];
 

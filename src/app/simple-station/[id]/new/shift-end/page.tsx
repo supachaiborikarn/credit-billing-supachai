@@ -351,7 +351,7 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
             <header className="sticky top-0 z-40 backdrop-blur-xl border-b border-white/10 px-4 py-3">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <Link href={`/simple-station/${id}`} className="p-2 rounded-lg hover:bg-white/10">
+                        <Link href={`/simple-station/${id}/new/home`} className="p-2 rounded-lg hover:bg-white/10">
                             <ArrowLeft size={20} className="text-gray-400" />
                         </Link>
                         <div>
