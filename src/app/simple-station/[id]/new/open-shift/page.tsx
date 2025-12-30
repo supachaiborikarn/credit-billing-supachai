@@ -9,6 +9,7 @@ export default function OpenShiftPage({ params }: { params: Promise<{ id: string
     const { id } = use(params);
     const stationIndex = parseInt(id) - 1;
     const station = STATIONS[stationIndex];
+    const stationId = `station-${id}`;
     const router = useRouter();
 
     const [loading, setLoading] = useState(false);
@@ -18,7 +19,7 @@ export default function OpenShiftPage({ params }: { params: Promise<{ id: string
     useEffect(() => {
         const loadPrices = async () => {
             try {
-                const res = await fetch(`/api/station/${id}/fuel-prices`);
+                const res = await fetch(`/api/station/${stationId}/fuel-prices`);
                 if (res.ok) {
                     const data = await res.json();
                     const prices: Record<string, string> = {};
@@ -32,7 +33,7 @@ export default function OpenShiftPage({ params }: { params: Promise<{ id: string
             }
         };
         loadPrices();
-    }, [id]);
+    }, [stationId]);
 
     const handleOpenShift = async () => {
         // Validate prices
@@ -49,14 +50,14 @@ export default function OpenShiftPage({ params }: { params: Promise<{ id: string
                 .filter(([_, price]) => price && parseFloat(price) > 0)
                 .map(([fuelType, price]) => ({ fuelType, price: parseFloat(price) }));
 
-            await fetch(`/api/station/${id}/fuel-prices`, {
+            await fetch(`/api/station/${stationId}/fuel-prices`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ prices: pricesArray }),
             });
 
             // Open new shift
-            const res = await fetch(`/api/station/${id}/shifts`, {
+            const res = await fetch(`/api/station/${stationId}/shifts`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
