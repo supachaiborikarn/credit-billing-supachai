@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
 
 // GET /api/simple-station/[id]/shift-status - Check shift status for mandatory workflow
 export async function GET(
@@ -11,17 +12,15 @@ export async function GET(
         // Normalize stationId - could be '4' or 'station-4'
         const stationId = id.startsWith('station-') ? id : `station-${id}`;
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        const today = getTodayBangkok();
+        const startOfToday = getStartOfDayBangkok(today);
+        const endOfToday = getEndOfDayBangkok(today);
 
         // Find today's daily record
         const todayRecord = await prisma.dailyRecord.findFirst({
             where: {
                 stationId,
-                date: { gte: today, lt: tomorrow },
+                date: { gte: startOfToday, lte: endOfToday },
             },
             include: {
                 shifts: {
@@ -36,7 +35,7 @@ export async function GET(
             where: {
                 dailyRecord: {
                     stationId,
-                    date: { lt: today },
+                    date: { lt: startOfToday },
                 },
                 status: 'OPEN',
             },
