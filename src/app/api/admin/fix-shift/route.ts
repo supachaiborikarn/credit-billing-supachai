@@ -4,7 +4,8 @@ import { prisma } from '@/lib/prisma';
 // Temporary endpoint to fix stuck shifts
 export async function POST(request: Request) {
     try {
-        const { shiftId, action } = await request.json();
+        const body = await request.json();
+        const { shiftId, action, newNumber } = body;
 
         if (action === 'force-close' && shiftId) {
             // Force close a stuck shift
@@ -59,6 +60,22 @@ export async function POST(request: Request) {
                     createdAt: s.createdAt
                 }))
             });
+        }
+
+        if (action === 'delete' && shiftId) {
+            // Delete a shift completely
+            await prisma.shift.delete({
+                where: { id: shiftId }
+            });
+            return NextResponse.json({ success: true, message: 'Shift deleted' });
+        }
+
+        if (action === 'update-number' && shiftId) {
+            await prisma.shift.update({
+                where: { id: shiftId },
+                data: { shiftNumber: newNumber || 1 }
+            });
+            return NextResponse.json({ success: true, message: 'Shift number updated' });
         }
 
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
