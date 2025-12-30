@@ -62,7 +62,6 @@ export default function OpenShiftPage({ params }: { params: Promise<{ id: string
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'open',
-                    staffName: 'Staff', // Default staff name
                 }),
             });
 
