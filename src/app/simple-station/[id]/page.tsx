@@ -29,6 +29,13 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
     const station = STATIONS[stationIndex];
     const router = useRouter();
 
+    // Auto redirect to new UI for SIMPLE stations
+    useEffect(() => {
+        if (station && station.type === 'SIMPLE') {
+            router.replace(`/simple-station/${id}/new/home`);
+        }
+    }, [station, id, router]);
+
     const [loading, setLoading] = useState(true);
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
