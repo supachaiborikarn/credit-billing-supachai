@@ -7,7 +7,10 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id: stationId } = await params;
+        const { id } = await params;
+        // Normalize stationId - could be '4' or 'station-4'
+        const stationId = id.startsWith('station-') ? id : `station-${id}`;
+
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
