@@ -14,9 +14,23 @@ export default function OpenShiftPage({ params }: { params: Promise<{ id: string
 
     const [loading, setLoading] = useState(false);
     const [fuelPrices, setFuelPrices] = useState<Record<string, string>>({});
+    const [staffName, setStaffName] = useState<string>('');
 
-    // Load last fuel prices
+    // Load user info and fuel prices
     useEffect(() => {
+        // Get current user
+        const loadUser = async () => {
+            try {
+                const res = await fetch('/api/auth/me');
+                if (res.ok) {
+                    const data = await res.json();
+                    setStaffName(data.user?.name || data.user?.username || 'Staff');
+                }
+            } catch (e) { /* ignore */ }
+        };
+        loadUser();
+
+        // Load fuel prices
         const loadPrices = async () => {
             try {
                 const res = await fetch(`/api/station/${id}/fuel-prices`);
@@ -33,7 +47,7 @@ export default function OpenShiftPage({ params }: { params: Promise<{ id: string
             }
         };
         loadPrices();
-    }, [stationId]);
+    }, [id]);
 
     const handleOpenShift = async () => {
         // Validate prices
@@ -62,6 +76,7 @@ export default function OpenShiftPage({ params }: { params: Promise<{ id: string
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'open',
+                    staffName: staffName,
                 }),
             });
 

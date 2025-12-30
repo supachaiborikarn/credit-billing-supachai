@@ -35,7 +35,8 @@ export async function GET(
             },
             include: {
                 shifts: {
-                    orderBy: { shiftNumber: 'asc' }
+                    orderBy: { shiftNumber: 'asc' },
+                    include: { staff: { select: { name: true } } }
                 }
             }
         });
@@ -50,7 +51,7 @@ export async function GET(
                 id: currentShift.id,
                 shiftNumber: currentShift.shiftNumber,
                 status: currentShift.status,
-                staffName: currentShift.staffId,
+                staffName: currentShift.staff?.name || null,
                 createdAt: currentShift.createdAt,
                 closedAt: currentShift.closedAt
             } : null
@@ -75,12 +76,24 @@ export async function POST(
         }
 
         const body = await request.json();
-        const { action, staffName, shiftId } = body;
+        const { action, shiftId } = body;
 
         const stationId = `station-${id}`;
         const today = new Date().toISOString().split('T')[0];
         const startOfDay = getStartOfDayBangkok(today);
         const endOfDay = getEndOfDayBangkok(today);
+
+        // Get user from session for staff tracking
+        const cookieStore = await cookies();
+        const sessionId = cookieStore.get('session')?.value;
+        let userId: string | null = null;
+        if (sessionId) {
+            const session = await prisma.session.findUnique({
+                where: { id: sessionId },
+                select: { userId: true }
+            });
+            if (session) userId = session.userId;
+        }
 
         // Get or create station
         await prisma.station.upsert({
@@ -167,7 +180,7 @@ export async function POST(
                 data: {
                     dailyRecordId: dailyRecord.id,
                     shiftNumber,
-                    staffId: staffName || null,
+                    staffId: userId,
                     status: 'OPEN'
                 }
             });
