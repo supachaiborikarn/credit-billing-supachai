@@ -61,7 +61,8 @@ export default function OpenShiftPage({ params }: { params: Promise<{ id: string
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    date: new Date().toISOString().split('T')[0],
+                    action: 'open',
+                    staffName: 'Staff', // Default staff name
                 }),
             });
 
