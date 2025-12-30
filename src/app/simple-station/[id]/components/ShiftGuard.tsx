@@ -38,9 +38,11 @@ const EXEMPT_PAGES = [
 export default function ShiftGuard({
     children,
     stationId,
+    urlId,
 }: {
     children: ReactNode;
-    stationId: string;
+    stationId: string; // e.g. "station-4" for API calls
+    urlId: string; // e.g. "4" for URL paths
 }) {
     const router = useRouter();
     const pathname = usePathname();
@@ -77,7 +79,7 @@ export default function ShiftGuard({
     useEffect(() => {
         if (loading || isExemptPage) return;
 
-        const basePath = `/simple-station/${stationId}/new`;
+        const basePath = `/simple-station/${urlId}/new`;
 
         // Priority 1: Force close old shift first
         if (oldUnclosedShift) {

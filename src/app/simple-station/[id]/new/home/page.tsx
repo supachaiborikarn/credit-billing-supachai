@@ -247,7 +247,7 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
 
     return (
         <AutoLogout>
-            <ShiftGuard stationId={stationId}>
+            <ShiftGuard stationId={stationId} urlId={id}>
                 <div className="min-h-screen bg-[#f6f6f6] text-neutral-900">
                     {/* Header */}
                     <header className="sticky top-0 z-50 bg-[#f6f6f6]/80 backdrop-blur border-b border-black/10">
