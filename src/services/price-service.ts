@@ -49,7 +49,7 @@ export async function getCurrentPrice(
             orderBy: { effectiveFrom: 'desc' }
         });
 
-        if (!latestPrice) return null;
+        if (!latestPrice || !latestPrice.productType || !latestPrice.retailPrice) return null;
 
         return {
             productType: latestPrice.productType,
@@ -58,6 +58,8 @@ export async function getCurrentPrice(
             effectiveFrom: latestPrice.effectiveFrom
         };
     }
+
+    if (!price || !price.productType || !price.retailPrice) return null;
 
     return {
         productType: price.productType,
@@ -156,12 +158,14 @@ export async function getPriceHistory(
         take: limit
     });
 
-    return prices.map(p => ({
-        productType: p.productType,
-        retailPrice: Number(p.retailPrice),
-        wholesalePrice: p.wholesalePrice ? Number(p.wholesalePrice) : undefined,
-        effectiveFrom: p.effectiveFrom
-    }));
+    return prices
+        .filter(p => p.productType && p.retailPrice)
+        .map(p => ({
+            productType: p.productType!,
+            retailPrice: Number(p.retailPrice),
+            wholesalePrice: p.wholesalePrice ? Number(p.wholesalePrice) : undefined,
+            effectiveFrom: p.effectiveFrom
+        }));
 }
 
 /**
