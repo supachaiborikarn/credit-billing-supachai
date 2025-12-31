@@ -413,7 +413,7 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                                         </div>
                                         <p className="text-sm text-gray-500">{txn.ownerName || '-'}</p>
                                         <p className="text-xs text-gray-400 mt-1">
-                                            {txn.bookNo || '-'}/{txn.billNo || '-'} • {txn.fuelType ? getFuelLabel(txn.fuelType) : 'น้ำมัน'} • {formatTime(txn.createdAt)}
+                                            {txn.bookNo || '-'}/{txn.billNo || '-'} • {txn.fuelType ? getFuelLabel(txn.fuelType) : 'น้ำมันเครื่อง'} • {formatTime(txn.createdAt)}
                                         </p>
                                     </div>
                                     <div className="text-right">
