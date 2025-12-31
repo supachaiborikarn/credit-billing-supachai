@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { ArrowLeft, Camera, Copy, Save, Gauge } from 'lucide-react';
+import { ArrowLeft, Camera, Copy, Save, Gauge, Lock } from 'lucide-react';
 import { STATIONS, GAS_TANK_CAPACITY_LITERS, TANK_COUNT, NOZZLE_COUNT } from '@/constants';
 import Link from 'next/link';
 
@@ -231,8 +231,8 @@ export default function GasStationMetersPage({ params }: { params: Promise<{ id:
                             key={tab.key}
                             onClick={() => setActiveTab(tab.key as TabType)}
                             className={`flex-1 py-3 text-sm font-medium transition-colors ${activeTab === tab.key
-                                    ? 'text-orange-500 border-b-2 border-orange-500'
-                                    : 'text-gray-500'
+                                ? 'text-orange-500 border-b-2 border-orange-500'
+                                : 'text-gray-500'
                                 }`}
                         >
                             {tab.label}
@@ -262,26 +262,47 @@ export default function GasStationMetersPage({ params }: { params: Promise<{ id:
                             {meters.map((m) => (
                                 <div key={m.nozzleNumber} className="bg-white rounded-2xl shadow-sm p-4">
                                     <div className="flex items-center justify-between mb-3">
-                                        <span className="font-medium text-gray-700">
-                                            ⛽ หัวจ่าย {m.nozzleNumber}
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-medium text-gray-700">
+                                                ⛽ หัวจ่าย {m.nozzleNumber}
+                                            </span>
+                                            {activeTab === 'start' && m.startReading > 0 && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">
+                                                    <Lock size={10} />
+                                                    ยกมา
+                                                </span>
+                                            )}
+                                        </div>
                                         <button className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200">
                                             <Camera size={18} className="text-gray-500" />
                                         </button>
                                     </div>
-                                    <input
-                                        type="number"
-                                        value={activeTab === 'start' ? m.startReading : (m.endReading || '')}
-                                        onChange={(e) =>
-                                            updateMeter(m.nozzleNumber, parseFloat(e.target.value) || 0, activeTab)
-                                        }
-                                        placeholder="0.00"
-                                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-xl text-right font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
-                                        inputMode="decimal"
-                                    />
+                                    <div className="relative">
+                                        <input
+                                            type="number"
+                                            value={activeTab === 'start' ? m.startReading : (m.endReading || '')}
+                                            onChange={(e) =>
+                                                updateMeter(m.nozzleNumber, parseFloat(e.target.value) || 0, activeTab)
+                                            }
+                                            placeholder="0.00"
+                                            className={`w-full px-4 py-3 border rounded-xl text-xl text-right font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 ${activeTab === 'start' && m.startReading > 0
+                                                    ? 'border-blue-200 bg-blue-50 text-blue-700'
+                                                    : 'border-gray-200'
+                                                }`}
+                                            inputMode="decimal"
+                                        />
+                                        {activeTab === 'start' && m.startReading > 0 && (
+                                            <Lock size={14} className="absolute right-12 top-1/2 -translate-y-1/2 text-blue-400" />
+                                        )}
+                                    </div>
                                     {activeTab === 'end' && m.startReading > 0 && m.endReading && (
                                         <p className="text-sm text-gray-500 mt-2 text-right">
                                             ขายได้: {formatNumber((m.endReading || 0) - m.startReading)} ลิตร
+                                        </p>
+                                    )}
+                                    {activeTab === 'start' && m.startReading > 0 && (
+                                        <p className="text-xs text-blue-500 mt-2 text-center">
+                                            🔒 ค่ายกมาจากกะก่อน
                                         </p>
                                     )}
                                 </div>
