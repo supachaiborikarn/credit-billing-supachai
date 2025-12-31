@@ -108,7 +108,14 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
                         </div>
 
                         {/* Quick Actions */}
-                        <div className="mt-4 grid grid-cols-3 gap-2">
+                        <div className="mt-4 grid grid-cols-4 gap-2">
+                            <Link
+                                href={`/gas-station/${id}/new/shift-summary`}
+                                className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-center hover:bg-orange-100 transition"
+                            >
+                                <span className="text-lg">📈</span>
+                                <p className="text-xs font-bold text-orange-600 mt-1">สรุปกะ</p>
+                            </Link>
                             <Link
                                 href={`/gas-station/${id}/new/supplies`}
                                 className="rounded-xl border border-black/10 bg-[#fafafa] p-3 text-center hover:bg-neutral-100 transition"
