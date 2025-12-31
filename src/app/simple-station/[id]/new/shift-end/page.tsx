@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { STATIONS } from '@/constants';
+import { WizardStepper, VarianceEarlyWarning } from '@/components/WizardStepper';
 
 interface MeterData {
     nozzleNumber: number;
@@ -427,6 +428,27 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                     </button>
                 </div>
             </header>
+
+            {/* WizardStepper - Supachaigroup Style */}
+            <div className="bg-white/5 px-4 py-2">
+                <WizardStepper
+                    steps={[
+                        { id: 'meters', label: 'มิเตอร์', completed: activeTab !== 'meters' },
+                        { id: 'products', label: 'สินค้า', completed: activeTab === 'cash' || activeTab === 'summary' },
+                        { id: 'cash', label: 'เงิน', completed: activeTab === 'summary' },
+                        { id: 'summary', label: 'สรุป', completed: false },
+                    ]}
+                    currentStep={tabs.findIndex(t => t.id === activeTab)}
+                    onStepClick={(index) => setActiveTab(tabs[index].id)}
+                />
+            </div>
+
+            {/* Variance Early Warning */}
+            <VarianceEarlyWarning
+                show={totalMeterAmount > 0 && varianceStatus !== 'GREEN'}
+                variance={variance}
+                status={varianceStatus}
+            />
 
             {/* Tabs */}
             <div className="flex border-b border-white/10">

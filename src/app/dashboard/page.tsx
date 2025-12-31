@@ -241,8 +241,8 @@ export default function DashboardPage() {
                                 key={preset.label}
                                 onClick={() => handlePresetClick(preset.days)}
                                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${new Date(selectedDate).toDateString() === new Date(new Date().setDate(new Date().getDate() - preset.days)).toDateString()
-                                        ? 'bg-purple-500 text-white'
-                                        : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                    ? 'bg-purple-500 text-white'
+                                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
                                     }`}
                             >
                                 {preset.label}
@@ -281,8 +281,8 @@ export default function DashboardPage() {
                             <div
                                 key={index}
                                 className={`flex items-center gap-3 p-4 rounded-xl border ${alert.severity === 'critical' ? 'bg-red-500/10 border-red-500/30' :
-                                        alert.severity === 'warning' ? 'bg-orange-500/10 border-orange-500/30' :
-                                            'bg-blue-500/10 border-blue-500/30'
+                                    alert.severity === 'warning' ? 'bg-orange-500/10 border-orange-500/30' :
+                                        'bg-blue-500/10 border-blue-500/30'
                                     }`}
                             >
                                 {alert.severity === 'critical' ? <AlertCircle className="text-red-400" size={20} /> :
@@ -441,7 +441,7 @@ export default function DashboardPage() {
                                                 ))}
                                             </Pie>
                                             <Tooltip
-                                                formatter={(value: number) => formatCurrency(value) + ' บาท'}
+                                                formatter={(value) => formatCurrency(value as number) + ' บาท'}
                                                 contentStyle={{
                                                     backgroundColor: 'rgba(15, 15, 35, 0.95)',
                                                     border: '1px solid rgba(139, 92, 246, 0.3)',
@@ -488,8 +488,8 @@ export default function DashboardPage() {
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-white font-medium truncate">{tx.licensePlate}</span>
                                                     <span className={`px-1.5 py-0.5 text-xs rounded ${tx.paymentType === 'CASH' ? 'bg-green-500/20 text-green-400' :
-                                                            tx.paymentType === 'CREDIT' ? 'bg-purple-500/20 text-purple-400' :
-                                                                'bg-blue-500/20 text-blue-400'
+                                                        tx.paymentType === 'CREDIT' ? 'bg-purple-500/20 text-purple-400' :
+                                                            'bg-blue-500/20 text-blue-400'
                                                         }`}>
                                                         {paymentLabels[tx.paymentType] || tx.paymentType}
                                                     </span>

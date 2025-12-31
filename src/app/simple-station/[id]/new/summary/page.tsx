@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use, useRef } from 'react';
-import { ArrowLeft, Trash2, Calendar, Edit, Printer, X, Image, Download, FileText } from 'lucide-react';
+import { ArrowLeft, Trash2, Calendar, Edit, Printer, X, Image, Download, FileText, DollarSign, Droplets, BarChart3, Banknote, CreditCard, ArrowUpDown } from 'lucide-react';
 import { STATIONS, PAYMENT_TYPES, FUEL_TYPES } from '@/constants';
 import Link from 'next/link';
 
@@ -341,21 +341,28 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
             </header>
 
             <div className="p-4 pb-24 space-y-4">
-                {/* Summary Card */}
-                <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl p-4 text-white">
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                        <div>
-                            <p className="text-orange-100 text-xs">รายการ</p>
-                            <p className="text-2xl font-bold">{filteredTransactions.length}</p>
+                {/* Summary Cards - Supachaigroup Style */}
+                <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded-2xl p-3 bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
+                        <div className="flex items-center gap-1 mb-1">
+                            <BarChart3 className="w-3 h-3 opacity-80" />
+                            <span className="text-xs opacity-90">รายการ</span>
                         </div>
-                        <div>
-                            <p className="text-orange-100 text-xs">รวมลิตร</p>
-                            <p className="text-2xl font-bold">{formatCurrency(totalLiters)}</p>
+                        <p className="text-2xl font-bold">{filteredTransactions.length}</p>
+                    </div>
+                    <div className="rounded-2xl p-3 bg-gradient-to-br from-cyan-500 to-blue-500 text-white shadow-lg">
+                        <div className="flex items-center gap-1 mb-1">
+                            <Droplets className="w-3 h-3 opacity-80" />
+                            <span className="text-xs opacity-90">รวมลิตร</span>
                         </div>
-                        <div>
-                            <p className="text-orange-100 text-xs">รวมเงิน</p>
-                            <p className="text-2xl font-bold">{formatCurrency(totalAmount)} ฿</p>
+                        <p className="text-xl font-bold">{formatCurrency(totalLiters)}</p>
+                    </div>
+                    <div className="rounded-2xl p-3 bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg">
+                        <div className="flex items-center gap-1 mb-1">
+                            <DollarSign className="w-3 h-3 opacity-80" />
+                            <span className="text-xs opacity-90">รวมเงิน</span>
                         </div>
+                        <p className="text-xl font-bold">{formatCurrency(totalAmount)}</p>
                     </div>
                 </div>
 

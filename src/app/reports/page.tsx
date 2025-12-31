@@ -404,7 +404,7 @@ export default function ReportsPage() {
                                         />
                                         <YAxis stroke="#9ca3af" fontSize={11} tickFormatter={formatCompact} />
                                         <Tooltip
-                                            formatter={(value: number) => formatCurrency(value) + ' บาท'}
+                                            formatter={(value) => formatCurrency(value as number) + ' บาท'}
                                             labelFormatter={(label) => new Date(label).toLocaleDateString('th-TH')}
                                             contentStyle={{
                                                 backgroundColor: 'rgba(15, 15, 35, 0.95)',
@@ -427,7 +427,7 @@ export default function ReportsPage() {
                                         <XAxis dataKey="month" stroke="#9ca3af" fontSize={11} />
                                         <YAxis stroke="#9ca3af" fontSize={11} tickFormatter={formatCompact} />
                                         <Tooltip
-                                            formatter={(value: number) => formatCurrency(value) + ' บาท'}
+                                            formatter={(value) => formatCurrency(value as number) + ' บาท'}
                                             contentStyle={{
                                                 backgroundColor: 'rgba(15, 15, 35, 0.95)',
                                                 border: '1px solid rgba(139, 92, 246, 0.3)',
