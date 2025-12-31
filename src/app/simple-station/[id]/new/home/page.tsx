@@ -224,8 +224,12 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
     const formatCurrency = (num: number) =>
         new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
 
-    const formatTime = (dateStr: string) =>
-        new Date(dateStr).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+    const formatTime = (dateStr: string) => {
+        if (!dateStr) return '-';
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return '-';
+        return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+    };
 
     const handleLogout = async () => {
         if (!confirm('ต้องการออกจากระบบหรือไม่?')) return;

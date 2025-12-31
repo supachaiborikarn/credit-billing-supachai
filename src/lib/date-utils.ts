@@ -74,3 +74,23 @@ export function formatDateBangkok(date: Date): string {
 export function getTodayBangkok(): string {
     return formatDateBangkok(new Date());
 }
+
+/**
+ * Safe format time - returns '-' for null/invalid dates
+ */
+export function safeFormatTime(dateStr: string | null | undefined): string {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+}
+
+/**
+ * Safe format date - returns '-' for null/invalid dates
+ */
+export function safeFormatDate(dateStr: string | null | undefined): string {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString('th-TH');
+}

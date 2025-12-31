@@ -98,8 +98,12 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
     const formatCurrency = (num: number) =>
         new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2 }).format(num);
 
-    const formatTime = (dateStr: string) =>
-        new Date(dateStr).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+    const formatTime = (dateStr: string) => {
+        if (!dateStr) return '-';
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return '-';
+        return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+    };
 
     const getPaymentLabel = (value: string) => {
         const pt = PAYMENT_TYPES.find(p => p.value === value);
@@ -409,7 +413,7 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                                         </div>
                                         <p className="text-sm text-gray-500">{txn.ownerName || '-'}</p>
                                         <p className="text-xs text-gray-400 mt-1">
-                                            {txn.bookNo || '-'}/{txn.billNo || '-'} • {getFuelLabel(txn.fuelType)} • {formatTime(txn.createdAt)}
+                                            {txn.bookNo || '-'}/{txn.billNo || '-'} • {txn.fuelType ? getFuelLabel(txn.fuelType) : 'น้ำมัน'} • {formatTime(txn.createdAt)}
                                         </p>
                                     </div>
                                     <div className="text-right">
