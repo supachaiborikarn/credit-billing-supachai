@@ -154,7 +154,7 @@ export function DraftRecoveredToast({ show, onDismiss }: DraftToastProps) {
 interface AbnormalWarningProps {
     show: boolean;
     value: number;
-    expected: number;
+    expected?: number; // Optional - if not provided, won't show comparison
     onConfirm: () => void;
     onCancel: () => void;
 }
@@ -167,11 +167,13 @@ export function AbnormalValueWarning({ show, value, expected, onConfirm, onCance
             <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
                 <div className="text-center mb-4">
                     <div className="text-4xl mb-2">⚠️</div>
-                    <h3 className="text-lg font-bold text-red-600">ตัวเลขสูงผิดปกติ!</h3>
+                    <h3 className="text-lg font-bold text-red-600">ยอดเงินสูงผิดปกติ!</h3>
                 </div>
                 <div className="bg-red-50 p-3 rounded-lg mb-4 text-center">
-                    <div className="text-2xl font-bold text-red-700">{value.toLocaleString()} ลิตร</div>
-                    <div className="text-sm text-red-600">ค่าเฉลี่ย: {expected.toLocaleString()} ลิตร</div>
+                    <div className="text-2xl font-bold text-red-700">{value.toLocaleString()} บาท</div>
+                    {expected !== undefined && (
+                        <div className="text-sm text-red-600">ค่าเฉลี่ย: {expected.toLocaleString()} บาท</div>
+                    )}
                 </div>
                 <p className="text-sm text-gray-600 text-center mb-4">
                     กรุณาตรวจสอบตัวเลขอีกครั้ง หรือกด &quot;ยืนยัน&quot; ถ้าถูกต้อง

@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, use, useRef } from 'react';
-import { ArrowLeft, Search, User, Check, Plus, Minus, ShoppingCart, UserPlus } from 'lucide-react';
+import { ArrowLeft, Search, User, Check, Plus, Minus, ShoppingCart, UserPlus, AlertTriangle } from 'lucide-react';
 import { STATIONS, PAYMENT_TYPES, FUEL_TYPES } from '@/constants';
 import Link from 'next/link';
+import { AbnormalValueWarning } from '@/components/WizardStepper';
 
 interface TruckResult {
     id: string;
@@ -76,6 +77,10 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
     const [loadingOwners, setLoadingOwners] = useState(false);
     const [ownerSearch, setOwnerSearch] = useState('');
     const [showOwnerDropdown, setShowOwnerDropdown] = useState(false);
+
+    // Abnormal value warning
+    const [showAbnormalWarning, setShowAbnormalWarning] = useState(false);
+    const ABNORMAL_THRESHOLD = 20000; // อะเลิร์ตเมื่อยอดเกิน 20,000 บาท
 
     // Load products for this station
     useEffect(() => {
@@ -322,7 +327,8 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
         );
     };
 
-    const handleSubmit = async () => {
+    // Validate and check for abnormal values
+    const attemptSubmit = () => {
         // Allow either fuel or products
         const hasFuel = liters && parseFloat(liters) > 0;
         const hasProducts = selectedProducts.length > 0;
@@ -335,6 +341,20 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
             alert('กรุณาใส่ราคาต่อลิตร');
             return;
         }
+
+        // Check for abnormal value
+        if (grandTotal >= ABNORMAL_THRESHOLD) {
+            setShowAbnormalWarning(true);
+            return;
+        }
+
+        // Proceed to save
+        doSubmit();
+    };
+
+    // Actually save the transaction
+    const doSubmit = async () => {
+        const hasFuel = liters && parseFloat(liters) > 0;
 
         setLoading(true);
         try {
@@ -353,7 +373,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                     amount: grandTotal,
                     billBookNo: bookNo || null,
                     billNo: billNo || null,
-                    products: selectedProducts, // Send selected products
+                    products: selectedProducts,
                 }),
             });
 
@@ -669,7 +689,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
 
                 {/* Submit Button */}
                 <button
-                    onClick={handleSubmit}
+                    onClick={attemptSubmit}
                     disabled={loading || ((!liters || parseFloat(liters) <= 0) && selectedProducts.length === 0)}
                     className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white text-lg font-bold rounded-2xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                 >
@@ -814,6 +834,17 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                     </div>
                 </div>
             )}
+
+            {/* Abnormal Value Warning */}
+            <AbnormalValueWarning
+                show={showAbnormalWarning}
+                value={grandTotal}
+                onConfirm={() => {
+                    setShowAbnormalWarning(false);
+                    doSubmit();
+                }}
+                onCancel={() => setShowAbnormalWarning(false)}
+            />
         </div>
     );
 }
