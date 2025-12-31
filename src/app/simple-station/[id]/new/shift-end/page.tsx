@@ -10,7 +10,8 @@ import {
     Save,
     RefreshCw,
     AlertTriangle,
-    Lock
+    Lock,
+    Printer
 } from 'lucide-react';
 import Link from 'next/link';
 import { STATIONS } from '@/constants';
@@ -390,6 +391,206 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
         }
     };
 
+    // Print meter summary
+    const handlePrintMeterSummary = () => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert('กรุณาอนุญาตให้เปิด popup เพื่อพิมพ์');
+            return;
+        }
+
+        const date = shift?.openedAt ? new Date(shift.openedAt).toLocaleDateString('th-TH', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        }) : new Date().toLocaleDateString('th-TH');
+
+        const time = shift?.openedAt ? new Date(shift.openedAt).toLocaleTimeString('th-TH', {
+            hour: '2-digit',
+            minute: '2-digit'
+        }) : '';
+
+        // Group meters by fuel type
+        const groupedMeters: Record<string, MeterData[]> = {};
+        meters.forEach(m => {
+            if (!groupedMeters[m.fuelType]) {
+                groupedMeters[m.fuelType] = [];
+            }
+            groupedMeters[m.fuelType].push(m);
+        });
+
+        const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>สรุปมิเตอร์ - ${station.name}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Sarabun', 'Tahoma', sans-serif;
+            font-size: 12px;
+            padding: 10mm;
+            background: white;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 15px;
+            border-bottom: 2px double #333;
+            padding-bottom: 10px;
+        }
+        .header h1 {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        .header p {
+            color: #666;
+            font-size: 11px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 11px;
+        }
+        .section {
+            margin-bottom: 15px;
+        }
+        .section-title {
+            font-weight: bold;
+            background: #f0f0f0;
+            padding: 5px 8px;
+            margin-bottom: 8px;
+            border-left: 4px solid #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 5px 8px;
+            text-align: right;
+        }
+        th {
+            background: #f5f5f5;
+            font-weight: bold;
+        }
+        td:first-child, th:first-child {
+            text-align: center;
+        }
+        .total-row {
+            background: #e8f5e9;
+            font-weight: bold;
+        }
+        .grand-total {
+            margin-top: 15px;
+            padding: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+        }
+        .grand-total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+        }
+        .grand-total-value {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 10px;
+            color: #999;
+        }
+        @media print {
+            body { padding: 5mm; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 สรุปมิเตอร์ประจำกะ</h1>
+        <p>${station.name}</p>
+    </div>
+    
+    <div class="info-row">
+        <span><strong>กะที่:</strong> ${shift?.shiftNumber || '-'}</span>
+        <span><strong>พนักงาน:</strong> ${shift?.staffName || '-'}</span>
+    </div>
+    <div class="info-row">
+        <span><strong>วันที่:</strong> ${date}</span>
+        <span><strong>เวลาเปิดกะ:</strong> ${time}</span>
+    </div>
+    
+    ${Object.entries(groupedMeters).map(([fuelType, fuelMeters]) => {
+            const fuelTotal = fuelMeters.reduce((sum, m) => sum + m.liters, 0);
+            const fuelAmount = fuelMeters.reduce((sum, m) => sum + m.amount, 0);
+            return `
+    <div class="section">
+        <div class="section-title">⛽ ${fuelType} (${fuelMeters.length} หัว)</div>
+        <table>
+            <tr>
+                <th>หัว</th>
+                <th>เริ่มต้น</th>
+                <th>สิ้นสุด</th>
+                <th>ลิตร</th>
+                <th>ราคา/ลิตร</th>
+                <th>จำนวนเงิน</th>
+            </tr>
+            ${fuelMeters.map(m => `
+            <tr>
+                <td>${m.nozzleNumber}</td>
+                <td>${formatNumber(m.startReading)}</td>
+                <td>${formatNumber(m.endReading)}</td>
+                <td>${formatNumber(m.liters)}</td>
+                <td>${formatCurrency(m.price)}</td>
+                <td>${formatCurrency(m.amount)}</td>
+            </tr>
+            `).join('')}
+            <tr class="total-row">
+                <td colspan="3">รวม ${fuelType}</td>
+                <td>${formatNumber(fuelTotal)}</td>
+                <td>-</td>
+                <td>${formatCurrency(fuelAmount)}</td>
+            </tr>
+        </table>
+    </div>
+        `;
+        }).join('')}
+    
+    <div class="grand-total">
+        <div class="grand-total-row">
+            <span>รวมทั้งหมด:</span>
+            <span class="grand-total-value">${formatNumber(totalMeterLiters)} ลิตร</span>
+        </div>
+        <div class="grand-total-row">
+            <span>ยอดเงินรวม:</span>
+            <span class="grand-total-value">${formatCurrency(totalMeterAmount)} บาท</span>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>พิมพ์เมื่อ: ${new Date().toLocaleString('th-TH')}</p>
+    </div>
+
+    <script>
+        window.onload = function() {
+            window.print();
+        };
+    </script>
+</body>
+</html>
+        `;
+
+        printWindow.document.write(html);
+        printWindow.document.close();
+    };
+
     if (!station) {
         return <div className="p-4 text-gray-500">ไม่พบสถานี</div>;
     }
@@ -419,13 +620,23 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                             )}
                         </div>
                     </div>
-                    <button
-                        onClick={fetchShiftData}
-                        disabled={loading}
-                        className="p-2 rounded-lg bg-white/10 hover:bg-white/20"
-                    >
-                        <RefreshCw size={18} className={`text-gray-400 ${loading ? 'animate-spin' : ''}`} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handlePrintMeterSummary}
+                            disabled={loading || meters.length === 0}
+                            className="p-2 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-50"
+                            title="พิมพ์สรุปมิเตอร์"
+                        >
+                            <Printer size={18} className="text-gray-400" />
+                        </button>
+                        <button
+                            onClick={fetchShiftData}
+                            disabled={loading}
+                            className="p-2 rounded-lg bg-white/10 hover:bg-white/20"
+                        >
+                            <RefreshCw size={18} className={`text-gray-400 ${loading ? 'animate-spin' : ''}`} />
+                        </button>
+                    </div>
                 </div>
             </header>
 
