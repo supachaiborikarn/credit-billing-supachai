@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { Calendar, Clock, LogOut } from 'lucide-react';
+import { Calendar, Clock, LogOut, DollarSign, BarChart3, Banknote, CreditCard, Fuel, FileText, History, Settings, LockKeyhole } from 'lucide-react';
 import { STATIONS, STATION_STAFF } from '@/constants';
 import Link from 'next/link';
 import DailyCashEntry from '../../components/DailyCashEntry';
@@ -315,23 +315,35 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                                     )}
                                 </div>
 
-                                {/* Stats Grid */}
-                                <div className="grid grid-cols-2 gap-4 mb-5">
-                                    <div className="rounded-2xl border border-black/10 p-4 bg-gradient-to-br from-orange-50 to-white">
-                                        <p className="text-xs text-neutral-500 font-semibold">💰 ยอดขายรวม</p>
-                                        <p className="text-2xl font-extrabold text-orange-600">{formatCurrency(stats.totalAmount)} ฿</p>
+                                {/* Stats Grid - Supachaigroup Style */}
+                                <div className="grid grid-cols-2 gap-3 mb-5">
+                                    <div className="rounded-2xl p-4 bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <DollarSign className="w-4 h-4 opacity-80" />
+                                            <span className="text-xs font-medium opacity-90">ยอดขายรวม</span>
+                                        </div>
+                                        <p className="text-2xl font-extrabold">{formatCurrency(stats.totalAmount)} ฿</p>
                                     </div>
-                                    <div className="rounded-2xl border border-black/10 p-4">
-                                        <p className="text-xs text-neutral-500 font-semibold">📊 รายการ</p>
+                                    <div className="rounded-2xl p-4 bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <BarChart3 className="w-4 h-4 opacity-80" />
+                                            <span className="text-xs font-medium opacity-90">รายการ</span>
+                                        </div>
                                         <p className="text-2xl font-extrabold">{stats.txnCount}</p>
                                     </div>
-                                    <div className="rounded-2xl border border-black/10 p-4">
-                                        <p className="text-xs text-neutral-500 font-semibold">💵 เงินสด</p>
-                                        <p className="text-xl font-bold text-green-600">{formatCurrency(stats.cashTotal)} ฿</p>
+                                    <div className="rounded-2xl p-4 bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <Banknote className="w-4 h-4 opacity-80" />
+                                            <span className="text-xs font-medium opacity-90">เงินสด</span>
+                                        </div>
+                                        <p className="text-xl font-bold">{formatCurrency(stats.cashTotal)} ฿</p>
                                     </div>
-                                    <div className="rounded-2xl border border-black/10 p-4">
-                                        <p className="text-xs text-neutral-500 font-semibold">📋 เงินเชื่อ</p>
-                                        <p className="text-xl font-bold text-purple-600">{formatCurrency(stats.creditTotal)} ฿</p>
+                                    <div className="rounded-2xl p-4 bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-lg">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <CreditCard className="w-4 h-4 opacity-80" />
+                                            <span className="text-xs font-medium opacity-90">เงินเชื่อ</span>
+                                        </div>
+                                        <p className="text-xl font-bold">{formatCurrency(stats.creditTotal)} ฿</p>
                                     </div>
                                 </div>
 
@@ -366,32 +378,24 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                                     )}
                                 </div>
 
-                                {/* Quick Actions */}
-                                <div className="mt-4 grid grid-cols-2 gap-2">
+                                {/* Quick Actions - Supachaigroup Style */}
+                                <div className="mt-4 grid grid-cols-3 gap-2">
                                     <Link
                                         href={`/simple-station/${id}/new/sell`}
-                                        className="rounded-xl border border-black/10 bg-[#fafafa] p-4 text-center hover:bg-neutral-100 transition"
+                                        className="rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 p-4 text-center text-white shadow-md hover:shadow-lg transition-all hover:scale-[1.02]"
                                     >
-                                        <span className="text-2xl">📝</span>
-                                        <p className="text-sm font-bold text-neutral-600 mt-1">ลงบิลใหม่</p>
+                                        <FileText className="w-6 h-6 mx-auto mb-1" />
+                                        <p className="text-xs font-bold">ลงบิลใหม่</p>
                                     </Link>
                                     <Link
                                         href={`/simple-station/${id}/new/summary`}
-                                        className="rounded-xl border border-black/10 bg-[#fafafa] p-4 text-center hover:bg-neutral-100 transition"
+                                        className="rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 p-4 text-center text-white shadow-md hover:shadow-lg transition-all hover:scale-[1.02]"
                                     >
-                                        <span className="text-2xl">📋</span>
-                                        <p className="text-sm font-bold text-neutral-600 mt-1">สรุปรายวัน</p>
-                                    </Link>
-                                    <Link
-                                        href={`/simple-station/${id}/new/products`}
-                                        className="rounded-xl border border-purple-200 bg-purple-50 p-4 text-center hover:bg-purple-100 transition"
-                                    >
-                                        <span className="text-2xl">🛒</span>
-                                        <p className="text-sm font-bold text-purple-600 mt-1">จัดการสินค้า</p>
+                                        <BarChart3 className="w-6 h-6 mx-auto mb-1" />
+                                        <p className="text-xs font-bold">สรุปรายวัน</p>
                                     </Link>
                                     <button
                                         onClick={() => {
-                                            // Load existing prices
                                             const storageKey = `fuelPrices_station${id}_${selectedDate}`;
                                             const stored = localStorage.getItem(storageKey);
                                             if (stored) {
@@ -405,34 +409,34 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                                                     GASOHOL_E20: prices.GASOHOL_E20?.toString() || '',
                                                 });
                                             }
-                                            setPendingShiftNumber(null); // so modal knows we're just editing
+                                            setPendingShiftNumber(null);
                                             setShowFuelPriceModal(true);
                                         }}
-                                        className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-center hover:bg-orange-100 transition"
+                                        className="rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500 p-4 text-center text-white shadow-md hover:shadow-lg transition-all hover:scale-[1.02]"
                                     >
-                                        <span className="text-2xl">⛽</span>
-                                        <p className="text-sm font-bold text-orange-600 mt-1">ตั้งราคาน้ำมัน</p>
+                                        <Fuel className="w-6 h-6 mx-auto mb-1" />
+                                        <p className="text-xs font-bold">ตั้งราคา</p>
                                     </button>
                                     <Link
                                         href={`/simple-station/${id}/new/meter-summary`}
-                                        className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-center hover:bg-blue-100 transition"
+                                        className="rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 p-4 text-center text-white shadow-md hover:shadow-lg transition-all hover:scale-[1.02]"
                                     >
-                                        <span className="text-2xl">📊</span>
-                                        <p className="text-sm font-bold text-blue-600 mt-1">สรุปมิเตอร์</p>
+                                        <Settings className="w-6 h-6 mx-auto mb-1" />
+                                        <p className="text-xs font-bold">มิเตอร์</p>
                                     </Link>
                                     <Link
                                         href={`/simple-station/${id}/new/shift-end`}
-                                        className="rounded-xl border border-red-200 bg-red-50 p-4 text-center hover:bg-red-100 transition"
+                                        className="rounded-xl bg-gradient-to-br from-red-500 to-red-600 p-4 text-center text-white shadow-md hover:shadow-lg transition-all hover:scale-[1.02]"
                                     >
-                                        <span className="text-2xl">🔒</span>
-                                        <p className="text-sm font-bold text-red-600 mt-1">ปิดกะ</p>
+                                        <LockKeyhole className="w-6 h-6 mx-auto mb-1" />
+                                        <p className="text-xs font-bold">ปิดกะ</p>
                                     </Link>
                                     <Link
                                         href={`/simple-station/${id}/new/shift-history`}
-                                        className="rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-center hover:bg-indigo-100 transition"
+                                        className="rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 p-4 text-center text-white shadow-md hover:shadow-lg transition-all hover:scale-[1.02]"
                                     >
-                                        <span className="text-2xl">📋</span>
-                                        <p className="text-sm font-bold text-indigo-600 mt-1">ประวัติกะ</p>
+                                        <History className="w-6 h-6 mx-auto mb-1" />
+                                        <p className="text-xs font-bold">ประวัติกะ</p>
                                     </Link>
                                 </div>
                             </div>
