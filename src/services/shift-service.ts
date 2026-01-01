@@ -145,8 +145,9 @@ export async function calculateReconciliation(shiftId: string): Promise<Reconcil
     );
     const expectedFuelAmount = totalSoldLiters * gasPrice;
 
-    // ยอดจากสินค้าอื่น (ถ้ามี)
-    const expectedOtherAmount = 0; // TODO: implement when needed
+    // ยอดจากสินค้าอื่น
+    const { calculateProductSales } = await import('./inventory-service');
+    const expectedOtherAmount = await calculateProductSales(shiftId);
 
     const totalExpected = expectedFuelAmount + expectedOtherAmount;
 

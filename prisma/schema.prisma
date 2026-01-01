@@ -8,23 +8,24 @@ datasource db {
 }
 
 model User {
-  id             String         @id @default(uuid())
-  name           String
-  username       String         @unique
-  password       String
-  role           UserRole       @default(STAFF)
-  stationId      String?
-  createdAt      DateTime       @default(now())
-  auditLogs      AuditLog[]
-  sessions       Session[]
-  shifts         Shift[]        @relation("ShiftStaff")
-  shiftsClosedBy Shift[]        @relation("ShiftClosedBy")
-  shiftsLockedBy Shift[]        @relation("ShiftLockedBy")
-  transactions   Transaction[]
-  meterReadings  MeterReading[] @relation("MeterCapturedBy")
-  deviceTokens   DeviceToken[]
-  priceBooks     PriceBook[]    @relation("PriceBookCreatedBy")
-  station        Station?       @relation(fields: [stationId], references: [id])
+  id               String         @id @default(uuid())
+  name             String
+  username         String         @unique
+  password         String
+  role             UserRole       @default(STAFF)
+  stationId        String?
+  createdAt        DateTime       @default(now())
+  auditLogs        AuditLog[]
+  sessions         Session[]
+  shifts           Shift[]        @relation("ShiftStaff")
+  shiftsClosedBy   Shift[]        @relation("ShiftClosedBy")
+  shiftsLockedBy   Shift[]        @relation("ShiftLockedBy")
+  transactions     Transaction[]
+  meterReadings    MeterReading[] @relation("MeterCapturedBy")
+  deviceTokens     DeviceToken[]
+  priceBooks       PriceBook[]    @relation("PriceBookCreatedBy")
+  reviewedAnomalies MeterAnomaly[]
+  station          Station?       @relation(fields: [stationId], references: [id])
 
   @@map("users")
 }
@@ -105,17 +106,19 @@ model Nozzle {
 }
 
 model Owner {
-  id           String        @id @default(uuid())
-  name         String
-  phone        String?
-  venderCode   String?
-  groupType    OwnerGroup    @default(GENERAL_CREDIT)
-  code         String?
-  createdAt    DateTime      @default(now())
-  deletedAt    DateTime?
-  invoices     Invoice[]
-  transactions Transaction[]
-  trucks       Truck[]
+  id            String        @id @default(uuid())
+  name          String
+  phone         String?
+  venderCode    String?
+  groupType     OwnerGroup    @default(GENERAL_CREDIT)
+  code          String?
+  creditLimit   Decimal       @default(50000) // วงเงินเครดิต
+  currentCredit Decimal       @default(0) // ยอดเครดิตคงค้าง
+  createdAt     DateTime      @default(now())
+  deletedAt     DateTime?
+  invoices      Invoice[]
+  transactions  Transaction[]
+  trucks        Truck[]
 
   @@map("owners")
 }
@@ -170,6 +173,7 @@ model Shift {
   varianceNote         String? // Required if variance > threshold
   meters               MeterReading[]
   reconciliation       ShiftReconciliation?
+  anomalies            MeterAnomaly[]
   dailyRecord          DailyRecord          @relation(fields: [dailyRecordId], references: [id])
   staff                User?                @relation("ShiftStaff", fields: [staffId], references: [id])
   closedBy             User?                @relation("ShiftClosedBy", fields: [closedById], references: [id])
@@ -196,6 +200,25 @@ model ShiftReconciliation {
   shift               Shift          @relation(fields: [shiftId], references: [id])
 
   @@map("shift_reconciliations")
+}
+
+// Meter Anomaly - บันทึกความผิดปกติของยอดขายมิเตอร์
+model MeterAnomaly {
+  id           String   @id @default(uuid())
+  shiftId      String
+  nozzleNumber Int
+  soldQty      Decimal  // ยอดขายจริง
+  averageQty   Decimal  // ค่าเฉลี่ย 7-30 วัน
+  percentDiff  Decimal  // เปอร์เซ็นต์ต่างจากค่าเฉลี่ย
+  severity     String   @default("WARNING") // WARNING, CRITICAL
+  note         String?  // หมายเหตุจากพนักงาน
+  reviewedById String?  // ผู้ตรวจสอบ
+  reviewedAt   DateTime?
+  createdAt    DateTime @default(now())
+  shift        Shift    @relation(fields: [shiftId], references: [id])
+  reviewedBy   User?    @relation(fields: [reviewedById], references: [id])
+
+  @@map("meter_anomalies")
 }
 
 model MeterReading {
