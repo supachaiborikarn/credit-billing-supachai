@@ -304,3 +304,116 @@ export async function checkShiftModifiable(shiftId: string): Promise<{ canModify
 
     return { canModify: true };
 }
+
+/**
+ * สร้างกะถัดไปพร้อม carry-over จากกะที่ปิด
+ * - กะ 1 ปิด → สร้างกะ 2 วันเดียวกัน
+ * - กะ 2 ปิด → สร้างกะ 1 วันถัดไป
+ */
+export async function createNextShiftWithCarryOver(
+    closedShiftId: string,
+    closingStock: number | null
+): Promise<{ success: boolean; nextShiftId?: string; error?: string }> {
+    try {
+        const closedShift = await prisma.shift.findUnique({
+            where: { id: closedShiftId },
+            include: {
+                meters: true,
+                dailyRecord: true
+            }
+        });
+
+        if (!closedShift || !closedShift.dailyRecord) {
+            return { success: false, error: 'ไม่พบกะหรือ dailyRecord' };
+        }
+
+        const currentShiftNum = closedShift.shiftNumber;
+        const nextShiftNumber = currentShiftNum === 1 ? 2 : 1;
+
+        // Calculate next day's date for shift 2 -> shift 1 transition
+        let nextDate: Date;
+        if (currentShiftNum === 2) {
+            // Shift 2 closes -> Create shift 1 for NEXT day
+            const currentDate = new Date(closedShift.dailyRecord.date);
+            currentDate.setDate(currentDate.getDate() + 1);
+            // Import getStartOfDayBangkok dynamically to avoid circular deps
+            const { getStartOfDayBangkok } = await import('@/lib/date-utils');
+            nextDate = getStartOfDayBangkok(currentDate.toISOString().split('T')[0]);
+        } else {
+            // Shift 1 closes -> Create shift 2 for SAME day
+            nextDate = closedShift.dailyRecord.date;
+        }
+
+        // Get or create daily record for next shift
+        const nextDailyRecord = await prisma.dailyRecord.upsert({
+            where: {
+                stationId_date: {
+                    stationId: closedShift.dailyRecord.stationId,
+                    date: nextDate
+                }
+            },
+            update: {},
+            create: {
+                stationId: closedShift.dailyRecord.stationId,
+                date: nextDate,
+                retailPrice: closedShift.dailyRecord.retailPrice,
+                wholesalePrice: closedShift.dailyRecord.wholesalePrice,
+                gasPrice: closedShift.dailyRecord.gasPrice,
+                status: 'OPEN',
+            }
+        });
+
+        // Check if next shift already exists
+        const existingNextShift = await prisma.shift.findUnique({
+            where: {
+                dailyRecordId_shiftNumber: {
+                    dailyRecordId: nextDailyRecord.id,
+                    shiftNumber: nextShiftNumber
+                }
+            }
+        });
+
+        if (!existingNextShift) {
+            // Create next shift with carried-over meter readings and stock
+            const nextShift = await prisma.shift.create({
+                data: {
+                    dailyRecordId: nextDailyRecord.id,
+                    shiftNumber: nextShiftNumber,
+                    status: 'OPEN',
+                    carryOverFromShiftId: closedShiftId,
+                    openingStock: closingStock,
+                    meters: {
+                        create: closedShift.meters.map(m => ({
+                            nozzleNumber: m.nozzleNumber,
+                            startReading: m.endReading || m.startReading,
+                        }))
+                    }
+                }
+            });
+            console.log(`[SHIFT SERVICE] Carry-over: Created shift ${nextShiftNumber} with startReadings and openingStock=${closingStock}`);
+            return { success: true, nextShiftId: nextShift.id };
+        } else {
+            // Update existing shift's meter startReadings (if they're still 0)
+            for (const m of closedShift.meters) {
+                if (m.endReading) {
+                    await prisma.meterReading.updateMany({
+                        where: {
+                            shiftId: existingNextShift.id,
+                            nozzleNumber: m.nozzleNumber,
+                            startReading: 0,
+                        },
+                        data: {
+                            startReading: m.endReading,
+                        }
+                    });
+                }
+            }
+            console.log(`[SHIFT SERVICE] Carry-over: Updated existing shift ${nextShiftNumber} startReadings`);
+            return { success: true, nextShiftId: existingNextShift.id };
+        }
+    } catch (error) {
+        console.error('[SHIFT SERVICE] Carry-over failed:', error);
+        return { success: false, error: 'Carry-over failed' };
+    }
+}
+

@@ -89,8 +89,9 @@ export async function POST(
             }
         });
 
-        // Get or create daily record
-        const date = new Date(dateStr + 'T00:00:00Z');
+        // Get or create daily record (use Bangkok timezone)
+        const { getStartOfDayBangkok } = await import('@/lib/date-utils');
+        const date = getStartOfDayBangkok(dateStr);
         let dailyRecord = await prisma.dailyRecord.findFirst({
             where: {
                 stationId: station.id,
