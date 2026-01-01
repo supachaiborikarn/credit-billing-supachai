@@ -133,6 +133,22 @@ export async function POST(
             if (owner) resolvedOwnerId = owner.id;
         }
 
+        // ===== CREDIT LIMIT CHECK =====
+        if (resolvedOwnerId && ['CREDIT', 'BOX_TRUCK'].includes(paymentType)) {
+            const { checkCreditLimit, updateOwnerCredit } = await import('@/services/credit-service');
+            const creditCheck = await checkCreditLimit(resolvedOwnerId, amount);
+
+            if (!creditCheck.allowed) {
+                return NextResponse.json({
+                    error: creditCheck.error,
+                    creditLimit: creditCheck.creditLimit,
+                    currentCredit: creditCheck.currentCredit,
+                    remainingCredit: creditCheck.remainingCredit
+                }, { status: 400 });
+            }
+        }
+        // ===== END CREDIT LIMIT CHECK =====
+
         // ===== DUPLICATE PREVENTION =====
         const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
         const duplicateCheck = await prisma.transaction.findFirst({
