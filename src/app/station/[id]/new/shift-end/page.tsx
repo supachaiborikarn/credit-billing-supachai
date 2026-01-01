@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { STATIONS } from '@/constants';
+import { ShiftAnomalyWarning, AnomalyData } from '@/components/ShiftAnomalyWarning';
 
 interface MeterData {
     nozzleNumber: number;
@@ -71,6 +72,12 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [shift, setShift] = useState<ShiftInfo | null>(null);
+
+    // Anomaly state
+    const [showAnomalyModal, setShowAnomalyModal] = useState(false);
+    const [anomalies, setAnomalies] = useState<AnomalyData[]>([]);
+    const [anomalyNote, setAnomalyNote] = useState('');
+    const [requiresNote, setRequiresNote] = useState(false);
 
     // Meter data - flexible nozzle count
     const [meters, setMeters] = useState<MeterData[]>([]);
@@ -222,6 +229,31 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
             return;
         }
 
+        // Check anomalies first (if not already checked)
+        if (!showAnomalyModal && anomalies.length === 0) {
+            try {
+                const anomalyRes = await fetch(`/api/gas-station/${id}/shifts/${shift.id}/anomalies`);
+                if (anomalyRes.ok) {
+                    const anomalyData = await anomalyRes.json();
+                    if (anomalyData.hasAnomalies && anomalyData.anomalies?.length > 0) {
+                        setAnomalies(anomalyData.anomalies);
+                        setRequiresNote(anomalyData.requiresNote || false);
+                        setShowAnomalyModal(true);
+                        return; // Show modal, don't proceed yet
+                    }
+                }
+            } catch (error) {
+                console.error('Anomaly check error:', error);
+                // Continue anyway if anomaly check fails
+            }
+        }
+
+        // Proceed with closing shift
+        await closeShift();
+    };
+
+    // Actual close shift logic
+    const closeShift = async (note?: string) => {
         setSaving(true);
         try {
             const res = await fetch(`/api/station/${id}/shift-end`, {
@@ -235,7 +267,8 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                     totalExpected,
                     totalReceived,
                     variance,
-                    varianceStatus
+                    varianceStatus,
+                    anomalyNote: note || anomalyNote
                 })
             });
 
@@ -254,6 +287,18 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
         }
     };
 
+    // Handle anomaly confirmation
+    const handleAnomalyConfirm = () => {
+        setShowAnomalyModal(false);
+        closeShift(anomalyNote);
+    };
+
+    const handleAnomalyCancel = () => {
+        setShowAnomalyModal(false);
+        setAnomalies([]);
+        setAnomalyNote('');
+    };
+
     if (!station) {
         return <div className="p-4 text-gray-500">ไม่พบสถานี</div>;
     }
@@ -267,6 +312,22 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+            {/* Anomaly Warning Modal */}
+            {showAnomalyModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="max-w-md w-full">
+                        <ShiftAnomalyWarning
+                            anomalies={anomalies}
+                            requiresNote={requiresNote}
+                            note={anomalyNote}
+                            onNoteChange={setAnomalyNote}
+                            onConfirm={handleAnomalyConfirm}
+                            onCancel={handleAnomalyCancel}
+                        />
+                    </div>
+                </div>
+            )}
+
             {/* Header */}
             <header className="sticky top-0 z-40 backdrop-blur-xl border-b border-white/10 px-4 py-3">
                 <div className="flex items-center justify-between">
