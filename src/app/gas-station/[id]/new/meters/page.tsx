@@ -286,8 +286,8 @@ export default function GasStationMetersPage({ params }: { params: Promise<{ id:
                                             }
                                             placeholder="0.00"
                                             className={`w-full px-4 py-3 border rounded-xl text-xl text-right font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 ${activeTab === 'start' && m.startReading > 0
-                                                    ? 'border-blue-200 bg-blue-50 text-blue-700'
-                                                    : 'border-gray-200'
+                                                ? 'border-blue-200 bg-blue-50 text-blue-700'
+                                                : 'border-gray-200'
                                                 }`}
                                             inputMode="decimal"
                                         />
@@ -327,9 +327,24 @@ export default function GasStationMetersPage({ params }: { params: Promise<{ id:
                                         <span className="font-medium text-gray-700">
                                             🛢️ ถังที่ {i + 1}
                                         </span>
-                                        <span className="text-2xl font-bold text-orange-500">
-                                            {startGauges[i]}%
-                                        </span>
+                                        {/* Editable percentage input */}
+                                        <div className="flex items-center gap-1">
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                value={startGauges[i]}
+                                                onChange={(e) => {
+                                                    const val = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
+                                                    const newGauges = [...startGauges];
+                                                    newGauges[i] = val;
+                                                    setStartGauges(newGauges);
+                                                }}
+                                                className="w-20 px-2 py-1 text-2xl font-bold text-orange-500 text-right border-2 border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                                inputMode="numeric"
+                                            />
+                                            <span className="text-2xl font-bold text-orange-500">%</span>
+                                        </div>
                                     </div>
 
                                     {/* Visual gauge bar */}
@@ -340,12 +355,12 @@ export default function GasStationMetersPage({ params }: { params: Promise<{ id:
                                         ></div>
                                     </div>
 
-                                    {/* Slider */}
+                                    {/* Slider for quick adjustment */}
                                     <input
                                         type="range"
                                         min="0"
                                         max="100"
-                                        step="5"
+                                        step="1"
                                         value={startGauges[i]}
                                         onChange={(e) => {
                                             const newGauges = [...startGauges];
@@ -354,6 +369,26 @@ export default function GasStationMetersPage({ params }: { params: Promise<{ id:
                                         }}
                                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-500"
                                     />
+
+                                    {/* Quick select buttons */}
+                                    <div className="flex justify-between mt-3 gap-1">
+                                        {[0, 25, 50, 75, 100].map((val) => (
+                                            <button
+                                                key={val}
+                                                onClick={() => {
+                                                    const newGauges = [...startGauges];
+                                                    newGauges[i] = val;
+                                                    setStartGauges(newGauges);
+                                                }}
+                                                className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all ${startGauges[i] === val
+                                                        ? 'bg-orange-500 text-white'
+                                                        : 'bg-gray-100 text-gray-600 hover:bg-orange-100'
+                                                    }`}
+                                            >
+                                                {val}%
+                                            </button>
+                                        ))}
+                                    </div>
 
                                     <p className="text-sm text-gray-500 mt-2 text-center">
                                         ≈ {formatNumber((startGauges[i] / 100) * GAS_TANK_CAPACITY_LITERS)} ลิตร

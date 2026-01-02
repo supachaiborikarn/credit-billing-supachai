@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { getStartOfDayBangkok, getEndOfDayBangkok, createTransactionDate, getTodayBangkok } from '@/lib/date-utils';
 import { buildTruckCodeMap, findCodeByPlate } from '@/lib/truck-utils';
 import { HttpErrors, getErrorMessage } from '@/lib/api-error';
+import { getSessionUser, getSessionWithError } from '@/lib/auth-utils';
 import { PaymentType } from '@prisma/client';
 
 interface TransactionInput {
@@ -38,23 +39,10 @@ export async function GET(
         const startOfDay = getStartOfDayBangkok(dateStr);
         const endOfDay = getEndOfDayBangkok(dateStr);
 
-        // Get user from session to filter by staff
-        const cookieStore = await cookies();
-        const sessionId = cookieStore.get('session')?.value;
-
-        let userId: string | null = null;
-        let userRole: string = 'STAFF';
-
-        if (sessionId) {
-            const session = await prisma.session.findUnique({
-                where: { id: sessionId },
-                include: { user: { select: { id: true, role: true } } }
-            });
-            if (session && session.expiresAt > new Date()) {
-                userId = session.user.id;
-                userRole = session.user.role;
-            }
-        }
+        // Get user from session to filter by staff (using shared auth helper)
+        const sessionUser = await getSessionUser();
+        const userId = sessionUser?.id || null;
+        const userRole = sessionUser?.role || 'STAFF';
 
         // Build where clause - Staff sees only their own, Admin sees all
         const whereClause: Record<string, unknown> = {
@@ -148,28 +136,14 @@ export async function POST(
             return HttpErrors.badRequest('รายการเงินเชื่อต้องระบุชื่อเจ้าของ');
         }
 
-        // Get user from session - REQUIRE authentication
-        const cookieStore = await cookies();
-        const sessionId = cookieStore.get('session')?.value;
+        // Get user from session - REQUIRE authentication (using shared auth helper)
+        const { user: sessionUser, error: authError } = await getSessionWithError();
 
-        if (!sessionId) {
-            return HttpErrors.unauthorized('กรุณาเข้าสู่ระบบ');
+        if (!sessionUser || authError) {
+            return HttpErrors.unauthorized(authError || 'กรุณาเข้าสู่ระบบ');
         }
 
-        const session = await prisma.session.findUnique({
-            where: { id: sessionId },
-            select: { userId: true, expiresAt: true }
-        });
-
-        if (!session) {
-            return HttpErrors.unauthorized('Session ไม่ถูกต้อง');
-        }
-
-        if (session.expiresAt < new Date()) {
-            return HttpErrors.unauthorized('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่');
-        }
-
-        const userId = session.userId;
+        const userId = sessionUser.id;
 
         // Get or create daily record for FULL station
         const date = getStartOfDayBangkok(dateStr);

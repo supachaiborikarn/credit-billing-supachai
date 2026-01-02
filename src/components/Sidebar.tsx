@@ -35,30 +35,40 @@ export default function Sidebar({ children }: SidebarProps) {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isStationsOpen, setIsStationsOpen] = useState(true);
 
+    const [isLoading, setIsLoading] = useState(true);
+
     useEffect(() => {
         fetchUser();
     }, []);
 
     const fetchUser = async () => {
+        setIsLoading(true);
         try {
             const res = await fetch('/api/auth/me');
             if (res.ok) {
                 const data = await res.json();
                 setUser(data.user);
             } else if (res.status === 401) {
-                // Not authenticated - redirect to login
-                router.push('/login');
+                // Not authenticated - clear state and redirect to login
+                setUser(null);
+                window.location.href = '/login'; // Use window.location for more reliable redirect
             }
             // Other errors (500, network issues) - don't redirect, just log
         } catch (error) {
             console.error('Error fetching user:', error);
             // Don't redirect on network errors - might be temporary
+        } finally {
+            setIsLoading(false);
         }
     };
 
     const handleLogout = async () => {
         await fetch('/api/auth/logout', { method: 'POST' });
-        router.push('/login');
+        window.location.href = '/login'; // Use window.location for more reliable redirect
+    };
+
+    const handleLogin = () => {
+        window.location.href = '/login';
     };
 
     const isActive = (path: string) => pathname === path || pathname.startsWith(path + '/');
@@ -126,7 +136,7 @@ export default function Sidebar({ children }: SidebarProps) {
 
             {/* Sidebar */}
             <aside className={`
-                fixed lg:static inset-y-0 left-0 z-40
+                fixed lg:static inset-y-0 left-0 z-[60]
                 w-72 backdrop-blur-2xl border-r border-white/10
                 transform transition-all duration-300 ease-out
                 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
@@ -151,8 +161,34 @@ export default function Sidebar({ children }: SidebarProps) {
                     </div>
                 </div>
 
+                {/* Quick Action Button - Always visible at top for mobile */}
+                <div className="lg:hidden p-4 border-b border-white/10 space-y-2">
+                    {/* Show loading or login/logout buttons */}
+                    {isLoading ? (
+                        <div className="w-full flex items-center justify-center py-3 text-gray-400">
+                            <span className="animate-pulse">กำลังโหลด...</span>
+                        </div>
+                    ) : !user ? (
+                        <button
+                            onClick={handleLogin}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-green-500/20 hover:bg-green-500/30 text-green-400 hover:text-green-300 transition-all duration-300 text-sm font-medium"
+                        >
+                            <LogOut size={18} className="rotate-180" />
+                            <span>เข้าสู่ระบบ</span>
+                        </button>
+                    ) : (
+                        <button
+                            onClick={handleLogout}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300 transition-all duration-300 text-sm font-medium"
+                        >
+                            <LogOut size={18} />
+                            <span>ออกจากระบบ</span>
+                        </button>
+                    )}
+                </div>
+
                 {/* Navigation */}
-                <nav className="p-4 space-y-2 overflow-y-auto scroll-smooth overscroll-contain pb-48" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+                <nav className="p-4 space-y-2 overflow-y-auto scroll-smooth overscroll-contain pb-48" style={{ maxHeight: 'calc(100vh - 180px)' }}>
                     {/* Main Menu - Admin only */}
                     {isAdmin && menuItems.map(item => (
                         <Link

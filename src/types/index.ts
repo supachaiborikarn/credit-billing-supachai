@@ -5,6 +5,7 @@
 // Re-export types from domain files
 export * from './gas-station';
 export * from './station';
+export * from './transaction';
 
 // ==================== API/Database Types ====================
 
