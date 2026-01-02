@@ -87,8 +87,13 @@ export default function Sidebar({ children }: SidebarProps) {
         { href: '/admin/transactions', icon: Edit, label: 'แก้ไขรายการ', gradient: 'from-red-500 to-orange-500' },
         { href: '/admin/owners', icon: Users, label: 'รวมเจ้าของ', gradient: 'from-indigo-500 to-blue-500' },
         { href: '/invoices', icon: FileText, label: 'วางบิล/ชำระเงิน', gradient: 'from-pink-500 to-rose-500' },
-        // TODO: Redesign gas-history feature - temporarily hidden
-        // { href: '/admin/gas-history', icon: Fuel, label: 'ข้อมูลย้อนหลัง', gradient: 'from-cyan-500 to-teal-500' },
+        { href: '/admin/inventory', icon: Fuel, label: '📦 จัดการสต็อก', gradient: 'from-green-500 to-emerald-500' },
+        { href: '/admin/anomalies', icon: Shield, label: '⚠️ ตรวจ Anomaly', gradient: 'from-yellow-500 to-orange-500' },
+        { href: '/admin/low-stock', icon: Fuel, label: '🚨 สต็อกต่ำ', gradient: 'from-red-500 to-pink-500' },
+        { href: '/admin/credit-limit', icon: Users, label: '💳 จัดการวงเงิน', gradient: 'from-blue-500 to-cyan-500' },
+        { href: '/admin/outstanding', icon: Users, label: '📋 ลูกค้าค้างชำระ', gradient: 'from-orange-500 to-red-500' },
+        { href: '/admin/generate-invoices', icon: FileText, label: '📄 สร้าง Invoice', gradient: 'from-cyan-500 to-teal-500' },
+        { href: '/admin/invoices', icon: FileText, label: '📑 รายการ Invoice', gradient: 'from-teal-500 to-green-500' },
         { href: '/users', icon: Users, label: 'จัดการผู้ใช้', gradient: 'from-violet-500 to-purple-500' },
         { href: '/settings', icon: Settings, label: 'ตั้งค่า', gradient: 'from-gray-500 to-slate-500' },
     ];
