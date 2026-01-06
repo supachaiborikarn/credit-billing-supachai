@@ -68,14 +68,12 @@ export async function POST(request: Request) {
 
             const totalAmount = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
 
-            // Generate invoice number
+            // Generate invoice number with timestamp to prevent collision
             const today = new Date();
             const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
-            const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-            const existingCount = await prisma.invoice.count({
-                where: { createdAt: { gte: startOfDay } }
-            });
-            const invoiceNumber = `INV-${dateStr}-${String(existingCount + 1).padStart(3, '0')}`;
+            const timeStr = today.toTimeString().split(' ')[0].replace(/:/g, '').substring(0, 4);
+            const random = Math.random().toString(36).substring(2, 5).toUpperCase();
+            const invoiceNumber = `INV-${dateStr}-${timeStr}${random}`;
 
             const invoice = await prisma.invoice.create({
                 data: {
@@ -112,11 +110,9 @@ export async function POST(request: Request) {
 
                 const today = new Date();
                 const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
-                const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                const existingCount = await prisma.invoice.count({
-                    where: { createdAt: { gte: startOfDay } }
-                });
-                const invoiceNumber = `INV-${dateStr}-${String(existingCount + createdInvoices.length + 1).padStart(3, '0')}`;
+                const timeStr = today.toTimeString().split(' ')[0].replace(/:/g, '').substring(0, 4);
+                const random = Math.random().toString(36).substring(2, 5).toUpperCase();
+                const invoiceNumber = `INV-${dateStr}-${timeStr}${random}-${createdInvoices.length + 1}`;
 
                 const invoice = await prisma.invoice.create({
                     data: {
