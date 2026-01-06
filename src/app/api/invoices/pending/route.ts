@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
     try {
@@ -7,7 +8,7 @@ export async function GET(request: NextRequest) {
         const group = searchParams.get('group');
 
         // Build where clause - include CREDIT and BOX_TRUCK payment types for invoicing
-        const whereClause: any = {
+        const whereClause: Prisma.OwnerWhereInput = {
             transactions: {
                 some: {
                     paymentType: { in: ['CREDIT', 'BOX_TRUCK'] },
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
 
         // Add group filter if provided
         if (group && group !== 'all') {
-            whereClause.groupType = group;
+            whereClause.groupType = group as Prisma.EnumOwnerGroupFilter;
         }
 
         // Get all owners with unpaid credit/box_truck transactions (not in an invoice)

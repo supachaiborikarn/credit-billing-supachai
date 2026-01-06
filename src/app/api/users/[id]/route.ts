@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { UserRole, Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+
+interface UserUpdateData {
+    name?: string;
+    role?: UserRole;
+    password?: string;
+    station?: Prisma.StationUpdateOneWithoutUsersNestedInput;
+}
 
 async function hashPassword(password: string): Promise<string> {
     return bcrypt.hash(password, 10);
@@ -44,7 +52,7 @@ export async function PUT(
         const body = await request.json();
         const { fullName, role, stationId, password } = body;
 
-        const data: any = { name: fullName, role };
+        const data: UserUpdateData = { name: fullName, role };
         if (password) {
             data.password = await hashPassword(password);
         }

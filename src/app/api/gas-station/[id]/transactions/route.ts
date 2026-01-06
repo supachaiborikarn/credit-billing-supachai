@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { STATIONS } from '@/constants';
-import { cookies } from 'next/headers';
 import { HttpErrors, getErrorMessage } from '@/lib/api-error';
+import { getSessionWithError } from '@/lib/auth-utils';
 import { PaymentType } from '@prisma/client';
 
 interface TransactionInput {
@@ -31,24 +31,11 @@ export async function POST(
             return HttpErrors.notFound('Gas station not found');
         }
 
-        // Get user from session
-        const cookieStore = await cookies();
-        const sessionId = cookieStore.get('session')?.value;
-        if (!sessionId) {
-            return HttpErrors.unauthorized('กรุณาเข้าสู่ระบบ');
-        }
+        // Get user from session (using shared auth helper)
+        const { user: sessionUser, error: authError } = await getSessionWithError();
 
-        const session = await prisma.session.findUnique({
-            where: { id: sessionId },
-            include: { user: true }
-        });
-
-        if (!session) {
-            return HttpErrors.unauthorized('Session ไม่ถูกต้อง');
-        }
-
-        if (session.expiresAt < new Date()) {
-            return HttpErrors.unauthorized('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่');
+        if (!sessionUser || authError) {
+            return HttpErrors.unauthorized(authError || 'กรุณาเข้าสู่ระบบ');
         }
 
         const body: TransactionInput = await request.json();
@@ -182,7 +169,7 @@ export async function POST(
                 pricePerLiter,
                 amount,
                 productType: productType || 'LPG',
-                recordedById: session.user.id,
+                recordedById: sessionUser.id,
             }
         });
 

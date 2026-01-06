@@ -92,6 +92,42 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
     const [addingTruck, setAddingTruck] = useState(false);
     const [ownerFilter, setOwnerFilter] = useState('');
 
+    // Success state for visual feedback
+    const [showSuccess, setShowSuccess] = useState(false);
+
+    // Reset form function - เคลียร์ข้อมูลทั้งหมดเพื่อลงบิลใหม่
+    const resetForm = () => {
+        // Bill Header
+        setBookNo('');
+        setBillNo('');
+        setCustomerName('');
+        setLicensePlate('');
+        // Payment type stays the same as it's often same for multiple bills
+
+        // Owner Info
+        setOwnerId(null);
+        setOwnerCode(null);
+        setOwnerPhone(null);
+
+        // Search
+        setSearchResults([]);
+        setShowDropdown(false);
+        setOwnerSearchResults([]);
+        setShowOwnerDropdown(false);
+
+        // Fuel Lines - reset with stored prices if available
+        setFuelLines([{
+            id: String(Date.now()),
+            fuelType: 'DIESEL',
+            quantity: '',
+            pricePerLiter: storedFuelPrices['DIESEL']?.toString() || '30.50'
+        }]);
+
+        // Other
+        setAmountInputs({});
+        setTransferProofUrl(null);
+    };
+
     // Search for trucks
     useEffect(() => {
         const timer = setTimeout(async () => {
@@ -325,6 +361,16 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
                 throw new Error(err.error || 'Failed to save transaction');
             }
 
+            // ✅ บันทึกสำเร็จ - แสดง success message ชัดเจน
+            setShowSuccess(true);
+
+            // เคลียร์ฟอร์มเพื่อลงบิลถัดไป
+            resetForm();
+
+            // ซ่อน success message หลัง 2 วินาที
+            setTimeout(() => setShowSuccess(false), 2000);
+
+            // Notify parent to refresh transaction list
             onSave();
         } catch (error) {
             console.error('Error saving bill:', error);
@@ -337,6 +383,15 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
 
     return (
         <div className="glass-card p-6">
+            {/* Success Banner - แสดงเมื่อบันทึกสำเร็จ */}
+            {showSuccess && (
+                <div className="mb-4 p-4 bg-green-500/20 border border-green-500/50 rounded-xl animate-pulse">
+                    <div className="flex items-center justify-center gap-2 text-green-400 font-bold text-lg">
+                        ✅ บันทึกสำเร็จ! ฟอร์มพร้อมลงบิลถัดไป
+                    </div>
+                </div>
+            )}
+
             <div className="flex items-center justify-between mb-6">
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
                     <FileText className="text-blue-400" />

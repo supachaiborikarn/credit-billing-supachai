@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { Invoice, Owner, Prisma } from '@prisma/client';
+
+type InvoiceWithRelations = Invoice & {
+    owner: Pick<Owner, 'id' | 'name' | 'code'>;
+    _count: { transactions: number };
+};
 
 export async function GET() {
     try {
@@ -32,18 +38,18 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'ต้องระบุเจ้าของอย่างน้อย 1 ราย' }, { status: 400 });
         }
 
-        // Build date filter if provided
+        // Build date filter if provided (using Bangkok timezone)
         const dateFilter: { gte?: Date; lte?: Date } = {};
         if (startDate) {
-            dateFilter.gte = new Date(startDate);
+            // Parse as Bangkok time start of day (00:00:00 +07:00)
+            dateFilter.gte = new Date(`${startDate}T00:00:00+07:00`);
         }
         if (endDate) {
-            const end = new Date(endDate);
-            end.setHours(23, 59, 59, 999);
-            dateFilter.lte = end;
+            // Parse as Bangkok time end of day (23:59:59 +07:00)
+            dateFilter.lte = new Date(`${endDate}T23:59:59.999+07:00`);
         }
 
-        const createdInvoices: any[] = [];
+        const createdInvoices: InvoiceWithRelations[] = [];
 
         if (combineOwners && targetOwnerIds.length > 1) {
             // Combine all owners into one invoice (use first owner as main)
@@ -138,11 +144,12 @@ export async function POST(request: Request) {
             return NextResponse.json(createdInvoices[0]);
         }
         return NextResponse.json({ invoices: createdInvoices, count: createdInvoices.length });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Invoice POST error:', error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         return NextResponse.json({
             error: 'Failed to create invoice',
-            details: error?.message || String(error)
+            details: errorMessage
         }, { status: 500 });
     }
 }

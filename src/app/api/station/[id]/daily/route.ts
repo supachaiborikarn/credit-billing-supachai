@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
 import { buildTruckCodeMap, findCodeByPlate } from '@/lib/truck-utils';
-import { cookies } from 'next/headers';
+import { getSessionUser } from '@/lib/auth-utils';
 
 export async function GET(
     request: NextRequest,
@@ -17,22 +17,10 @@ export async function GET(
         // Parse date using Bangkok timezone utilities
         const date = getStartOfDayBangkok(dateStr);
 
-        // Get user from session (for filtering)
-        const cookieStore = await cookies();
-        const sessionId = cookieStore.get('session')?.value;
-        let userId: string | null = null;
-        let userRole: string = 'STAFF';
-
-        if (sessionId) {
-            const session = await prisma.session.findUnique({
-                where: { id: sessionId },
-                select: { user: { select: { id: true, role: true } } }
-            });
-            if (session?.user) {
-                userId = session.user.id;
-                userRole = session.user.role;
-            }
-        }
+        // Get user from session (for filtering) - using shared auth helper
+        const sessionUser = await getSessionUser();
+        const userId = sessionUser?.id || null;
+        const userRole = sessionUser?.role || 'STAFF';
 
         // Get daily record with meters
         const dailyRecord = await prisma.dailyRecord.findUnique({

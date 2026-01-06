@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { cookies } from 'next/headers';
 import { getStartOfDayBangkok, getEndOfDayBangkok, createTransactionDate } from '@/lib/date-utils';
+import { getSessionWithError } from '@/lib/auth-utils';
 import { PaymentType } from '@prisma/client';
 
 interface TransactionLine {
@@ -55,24 +55,14 @@ export async function POST(
             return NextResponse.json({ error: 'รายการเงินเชื่อต้องระบุชื่อเจ้าของ' }, { status: 400 });
         }
 
-        // Get user from session
-        const cookieStore = await cookies();
-        const sessionId = cookieStore.get('session')?.value;
+        // Get user from session (using shared auth helper)
+        const { user: sessionUser, error: authError } = await getSessionWithError();
 
-        if (!sessionId) {
-            return NextResponse.json({ error: 'กรุณาเข้าสู่ระบบ' }, { status: 401 });
+        if (!sessionUser || authError) {
+            return NextResponse.json({ error: authError || 'กรุณาเข้าสู่ระบบ' }, { status: 401 });
         }
 
-        const session = await prisma.session.findUnique({
-            where: { id: sessionId },
-            select: { userId: true, expiresAt: true }
-        });
-
-        if (!session || session.expiresAt < new Date()) {
-            return NextResponse.json({ error: 'Session หมดอายุ กรุณาเข้าสู่ระบบใหม่' }, { status: 401 });
-        }
-
-        const userId = session.userId;
+        const userId = sessionUser.id;
 
         // Get or create daily record for FULL station
         const date = getStartOfDayBangkok(dateStr);

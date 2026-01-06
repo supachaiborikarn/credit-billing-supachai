@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { cookies } from 'next/headers';
 import { STATIONS, STATION_STAFF } from '@/constants';
 import { getStartOfDayBangkok, getEndOfDayBangkok } from '@/lib/date-utils';
 import { closeShift as closeShiftService, lockShift, validateCloseShift, calculateReconciliation } from '@/services/shift-service';
 import { auditShift } from '@/services/audit-service';
+import { getSessionUser } from '@/lib/auth-utils';
 
 export async function GET(
     request: Request,
@@ -83,17 +83,9 @@ export async function POST(
         const startOfDay = getStartOfDayBangkok(today);
         const endOfDay = getEndOfDayBangkok(today);
 
-        // Get user from session for staff tracking
-        const cookieStore = await cookies();
-        const sessionId = cookieStore.get('session')?.value;
-        let userId: string | null = null;
-        if (sessionId) {
-            const session = await prisma.session.findUnique({
-                where: { id: sessionId },
-                select: { userId: true }
-            });
-            if (session) userId = session.userId;
-        }
+        // Get user from session for staff tracking (using shared auth helper)
+        const sessionUser = await getSessionUser();
+        const userId = sessionUser?.id || null;
 
         // Get or create station
         await prisma.station.upsert({
@@ -202,18 +194,9 @@ export async function POST(
                 return NextResponse.json({ error: 'Shift ID required' }, { status: 400 });
             }
 
-            // Get user from session
-            const cookieStore = await cookies();
-            const sessionId = cookieStore.get('session')?.value;
-
-            let userId = 'system';
-            if (sessionId) {
-                const session = await prisma.session.findUnique({
-                    where: { id: sessionId },
-                    select: { userId: true }
-                });
-                if (session) userId = session.userId;
-            }
+            // Get user from session (using shared auth helper)
+            const sessionUser = await getSessionUser();
+            const userId = sessionUser?.id || 'system';
 
             // Validate before closing
             const validation = await validateCloseShift(shiftId);
@@ -269,18 +252,9 @@ export async function POST(
                 return NextResponse.json({ error: 'Shift ID required' }, { status: 400 });
             }
 
-            // Get user from session
-            const cookieStore = await cookies();
-            const sessionId = cookieStore.get('session')?.value;
-
-            let userId = 'system';
-            if (sessionId) {
-                const session = await prisma.session.findUnique({
-                    where: { id: sessionId },
-                    select: { userId: true }
-                });
-                if (session) userId = session.userId;
-            }
+            // Get user from session (using shared auth helper)
+            const sessionUser = await getSessionUser();
+            const userId = sessionUser?.id || 'system';
 
             const result = await lockShift(shiftId, userId);
 
