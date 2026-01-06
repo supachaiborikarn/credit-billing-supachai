@@ -268,14 +268,14 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                                     </tr>
                                 ))}
                             </tbody>
-                            <tfoot>
-                                <tr className="border-t-2 border-gray-900">
-                                    <td colSpan={3} className="px-3 py-3 text-right font-bold text-gray-900 border-r border-gray-300">รวมทั้งสิ้น</td>
-                                    <td className="px-3 py-3 text-right font-mono font-bold text-gray-900 border-r border-gray-300">
+                            <tfoot className="invoice-total">
+                                <tr className="border-t-4 border-gray-900 bg-gray-100">
+                                    <td colSpan={3} className="px-4 py-5 text-right font-bold text-gray-900 border-r border-gray-300 text-lg">รวมทั้งสิ้น</td>
+                                    <td className="px-4 py-5 text-right font-mono font-bold text-gray-900 border-r border-gray-300 text-lg">
                                         {formatCurrency(invoice.transactions.reduce((sum, t) => sum + Number(t.liters), 0))}
                                     </td>
-                                    <td className="border-r border-gray-300"></td>
-                                    <td className="px-3 py-3 text-right font-mono font-bold text-xl text-gray-900 border-r border-gray-300">
+                                    <td className="border-r border-gray-300 bg-gray-100"></td>
+                                    <td className="px-4 py-5 text-right font-mono font-bold text-2xl text-gray-900 border-r border-gray-300 bg-yellow-100">
                                         {formatCurrency(Number(invoice.totalAmount))}
                                     </td>
                                     <td className="print:hidden"></td>
@@ -314,22 +314,22 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                         </div>
                     )}
 
-                    {/* Signature Section */}
-                    <div className="border-t-2 border-gray-900 pt-8 mt-8">
-                        <div className="grid grid-cols-3 gap-8">
-                            <div className="text-center">
-                                <p className="text-sm text-gray-700 mb-12">ผู้รับวางบิล / Received by</p>
-                                <div className="border-b border-gray-900 w-32 mx-auto mb-2"></div>
+                    {/* Signature Section - อยู่แนวเดียวกัน */}
+                    <div className="border-t-2 border-gray-900 pt-8 mt-8 signature-section">
+                        <div className="flex justify-between items-end" style={{ minHeight: '100px' }}>
+                            <div className="text-center flex-1">
+                                <p className="text-sm text-gray-700 mb-16">ผู้รับวางบิล / Received by</p>
+                                <div className="border-b border-gray-900 w-36 mx-auto mb-2"></div>
                                 <p className="text-xs text-gray-500">(ลายเซ็น / วันที่)</p>
                             </div>
-                            <div className="text-center">
-                                <p className="text-sm text-gray-700 mb-12">ผู้วางบิล / Billed by</p>
-                                <div className="border-b border-gray-900 w-32 mx-auto mb-2"></div>
+                            <div className="text-center flex-1">
+                                <p className="text-sm text-gray-700 mb-16">ผู้วางบิล / Billed by</p>
+                                <div className="border-b border-gray-900 w-36 mx-auto mb-2"></div>
                                 <p className="text-xs text-gray-500">(ลายเซ็น / วันที่)</p>
                             </div>
-                            <div className="text-center">
-                                <p className="text-sm text-gray-700 mb-12">ผู้อนุมัติ / Approved by</p>
-                                <div className="border-b border-gray-900 w-32 mx-auto mb-2"></div>
+                            <div className="text-center flex-1">
+                                <p className="text-sm text-gray-700 mb-16">ผู้อนุมัติ / Approved by</p>
+                                <div className="border-b border-gray-900 w-36 mx-auto mb-2"></div>
                                 <p className="text-xs text-gray-500">(ลายเซ็น / วันที่)</p>
                             </div>
                         </div>
@@ -497,6 +497,38 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                         padding: 0 !important;
                         width: 100% !important;
                         max-width: none !important;
+                    }
+                    /* Hide tfoot on all pages except the last one */
+                    tfoot.invoice-total {
+                        display: table-footer-group;
+                    }
+                    table {
+                        page-break-inside: auto;
+                    }
+                    tr {
+                        page-break-inside: avoid;
+                        page-break-after: auto;
+                    }
+                    thead {
+                        display: table-header-group;
+                    }
+                    /* Make total row stand out */
+                    tfoot.invoice-total tr {
+                        background-color: #fef9c3 !important;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    tfoot.invoice-total td {
+                        font-size: 14pt !important;
+                        padding: 12px 8px !important;
+                    }
+                    /* Signature section - keep on last page */
+                    .signature-section {
+                        page-break-inside: avoid;
+                        margin-top: 30px;
+                    }
+                    .signature-section > div {
+                        align-items: flex-end;
                     }
                 }
             `}</style>
