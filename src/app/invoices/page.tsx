@@ -180,9 +180,9 @@ export default function InvoicesPage() {
         o.code?.toLowerCase().includes(search.toLowerCase())
     );
 
-    const totalPending = pendingOwners.reduce((sum, o) => sum + o.totalCredit, 0);
-    const totalInvoiced = invoices.reduce((sum, i) => sum + i.totalAmount, 0);
-    const totalPaid = invoices.reduce((sum, i) => sum + i.paidAmount, 0);
+    const totalPending = pendingOwners.reduce((sum, o) => sum + Number(o.totalCredit || 0), 0);
+    const totalInvoiced = invoices.reduce((sum, i) => sum + Number(i.totalAmount || 0), 0);
+    const totalPaid = invoices.reduce((sum, i) => sum + Number(i.paidAmount || 0), 0);
 
     const selectedTotal = filteredPendingOwners
         .filter(o => selectedOwnerIds.includes(o.id))
