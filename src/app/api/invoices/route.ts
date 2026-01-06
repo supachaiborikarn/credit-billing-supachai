@@ -58,7 +58,7 @@ export async function POST(request: Request) {
                     ownerId: { in: targetOwnerIds },
                     paymentType: { in: ['CREDIT', 'BOX_TRUCK'] },
                     invoiceId: null,
-                    ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
+                    ...(Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {}),
                 },
             });
 
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
                         ownerId: owId,
                         paymentType: { in: ['CREDIT', 'BOX_TRUCK'] },
                         invoiceId: null,
-                        ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
+                        ...(Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {}),
                     },
                 });
 
