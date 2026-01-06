@@ -71,8 +71,9 @@ export async function POST(request: Request) {
             // Generate invoice number
             const today = new Date();
             const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
+            const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
             const existingCount = await prisma.invoice.count({
-                where: { createdAt: { gte: new Date(today.setHours(0, 0, 0, 0)) } }
+                where: { createdAt: { gte: startOfDay } }
             });
             const invoiceNumber = `INV-${dateStr}-${String(existingCount + 1).padStart(3, '0')}`;
 
@@ -111,8 +112,9 @@ export async function POST(request: Request) {
 
                 const today = new Date();
                 const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
+                const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
                 const existingCount = await prisma.invoice.count({
-                    where: { createdAt: { gte: new Date(today.setHours(0, 0, 0, 0)) } }
+                    where: { createdAt: { gte: startOfDay } }
                 });
                 const invoiceNumber = `INV-${dateStr}-${String(existingCount + createdInvoices.length + 1).padStart(3, '0')}`;
 
