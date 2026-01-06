@@ -94,6 +94,18 @@ export async function POST(
             if (owner) resolvedOwnerId = owner.id;
         }
 
+        // If still no owner but we have licensePlate, try to find owner from truck
+        if (!resolvedOwnerId && ['CREDIT', 'BOX_TRUCK'].includes(paymentType) && licensePlate) {
+            const truck = await prisma.truck.findFirst({
+                where: { licensePlate: licensePlate.toUpperCase(), deletedAt: null },
+                include: { owner: true }
+            });
+            if (truck?.owner && !truck.owner.deletedAt) {
+                resolvedOwnerId = truck.owner.id;
+                console.log(`Found owner from truck plate: ${licensePlate} -> ${truck.owner.name}`);
+            }
+        }
+
         // Auto-create truck if license plate + owner provided but truck doesn't exist
         let truckId: string | null = null;
         if (licensePlate && resolvedOwnerId) {
