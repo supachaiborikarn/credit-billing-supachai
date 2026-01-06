@@ -268,20 +268,23 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                                     </tr>
                                 ))}
                             </tbody>
-                            <tfoot className="invoice-total">
-                                <tr className="border-t-4 border-gray-900 bg-gray-100">
-                                    <td colSpan={3} className="px-4 py-5 text-right font-bold text-gray-900 border-r border-gray-300 text-lg">รวมทั้งสิ้น</td>
-                                    <td className="px-4 py-5 text-right font-mono font-bold text-gray-900 border-r border-gray-300 text-lg">
-                                        {formatCurrency(invoice.transactions.reduce((sum, t) => sum + Number(t.liters), 0))}
-                                    </td>
-                                    <td className="border-r border-gray-300 bg-gray-100"></td>
-                                    <td className="px-4 py-5 text-right font-mono font-bold text-2xl text-gray-900 border-r border-gray-300 bg-yellow-100">
-                                        {formatCurrency(Number(invoice.totalAmount))}
-                                    </td>
-                                    <td className="print:hidden"></td>
-                                </tr>
-                            </tfoot>
                         </table>
+
+                        {/* Total Summary - Outside table to appear only once at the end */}
+                        <div className="invoice-total-summary border-t-4 border-gray-900 bg-yellow-50 mt-0">
+                            <div className="flex justify-between items-center px-4 py-4">
+                                <div className="flex-1"></div>
+                                <div className="text-right">
+                                    <span className="font-bold text-gray-900 text-lg mr-8">รวมทั้งสิ้น</span>
+                                    <span className="font-mono text-gray-700 text-lg mr-8">
+                                        {formatCurrency(invoice.transactions.reduce((sum, t) => sum + Number(t.liters), 0))} ลิตร
+                                    </span>
+                                    <span className="font-mono font-bold text-2xl text-gray-900 bg-yellow-200 px-4 py-2 rounded">
+                                        {formatCurrency(Number(invoice.totalAmount))} บาท
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
 
