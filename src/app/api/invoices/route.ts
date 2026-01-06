@@ -68,12 +68,23 @@ export async function POST(request: Request) {
 
             const totalAmount = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
 
-            // Generate invoice number with timestamp to prevent collision
+            // Generate sequential invoice number
             const today = new Date();
             const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
-            const timeStr = today.toTimeString().split(' ')[0].replace(/:/g, '').substring(0, 4);
-            const random = Math.random().toString(36).substring(2, 5).toUpperCase();
-            const invoiceNumber = `INV-${dateStr}-${timeStr}${random}`;
+            const prefix = `INV-${dateStr}-`;
+
+            // Find the highest invoice number for today
+            const lastInvoice = await prisma.invoice.findFirst({
+                where: { invoiceNumber: { startsWith: prefix } },
+                orderBy: { invoiceNumber: 'desc' }
+            });
+
+            let nextNum = 1;
+            if (lastInvoice) {
+                const lastNum = parseInt(lastInvoice.invoiceNumber.replace(prefix, ''), 10);
+                if (!isNaN(lastNum)) nextNum = lastNum + 1;
+            }
+            const invoiceNumber = `${prefix}${String(nextNum).padStart(3, '0')}`;
 
             const invoice = await prisma.invoice.create({
                 data: {
@@ -110,9 +121,20 @@ export async function POST(request: Request) {
 
                 const today = new Date();
                 const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
-                const timeStr = today.toTimeString().split(' ')[0].replace(/:/g, '').substring(0, 4);
-                const random = Math.random().toString(36).substring(2, 5).toUpperCase();
-                const invoiceNumber = `INV-${dateStr}-${timeStr}${random}-${createdInvoices.length + 1}`;
+                const prefix = `INV-${dateStr}-`;
+
+                // Find the highest invoice number for today
+                const lastInvoice = await prisma.invoice.findFirst({
+                    where: { invoiceNumber: { startsWith: prefix } },
+                    orderBy: { invoiceNumber: 'desc' }
+                });
+
+                let nextNum = 1;
+                if (lastInvoice) {
+                    const lastNum = parseInt(lastInvoice.invoiceNumber.replace(prefix, ''), 10);
+                    if (!isNaN(lastNum)) nextNum = lastNum + 1;
+                }
+                const invoiceNumber = `${prefix}${String(nextNum).padStart(3, '0')}`;
 
                 const invoice = await prisma.invoice.create({
                     data: {
