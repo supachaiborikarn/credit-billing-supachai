@@ -1,28 +1,5 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { Decimal } from '@prisma/client/runtime/library';
-
-interface MeterReading {
-    nozzleNumber: number;
-    startReading: Decimal;
-    endReading: Decimal | null;
-    soldQty: Decimal | null;
-}
-
-interface DailyRecordWithRelations {
-    id: string;
-    date: Date;
-    station: { id: string; name: string };
-    meters: MeterReading[];
-    shifts: {
-        id: string;
-        shiftNumber: number;
-        status: string;
-        createdAt: Date;
-        closedAt: Date | null;
-        staff: { name: string } | null;
-    }[];
-}
 
 export async function GET(request: Request) {
     try {
@@ -31,121 +8,95 @@ export async function GET(request: Request) {
         const startDate = searchParams.get('startDate');
         const endDate = searchParams.get('endDate');
 
-        // Build where clause for dailyRecord
+        // Build where clause for shifts
         const where: Record<string, unknown> = {};
 
         if (stationId) {
-            where.stationId = stationId;
+            where.dailyRecord = { stationId };
         }
 
         if (startDate || endDate) {
-            where.date = {
-                ...(startDate ? { gte: new Date(startDate + 'T00:00:00+07:00') } : {}),
-                ...(endDate ? { lte: new Date(endDate + 'T23:59:59+07:00') } : {})
+            where.dailyRecord = {
+                ...(where.dailyRecord as object || {}),
+                date: {
+                    ...(startDate ? { gte: new Date(startDate + 'T00:00:00+07:00') } : {}),
+                    ...(endDate ? { lte: new Date(endDate + 'T23:59:59+07:00') } : {})
+                }
             };
         }
 
-        // Fetch daily records with meter readings  
-        const dailyRecords = await prisma.dailyRecord.findMany({
+        // Fetch all shifts with their meter readings
+        const shifts = await prisma.shift.findMany({
             where,
             include: {
-                station: { select: { id: true, name: true } },
+                dailyRecord: {
+                    select: {
+                        date: true,
+                        station: { select: { id: true, name: true } }
+                    }
+                },
+                staff: { select: { name: true } },
+                closedBy: { select: { name: true } },
                 meters: {
                     select: {
                         nozzleNumber: true,
                         startReading: true,
                         endReading: true,
-                        soldQty: true,
+                        soldQty: true
                     },
                     orderBy: { nozzleNumber: 'asc' }
-                },
-                shifts: {
-                    select: {
-                        id: true,
-                        shiftNumber: true,
-                        status: true,
-                        createdAt: true,
-                        closedAt: true,
-                        staff: { select: { name: true } }
-                    },
-                    orderBy: { shiftNumber: 'asc' }
                 }
             },
-            orderBy: { date: 'desc' }
-        }) as unknown as DailyRecordWithRelations[];
+            orderBy: [
+                { dailyRecord: { date: 'desc' } },
+                { shiftNumber: 'desc' }
+            ]
+        });
 
-        // Transform data - one row per shift or per daily record if no shifts
-        const result: unknown[] = [];
-
-        for (const record of dailyRecords) {
-            // Get meter readings for this daily record
-            const getMeter = (nozzle: number) => record.meters.find(m => m.nozzleNumber === nozzle);
-
-            // Calculate sold qty (endReading - startReading)
-            const calculateSold = (nozzle: number) => {
-                const m = getMeter(nozzle);
-                if (m && m.endReading && m.startReading) {
-                    return Number(m.endReading) - Number(m.startReading);
+        // Transform data - one row per shift
+        const result = shifts.map(shift => {
+            // Calculate sold qty for each nozzle (if not already calculated)
+            const metersWithSold = [1, 2, 3, 4].map(nozzle => {
+                const meter = shift.meters.find(m => m.nozzleNumber === nozzle);
+                if (!meter) {
+                    return {
+                        nozzleNumber: nozzle,
+                        startReading: null,
+                        endReading: null,
+                        soldQty: null
+                    };
                 }
-                return null;
+                const start = Number(meter.startReading);
+                const end = meter.endReading ? Number(meter.endReading) : null;
+                const sold = meter.soldQty
+                    ? Number(meter.soldQty)
+                    : (end && start ? end - start : null);
+                return {
+                    nozzleNumber: nozzle,
+                    startReading: start,
+                    endReading: end,
+                    soldQty: sold
+                };
+            });
+
+            const totalSold = metersWithSold.reduce((sum, m) => sum + (m.soldQty || 0), 0);
+
+            return {
+                id: shift.id,
+                date: shift.dailyRecord.date.toISOString().split('T')[0],
+                stationId: shift.dailyRecord.station.id,
+                stationName: shift.dailyRecord.station.name,
+                shiftNumber: shift.shiftNumber,
+                status: shift.status,
+                staff: shift.staff?.name || null,
+                closedBy: shift.closedBy?.name || null,
+                openedAt: shift.createdAt.toISOString(),
+                closedAt: shift.closedAt?.toISOString() || null,
+                meters: metersWithSold,
+                totalSold,
+                hasMeterData: shift.meters.length > 0
             };
-
-            // Calculate total sold for this day
-            const totalSold = [1, 2, 3, 4].reduce((sum, n) => {
-                const sold = calculateSold(n);
-                return sum + (sold || 0);
-            }, 0);
-
-            if (record.shifts.length > 0) {
-                // One row per shift
-                for (const shift of record.shifts) {
-                    result.push({
-                        id: shift.id,
-                        date: record.date.toISOString().split('T')[0],
-                        stationId: record.station.id,
-                        stationName: record.station.name,
-                        shiftNumber: shift.shiftNumber,
-                        status: shift.status,
-                        staff: shift.staff?.name || null,
-                        openedAt: shift.createdAt.toISOString(),
-                        closedAt: shift.closedAt?.toISOString() || null,
-                        meters: [1, 2, 3, 4].map(n => {
-                            const m = getMeter(n);
-                            return {
-                                nozzleNumber: n,
-                                startReading: m ? Number(m.startReading) : null,
-                                endReading: m && m.endReading ? Number(m.endReading) : null,
-                                soldQty: calculateSold(n)
-                            };
-                        }),
-                        totalSold
-                    });
-                }
-            } else {
-                // No shifts - still show the daily record meters
-                result.push({
-                    id: record.id,
-                    date: record.date.toISOString().split('T')[0],
-                    stationId: record.station.id,
-                    stationName: record.station.name,
-                    shiftNumber: null,
-                    status: 'NO_SHIFT',
-                    staff: null,
-                    openedAt: null,
-                    closedAt: null,
-                    meters: [1, 2, 3, 4].map(n => {
-                        const m = getMeter(n);
-                        return {
-                            nozzleNumber: n,
-                            startReading: m ? Number(m.startReading) : null,
-                            endReading: m && m.endReading ? Number(m.endReading) : null,
-                            soldQty: calculateSold(n)
-                        };
-                    }),
-                    totalSold
-                });
-            }
-        }
+        });
 
         return NextResponse.json(result);
     } catch (error) {

@@ -102,6 +102,7 @@ interface ShiftMeterData {
         soldQty: number | null;
     }[];
     totalSold: number;
+    hasMeterData: boolean;
 }
 
 interface StationOption {
