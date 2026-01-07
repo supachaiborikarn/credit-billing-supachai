@@ -572,10 +572,10 @@ export default function ReportsPage() {
                                             <th>กะ</th>
                                             <th>สถานี</th>
                                             <th>พนักงาน</th>
-                                            <th className="text-right">หัวจ่าย 1</th>
-                                            <th className="text-right">หัวจ่าย 2</th>
-                                            <th className="text-right">หัวจ่าย 3</th>
-                                            <th className="text-right">หัวจ่าย 4</th>
+                                            <th className="text-right">หัวจ่าย 1<br /><span className="text-xs text-gray-500">เริ่ม→สิ้นสุด (ขาย)</span></th>
+                                            <th className="text-right">หัวจ่าย 2<br /><span className="text-xs text-gray-500">เริ่ม→สิ้นสุด (ขาย)</span></th>
+                                            <th className="text-right">หัวจ่าย 3<br /><span className="text-xs text-gray-500">เริ่ม→สิ้นสุด (ขาย)</span></th>
+                                            <th className="text-right">หัวจ่าย 4<br /><span className="text-xs text-gray-500">เริ่ม→สิ้นสุด (ขาย)</span></th>
                                             <th className="text-right">รวมขาย</th>
                                             <th>สถานะ</th>
                                         </tr>
@@ -644,35 +644,52 @@ export default function ReportsPage() {
                                                     <td className="text-right font-mono font-bold text-cyan-400">{formatCurrency(row.salesAmount)}</td>
                                                 </tr>
                                             ))}
-                                            {reportType === 'shift_meters' && shiftMetersData.map((row, i) => {
-                                                const getMeterSold = (nozzle: number) => {
-                                                    const meter = row.meters.find(m => m.nozzleNumber === nozzle);
-                                                    return meter?.soldQty ? formatNumber(meter.soldQty) : '-';
-                                                };
-                                                const totalSold = row.meters.reduce((sum, m) => sum + (m.soldQty || 0), 0);
-                                                return (
-                                                    <tr key={i}>
-                                                        <td className="font-mono">{new Date(row.date).toLocaleDateString('th-TH')}</td>
-                                                        <td className="text-center">
-                                                            <span className={`badge ${row.shiftNumber === 1 ? 'badge-blue' : 'badge-purple'}`}>
-                                                                กะ {row.shiftNumber}
+                                            {reportType === 'shift_meters' && shiftMetersData
+                                                .filter(row => row.totalSold > 0 || row.meters.some(m => m.startReading || m.endReading))
+                                                .map((row, i) => {
+                                                    const getMeterDisplay = (nozzle: number) => {
+                                                        const meter = row.meters.find(m => m.nozzleNumber === nozzle);
+                                                        if (!meter || (!meter.startReading && !meter.endReading)) return '-';
+                                                        const start = meter.startReading ? meter.startReading.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '-';
+                                                        const end = meter.endReading ? meter.endReading.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '-';
+                                                        const sold = meter.soldQty ? meter.soldQty.toFixed(2) : '-';
+                                                        return (
+                                                            <span>
+                                                                <span className="text-gray-400">{start}</span>
+                                                                <span className="text-gray-600"> → </span>
+                                                                <span className="text-gray-300">{end}</span>
+                                                                <br />
+                                                                <span className="text-yellow-400 font-bold">({sold})</span>
                                                             </span>
-                                                        </td>
-                                                        <td className="text-white">{row.stationName}</td>
-                                                        <td>{row.staff || '-'}</td>
-                                                        <td className="text-right font-mono">{getMeterSold(1)}</td>
-                                                        <td className="text-right font-mono">{getMeterSold(2)}</td>
-                                                        <td className="text-right font-mono">{getMeterSold(3)}</td>
-                                                        <td className="text-right font-mono">{getMeterSold(4)}</td>
-                                                        <td className="text-right font-mono font-bold text-yellow-400">{formatNumber(totalSold)}</td>
-                                                        <td>
-                                                            <span className={`badge ${row.status === 'CLOSED' ? 'badge-green' : 'badge-orange'}`}>
-                                                                {row.status === 'CLOSED' ? 'ปิดกะแล้ว' : 'เปิดอยู่'}
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
+                                                        );
+                                                    };
+                                                    return (
+                                                        <tr key={i}>
+                                                            <td className="font-mono">{new Date(row.date).toLocaleDateString('th-TH')}</td>
+                                                            <td className="text-center">
+                                                                {row.shiftNumber ? (
+                                                                    <span className={`badge ${row.shiftNumber === 1 ? 'badge-blue' : 'badge-purple'}`}>
+                                                                        กะ {row.shiftNumber}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="badge badge-gray">กะ -</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="text-white">{row.stationName}</td>
+                                                            <td>{row.staff || '-'}</td>
+                                                            <td className="text-right font-mono text-sm">{getMeterDisplay(1)}</td>
+                                                            <td className="text-right font-mono text-sm">{getMeterDisplay(2)}</td>
+                                                            <td className="text-right font-mono text-sm">{getMeterDisplay(3)}</td>
+                                                            <td className="text-right font-mono text-sm">{getMeterDisplay(4)}</td>
+                                                            <td className="text-right font-mono font-bold text-yellow-400">{row.totalSold.toFixed(2)}</td>
+                                                            <td>
+                                                                <span className={`badge ${row.status === 'CLOSED' ? 'badge-green' : row.status === 'NO_SHIFT' ? 'badge-gray' : 'badge-orange'}`}>
+                                                                    {row.status === 'CLOSED' ? 'ปิดกะแล้ว' : row.status === 'NO_SHIFT' ? 'ไม่มีกะ' : 'เปิดอยู่'}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
                                         </>
                                     )}
                                 </tbody>
