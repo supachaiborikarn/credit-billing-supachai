@@ -2,30 +2,26 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Decimal } from '@prisma/client/runtime/library';
 
-interface ShiftMeter {
+interface MeterReading {
     nozzleNumber: number;
     startReading: Decimal;
     endReading: Decimal | null;
     soldQty: Decimal | null;
-    startPhoto: string | null;
-    endPhoto: string | null;
 }
 
-interface ShiftWithRelations {
+interface DailyRecordWithRelations {
     id: string;
-    shiftNumber: number;
-    status: string;
-    createdAt: Date;
-    closedAt: Date | null;
-    openingStock: number | null;
-    closingStock: number | null;
-    dailyRecord: {
-        date: Date;
-        station: { id: string; name: string };
-    };
-    staff: { name: string } | null;
-    closedBy: { name: string } | null;
-    meters: ShiftMeter[];
+    date: Date;
+    station: { id: string; name: string };
+    meters: MeterReading[];
+    shifts: {
+        id: string;
+        shiftNumber: number;
+        status: string;
+        createdAt: Date;
+        closedAt: Date | null;
+        staff: { name: string } | null;
+    }[];
 }
 
 export async function GET(request: Request) {
@@ -35,76 +31,121 @@ export async function GET(request: Request) {
         const startDate = searchParams.get('startDate');
         const endDate = searchParams.get('endDate');
 
-        // Build where clause
+        // Build where clause for dailyRecord
         const where: Record<string, unknown> = {};
 
         if (stationId) {
-            where.dailyRecord = { stationId };
+            where.stationId = stationId;
         }
 
         if (startDate || endDate) {
-            where.dailyRecord = {
-                ...where.dailyRecord as object,
-                date: {
-                    ...(startDate ? { gte: new Date(startDate + 'T00:00:00+07:00') } : {}),
-                    ...(endDate ? { lte: new Date(endDate + 'T23:59:59+07:00') } : {})
-                }
+            where.date = {
+                ...(startDate ? { gte: new Date(startDate + 'T00:00:00+07:00') } : {}),
+                ...(endDate ? { lte: new Date(endDate + 'T23:59:59+07:00') } : {})
             };
         }
 
-        // Fetch shifts with meter readings
-        const shifts = await prisma.shift.findMany({
+        // Fetch daily records with meter readings  
+        const dailyRecords = await prisma.dailyRecord.findMany({
             where,
             include: {
-                dailyRecord: {
-                    select: {
-                        date: true,
-                        station: { select: { id: true, name: true } }
-                    }
-                },
-                staff: { select: { name: true } },
-                closedBy: { select: { name: true } },
+                station: { select: { id: true, name: true } },
                 meters: {
                     select: {
                         nozzleNumber: true,
                         startReading: true,
                         endReading: true,
                         soldQty: true,
-                        startPhoto: true,
-                        endPhoto: true
                     },
                     orderBy: { nozzleNumber: 'asc' }
+                },
+                shifts: {
+                    select: {
+                        id: true,
+                        shiftNumber: true,
+                        status: true,
+                        createdAt: true,
+                        closedAt: true,
+                        staff: { select: { name: true } }
+                    },
+                    orderBy: { shiftNumber: 'asc' }
                 }
             },
-            orderBy: [
-                { dailyRecord: { date: 'desc' } },
-                { shiftNumber: 'desc' }
-            ]
-        }) as unknown as ShiftWithRelations[];
+            orderBy: { date: 'desc' }
+        }) as unknown as DailyRecordWithRelations[];
 
-        // Transform data
-        const result = shifts.map((shift: ShiftWithRelations) => ({
-            id: shift.id,
-            date: shift.dailyRecord.date.toISOString().split('T')[0],
-            stationId: shift.dailyRecord.station.id,
-            stationName: shift.dailyRecord.station.name,
-            shiftNumber: shift.shiftNumber,
-            status: shift.status,
-            staff: shift.staff?.name || null,
-            closedBy: shift.closedBy?.name || null,
-            openedAt: shift.createdAt.toISOString(),
-            closedAt: shift.closedAt?.toISOString() || null,
-            openingStock: shift.openingStock,
-            closingStock: shift.closingStock,
-            meters: shift.meters.map((m: ShiftMeter) => ({
-                nozzleNumber: m.nozzleNumber,
-                startReading: Number(m.startReading),
-                endReading: m.endReading ? Number(m.endReading) : null,
-                soldQty: m.soldQty ? Number(m.soldQty) : null,
-                startPhoto: m.startPhoto,
-                endPhoto: m.endPhoto
-            }))
-        }));
+        // Transform data - one row per shift or per daily record if no shifts
+        const result: unknown[] = [];
+
+        for (const record of dailyRecords) {
+            // Get meter readings for this daily record
+            const getMeter = (nozzle: number) => record.meters.find(m => m.nozzleNumber === nozzle);
+
+            // Calculate sold qty (endReading - startReading)
+            const calculateSold = (nozzle: number) => {
+                const m = getMeter(nozzle);
+                if (m && m.endReading && m.startReading) {
+                    return Number(m.endReading) - Number(m.startReading);
+                }
+                return null;
+            };
+
+            // Calculate total sold for this day
+            const totalSold = [1, 2, 3, 4].reduce((sum, n) => {
+                const sold = calculateSold(n);
+                return sum + (sold || 0);
+            }, 0);
+
+            if (record.shifts.length > 0) {
+                // One row per shift
+                for (const shift of record.shifts) {
+                    result.push({
+                        id: shift.id,
+                        date: record.date.toISOString().split('T')[0],
+                        stationId: record.station.id,
+                        stationName: record.station.name,
+                        shiftNumber: shift.shiftNumber,
+                        status: shift.status,
+                        staff: shift.staff?.name || null,
+                        openedAt: shift.createdAt.toISOString(),
+                        closedAt: shift.closedAt?.toISOString() || null,
+                        meters: [1, 2, 3, 4].map(n => {
+                            const m = getMeter(n);
+                            return {
+                                nozzleNumber: n,
+                                startReading: m ? Number(m.startReading) : null,
+                                endReading: m && m.endReading ? Number(m.endReading) : null,
+                                soldQty: calculateSold(n)
+                            };
+                        }),
+                        totalSold
+                    });
+                }
+            } else {
+                // No shifts - still show the daily record meters
+                result.push({
+                    id: record.id,
+                    date: record.date.toISOString().split('T')[0],
+                    stationId: record.station.id,
+                    stationName: record.station.name,
+                    shiftNumber: null,
+                    status: 'NO_SHIFT',
+                    staff: null,
+                    openedAt: null,
+                    closedAt: null,
+                    meters: [1, 2, 3, 4].map(n => {
+                        const m = getMeter(n);
+                        return {
+                            nozzleNumber: n,
+                            startReading: m ? Number(m.startReading) : null,
+                            endReading: m && m.endReading ? Number(m.endReading) : null,
+                            soldQty: calculateSold(n)
+                        };
+                    }),
+                    totalSold
+                });
+            }
+        }
 
         return NextResponse.json(result);
     } catch (error) {

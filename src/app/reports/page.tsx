@@ -89,17 +89,24 @@ interface ShiftMeterData {
     id: string;
     date: string;
     stationName: string;
-    shiftNumber: number;
+    stationId: string;
+    shiftNumber: number | null;
     status: string;
     staff: string | null;
-    openedAt: string;
+    openedAt: string | null;
     closedAt: string | null;
     meters: {
         nozzleNumber: number;
-        startReading: number;
+        startReading: number | null;
         endReading: number | null;
         soldQty: number | null;
     }[];
+    totalSold: number;
+}
+
+interface StationOption {
+    id: string;
+    name: string;
 }
 
 export default function ReportsPage() {
@@ -117,18 +124,25 @@ export default function ReportsPage() {
     });
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
     const [exporting, setExporting] = useState(false);
+    const [stations, setStations] = useState<StationOption[]>([]);
+    const [selectedStation, setSelectedStation] = useState<string>('');
 
     useEffect(() => {
         setMounted(true);
         fetchReport();
-    }, [reportType, startDate, endDate]);
+        // Fetch stations for filter
+        fetch('/api/stations').then(res => res.json()).then(data => {
+            if (Array.isArray(data)) setStations(data);
+        }).catch(console.error);
+    }, [reportType, startDate, endDate, selectedStation]);
 
     const fetchReport = async () => {
         setLoading(true);
         try {
             if (reportType === 'shift_meters') {
                 // Fetch shift meters from separate endpoint
-                const res = await fetch(`/api/reports/shift-meters?startDate=${startDate}&endDate=${endDate}`);
+                const stationParam = selectedStation ? `&stationId=${selectedStation}` : '';
+                const res = await fetch(`/api/reports/shift-meters?startDate=${startDate}&endDate=${endDate}${stationParam}`);
                 if (res.ok) {
                     const result = await res.json();
                     setShiftMetersData(result || []);
@@ -269,6 +283,21 @@ export default function ReportsPage() {
                                 className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-orange-500/50 transition-all duration-300"
                             />
                         </div>
+                        {reportType === 'shift_meters' && (
+                            <div className="flex-1">
+                                <label className="block text-sm text-gray-400 mb-2">เลือกปั๊ม</label>
+                                <select
+                                    value={selectedStation}
+                                    onChange={(e) => setSelectedStation(e.target.value)}
+                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-orange-500/50 transition-all duration-300"
+                                >
+                                    <option value="" className="bg-gray-800">ทุกปั๊ม</option>
+                                    {stations.map(s => (
+                                        <option key={s.id} value={s.id} className="bg-gray-800">{s.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                         <button onClick={fetchReport} className="relative group px-6 py-3 rounded-xl font-semibold text-white overflow-hidden">
                             <div className="absolute inset-0 bg-gradient-to-r from-orange-600 to-yellow-600" />
                             <span className="relative flex items-center gap-2">
