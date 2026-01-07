@@ -277,41 +277,45 @@ export default function InvoicesPage() {
 
                 {/* Search & Filter */}
                 <div className="glass-card p-4 mb-6">
-                    <div className="flex flex-col sm:flex-row gap-4">
-                        <div className="flex-1 relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                    <div className="flex flex-col gap-4">
+                        {/* Search Input - แยกบรรทัด */}
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10" size={20} />
                             <input
                                 type="text"
-                                placeholder="ค้นหาชื่อ, เลขบิล, รหัส..."
+                                placeholder="🔍 พิมพ์ชื่อลูกค้าเพื่อค้นหา..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                className="input-glow pl-10"
+                                className="w-full bg-white/10 border border-gray-600 rounded-xl py-3 pl-10 pr-4 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                             />
                         </div>
-                        {activeTab === 'pending' && (
-                            <select
-                                value={groupFilter}
-                                onChange={(e) => setGroupFilter(e.target.value)}
-                                className="input-glow w-full sm:w-48"
-                            >
-                                <option value="all">ทุกกลุ่ม</option>
-                                {OWNER_GROUPS.map(g => (
-                                    <option key={g.value} value={g.value}>{g.label}</option>
-                                ))}
-                            </select>
-                        )}
-                        {activeTab === 'invoices' && (
-                            <select
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                                className="input-glow w-full sm:w-48"
-                            >
-                                <option value="all">ทุกสถานะ</option>
-                                <option value="PENDING">รอชำระ</option>
-                                <option value="PARTIAL">ชำระบางส่วน</option>
-                                <option value="PAID">ชำระแล้ว</option>
-                            </select>
-                        )}
+                        {/* Filter Dropdown */}
+                        <div className="flex gap-4">
+                            {activeTab === 'pending' && (
+                                <select
+                                    value={groupFilter}
+                                    onChange={(e) => setGroupFilter(e.target.value)}
+                                    className="input-glow flex-1"
+                                >
+                                    <option value="all">ทุกกลุ่ม</option>
+                                    {OWNER_GROUPS.map(g => (
+                                        <option key={g.value} value={g.value}>{g.label}</option>
+                                    ))}
+                                </select>
+                            )}
+                            {activeTab === 'invoices' && (
+                                <select
+                                    value={statusFilter}
+                                    onChange={(e) => setStatusFilter(e.target.value)}
+                                    className="input-glow flex-1"
+                                >
+                                    <option value="all">ทุกสถานะ</option>
+                                    <option value="PENDING">รอชำระ</option>
+                                    <option value="PARTIAL">ชำระบางส่วน</option>
+                                    <option value="PAID">ชำระแล้ว</option>
+                                </select>
+                            )}
+                        </div>
                     </div>
                 </div>
 
