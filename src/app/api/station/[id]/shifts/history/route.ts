@@ -55,6 +55,15 @@ export async function GET(
                         name: true,
                     },
                 },
+                meters: {
+                    select: {
+                        nozzleNumber: true,
+                        startReading: true,
+                        endReading: true,
+                        soldQty: true,
+                    },
+                    orderBy: { nozzleNumber: 'asc' },
+                },
             },
         });
 
@@ -69,6 +78,12 @@ export async function GET(
             closedAt: shift.closedAt?.toISOString() || null,
             closedById: shift.closedById,
             closedByName: shift.closedBy?.name || shift.closedById || null,
+            meters: shift.meters.map(m => ({
+                nozzleNumber: m.nozzleNumber,
+                startReading: Number(m.startReading),
+                endReading: m.endReading ? Number(m.endReading) : null,
+                soldQty: m.soldQty ? Number(m.soldQty) : null,
+            })),
         }));
 
         return NextResponse.json({

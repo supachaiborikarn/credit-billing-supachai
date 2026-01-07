@@ -6,6 +6,13 @@ import { STATIONS } from '@/constants';
 import Link from 'next/link';
 import SimpleBottomNav from '../../components/SimpleBottomNav';
 
+interface Meter {
+    nozzleNumber: number;
+    startReading: number;
+    endReading: number | null;
+    soldQty: number | null;
+}
+
 interface Shift {
     id: string;
     shiftNumber: number;
@@ -16,6 +23,7 @@ interface Shift {
     closedAt: string | null;
     closedById: string | null;
     closedByName: string | null;
+    meters: Meter[];
 }
 
 interface DailyShifts {
@@ -133,8 +141,8 @@ export default function ShiftHistoryPage({ params }: { params: Promise<{ id: str
                             <div
                                 key={shift.id}
                                 className={`rounded-2xl border overflow-hidden ${shift.status === 'OPEN'
-                                        ? 'bg-green-500/10 border-green-500/30'
-                                        : 'bg-white/5 border-white/10'
+                                    ? 'bg-green-500/10 border-green-500/30'
+                                    : 'bg-white/5 border-white/10'
                                     }`}
                             >
                                 {/* Shift Header */}
@@ -152,8 +160,8 @@ export default function ShiftHistoryPage({ params }: { params: Promise<{ id: str
                                         <div>
                                             <h3 className="font-bold text-white text-lg">กะที่ {shift.shiftNumber}</h3>
                                             <span className={`text-xs px-2 py-0.5 rounded-full ${shift.status === 'OPEN'
-                                                    ? 'bg-green-500/20 text-green-400'
-                                                    : 'bg-gray-500/20 text-gray-400'
+                                                ? 'bg-green-500/20 text-green-400'
+                                                : 'bg-gray-500/20 text-gray-400'
                                                 }`}>
                                                 {shift.status === 'OPEN' ? '🟢 เปิดอยู่' : '⚫ ปิดแล้ว'}
                                             </span>
@@ -212,6 +220,36 @@ export default function ShiftHistoryPage({ params }: { params: Promise<{ id: str
                                         <span>→</span>
                                         <span>{shift.closedAt ? formatDateTime(shift.closedAt) : '(ยังไม่ปิด)'}</span>
                                     </div>
+
+                                    {/* Meters Data */}
+                                    {shift.meters && shift.meters.length > 0 && (
+                                        <div className="mt-3 pt-3 border-t border-white/10">
+                                            <p className="text-xs text-gray-500 mb-2">📊 ข้อมูลมิเตอร์</p>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {shift.meters.map((m) => (
+                                                    <div key={m.nozzleNumber} className="bg-black/30 rounded-lg p-2">
+                                                        <div className="text-xs text-gray-500">หัวจ่าย {m.nozzleNumber}</div>
+                                                        <div className="flex items-center justify-between text-sm">
+                                                            <span className="text-gray-400">
+                                                                {m.startReading.toFixed(0)} → {m.endReading?.toFixed(0) || '-'}
+                                                            </span>
+                                                            <span className="font-bold text-yellow-400">
+                                                                {m.soldQty ? m.soldQty.toFixed(2) : '-'} ลิตร
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            {shift.meters.length > 0 && (
+                                                <div className="mt-2 p-2 bg-yellow-500/10 rounded-lg flex items-center justify-between">
+                                                    <span className="text-xs text-gray-400">ขายรวม</span>
+                                                    <span className="font-bold text-yellow-400">
+                                                        {shift.meters.reduce((sum, m) => sum + (m.soldQty || 0), 0).toFixed(2)} ลิตร
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ))}
