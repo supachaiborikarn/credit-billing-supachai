@@ -14,7 +14,8 @@ import {
     DollarSign,
     AlertCircle,
     BarChart3,
-    Sparkles
+    Sparkles,
+    Gauge
 } from 'lucide-react';
 import {
     BarChart,
@@ -28,7 +29,7 @@ import {
     Line
 } from 'recharts';
 
-type ReportType = 'daily' | 'monthly' | 'debt' | 'station' | 'gas';
+type ReportType = 'daily' | 'monthly' | 'debt' | 'station' | 'gas' | 'shift_meters';
 
 interface DailyData {
     date: string;
@@ -84,11 +85,29 @@ interface GasStockData {
     alertLevel: number;
 }
 
+interface ShiftMeterData {
+    id: string;
+    date: string;
+    stationName: string;
+    shiftNumber: number;
+    status: string;
+    staff: string | null;
+    openedAt: string;
+    closedAt: string | null;
+    meters: {
+        nozzleNumber: number;
+        startReading: number;
+        endReading: number | null;
+        soldQty: number | null;
+    }[];
+}
+
 export default function ReportsPage() {
     const [loading, setLoading] = useState(true);
     const [reportType, setReportType] = useState<ReportType>('daily');
-    const [data, setData] = useState<DailyData[] | MonthlyData[] | DebtData[] | StationData[] | GasData[]>([]);
+    const [data, setData] = useState<DailyData[] | MonthlyData[] | DebtData[] | StationData[] | GasData[] | ShiftMeterData[]>([]);
     const [gasStock, setGasStock] = useState<GasStockData[]>([]);
+    const [shiftMetersData, setShiftMetersData] = useState<ShiftMeterData[]>([]);
     const [summary, setSummary] = useState<Record<string, unknown> | null>(null);
     const [mounted, setMounted] = useState(false);
     const [startDate, setStartDate] = useState(() => {
@@ -107,13 +126,24 @@ export default function ReportsPage() {
     const fetchReport = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/reports?type=${reportType}&startDate=${startDate}&endDate=${endDate}`);
-            if (res.ok) {
-                const result = await res.json();
-                setData(result.data || []);
-                setSummary(result.summary || null);
-                if (result.stockData) {
-                    setGasStock(result.stockData);
+            if (reportType === 'shift_meters') {
+                // Fetch shift meters from separate endpoint
+                const res = await fetch(`/api/reports/shift-meters?startDate=${startDate}&endDate=${endDate}`);
+                if (res.ok) {
+                    const result = await res.json();
+                    setShiftMetersData(result || []);
+                    setData([]);
+                    setSummary({ totalShifts: result.length });
+                }
+            } else {
+                const res = await fetch(`/api/reports?type=${reportType}&startDate=${startDate}&endDate=${endDate}`);
+                if (res.ok) {
+                    const result = await res.json();
+                    setData(result.data || []);
+                    setSummary(result.summary || null);
+                    if (result.stockData) {
+                        setGasStock(result.stockData);
+                    }
                 }
             }
         } catch (error) {
@@ -151,6 +181,7 @@ export default function ReportsPage() {
         { value: 'daily', label: 'รายวัน', icon: Calendar },
         { value: 'monthly', label: 'รายเดือน', icon: BarChart3 },
         { value: 'gas', label: '⛽ ปั๊มแก๊ส', icon: Fuel, color: 'text-cyan-400' },
+        { value: 'shift_meters', label: '📊 มิเตอร์ตามกะ', icon: Gauge, color: 'text-yellow-400' },
         { value: 'debt', label: 'ลูกหนี้ค้าง', icon: AlertCircle },
         { value: 'station', label: 'ตามสถานี', icon: Fuel },
     ];
@@ -506,11 +537,25 @@ export default function ReportsPage() {
                                             <th className="text-right">รวม</th>
                                         </tr>
                                     )}
+                                    {reportType === 'shift_meters' && (
+                                        <tr>
+                                            <th>วันที่</th>
+                                            <th>กะ</th>
+                                            <th>สถานี</th>
+                                            <th>พนักงาน</th>
+                                            <th className="text-right">หัวจ่าย 1</th>
+                                            <th className="text-right">หัวจ่าย 2</th>
+                                            <th className="text-right">หัวจ่าย 3</th>
+                                            <th className="text-right">หัวจ่าย 4</th>
+                                            <th className="text-right">รวมขาย</th>
+                                            <th>สถานะ</th>
+                                        </tr>
+                                    )}
                                 </thead>
                                 <tbody>
-                                    {data.length === 0 ? (
+                                    {(reportType === 'shift_meters' ? shiftMetersData.length === 0 : data.length === 0) ? (
                                         <tr>
-                                            <td colSpan={6} className="text-center py-8 text-gray-400">
+                                            <td colSpan={10} className="text-center py-8 text-gray-400">
                                                 ไม่มีข้อมูล
                                             </td>
                                         </tr>
@@ -570,6 +615,35 @@ export default function ReportsPage() {
                                                     <td className="text-right font-mono font-bold text-cyan-400">{formatCurrency(row.salesAmount)}</td>
                                                 </tr>
                                             ))}
+                                            {reportType === 'shift_meters' && shiftMetersData.map((row, i) => {
+                                                const getMeterSold = (nozzle: number) => {
+                                                    const meter = row.meters.find(m => m.nozzleNumber === nozzle);
+                                                    return meter?.soldQty ? formatNumber(meter.soldQty) : '-';
+                                                };
+                                                const totalSold = row.meters.reduce((sum, m) => sum + (m.soldQty || 0), 0);
+                                                return (
+                                                    <tr key={i}>
+                                                        <td className="font-mono">{new Date(row.date).toLocaleDateString('th-TH')}</td>
+                                                        <td className="text-center">
+                                                            <span className={`badge ${row.shiftNumber === 1 ? 'badge-blue' : 'badge-purple'}`}>
+                                                                กะ {row.shiftNumber}
+                                                            </span>
+                                                        </td>
+                                                        <td className="text-white">{row.stationName}</td>
+                                                        <td>{row.staff || '-'}</td>
+                                                        <td className="text-right font-mono">{getMeterSold(1)}</td>
+                                                        <td className="text-right font-mono">{getMeterSold(2)}</td>
+                                                        <td className="text-right font-mono">{getMeterSold(3)}</td>
+                                                        <td className="text-right font-mono">{getMeterSold(4)}</td>
+                                                        <td className="text-right font-mono font-bold text-yellow-400">{formatNumber(totalSold)}</td>
+                                                        <td>
+                                                            <span className={`badge ${row.status === 'CLOSED' ? 'badge-green' : 'badge-orange'}`}>
+                                                                {row.status === 'CLOSED' ? 'ปิดกะแล้ว' : 'เปิดอยู่'}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </>
                                     )}
                                 </tbody>
