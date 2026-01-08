@@ -41,13 +41,19 @@ export async function GET(
         const endOfDay = new Date(date);
         endOfDay.setHours(23, 59, 59, 999);
 
-        // Get all readings for the day AND shift
+        // Get all readings for the day (and shift if specified)
+        const whereClause: Record<string, unknown> = {
+            stationId: station.id,
+            date: { gte: startOfDay, lte: endOfDay },
+        };
+
+        // Only filter by shiftNumber if shift > 0 (0 means all shifts)
+        if (shiftNumber > 0) {
+            whereClause.shiftNumber = shiftNumber;
+        }
+
         const gaugeReadings = await prisma.gaugeReading.findMany({
-            where: {
-                stationId: station.id,
-                date: { gte: startOfDay, lte: endOfDay },
-                shiftNumber: shiftNumber
-            },
+            where: whereClause,
             orderBy: { createdAt: 'desc' }
         });
 

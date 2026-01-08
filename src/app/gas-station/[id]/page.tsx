@@ -351,7 +351,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
     const fetchDailyData = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/gas-station/${id}/daily?date=${selectedDate}`);
+            const res = await fetch(`/api/gas-station/${id}/daily?date=${selectedDate}&shift=${currentShift || 0}`);
             if (res.ok) {
                 const data = await res.json();
                 setDailyRecord(data.dailyRecord);

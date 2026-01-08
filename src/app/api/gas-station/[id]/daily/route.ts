@@ -66,8 +66,8 @@ export async function GET(
             }
         };
 
-        // If shift is specified, filter by shiftNumber
-        if (shiftNumber !== null) {
+        // If shift > 0 is specified, filter by shiftNumber (0 means all shifts)
+        if (shiftNumber !== null && shiftNumber > 0) {
             transactionWhere.shiftNumber = shiftNumber;
         }
 
@@ -98,7 +98,8 @@ export async function GET(
             stationId: station.id,
             date: { gte: startOfDay, lte: endOfDay }
         };
-        if (shiftNumber !== null) {
+        // Only filter by shift if shift > 0 (0 means all shifts)
+        if (shiftNumber !== null && shiftNumber > 0) {
             gaugeWhere.shiftNumber = shiftNumber;
         }
 
@@ -125,8 +126,8 @@ export async function GET(
             currentStock = totalPercentage * LITERS_PER_PERCENT;
         }
 
-        // Get shift-specific data if shift is specified
-        const currentShiftData = shiftNumber !== null && dailyRecord?.shifts
+        // Get shift-specific data if shift > 0 is specified
+        const currentShiftData = shiftNumber !== null && shiftNumber > 0 && dailyRecord?.shifts
             ? dailyRecord.shifts.find(s => s.shiftNumber === shiftNumber)
             : null;
 
