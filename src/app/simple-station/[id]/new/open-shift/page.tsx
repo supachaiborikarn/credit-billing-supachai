@@ -70,6 +70,16 @@ export default function OpenShiftPage({ params }: { params: Promise<{ id: string
                 body: JSON.stringify({ prices: pricesArray }),
             });
 
+            // Also save to localStorage for sell page to access
+            const today = new Date().toISOString().split('T')[0];
+            const storageKey = `fuelPrices_station${id}_${today}`;
+            const pricesForStorage: Record<string, number> = {};
+            pricesArray.forEach(p => {
+                pricesForStorage[p.fuelType] = p.price;
+            });
+            localStorage.setItem(storageKey, JSON.stringify(pricesForStorage));
+
+
             // Open new shift
             const res = await fetch(`/api/station/${id}/shifts`, {
                 method: 'POST',

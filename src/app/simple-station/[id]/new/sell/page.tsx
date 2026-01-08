@@ -98,20 +98,47 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
         fetchProducts();
     }, [id]);
 
-    // Load fuel prices from localStorage
+    // Load fuel prices from localStorage or API
     useEffect(() => {
-        const storageKey = `fuelPrices_station${id}_${selectedDate}`;
-        const stored = localStorage.getItem(storageKey);
-        if (stored) {
-            const prices = JSON.parse(stored);
-            setFuelPrices(prices);
-            // Auto-fill price for currently selected fuel type
-            if (prices[fuelType]) {
-                const p = prices[fuelType];
-                setPricePerLiter(p.toString());
-                setPriceDisplay(Math.round(p * 100).toString());
+        const loadPrices = async () => {
+            const storageKey = `fuelPrices_station${id}_${selectedDate}`;
+            const stored = localStorage.getItem(storageKey);
+
+            if (stored) {
+                const prices = JSON.parse(stored);
+                setFuelPrices(prices);
+                // Auto-fill price for currently selected fuel type
+                if (prices[fuelType]) {
+                    const p = prices[fuelType];
+                    setPricePerLiter(p.toString());
+                    setPriceDisplay(Math.round(p * 100).toString());
+                }
+            } else {
+                // Fallback: fetch from API
+                try {
+                    const res = await fetch(`/api/station/${id}/fuel-prices`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        const prices: Record<string, number> = {};
+                        (data.prices || []).forEach((p: { fuelType: string; price: number }) => {
+                            prices[p.fuelType] = p.price;
+                        });
+                        setFuelPrices(prices);
+                        // Save to localStorage for future use
+                        localStorage.setItem(storageKey, JSON.stringify(prices));
+                        // Auto-fill price for currently selected fuel type
+                        if (prices[fuelType]) {
+                            const p = prices[fuelType];
+                            setPricePerLiter(p.toString());
+                            setPriceDisplay(Math.round(p * 100).toString());
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error loading prices from API:', error);
+                }
             }
-        }
+        };
+        loadPrices();
     }, [id, selectedDate]);
 
     // Auto-fill price when fuel type changes
