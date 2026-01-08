@@ -66,10 +66,8 @@ export async function GET(
             }
         };
 
-        // If shift > 0 is specified, filter by shiftNumber (0 means all shifts)
-        if (shiftNumber !== null && shiftNumber > 0) {
-            transactionWhere.shiftNumber = shiftNumber;
-        }
+        // NOTE: Gas station transactions don't have shiftNumber, so we don't filter by shift
+        // (Unlike simple-station which tracks shiftNumber per transaction)
 
         const transactions = await prisma.transaction.findMany({
             where: transactionWhere,
