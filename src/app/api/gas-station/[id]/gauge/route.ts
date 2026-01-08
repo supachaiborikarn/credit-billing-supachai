@@ -42,7 +42,7 @@ export async function GET(
         endOfDay.setHours(23, 59, 59, 999);
 
         // Get all readings for the day (and shift if specified)
-        const whereClause: Record<string, unknown> = {
+        let whereClause: Record<string, unknown> = {
             stationId: station.id,
             date: { gte: startOfDay, lte: endOfDay },
         };
@@ -52,10 +52,23 @@ export async function GET(
             whereClause.shiftNumber = shiftNumber;
         }
 
-        const gaugeReadings = await prisma.gaugeReading.findMany({
+        let gaugeReadings = await prisma.gaugeReading.findMany({
             where: whereClause,
             orderBy: { createdAt: 'desc' }
         });
+
+        // Fallback: if no readings for this shift, try shiftNumber = 0 (legacy data)
+        if (gaugeReadings.length === 0 && shiftNumber > 0) {
+            whereClause = {
+                stationId: station.id,
+                date: { gte: startOfDay, lte: endOfDay },
+                shiftNumber: 0, // Legacy data
+            };
+            gaugeReadings = await prisma.gaugeReading.findMany({
+                where: whereClause,
+                orderBy: { createdAt: 'desc' }
+            });
+        }
 
         // Group by tankNumber and type (start/end from notes field)
         const readingsByTank: Record<number, { start?: typeof gaugeReadings[0], end?: typeof gaugeReadings[0] }> = {};
