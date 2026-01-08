@@ -360,12 +360,27 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                 setCurrentStock(data.currentStock || 0);
                 if (data.dailyRecord) {
                     setGasPrice(data.dailyRecord.gasPrice || DEFAULT_GAS_PRICE);
-                    if (data.dailyRecord.meters) {
-                        setMeters(data.dailyRecord.meters.map((m: MeterReading) => ({
+
+                    // Use shift-specific meters if a shift is selected and has data
+                    // Otherwise fall back to dailyRecord.meters (legacy/all-day view)
+                    const metersSource = (currentShift && currentShift > 0 && data.currentShift?.meters?.length > 0)
+                        ? data.currentShift.meters
+                        : data.dailyRecord.meters;
+
+                    if (metersSource && metersSource.length > 0) {
+                        setMeters(metersSource.map((m: MeterReading) => ({
                             nozzle: m.nozzleNumber,
                             start: Number(m.startReading),
                             end: Number(m.endReading) || 0,
                         })));
+                    } else {
+                        // Reset meters when no data exists
+                        setMeters([
+                            { nozzle: 1, start: 0, end: 0 },
+                            { nozzle: 2, start: 0, end: 0 },
+                            { nozzle: 3, start: 0, end: 0 },
+                            { nozzle: 4, start: 0, end: 0 },
+                        ]);
                     }
                 } else {
                     // Reset meters and price when no daily record exists for this date
@@ -745,6 +760,10 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
     };
 
     const saveMeters = async (type: 'start' | 'end') => {
+        // Get the shift ID for the currently selected shift
+        const selectedShiftData = shiftData?.shifts?.find(s => s.shiftNumber === currentShift);
+        const shiftId = selectedShiftData?.id || null;
+
         try {
             const res = await fetch(`/api/gas-station/${id}/meters`, {
                 method: 'POST',
@@ -752,6 +771,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                 body: JSON.stringify({
                     date: selectedDate,
                     type,
+                    shiftId, // Include shiftId for shift-based storage
                     meters: meters.map(m => ({
                         nozzleNumber: m.nozzle,
                         reading: type === 'start' ? m.start : m.end,
@@ -762,9 +782,13 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
             if (res.ok) {
                 alert(`บันทึกมิเตอร์${type === 'start' ? 'เริ่มต้น' : 'สิ้นสุด'}เรียบร้อย`);
                 fetchDailyData();
+            } else {
+                const err = await res.json();
+                alert(err.error || 'ไม่สามารถบันทึกมิเตอร์ได้');
             }
         } catch (error) {
             console.error('Error saving meters:', error);
+            alert('เกิดข้อผิดพลาดในการบันทึกมิเตอร์');
         }
     };
 
