@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getStartOfDayBangkok, getEndOfDayBangkok } from '@/lib/date-utils';
 
 export async function GET(request: Request) {
     try {
@@ -8,24 +9,27 @@ export async function GET(request: Request) {
         const startDate = searchParams.get('startDate');
         const endDate = searchParams.get('endDate');
 
-        // Build where clause for shifts directly
-        const shiftWhere: Record<string, unknown> = {};
+        // Build where clause for shifts
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const shiftWhere: any = {};
 
         if (stationId) {
             shiftWhere.dailyRecord = { stationId };
         }
 
+        // Use proper timezone handling
         if (startDate || endDate) {
+            const dateFilter: { gte?: Date; lte?: Date } = {};
+            if (startDate) dateFilter.gte = getStartOfDayBangkok(startDate);
+            if (endDate) dateFilter.lte = getEndOfDayBangkok(endDate);
+
             shiftWhere.dailyRecord = {
-                ...(shiftWhere.dailyRecord as object || {}),
-                date: {
-                    ...(startDate ? { gte: new Date(startDate + 'T00:00:00+07:00') } : {}),
-                    ...(endDate ? { lte: new Date(endDate + 'T23:59:59+07:00') } : {})
-                }
+                ...(shiftWhere.dailyRecord || {}),
+                date: dateFilter
             };
         }
 
-        // Fetch all shifts directly (not dailyRecords)
+        // Fetch shifts with all related data including reconciliation and transactions
         const shifts = await prisma.shift.findMany({
             where: shiftWhere,
             include: {
@@ -34,28 +38,35 @@ export async function GET(request: Request) {
                         id: true,
                         date: true,
                         station: { select: { id: true, name: true } },
-                        meters: {
-                            select: {
-                                nozzleNumber: true,
-                                startReading: true,
-                                endReading: true,
-                                soldQty: true,
-                                shiftId: true
-                            },
-                            orderBy: { nozzleNumber: 'asc' }
-                        }
+                        gasPrice: true
                     }
                 },
                 staff: { select: { name: true } },
                 closedBy: { select: { name: true } },
+                // Direct shift meters
                 meters: {
                     select: {
+                        id: true,
                         nozzleNumber: true,
                         startReading: true,
                         endReading: true,
                         soldQty: true
                     },
                     orderBy: { nozzleNumber: 'asc' }
+                },
+                // Include reconciliation data
+                reconciliation: {
+                    select: {
+                        expectedFuelAmount: true,
+                        expectedOtherAmount: true,
+                        totalExpected: true,
+                        totalReceived: true,
+                        cashReceived: true,
+                        creditReceived: true,
+                        transferReceived: true,
+                        variance: true,
+                        varianceStatus: true
+                    }
                 }
             },
             orderBy: [
@@ -64,81 +75,44 @@ export async function GET(request: Request) {
             ]
         });
 
-        // Also get meters from dailyRecords that don't have shifts but match the date
-        // Group by date to find meters from sibling dailyRecords
-        const metersByDate: Record<string, Array<{ nozzleNumber: number; startReading: number; endReading: number | null; soldQty: number | null }>> = {};
+        // Get transactions for each shift's daily record
+        // Group by dailyRecordId for efficiency
+        const dailyRecordIds = [...new Set(shifts.map(s => s.dailyRecordId))];
 
-        if (stationId) {
-            const dailyRecords = await prisma.dailyRecord.findMany({
-                where: {
-                    stationId,
-                    meters: { some: {} },
-                    ...(startDate || endDate ? {
-                        date: {
-                            ...(startDate ? { gte: new Date(startDate + 'T00:00:00+07:00') } : {}),
-                            ...(endDate ? { lte: new Date(endDate + 'T23:59:59+07:00') } : {})
-                        }
-                    } : {})
-                },
-                select: {
-                    date: true,
-                    meters: {
-                        select: {
-                            nozzleNumber: true,
-                            startReading: true,
-                            endReading: true,
-                            soldQty: true
-                        }
-                    }
-                }
-            });
-
-            for (const dr of dailyRecords) {
-                // Convert to Bangkok date string for grouping
-                const dateKey = new Date(dr.date.getTime() + 7 * 60 * 60 * 1000).toISOString().split('T')[0];
-                if (!metersByDate[dateKey]) {
-                    metersByDate[dateKey] = [];
-                }
-                for (const m of dr.meters) {
-                    // Only add if not already exists
-                    if (!metersByDate[dateKey].find(existing => existing.nozzleNumber === m.nozzleNumber)) {
-                        metersByDate[dateKey].push({
-                            nozzleNumber: m.nozzleNumber,
-                            startReading: Number(m.startReading),
-                            endReading: m.endReading ? Number(m.endReading) : null,
-                            soldQty: m.soldQty ? Number(m.soldQty) : null
-                        });
-                    }
-                }
+        const allTransactions = await prisma.transaction.findMany({
+            where: {
+                dailyRecordId: { in: dailyRecordIds },
+                deletedAt: null,
+                isVoided: false
+            },
+            select: {
+                dailyRecordId: true,
+                date: true,
+                amount: true,
+                liters: true,
+                paymentType: true
             }
+        });
+
+        // Group transactions by dailyRecordId
+        const txByDailyRecord = new Map<string, typeof allTransactions>();
+        for (const tx of allTransactions) {
+            if (!tx.dailyRecordId) continue;
+            if (!txByDailyRecord.has(tx.dailyRecordId)) {
+                txByDailyRecord.set(tx.dailyRecordId, []);
+            }
+            txByDailyRecord.get(tx.dailyRecordId)!.push(tx);
         }
 
-        // Transform data - one row per shift
+        // Transform data with complete information
         const result = shifts.map(shift => {
-            // Convert shift date to Bangkok date string
-            const shiftDate = new Date(shift.dailyRecord.date.getTime() + 7 * 60 * 60 * 1000).toISOString().split('T')[0];
+            // Format date to Bangkok timezone
+            const shiftDate = new Date(shift.dailyRecord.date.getTime() + 7 * 60 * 60 * 1000)
+                .toISOString().split('T')[0];
 
-            // Use shift-level meters first, then dailyRecord meters, then sibling meters
-            let metersSource = shift.meters;
-            if (metersSource.length === 0) {
-                metersSource = shift.dailyRecord.meters.filter(m => m.shiftId === shift.id || m.shiftId === null);
-            }
-
-            // Convert to numbers
-            const metersArray = metersSource.map(m => ({
-                nozzleNumber: m.nozzleNumber,
-                startReading: Number(m.startReading),
-                endReading: m.endReading ? Number(m.endReading) : null,
-                soldQty: m.soldQty ? Number(m.soldQty) : null
-            }));
-
-            // If still empty, try sibling dailyRecord by date
-            if (metersArray.length === 0 && metersByDate[shiftDate]) {
-                metersArray.push(...metersByDate[shiftDate]);
-            }
-
+            // Get meters directly from shift
             const metersWithSold = [1, 2, 3, 4].map(nozzle => {
-                const meter = metersArray.find(m => m.nozzleNumber === nozzle);
+                const meter = shift.meters.find(m => m.nozzleNumber === nozzle);
                 if (!meter) {
                     return {
                         nozzleNumber: nozzle,
@@ -147,9 +121,10 @@ export async function GET(request: Request) {
                         soldQty: null
                     };
                 }
-                const start = meter.startReading;
-                const end = meter.endReading;
-                const sold = meter.soldQty ?? (end && start ? end - start : null);
+                const start = Number(meter.startReading);
+                const end = meter.endReading ? Number(meter.endReading) : null;
+                const sold = meter.soldQty ? Number(meter.soldQty) :
+                    (end !== null && start ? end - start : null);
                 return {
                     nozzleNumber: nozzle,
                     startReading: start,
@@ -159,6 +134,39 @@ export async function GET(request: Request) {
             });
 
             const totalSold = metersWithSold.reduce((sum, m) => sum + (m.soldQty || 0), 0);
+
+            // Get transactions for this shift's daily record
+            // Filter by shift time range if possible
+            const dailyTxs = txByDailyRecord.get(shift.dailyRecordId) || [];
+
+            // Filter transactions by shift time range
+            const shiftOpenTime = shift.createdAt;
+            const shiftCloseTime = shift.closedAt || new Date();
+
+            const shiftTxs = dailyTxs.filter(tx => {
+                const txTime = new Date(tx.date);
+                return txTime >= shiftOpenTime && txTime <= shiftCloseTime;
+            });
+
+            // Calculate transaction totals by payment type
+            const cashAmount = shiftTxs
+                .filter(t => t.paymentType === 'CASH')
+                .reduce((sum, t) => sum + Number(t.amount), 0);
+            const creditAmount = shiftTxs
+                .filter(t => t.paymentType === 'CREDIT')
+                .reduce((sum, t) => sum + Number(t.amount), 0);
+            const transferAmount = shiftTxs
+                .filter(t => t.paymentType === 'TRANSFER')
+                .reduce((sum, t) => sum + Number(t.amount), 0);
+            const cardAmount = shiftTxs
+                .filter(t => t.paymentType === 'CREDIT_CARD')
+                .reduce((sum, t) => sum + Number(t.amount), 0);
+            const totalTransactionAmount = cashAmount + creditAmount + transferAmount + cardAmount;
+            const totalTransactionLiters = shiftTxs.reduce((sum, t) => sum + Number(t.liters), 0);
+
+            // Get reconciliation data
+            const recon = shift.reconciliation;
+            const gasPrice = Number(shift.dailyRecord.gasPrice) || 0;
 
             return {
                 id: shift.id,
@@ -171,9 +179,36 @@ export async function GET(request: Request) {
                 closedBy: shift.closedBy?.name || null,
                 openedAt: shift.createdAt.toISOString(),
                 closedAt: shift.closedAt?.toISOString() || null,
+
+                // Meter data
                 meters: metersWithSold,
                 totalSold,
-                hasMeterData: metersArray.length > 0
+                hasMeterData: shift.meters.length > 0,
+
+                // Financial data from transactions
+                gasPrice,
+                transactionCount: shiftTxs.length,
+                totalTransactionLiters,
+                totalTransactionAmount,
+                cashAmount,
+                creditAmount,
+                transferAmount,
+                cardAmount,
+
+                // Reconciliation data
+                hasReconciliation: !!recon,
+                expectedFuelAmount: recon ? Number(recon.expectedFuelAmount) : null,
+                expectedOtherAmount: recon ? Number(recon.expectedOtherAmount) : null,
+                totalExpected: recon ? Number(recon.totalExpected) : null,
+                totalReceived: recon ? Number(recon.totalReceived) : null,
+                reconciliationCash: recon ? Number(recon.cashReceived) : null,
+                reconciliationCredit: recon ? Number(recon.creditReceived) : null,
+                reconciliationTransfer: recon ? Number(recon.transferReceived) : null,
+                variance: recon ? Number(recon.variance) : null,
+                varianceStatus: recon?.varianceStatus || null,
+
+                // Meter vs Transaction comparison
+                meterVsTransactionDiff: totalSold - totalTransactionLiters
             };
         });
 

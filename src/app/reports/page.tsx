@@ -103,6 +103,31 @@ interface ShiftMeterData {
     }[];
     totalSold: number;
     hasMeterData: boolean;
+
+    // Financial data from transactions
+    gasPrice?: number;
+    transactionCount?: number;
+    totalTransactionLiters?: number;
+    totalTransactionAmount?: number;
+    cashAmount?: number;
+    creditAmount?: number;
+    transferAmount?: number;
+    cardAmount?: number;
+
+    // Reconciliation data
+    hasReconciliation?: boolean;
+    expectedFuelAmount?: number | null;
+    expectedOtherAmount?: number | null;
+    totalExpected?: number | null;
+    totalReceived?: number | null;
+    reconciliationCash?: number | null;
+    reconciliationCredit?: number | null;
+    reconciliationTransfer?: number | null;
+    variance?: number | null;
+    varianceStatus?: string | null;
+
+    // Comparison
+    meterVsTransactionDiff?: number;
 }
 
 interface StationOption {
@@ -573,11 +598,16 @@ export default function ReportsPage() {
                                             <th>กะ</th>
                                             <th>สถานี</th>
                                             <th>พนักงาน</th>
-                                            <th className="text-right">หัวจ่าย 1<br /><span className="text-xs text-gray-500">เริ่ม→สิ้นสุด (ขาย)</span></th>
-                                            <th className="text-right">หัวจ่าย 2<br /><span className="text-xs text-gray-500">เริ่ม→สิ้นสุด (ขาย)</span></th>
-                                            <th className="text-right">หัวจ่าย 3<br /><span className="text-xs text-gray-500">เริ่ม→สิ้นสุด (ขาย)</span></th>
-                                            <th className="text-right">หัวจ่าย 4<br /><span className="text-xs text-gray-500">เริ่ม→สิ้นสุด (ขาย)</span></th>
-                                            <th className="text-right">รวมขาย</th>
+                                            <th className="text-right">หัวจ่าย 1<br /><span className="text-xs text-gray-500">เริ่ม→สิ้น (ขาย)</span></th>
+                                            <th className="text-right">หัวจ่าย 2<br /><span className="text-xs text-gray-500">เริ่ม→สิ้น (ขาย)</span></th>
+                                            <th className="text-right">หัวจ่าย 3<br /><span className="text-xs text-gray-500">เริ่ม→สิ้น (ขาย)</span></th>
+                                            <th className="text-right">หัวจ่าย 4<br /><span className="text-xs text-gray-500">เริ่ม→สิ้น (ขาย)</span></th>
+                                            <th className="text-right">รวมลิตร<br /><span className="text-xs text-gray-500">มิเตอร์</span></th>
+                                            <th className="text-right bg-green-900/20">เงินสด</th>
+                                            <th className="text-right bg-purple-900/20">เงินเชื่อ</th>
+                                            <th className="text-right bg-blue-900/20">โอน</th>
+                                            <th className="text-right bg-cyan-900/20">รวม</th>
+                                            <th className="text-right">ส่วนต่าง<br /><span className="text-xs text-gray-500">กระทบยอด</span></th>
                                             <th>สถานะ</th>
                                         </tr>
                                     )}
@@ -681,6 +711,27 @@ export default function ReportsPage() {
                                                         <td className="text-right font-mono text-sm">{getMeterDisplay(3)}</td>
                                                         <td className="text-right font-mono text-sm">{getMeterDisplay(4)}</td>
                                                         <td className="text-right font-mono font-bold text-yellow-400">{row.totalSold.toFixed(2)}</td>
+                                                        <td className="text-right font-mono text-green-400 bg-green-900/10">
+                                                            {row.cashAmount ? formatCurrency(row.cashAmount) : '-'}
+                                                        </td>
+                                                        <td className="text-right font-mono text-purple-400 bg-purple-900/10">
+                                                            {row.creditAmount ? formatCurrency(row.creditAmount) : '-'}
+                                                        </td>
+                                                        <td className="text-right font-mono text-blue-400 bg-blue-900/10">
+                                                            {row.transferAmount ? formatCurrency(row.transferAmount) : '-'}
+                                                        </td>
+                                                        <td className="text-right font-mono font-bold text-cyan-400 bg-cyan-900/10">
+                                                            {row.totalTransactionAmount ? formatCurrency(row.totalTransactionAmount) : '-'}
+                                                        </td>
+                                                        <td className="text-right font-mono">
+                                                            {row.hasReconciliation && row.variance !== undefined && row.variance !== null ? (
+                                                                <span className={`${row.varianceStatus === 'OVER' ? 'text-green-400' : row.varianceStatus === 'SHORT' ? 'text-red-400' : 'text-gray-400'}`}>
+                                                                    {row.variance > 0 ? '+' : ''}{formatNumber(row.variance)}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-gray-600">-</span>
+                                                            )}
+                                                        </td>
                                                         <td>
                                                             <span className={`badge ${row.status === 'CLOSED' ? 'badge-green' : row.status === 'NO_SHIFT' ? 'badge-gray' : 'badge-orange'}`}>
                                                                 {row.status === 'CLOSED' ? 'ปิดกะแล้ว' : row.status === 'NO_SHIFT' ? 'ไม่มีกะ' : 'เปิดอยู่'}
