@@ -39,13 +39,12 @@ export async function GET(request: NextRequest) {
         });
         const userMap = new Map(users.map(u => [u.id, u.name]));
 
-        // Group readings by date (日本format for consistent key)
+        // Group readings by date (dates are saved as 00:00:00Z representing Bangkok date)
         const readingsByDate = new Map<string, typeof readings>();
 
         for (const r of readings) {
-            // Convert to Bangkok timezone for grouping
-            const dateKey = new Date(r.date.getTime() + 7 * 60 * 60 * 1000)
-                .toISOString().split('T')[0];
+            // Use date directly - dates are stored as 00:00:00Z which represents Bangkok date
+            const dateKey = r.date.toISOString().split('T')[0];
 
             if (!readingsByDate.has(dateKey)) {
                 readingsByDate.set(dateKey, []);
