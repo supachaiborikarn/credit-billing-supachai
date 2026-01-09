@@ -44,6 +44,7 @@ const TABS: { id: GasControlTab; name: string; icon: React.ReactNode }[] = [
     { id: 'meters', name: 'มิเตอร์', icon: <Gauge size={18} /> },
     { id: 'transactions', name: 'รายการขาย', icon: <Receipt size={18} /> },
     { id: 'reports', name: 'รายงาน', icon: <FileText size={18} /> },
+    { id: 'gauge', name: 'เช็คเกจ', icon: <Fuel size={18} /> },
 ];
 
 export default function GasControlPage() {
@@ -402,6 +403,15 @@ export default function GasControlPage() {
                                     generating={generatingReport}
                                     reportData={reportData}
                                     formatCurrency={formatCurrency}
+                                />
+                            )}
+
+                            {/* Gauge Tab */}
+                            {activeTab === 'gauge' && (
+                                <GaugeTab
+                                    stationId={selectedStation}
+                                    selectedDate={selectedDate}
+                                    formatNumber={(n) => n?.toLocaleString('th-TH', { minimumFractionDigits: 2 }) || '0.00'}
                                 />
                             )}
                         </>
@@ -937,20 +947,58 @@ function TransactionsTab({ transactions, searchQuery, onSearchChange, formatCurr
                 </table>
             </div>
 
-            {/* Summary */}
-            {transactions.length > 0 && (
-                <div className="bg-gradient-to-r from-purple-900/30 to-indigo-900/30 rounded-xl p-4 border border-purple-500/20">
-                    <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-400">รวม {transactions.filter(t => !t.isVoided).length} รายการ</span>
-                        <span className="text-white">
-                            {transactions.filter(t => !t.isVoided).reduce((sum, t) => sum + t.liters, 0).toFixed(2)} ลิตร
-                        </span>
-                        <span className="text-green-400 font-bold">
-                            ฿{formatCurrency(transactions.filter(t => !t.isVoided).reduce((sum, t) => sum + t.amount, 0))}
-                        </span>
+            {/* Summary with Payment Type Breakdown */}
+            {transactions.length > 0 && (() => {
+                const validTxs = transactions.filter(t => !t.isVoided);
+                const cashTxs = validTxs.filter(t => t.paymentType === 'CASH');
+                const creditTxs = validTxs.filter(t => t.paymentType === 'CREDIT');
+                const transferTxs = validTxs.filter(t => t.paymentType === 'TRANSFER');
+                const cardTxs = validTxs.filter(t => t.paymentType === 'CREDIT_CARD');
+
+                const cashTotal = cashTxs.reduce((sum, t) => sum + t.amount, 0);
+                const creditTotal = creditTxs.reduce((sum, t) => sum + t.amount, 0);
+                const transferTotal = transferTxs.reduce((sum, t) => sum + t.amount, 0);
+                const cardTotal = cardTxs.reduce((sum, t) => sum + t.amount, 0);
+                const grandTotal = validTxs.reduce((sum, t) => sum + t.amount, 0);
+                const totalLiters = validTxs.reduce((sum, t) => sum + t.liters, 0);
+
+                return (
+                    <div className="bg-gradient-to-r from-purple-900/30 to-indigo-900/30 rounded-xl p-4 border border-purple-500/20">
+                        <h4 className="text-white font-medium mb-3">💰 สรุปรายได้ตามประเภท</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+                            {cashTotal > 0 && (
+                                <div className="bg-green-500/10 rounded-lg p-3 border border-green-500/20">
+                                    <p className="text-xs text-gray-400">เงินสด ({cashTxs.length})</p>
+                                    <p className="text-green-400 font-bold">฿{formatCurrency(cashTotal)}</p>
+                                </div>
+                            )}
+                            {creditTotal > 0 && (
+                                <div className="bg-purple-500/10 rounded-lg p-3 border border-purple-500/20">
+                                    <p className="text-xs text-gray-400">เงินเชื่อ ({creditTxs.length})</p>
+                                    <p className="text-purple-400 font-bold">฿{formatCurrency(creditTotal)}</p>
+                                </div>
+                            )}
+                            {transferTotal > 0 && (
+                                <div className="bg-blue-500/10 rounded-lg p-3 border border-blue-500/20">
+                                    <p className="text-xs text-gray-400">โอนเงิน ({transferTxs.length})</p>
+                                    <p className="text-blue-400 font-bold">฿{formatCurrency(transferTotal)}</p>
+                                </div>
+                            )}
+                            {cardTotal > 0 && (
+                                <div className="bg-pink-500/10 rounded-lg p-3 border border-pink-500/20">
+                                    <p className="text-xs text-gray-400">บัตรเครดิต ({cardTxs.length})</p>
+                                    <p className="text-pink-400 font-bold">฿{formatCurrency(cardTotal)}</p>
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex items-center justify-between text-sm pt-3 border-t border-white/10">
+                            <span className="text-gray-400">รวม {validTxs.length} รายการ</span>
+                            <span className="text-white">{totalLiters.toFixed(2)} ลิตร</span>
+                            <span className="text-green-400 font-bold text-lg">฿{formatCurrency(grandTotal)}</span>
+                        </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
         </div>
     );
 }
@@ -1150,6 +1198,246 @@ function ReportsTab({
                     )}
                 </div>
             )}
+        </div>
+    );
+}
+
+// ========== Gauge Tab ==========
+
+interface GaugeTabProps {
+    stationId: string;
+    selectedDate: string;
+    formatNumber: (n: number | null) => string;
+}
+
+interface GaugeReading {
+    id: string;
+    date: string;
+    percentage: number;
+    liters: number;
+    recordedBy: string;
+    createdAt: string;
+}
+
+function GaugeTab({ stationId, selectedDate, formatNumber }: GaugeTabProps) {
+    const [readings, setReadings] = useState<GaugeReading[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [newPercentage, setNewPercentage] = useState<number>(0);
+    const [saving, setSaving] = useState(false);
+
+    // Gas tank constants
+    const TANK_CAPACITY = 2400; // liters per tank
+    const TANK_COUNT = 3;
+    const TOTAL_CAPACITY = TANK_CAPACITY * TANK_COUNT; // 7200 liters
+    const LITERS_PER_PERCENT = TOTAL_CAPACITY / 100;
+
+    useEffect(() => {
+        const fetchGaugeReadings = async () => {
+            try {
+                setLoading(true);
+                const res = await fetch(`/api/admin/gas-control/gauge?stationId=${stationId}&date=${selectedDate}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setReadings(data.readings || []);
+                }
+            } catch (error) {
+                console.error('Error fetching gauge readings:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchGaugeReadings();
+    }, [stationId, selectedDate]);
+
+    const handleSaveGauge = async () => {
+        if (newPercentage <= 0 || newPercentage > 100) return;
+
+        setSaving(true);
+        try {
+            const res = await fetch('/api/admin/gas-control/gauge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    stationId,
+                    percentage: newPercentage,
+                    date: selectedDate
+                })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setReadings([data.reading, ...readings]);
+                setNewPercentage(0);
+            }
+        } catch (error) {
+            console.error('Error saving gauge:', error);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const latestReading = readings[0];
+    const currentLiters = latestReading ? (latestReading.percentage / 100) * TOTAL_CAPACITY : 0;
+    const percentageColor = (p: number) => {
+        if (p >= 50) return 'text-green-400';
+        if (p >= 25) return 'text-yellow-400';
+        return 'text-red-400';
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-12">
+                <RefreshCw className="animate-spin text-orange-400" size={32} />
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            {/* Current Status */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Tank Visualization */}
+                <div className="bg-[#1a1a24] rounded-xl p-6 border border-white/10">
+                    <h3 className="text-white font-medium mb-4 flex items-center gap-2">
+                        <Fuel className="text-orange-400" size={20} />
+                        ระดับแก๊สปัจจุบัน
+                    </h3>
+
+                    {latestReading ? (
+                        <div className="space-y-4">
+                            {/* Tank Visual */}
+                            <div className="relative h-48 bg-gray-800 rounded-lg overflow-hidden border-2 border-gray-700">
+                                <div
+                                    className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-orange-600 to-orange-400 transition-all duration-500"
+                                    style={{ height: `${latestReading.percentage}%` }}
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="text-center">
+                                        <p className={`text-4xl font-bold ${percentageColor(latestReading.percentage)}`}>
+                                            {latestReading.percentage.toFixed(0)}%
+                                        </p>
+                                        <p className="text-gray-400 text-sm">
+                                            ≈ {formatNumber(currentLiters)} ลิตร
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Stats */}
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div className="bg-gray-800/50 rounded-lg p-3">
+                                    <p className="text-gray-400">ความจุทั้งหมด</p>
+                                    <p className="text-white font-medium">{formatNumber(TOTAL_CAPACITY)} L</p>
+                                </div>
+                                <div className="bg-gray-800/50 rounded-lg p-3">
+                                    <p className="text-gray-400">เหลือ</p>
+                                    <p className={`font-medium ${percentageColor(latestReading.percentage)}`}>
+                                        {formatNumber(currentLiters)} L
+                                    </p>
+                                </div>
+                            </div>
+
+                            <p className="text-gray-500 text-xs">
+                                อัปเดตล่าสุด: {new Date(latestReading.createdAt).toLocaleString('th-TH')}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="text-center py-8">
+                            <Fuel size={48} className="mx-auto text-gray-600 mb-4" />
+                            <p className="text-gray-400">ยังไม่มีข้อมูลเกจ</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Input Form */}
+                <div className="bg-[#1a1a24] rounded-xl p-6 border border-white/10">
+                    <h3 className="text-white font-medium mb-4 flex items-center gap-2">
+                        <Edit3 className="text-blue-400" size={20} />
+                        บันทึกระดับแก๊ส
+                    </h3>
+
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-gray-400 text-sm mb-2">ระดับเกจ (%)</label>
+                            <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="5"
+                                value={newPercentage || ''}
+                                onChange={(e) => setNewPercentage(parseFloat(e.target.value) || 0)}
+                                className="w-full bg-gray-800 border border-white/10 rounded-lg px-4 py-2 text-white"
+                                placeholder="เช่น 75"
+                            />
+                        </div>
+
+                        {newPercentage > 0 && (
+                            <div className="bg-gray-800/50 rounded-lg p-3">
+                                <p className="text-gray-400 text-sm">ประมาณการ:</p>
+                                <p className="text-white font-medium">
+                                    {formatNumber((newPercentage / 100) * TOTAL_CAPACITY)} ลิตร
+                                </p>
+                            </div>
+                        )}
+
+                        <button
+                            onClick={handleSaveGauge}
+                            disabled={saving || newPercentage <= 0 || newPercentage > 100}
+                            className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 rounded-lg font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            {saving ? (
+                                <RefreshCw className="animate-spin" size={18} />
+                            ) : (
+                                <Save size={18} />
+                            )}
+                            บันทึก
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* History */}
+            <div className="bg-[#1a1a24] rounded-xl p-6 border border-white/10">
+                <h3 className="text-white font-medium mb-4 flex items-center gap-2">
+                    <Calendar className="text-purple-400" size={20} />
+                    ประวัติการบันทึกเกจ
+                </h3>
+
+                {readings.length > 0 ? (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="text-gray-400 border-b border-white/10">
+                                    <th className="text-left p-3">วันที่/เวลา</th>
+                                    <th className="text-right p-3">ระดับ</th>
+                                    <th className="text-right p-3">ลิตร (ประมาณ)</th>
+                                    <th className="text-left p-3">บันทึกโดย</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {readings.map(r => (
+                                    <tr key={r.id} className="border-b border-white/5 hover:bg-white/5">
+                                        <td className="p-3 text-gray-300">
+                                            {new Date(r.createdAt).toLocaleString('th-TH')}
+                                        </td>
+                                        <td className={`p-3 text-right font-medium ${percentageColor(r.percentage)}`}>
+                                            {r.percentage.toFixed(0)}%
+                                        </td>
+                                        <td className="p-3 text-right text-white">
+                                            {formatNumber((r.percentage / 100) * TOTAL_CAPACITY)}
+                                        </td>
+                                        <td className="p-3 text-purple-400">
+                                            {r.recordedBy}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <p className="text-gray-400 text-center py-4">ไม่มีข้อมูลประวัติ</p>
+                )}
+            </div>
         </div>
     );
 }

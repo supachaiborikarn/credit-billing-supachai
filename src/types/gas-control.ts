@@ -219,7 +219,7 @@ export interface PaginatedResponse<T> {
 
 // ========== Tab Types ==========
 
-export type GasControlTab = 'dashboard' | 'shifts' | 'meters' | 'transactions' | 'reports';
+export type GasControlTab = 'dashboard' | 'shifts' | 'meters' | 'transactions' | 'reports' | 'gauge';
 
 export const GAS_CONTROL_TABS: { id: GasControlTab; name: string; icon: string }[] = [
     { id: 'dashboard', name: 'ภาพรวม', icon: 'LayoutDashboard' },
@@ -227,6 +227,7 @@ export const GAS_CONTROL_TABS: { id: GasControlTab; name: string; icon: string }
     { id: 'meters', name: 'มิเตอร์', icon: 'Gauge' },
     { id: 'transactions', name: 'รายการขาย', icon: 'Receipt' },
     { id: 'reports', name: 'รายงาน', icon: 'FileText' },
+    { id: 'gauge', name: 'เช็คเกจ', icon: 'Fuel' },
 ];
 
 // Gas Station Constants
