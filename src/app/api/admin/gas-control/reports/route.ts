@@ -174,10 +174,16 @@ async function generateDailyReport(
         }
     });
 
-    // Group transactions by date
+    // Helper to convert to Bangkok date key
+    const toBangkokDateKey = (date: Date): string => {
+        return new Date(date.getTime() + 7 * 60 * 60 * 1000)
+            .toISOString().split('T')[0];
+    };
+
+    // Group transactions by Bangkok date
     const txByDate = new Map<string, { sales: number; liters: number; count: number }>();
     for (const t of transactions) {
-        const dateKey = t.date.toISOString().split('T')[0];
+        const dateKey = toBangkokDateKey(t.date);
         const existing = txByDate.get(dateKey) || { sales: 0, liters: 0, count: 0 };
         existing.sales += Number(t.amount);
         existing.liters += Number(t.liters);
@@ -185,17 +191,29 @@ async function generateDailyReport(
         txByDate.set(dateKey, existing);
     }
 
-    const days = dailyRecords.map(record => {
-        const dateKey = record.date.toISOString().split('T')[0];
+    // Group dailyRecords by Bangkok date to avoid duplicates
+    const recordsByDate = new Map<string, typeof dailyRecords[0][]>();
+    for (const record of dailyRecords) {
+        const dateKey = toBangkokDateKey(record.date);
+        if (!recordsByDate.has(dateKey)) {
+            recordsByDate.set(dateKey, []);
+        }
+        recordsByDate.get(dateKey)!.push(record);
+    }
+
+    // Create unique days array from grouped records
+    const days = Array.from(recordsByDate.entries()).map(([dateKey, records]) => {
         const txData = txByDate.get(dateKey) || { sales: 0, liters: 0, count: 0 };
+        // Sum up shift counts from all records for this date
+        const totalShifts = records.reduce((sum, r) => sum + r.shifts.length, 0);
         return {
             date: dateKey,
             totalSales: txData.sales,
             totalLiters: txData.liters,
             transactionCount: txData.count,
-            shiftCount: record.shifts.length
+            shiftCount: totalShifts
         };
-    });
+    }).sort((a, b) => a.date.localeCompare(b.date));
 
     const totalSales = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
     const totalLiters = transactions.reduce((sum, t) => sum + Number(t.liters), 0);
