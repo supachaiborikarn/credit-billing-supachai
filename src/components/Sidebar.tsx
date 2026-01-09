@@ -83,6 +83,7 @@ export default function Sidebar({ children }: SidebarProps) {
     ];
 
     const adminMenuItems = [
+        { href: '/admin/gas-control', icon: Fuel, label: '⛽ Gas Control', gradient: 'from-orange-500 to-red-500' },
         { href: '/admin/alerts', icon: Shield, label: '🛡️ Anti-Fraud', gradient: 'from-purple-500 to-pink-500' },
         { href: '/admin/transactions', icon: Edit, label: 'แก้ไขรายการ', gradient: 'from-red-500 to-orange-500' },
         { href: '/admin/owners', icon: Users, label: 'รวมเจ้าของ', gradient: 'from-indigo-500 to-blue-500' },
