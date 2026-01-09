@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
 
-// GET: Fetch gauge readings
+// GET: Fetch gauge readings with daily aggregation
 export async function GET(request: NextRequest) {
     try {
         const cookieStore = await cookies();
@@ -24,14 +24,14 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         const stationId = searchParams.get('stationId') || 'station-5';
 
-        // Get all gauge readings for this station
+        // Get all gauge readings for this station (last 60 days worth)
         const readings = await prisma.gaugeReading.findMany({
             where: { stationId },
             orderBy: { createdAt: 'desc' },
-            take: 30
+            take: 500 // Enough for ~80+ days (6 readings/day max)
         });
 
-        // Get user names separately
+        // Get user names
         const userIds = [...new Set(readings.map(r => r.recordedById).filter(Boolean))];
         const users = await prisma.user.findMany({
             where: { id: { in: userIds as string[] } },
@@ -39,19 +39,71 @@ export async function GET(request: NextRequest) {
         });
         const userMap = new Map(users.map(u => [u.id, u.name]));
 
-        // Calculate liters from percentage (3 tanks × 2400L = 7200L)
-        const TOTAL_CAPACITY = 7200;
+        // Group readings by date (日本format for consistent key)
+        const readingsByDate = new Map<string, typeof readings>();
 
-        const formattedReadings = readings.map(r => ({
-            id: r.id,
-            date: r.date.toISOString(),
-            percentage: Number(r.percentage),
-            liters: (Number(r.percentage) / 100) * TOTAL_CAPACITY,
-            recordedBy: r.recordedById ? userMap.get(r.recordedById) || 'Unknown' : 'ระบบ',
-            createdAt: r.createdAt.toISOString()
-        }));
+        for (const r of readings) {
+            // Convert to Bangkok timezone for grouping
+            const dateKey = new Date(r.date.getTime() + 7 * 60 * 60 * 1000)
+                .toISOString().split('T')[0];
 
-        return NextResponse.json({ readings: formattedReadings });
+            if (!readingsByDate.has(dateKey)) {
+                readingsByDate.set(dateKey, []);
+            }
+            readingsByDate.get(dateKey)!.push(r);
+        }
+
+        // Calculate daily summaries
+        const TANK_CAPACITY = 2400; // liters per tank
+        const TOTAL_CAPACITY = TANK_CAPACITY * 3; // 7200 liters
+
+        const dailySummaries = Array.from(readingsByDate.entries())
+            .map(([dateKey, dayReadings]) => {
+                // Get end percentages for each tank (latest readings with type='end')
+                const tankReadings: Record<number, number[]> = { 1: [], 2: [], 3: [] };
+
+                for (const r of dayReadings) {
+                    if (tankReadings[r.tankNumber]) {
+                        tankReadings[r.tankNumber].push(Number(r.percentage));
+                    }
+                }
+
+                // Calculate average percentage per tank (or take latest)
+                const tank1Pct = tankReadings[1].length > 0 ? tankReadings[1][0] : null;
+                const tank2Pct = tankReadings[2].length > 0 ? tankReadings[2][0] : null;
+                const tank3Pct = tankReadings[3].length > 0 ? tankReadings[3][0] : null;
+
+                // Calculate total percentage (average of available tanks)
+                const validTanks = [tank1Pct, tank2Pct, tank3Pct].filter(p => p !== null) as number[];
+                const avgPercentage = validTanks.length > 0
+                    ? validTanks.reduce((a, b) => a + b, 0) / validTanks.length
+                    : 0;
+
+                // Total liters estimated
+                const totalLiters = (avgPercentage / 100) * TOTAL_CAPACITY;
+
+                // Get recorder name from latest reading
+                const latestReading = dayReadings[0];
+                const recordedBy = latestReading?.recordedById
+                    ? userMap.get(latestReading.recordedById) || 'Unknown'
+                    : 'ระบบ';
+
+                return {
+                    id: `${stationId}-${dateKey}`,
+                    date: dateKey + 'T00:00:00.000Z',
+                    percentage: Math.round(avgPercentage * 10) / 10,
+                    liters: Math.round(totalLiters),
+                    tank1: tank1Pct,
+                    tank2: tank2Pct,
+                    tank3: tank3Pct,
+                    readingsCount: dayReadings.length,
+                    recordedBy,
+                    createdAt: latestReading.createdAt.toISOString()
+                };
+            })
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        return NextResponse.json({ readings: dailySummaries });
     } catch (error) {
         console.error('[Gas Control Gauge GET]:', error);
         return NextResponse.json({ error: 'Failed to fetch gauge readings' }, { status: 500 });

@@ -1215,6 +1215,10 @@ interface GaugeReading {
     date: string;
     percentage: number;
     liters: number;
+    tank1: number | null;
+    tank2: number | null;
+    tank3: number | null;
+    readingsCount?: number;
     recordedBy: string;
     createdAt: string;
 }
@@ -1400,7 +1404,7 @@ function GaugeTab({ stationId, selectedDate, formatNumber }: GaugeTabProps) {
             <div className="bg-[#1a1a24] rounded-xl p-6 border border-white/10">
                 <h3 className="text-white font-medium mb-4 flex items-center gap-2">
                     <Calendar className="text-purple-400" size={20} />
-                    ประวัติการบันทึกเกจ
+                    ประวัติการบันทึกเกจ (รายวัน)
                 </h3>
 
                 {readings.length > 0 ? (
@@ -1408,8 +1412,11 @@ function GaugeTab({ stationId, selectedDate, formatNumber }: GaugeTabProps) {
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="text-gray-400 border-b border-white/10">
-                                    <th className="text-left p-3">วันที่/เวลา</th>
-                                    <th className="text-right p-3">ระดับ</th>
+                                    <th className="text-left p-3">วันที่</th>
+                                    <th className="text-right p-3">ถัง 1</th>
+                                    <th className="text-right p-3">ถัง 2</th>
+                                    <th className="text-right p-3">ถัง 3</th>
+                                    <th className="text-right p-3">เฉลี่ย</th>
                                     <th className="text-right p-3">ลิตร (ประมาณ)</th>
                                     <th className="text-left p-3">บันทึกโดย</th>
                                 </tr>
@@ -1418,13 +1425,26 @@ function GaugeTab({ stationId, selectedDate, formatNumber }: GaugeTabProps) {
                                 {readings.map(r => (
                                     <tr key={r.id} className="border-b border-white/5 hover:bg-white/5">
                                         <td className="p-3 text-gray-300">
-                                            {new Date(r.createdAt).toLocaleString('th-TH')}
+                                            {new Date(r.date).toLocaleDateString('th-TH', {
+                                                day: 'numeric',
+                                                month: 'short',
+                                                year: '2-digit'
+                                            })}
+                                        </td>
+                                        <td className={`p-3 text-right font-mono ${r.tank1 !== null ? percentageColor(r.tank1) : 'text-gray-600'}`}>
+                                            {r.tank1 !== null ? `${r.tank1}%` : '-'}
+                                        </td>
+                                        <td className={`p-3 text-right font-mono ${r.tank2 !== null ? percentageColor(r.tank2) : 'text-gray-600'}`}>
+                                            {r.tank2 !== null ? `${r.tank2}%` : '-'}
+                                        </td>
+                                        <td className={`p-3 text-right font-mono ${r.tank3 !== null ? percentageColor(r.tank3) : 'text-gray-600'}`}>
+                                            {r.tank3 !== null ? `${r.tank3}%` : '-'}
                                         </td>
                                         <td className={`p-3 text-right font-medium ${percentageColor(r.percentage)}`}>
-                                            {r.percentage.toFixed(0)}%
+                                            {r.percentage.toFixed(1)}%
                                         </td>
-                                        <td className="p-3 text-right text-white">
-                                            {formatNumber((r.percentage / 100) * TOTAL_CAPACITY)}
+                                        <td className="p-3 text-right text-white font-mono">
+                                            {formatNumber(r.liters)}
                                         </td>
                                         <td className="p-3 text-purple-400">
                                             {r.recordedBy}
