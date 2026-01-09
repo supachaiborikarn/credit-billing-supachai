@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { getStartOfDayBangkok, getEndOfDayBangkok } from '@/lib/date-utils';
 import type { ReportType, ShiftSummaryReport, DailyReport, StaffPerformanceReport } from '@/types/gas-control';
+import { getGasStationDbId, getGasStationName } from '@/types/gas-control';
 
 // POST: Generate report
 export async function POST(request: NextRequest) {
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { type, stationId, startDate, endDate, staffId } = body as {
+        const { type, stationId: stationIdParam, startDate, endDate, staffId } = body as {
             type: ReportType;
             stationId: string;
             startDate: string;
@@ -33,31 +34,26 @@ export async function POST(request: NextRequest) {
             staffId?: string;
         };
 
-        if (!type || !stationId || !startDate) {
+        if (!type || !stationIdParam || !startDate) {
             return NextResponse.json({
                 error: 'Required: type, stationId, startDate'
             }, { status: 400 });
         }
 
-        const station = await prisma.station.findUnique({
-            where: { id: stationId },
-            select: { name: true }
-        });
-
-        if (!station) {
-            return NextResponse.json({ error: 'Station not found' }, { status: 404 });
-        }
+        // Convert station-5/station-6 to actual database UUID  
+        const stationId = getGasStationDbId(stationIdParam);
+        const stationName = getGasStationName(stationIdParam);
 
         const start = getStartOfDayBangkok(startDate);
         const end = getEndOfDayBangkok(endDate || startDate);
 
         switch (type) {
             case 'shift-summary':
-                return generateShiftSummary(station.name, stationId, startDate, start, end);
+                return generateShiftSummary(stationName, stationId, startDate, start, end);
             case 'daily':
-                return generateDailyReport(station.name, stationId, startDate, endDate || startDate, start, end);
+                return generateDailyReport(stationName, stationId, startDate, endDate || startDate, start, end);
             case 'staff-performance':
-                return generateStaffPerformance(station.name, stationId, startDate, endDate || startDate, start, end, staffId);
+                return generateStaffPerformance(stationName, stationId, startDate, endDate || startDate, start, end, staffId);
             default:
                 return NextResponse.json({ error: 'Invalid report type' }, { status: 400 });
         }

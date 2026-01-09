@@ -229,10 +229,22 @@ export const GAS_CONTROL_TABS: { id: GasControlTab; name: string; icon: string }
     { id: 'reports', name: 'รายงาน', icon: 'FileText' },
 ];
 
-// Gas Station Constants
+// Gas Station Constants - with database UUID mapping
 export const GAS_STATIONS = [
-    { id: 'station-5', stationNumber: 5, name: 'ปั๊มแก๊สพงษ์อนันต์' },
-    { id: 'station-6', stationNumber: 6, name: 'ปั๊มแก๊สศุภชัย' },
+    { id: 'station-5', stationNumber: 5, name: 'ปั๊มแก๊สพงษ์อนันต์', dbId: 'd01b9c7b-fcf0-4185-a0b1-a5840391a61c' },
+    { id: 'station-6', stationNumber: 6, name: 'ปั๊มแก๊สศุภชัย', dbId: '6950b69c-1841-4d22-a915-22141b94ca46' },
 ] as const;
 
 export type GasStationId = typeof GAS_STATIONS[number]['id'];
+
+// Helper: Convert station-5/station-6 to actual database UUID
+export function getGasStationDbId(stationId: string): string {
+    const station = GAS_STATIONS.find(s => s.id === stationId);
+    return station?.dbId || stationId; // Return original if not found (might already be UUID)
+}
+
+// Helper: Get station name from ID
+export function getGasStationName(stationId: string): string {
+    const station = GAS_STATIONS.find(s => s.id === stationId || s.dbId === stationId);
+    return station?.name || 'Unknown Station';
+}

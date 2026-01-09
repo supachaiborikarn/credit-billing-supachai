@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
 import type { ShiftWithDetails } from '@/types/gas-control';
+import { getGasStationDbId } from '@/types/gas-control';
 
 // GET: List shifts with filters
 export async function GET(request: NextRequest) {
@@ -25,7 +26,8 @@ export async function GET(request: NextRequest) {
         }
 
         const { searchParams } = new URL(request.url);
-        const stationId = searchParams.get('stationId') || 'station-5';
+        const stationIdParam = searchParams.get('stationId') || 'station-5';
+        const stationId = getGasStationDbId(stationIdParam); // Convert to DB UUID
         const startDateStr = searchParams.get('startDate') || getTodayBangkok();
         const endDateStr = searchParams.get('endDate') || getTodayBangkok();
         const staffId = searchParams.get('staffId');

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
 import type { GasControlDashboard, ShiftStatus, Alert, DailySalesSummary } from '@/types/gas-control';
+import { getGasStationDbId, getGasStationName } from '@/types/gas-control';
 
 // GET: Dashboard data for a gas station
 export async function GET(request: NextRequest) {
@@ -25,21 +26,15 @@ export async function GET(request: NextRequest) {
         }
 
         const { searchParams } = new URL(request.url);
-        const stationId = searchParams.get('stationId') || 'station-5';
+        const stationIdParam = searchParams.get('stationId') || 'station-5';
         const dateStr = searchParams.get('date') || getTodayBangkok();
+
+        // Convert station-5/station-6 to actual database UUID
+        const stationId = getGasStationDbId(stationIdParam);
+        const stationName = getGasStationName(stationIdParam);
 
         const startOfDay = getStartOfDayBangkok(dateStr);
         const endOfDay = getEndOfDayBangkok(dateStr);
-
-        // Get station info
-        const station = await prisma.station.findUnique({
-            where: { id: stationId },
-            select: { id: true, name: true }
-        });
-
-        if (!station) {
-            return NextResponse.json({ error: 'Station not found' }, { status: 404 });
-        }
 
         // Get today's daily record with shifts
         const dailyRecord = await prisma.dailyRecord.findFirst({
@@ -179,8 +174,8 @@ export async function GET(request: NextRequest) {
         }
 
         const dashboard: GasControlDashboard = {
-            stationId: station.id,
-            stationName: station.name,
+            stationId: stationId,
+            stationName: stationName,
             date: dateStr,
             todaySales,
             todayTransactions: transactions.length,
