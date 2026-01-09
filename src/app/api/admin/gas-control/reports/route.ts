@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { getStartOfDayBangkok, getEndOfDayBangkok } from '@/lib/date-utils';
 import type { ReportType, ShiftSummaryReport, DailyReport, StaffPerformanceReport } from '@/types/gas-control';
-import { getGasStationDbId, getGasStationName } from '@/types/gas-control';
+import { getGasStationName } from '@/types/gas-control';
 
 // POST: Generate report
 export async function POST(request: NextRequest) {
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { type, stationId: stationIdParam, startDate, endDate, staffId } = body as {
+        const { type, stationId, startDate, endDate, staffId } = body as {
             type: ReportType;
             stationId: string;
             startDate: string;
@@ -34,15 +34,14 @@ export async function POST(request: NextRequest) {
             staffId?: string;
         };
 
-        if (!type || !stationIdParam || !startDate) {
+        if (!type || !stationId || !startDate) {
             return NextResponse.json({
                 error: 'Required: type, stationId, startDate'
             }, { status: 400 });
         }
 
-        // Convert station-5/station-6 to actual database UUID  
-        const stationId = getGasStationDbId(stationIdParam);
-        const stationName = getGasStationName(stationIdParam);
+        // Use station-5/station-6 directly (this is how data is stored in DB)
+        const stationName = getGasStationName(stationId);
 
         const start = getStartOfDayBangkok(startDate);
         const end = getEndOfDayBangkok(endDate || startDate);

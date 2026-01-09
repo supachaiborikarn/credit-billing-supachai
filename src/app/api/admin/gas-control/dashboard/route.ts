@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
 import type { GasControlDashboard, ShiftStatus, Alert, DailySalesSummary } from '@/types/gas-control';
-import { getGasStationDbId, getGasStationName } from '@/types/gas-control';
+import { getGasStationName } from '@/types/gas-control';
 
 // GET: Dashboard data for a gas station
 export async function GET(request: NextRequest) {
@@ -26,12 +26,11 @@ export async function GET(request: NextRequest) {
         }
 
         const { searchParams } = new URL(request.url);
-        const stationIdParam = searchParams.get('stationId') || 'station-5';
+        const stationId = searchParams.get('stationId') || 'station-5';
         const dateStr = searchParams.get('date') || getTodayBangkok();
 
-        // Convert station-5/station-6 to actual database UUID
-        const stationId = getGasStationDbId(stationIdParam);
-        const stationName = getGasStationName(stationIdParam);
+        // Use station-5/station-6 directly (this is how data is stored in DB)
+        const stationName = getGasStationName(stationId);
 
         const startOfDay = getStartOfDayBangkok(dateStr);
         const endOfDay = getEndOfDayBangkok(dateStr);
