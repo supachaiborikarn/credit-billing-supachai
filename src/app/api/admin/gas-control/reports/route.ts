@@ -69,10 +69,11 @@ async function generateShiftSummary(
     start: Date,
     end: Date
 ) {
+    // Use range query because dates can have timezone differences
     const dailyRecord = await prisma.dailyRecord.findFirst({
         where: {
             stationId,
-            date: start
+            date: { gte: start, lte: end }
         },
         include: {
             shifts: {

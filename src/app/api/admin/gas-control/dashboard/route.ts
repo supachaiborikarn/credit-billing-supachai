@@ -35,11 +35,11 @@ export async function GET(request: NextRequest) {
         const startOfDay = getStartOfDayBangkok(dateStr);
         const endOfDay = getEndOfDayBangkok(dateStr);
 
-        // Get today's daily record with shifts
+        // Get today's daily record with shifts (use range because dates can have timezone differences)
         const dailyRecord = await prisma.dailyRecord.findFirst({
             where: {
                 stationId,
-                date: startOfDay
+                date: { gte: startOfDay, lte: endOfDay }
             },
             include: {
                 shifts: {
