@@ -34,8 +34,10 @@ export async function GET(request: Request) {
                 include: {
                     dailyRecord: {
                         select: {
+                            id: true,
                             date: true,
-                            station: { select: { name: true } }
+                            station: { select: { name: true } },
+                            gasPrice: true
                         }
                     },
                     staff: { select: { name: true } },
@@ -47,6 +49,16 @@ export async function GET(request: Request) {
                             soldQty: true
                         },
                         orderBy: { nozzleNumber: 'asc' }
+                    },
+                    reconciliation: {
+                        select: {
+                            cashReceived: true,
+                            creditReceived: true,
+                            transferReceived: true,
+                            totalReceived: true,
+                            variance: true,
+                            varianceStatus: true
+                        }
                     }
                 },
                 orderBy: [
@@ -54,6 +66,32 @@ export async function GET(request: Request) {
                     { shiftNumber: 'desc' }
                 ]
             });
+
+            // Get transactions for financial summary
+            const dailyRecordIds = [...new Set(shifts.map(s => s.dailyRecordId))];
+            const allTransactions = await prisma.transaction.findMany({
+                where: {
+                    dailyRecordId: { in: dailyRecordIds },
+                    deletedAt: null,
+                    isVoided: false
+                },
+                select: {
+                    dailyRecordId: true,
+                    date: true,
+                    amount: true,
+                    paymentType: true
+                }
+            });
+
+            // Group transactions by dailyRecordId
+            const txByDailyRecord = new Map<string, typeof allTransactions>();
+            for (const tx of allTransactions) {
+                if (!tx.dailyRecordId) continue;
+                if (!txByDailyRecord.has(tx.dailyRecordId)) {
+                    txByDailyRecord.set(tx.dailyRecordId, []);
+                }
+                txByDailyRecord.get(tx.dailyRecordId)!.push(tx);
+            }
 
             const shiftHeaders = [
                 'วันที่',
@@ -73,12 +111,37 @@ export async function GET(request: Request) {
                 'หัวจ่าย4-เริ่ม',
                 'หัวจ่าย4-สิ้นสุด',
                 'หัวจ่าย4-ขาย',
-                'รวมขาย'
+                'รวมขาย(ลิตร)',
+                'เงินสด',
+                'เงินเชื่อ',
+                'โอนเงิน',
+                'รวมเงิน',
+                'ส่วนต่าง',
+                'สถานะกระทบยอด'
             ];
 
             const shiftRows = shifts.map(s => {
                 const getMeter = (nozzle: number) => s.meters.find(m => m.nozzleNumber === nozzle);
                 const totalSold = s.meters.reduce((sum, m) => sum + Number(m.soldQty || 0), 0);
+
+                // Calculate financial data from transactions
+                const dailyTxs = txByDailyRecord.get(s.dailyRecordId) || [];
+                const shiftOpenTime = s.createdAt;
+                const shiftCloseTime = s.closedAt || new Date();
+
+                const shiftTxs = dailyTxs.filter(tx => {
+                    const txTime = new Date(tx.date);
+                    return txTime >= shiftOpenTime && txTime <= shiftCloseTime;
+                });
+
+                const cashAmount = shiftTxs.filter(t => t.paymentType === 'CASH').reduce((sum, t) => sum + Number(t.amount), 0);
+                const creditAmount = shiftTxs.filter(t => t.paymentType === 'CREDIT').reduce((sum, t) => sum + Number(t.amount), 0);
+                const transferAmount = shiftTxs.filter(t => t.paymentType === 'TRANSFER').reduce((sum, t) => sum + Number(t.amount), 0);
+                const totalAmount = cashAmount + creditAmount + transferAmount;
+
+                const variance = s.reconciliation ? Number(s.reconciliation.variance) : null;
+                const varianceStatus = s.reconciliation?.varianceStatus || '-';
+
                 return [
                     formatDateBangkok(s.dailyRecord.date),
                     s.dailyRecord.station.name,
@@ -93,7 +156,13 @@ export async function GET(request: Request) {
                             m?.soldQty ? Number(m.soldQty).toFixed(2) : '-'
                         ];
                     })),
-                    totalSold.toFixed(2)
+                    totalSold.toFixed(2),
+                    cashAmount.toFixed(2),
+                    creditAmount.toFixed(2),
+                    transferAmount.toFixed(2),
+                    totalAmount.toFixed(2),
+                    variance !== null ? variance.toFixed(2) : '-',
+                    String(varianceStatus) === 'OVER' ? 'เกิน' : String(varianceStatus) === 'SHORT' ? 'ขาด' : String(varianceStatus) === 'BALANCED' ? 'ตรง' : '-'
                 ];
             });
 

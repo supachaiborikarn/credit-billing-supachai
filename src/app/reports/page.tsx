@@ -152,6 +152,7 @@ export default function ReportsPage() {
     const [exporting, setExporting] = useState(false);
     const [stations, setStations] = useState<StationOption[]>([]);
     const [selectedStation, setSelectedStation] = useState<string>('');
+    const [selectedShift, setSelectedShift] = useState<string>('');
 
     useEffect(() => {
         setMounted(true);
@@ -321,6 +322,20 @@ export default function ReportsPage() {
                                     {stations.map(s => (
                                         <option key={s.id} value={s.id} className="bg-gray-800">{s.name}</option>
                                     ))}
+                                </select>
+                            </div>
+                        )}
+                        {reportType === 'shift_meters' && (
+                            <div className="w-32">
+                                <label className="block text-sm text-gray-400 mb-2">กะ</label>
+                                <select
+                                    value={selectedShift}
+                                    onChange={(e) => setSelectedShift(e.target.value)}
+                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-orange-500/50 transition-all duration-300"
+                                >
+                                    <option value="" className="bg-gray-800">ทุกกะ</option>
+                                    <option value="1" className="bg-gray-800">กะ 1 (เช้า)</option>
+                                    <option value="2" className="bg-gray-800">กะ 2 (บ่าย)</option>
                                 </select>
                             </div>
                         )}
@@ -675,71 +690,87 @@ export default function ReportsPage() {
                                                     <td className="text-right font-mono font-bold text-cyan-400">{formatCurrency(row.salesAmount)}</td>
                                                 </tr>
                                             ))}
-                                            {reportType === 'shift_meters' && shiftMetersData.map((row, i) => {
-                                                const getMeterDisplay = (nozzle: number) => {
-                                                    const meter = row.meters.find(m => m.nozzleNumber === nozzle);
-                                                    if (!meter || (!meter.startReading && !meter.endReading)) return '-';
-                                                    const start = meter.startReading ? meter.startReading.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '-';
-                                                    const end = meter.endReading ? meter.endReading.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '-';
-                                                    const sold = meter.soldQty ? meter.soldQty.toFixed(2) : '-';
-                                                    return (
-                                                        <span>
-                                                            <span className="text-gray-400">{start}</span>
-                                                            <span className="text-gray-600"> → </span>
-                                                            <span className="text-gray-300">{end}</span>
-                                                            <br />
-                                                            <span className="text-yellow-400 font-bold">({sold})</span>
-                                                        </span>
-                                                    );
-                                                };
-                                                return (
-                                                    <tr key={i}>
-                                                        <td className="font-mono">{new Date(row.date).toLocaleDateString('th-TH')}</td>
-                                                        <td className="text-center">
-                                                            {row.shiftNumber ? (
-                                                                <span className={`badge ${row.shiftNumber === 1 ? 'badge-blue' : 'badge-purple'}`}>
-                                                                    กะ {row.shiftNumber}
-                                                                </span>
-                                                            ) : (
-                                                                <span className="badge badge-gray">กะ -</span>
-                                                            )}
-                                                        </td>
-                                                        <td className="text-white">{row.stationName}</td>
-                                                        <td>{row.staff || '-'}</td>
-                                                        <td className="text-right font-mono text-sm">{getMeterDisplay(1)}</td>
-                                                        <td className="text-right font-mono text-sm">{getMeterDisplay(2)}</td>
-                                                        <td className="text-right font-mono text-sm">{getMeterDisplay(3)}</td>
-                                                        <td className="text-right font-mono text-sm">{getMeterDisplay(4)}</td>
-                                                        <td className="text-right font-mono font-bold text-yellow-400">{row.totalSold.toFixed(2)}</td>
-                                                        <td className="text-right font-mono text-green-400 bg-green-900/10">
-                                                            {row.cashAmount ? formatCurrency(row.cashAmount) : '-'}
-                                                        </td>
-                                                        <td className="text-right font-mono text-purple-400 bg-purple-900/10">
-                                                            {row.creditAmount ? formatCurrency(row.creditAmount) : '-'}
-                                                        </td>
-                                                        <td className="text-right font-mono text-blue-400 bg-blue-900/10">
-                                                            {row.transferAmount ? formatCurrency(row.transferAmount) : '-'}
-                                                        </td>
-                                                        <td className="text-right font-mono font-bold text-cyan-400 bg-cyan-900/10">
-                                                            {row.totalTransactionAmount ? formatCurrency(row.totalTransactionAmount) : '-'}
-                                                        </td>
-                                                        <td className="text-right font-mono">
-                                                            {row.hasReconciliation && row.variance !== undefined && row.variance !== null ? (
-                                                                <span className={`${row.varianceStatus === 'OVER' ? 'text-green-400' : row.varianceStatus === 'SHORT' ? 'text-red-400' : 'text-gray-400'}`}>
-                                                                    {row.variance > 0 ? '+' : ''}{formatNumber(row.variance)}
-                                                                </span>
-                                                            ) : (
-                                                                <span className="text-gray-600">-</span>
-                                                            )}
-                                                        </td>
-                                                        <td>
-                                                            <span className={`badge ${row.status === 'CLOSED' ? 'badge-green' : row.status === 'NO_SHIFT' ? 'badge-gray' : 'badge-orange'}`}>
-                                                                {row.status === 'CLOSED' ? 'ปิดกะแล้ว' : row.status === 'NO_SHIFT' ? 'ไม่มีกะ' : 'เปิดอยู่'}
+                                            {reportType === 'shift_meters' && shiftMetersData
+                                                .filter(row => !selectedShift || String(row.shiftNumber) === selectedShift)
+                                                .map((row, i) => {
+                                                    const getMeterDisplay = (nozzle: number) => {
+                                                        const meter = row.meters.find(m => m.nozzleNumber === nozzle);
+                                                        if (!meter || (!meter.startReading && !meter.endReading)) return '-';
+                                                        const start = meter.startReading ? meter.startReading.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '-';
+                                                        const end = meter.endReading ? meter.endReading.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '-';
+                                                        const sold = meter.soldQty ? meter.soldQty.toFixed(2) : '-';
+                                                        return (
+                                                            <span>
+                                                                <span className="text-gray-400">{start}</span>
+                                                                <span className="text-gray-600"> → </span>
+                                                                <span className="text-gray-300">{end}</span>
+                                                                <br />
+                                                                <span className="text-yellow-400 font-bold">({sold})</span>
                                                             </span>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
+                                                        );
+                                                    };
+                                                    return (
+                                                        <tr key={i}>
+                                                            <td className="font-mono">{new Date(row.date).toLocaleDateString('th-TH')}</td>
+                                                            <td className="text-center">
+                                                                {row.shiftNumber ? (
+                                                                    <span className={`badge ${row.shiftNumber === 1 ? 'badge-blue' : 'badge-purple'}`}>
+                                                                        กะ {row.shiftNumber}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="badge badge-gray">กะ -</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="text-white">{row.stationName}</td>
+                                                            <td>{row.staff || '-'}</td>
+                                                            <td className="text-right font-mono text-sm">{getMeterDisplay(1)}</td>
+                                                            <td className="text-right font-mono text-sm">{getMeterDisplay(2)}</td>
+                                                            <td className="text-right font-mono text-sm">{getMeterDisplay(3)}</td>
+                                                            <td className="text-right font-mono text-sm">{getMeterDisplay(4)}</td>
+                                                            <td className="text-right font-mono font-bold text-yellow-400">{row.totalSold.toFixed(2)}</td>
+                                                            <td className="text-right font-mono text-green-400 bg-green-900/10">
+                                                                {row.cashAmount ? formatCurrency(row.cashAmount) : '-'}
+                                                            </td>
+                                                            <td className="text-right font-mono text-purple-400 bg-purple-900/10">
+                                                                {row.creditAmount ? formatCurrency(row.creditAmount) : '-'}
+                                                            </td>
+                                                            <td className="text-right font-mono text-blue-400 bg-blue-900/10">
+                                                                {row.transferAmount ? formatCurrency(row.transferAmount) : '-'}
+                                                            </td>
+                                                            <td className="text-right font-mono font-bold text-cyan-400 bg-cyan-900/10">
+                                                                {row.totalTransactionAmount ? formatCurrency(row.totalTransactionAmount) : '-'}
+                                                            </td>
+                                                            <td className="text-right font-mono group relative cursor-help">
+                                                                {row.hasReconciliation && row.variance !== undefined && row.variance !== null ? (
+                                                                    <>
+                                                                        <span className={`${row.varianceStatus === 'OVER' ? 'text-green-400' : row.varianceStatus === 'SHORT' ? 'text-red-400' : 'text-gray-400'}`}>
+                                                                            {row.variance > 0 ? '+' : ''}{formatNumber(row.variance)}
+                                                                        </span>
+                                                                        <div className="absolute z-50 bottom-full right-0 mb-2 hidden group-hover:block w-48 p-2 bg-gray-900 border border-white/20 rounded-lg shadow-xl text-xs">
+                                                                            <p className="text-gray-300 mb-1">
+                                                                                {row.varianceStatus === 'OVER' ? '💰 เงินเกิน: รับเงินมากกว่าที่คาด' :
+                                                                                    row.varianceStatus === 'SHORT' ? '⚠️ เงินขาด: รับเงินน้อยกว่าที่คาด' :
+                                                                                        '✓ ยอดตรง: รับเงินตรงกับที่คาด'}
+                                                                            </p>
+                                                                            {row.totalExpected !== undefined && row.totalExpected !== null && (
+                                                                                <p className="text-gray-500">
+                                                                                    คาดหวัง: {formatCurrency(row.totalExpected)}
+                                                                                </p>
+                                                                            )}
+                                                                        </div>
+                                                                    </>
+                                                                ) : (
+                                                                    <span className="text-gray-600">-</span>
+                                                                )}
+                                                            </td>
+                                                            <td>
+                                                                <span className={`badge ${row.status === 'CLOSED' ? 'badge-green' : row.status === 'NO_SHIFT' ? 'badge-gray' : 'badge-orange'}`}>
+                                                                    {row.status === 'CLOSED' ? 'ปิดกะแล้ว' : row.status === 'NO_SHIFT' ? 'ไม่มีกะ' : 'เปิดอยู่'}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
                                         </>
                                     )}
                                 </tbody>
