@@ -1067,6 +1067,15 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                 >
                                     📱 ใช้ UI ใหม่
                                 </a>
+                                <a
+                                    href={`/gas/${(() => {
+                                        const s = STATIONS[stationIndex];
+                                        return ('aliases' in s && s.aliases) ? (s.aliases as readonly string[])[0] : id;
+                                    })()}`}
+                                    className="ml-1 px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:opacity-90 transition-colors flex items-center gap-1"
+                                >
+                                    ✨ V2 (Beta)
+                                </a>
                             </p>
                         </div>
                     </div>

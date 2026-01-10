@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getTodayBangkok, getStartOfDayBangkokUTC, getEndOfDayBangkokUTC } from '@/lib/gas';
+import { getTodayBangkok, getStartOfDayBangkokUTC, getEndOfDayBangkokUTC, resolveGasStation, getNonGasStationError } from '@/lib/gas';
 
 /**
  * GET /api/v2/gas/[stationId]/shift/current
- * Get current open shift or latest shift
+ * Get current open shift or latest shift (GAS stations only)
  */
 export async function GET(
     request: NextRequest,
@@ -12,14 +12,21 @@ export async function GET(
 ) {
     try {
         const { stationId } = await params;
+
+        // Validate GAS station
+        const station = await resolveGasStation(stationId);
+        if (!station) {
+            return NextResponse.json(getNonGasStationError(), { status: 403 });
+        }
+
         const today = getTodayBangkok();
         const startOfDay = getStartOfDayBangkokUTC(today);
         const endOfDay = getEndOfDayBangkokUTC(today);
 
-        // Find today's DailyRecord
+        // Find today's DailyRecord (use dbId for database queries)
         const dailyRecord = await prisma.dailyRecord.findFirst({
             where: {
-                stationId,
+                stationId: station.dbId,
                 date: {
                     gte: startOfDay,
                     lte: endOfDay
@@ -49,7 +56,7 @@ export async function GET(
         // Get gauge readings for this shift
         const gaugeReadings = await prisma.gaugeReading.findMany({
             where: {
-                stationId,
+                stationId: station.dbId,
                 shiftNumber: shift.shiftNumber,
                 date: {
                     gte: startOfDay,

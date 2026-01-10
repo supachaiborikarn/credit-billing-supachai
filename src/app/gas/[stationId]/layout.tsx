@@ -20,6 +20,7 @@ interface StationInfo {
     id: string;
     name: string;
     type: string;
+    index: number;
 }
 
 interface ShiftInfo {
@@ -92,7 +93,7 @@ export default function GasStationLayout({
                 <div className="flex items-center justify-between px-4 py-3">
                     <div className="flex items-center gap-3">
                         <button
-                            onClick={() => router.push('/simple-station')}
+                            onClick={() => router.push(station?.index ? `/gas-station/${station.index}` : '/simple-station')}
                             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                         >
                             <ChevronLeft size={24} />
@@ -156,8 +157,8 @@ export default function GasStationLayout({
                             href={item.href}
                             onClick={() => setMenuOpen(false)}
                             className={`flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition-colors ${isActive(item.href, item.exact)
-                                    ? 'bg-orange-600 text-white'
-                                    : 'text-gray-300 hover:bg-white/10'
+                                ? 'bg-orange-600 text-white'
+                                : 'text-gray-300 hover:bg-white/10'
                                 }`}
                         >
                             <item.icon size={20} />
@@ -185,8 +186,8 @@ export default function GasStationLayout({
                             key={item.href}
                             href={item.href}
                             className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-colors ${isActive(item.href, item.exact)
-                                    ? 'text-orange-400'
-                                    : 'text-gray-400 hover:text-white'
+                                ? 'text-orange-400'
+                                : 'text-gray-400 hover:text-white'
                                 }`}
                         >
                             <item.icon size={20} />
@@ -204,8 +205,8 @@ export default function GasStationLayout({
                             key={item.href}
                             href={item.href}
                             className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors ${isActive(item.href, item.exact)
-                                    ? 'text-orange-400'
-                                    : 'text-gray-400 hover:text-white'
+                                ? 'text-orange-400'
+                                : 'text-gray-400 hover:text-white'
                                 }`}
                         >
                             <item.icon size={20} />

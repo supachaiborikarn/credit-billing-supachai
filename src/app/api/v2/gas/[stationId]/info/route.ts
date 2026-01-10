@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { resolveGasStation, getNonGasStationError } from '@/lib/gas';
 
 /**
  * GET /api/v2/gas/[stationId]/info
- * Get station information
+ * Get station information (GAS stations only)
  */
 export async function GET(
     request: NextRequest,
@@ -12,22 +12,23 @@ export async function GET(
     try {
         const { stationId } = await params;
 
-        const station = await prisma.station.findUnique({
-            where: { id: stationId },
-            select: {
-                id: true,
-                name: true,
-                type: true
-            }
-        });
-
+        // Validate GAS station
+        const station = await resolveGasStation(stationId);
         if (!station) {
-            return NextResponse.json({ error: 'Station not found' }, { status: 404 });
+            return NextResponse.json(getNonGasStationError(), { status: 403 });
         }
 
-        return NextResponse.json({ station });
+        return NextResponse.json({
+            station: {
+                id: station.dbId,
+                name: station.name,
+                type: station.type,
+                index: station.index
+            }
+        });
     } catch (error) {
         console.error('[Station Info]:', error);
         return NextResponse.json({ error: 'Failed to fetch station' }, { status: 500 });
     }
 }
+

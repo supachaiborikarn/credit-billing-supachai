@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
-import { getTodayBangkok, getStartOfDayBangkokUTC, getEndOfDayBangkokUTC } from '@/lib/gas';
+import { getTodayBangkok, getStartOfDayBangkokUTC, getEndOfDayBangkokUTC, resolveGasStation, getNonGasStationError } from '@/lib/gas';
 
 /**
  * POST /api/v2/gas/[stationId]/shift/close
- * Close the current shift with reconciliation data
+ * Close the current shift with reconciliation data (GAS stations only)
  */
 export async function POST(
     request: NextRequest,
@@ -13,6 +13,12 @@ export async function POST(
 ) {
     try {
         const { stationId } = await params;
+
+        // Validate GAS station
+        const station = await resolveGasStation(stationId);
+        if (!station) {
+            return NextResponse.json(getNonGasStationError(), { status: 403 });
+        }
         const body = await request.json();
         const { shiftId, reconciliation } = body;
 
@@ -64,7 +70,7 @@ export async function POST(
 
         const endGaugeCount = await prisma.gaugeReading.count({
             where: {
-                stationId,
+                stationId: station.dbId,
                 shiftNumber: shift.shiftNumber,
                 notes: 'end',
                 date: {

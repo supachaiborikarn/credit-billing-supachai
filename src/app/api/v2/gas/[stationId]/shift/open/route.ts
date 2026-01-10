@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
-import { getTodayBangkok, bangkokDateToUTC } from '@/lib/gas';
+import { getTodayBangkok, bangkokDateToUTC, resolveGasStation, getNonGasStationError } from '@/lib/gas';
 
 /**
  * POST /api/v2/gas/[stationId]/shift/open
- * Open a new shift with mandatory meter and gauge readings
+ * Open a new shift with mandatory meter and gauge readings (GAS stations only)
  */
 export async function POST(
     request: NextRequest,
@@ -13,6 +13,13 @@ export async function POST(
 ) {
     try {
         const { stationId } = await params;
+
+        // Validate GAS station
+        const station = await resolveGasStation(stationId);
+        if (!station) {
+            return NextResponse.json(getNonGasStationError(), { status: 403 });
+        }
+
         const body = await request.json();
         const { dateKey, shiftNumber, meters, gauges } = body;
 
@@ -41,11 +48,11 @@ export async function POST(
             return NextResponse.json({ error: 'Gauge readings for 3 tanks are required' }, { status: 400 });
         }
 
-        // Get or create DailyRecord
+        // Get or create DailyRecord (use station.dbId)
         const dateUTC = bangkokDateToUTC(dateKey);
         let dailyRecord = await prisma.dailyRecord.findFirst({
             where: {
-                stationId,
+                stationId: station.dbId,
                 date: dateUTC
             }
         });
@@ -56,7 +63,7 @@ export async function POST(
 
             dailyRecord = await prisma.dailyRecord.create({
                 data: {
-                    stationId,
+                    stationId: station.dbId,
                     date: dateUTC,
                     gasPrice,
                     retailPrice: gasPrice,
@@ -104,7 +111,7 @@ export async function POST(
         for (const gauge of gauges) {
             await prisma.gaugeReading.create({
                 data: {
-                    stationId,
+                    stationId: station.dbId,
                     dailyRecordId: dailyRecord.id,
                     date: new Date(),
                     tankNumber: gauge.tankNumber,

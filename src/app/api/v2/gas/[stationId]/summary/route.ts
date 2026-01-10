@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getTodayBangkok, getStartOfDayBangkokUTC, getEndOfDayBangkokUTC } from '@/lib/gas';
+import { getTodayBangkok, getStartOfDayBangkokUTC, getEndOfDayBangkokUTC, resolveGasStation, getNonGasStationError } from '@/lib/gas';
 
 /**
  * GET /api/v2/gas/[stationId]/summary
- * Get current shift summary for dashboard
+ * Get current shift summary for dashboard (GAS stations only)
  */
 export async function GET(
     request: NextRequest,
@@ -12,6 +12,13 @@ export async function GET(
 ) {
     try {
         const { stationId } = await params;
+
+        // Validate GAS station
+        const station = await resolveGasStation(stationId);
+        if (!station) {
+            return NextResponse.json(getNonGasStationError(), { status: 403 });
+        }
+
         const { searchParams } = new URL(request.url);
         const detailed = searchParams.get('detailed') === 'true';
 
@@ -19,10 +26,10 @@ export async function GET(
         const startOfDay = getStartOfDayBangkokUTC(today);
         const endOfDay = getEndOfDayBangkokUTC(today);
 
-        // Get today's DailyRecord  
+        // Get today's DailyRecord (use station.dbId)
         const dailyRecord = await prisma.dailyRecord.findFirst({
             where: {
-                stationId,
+                stationId: station.dbId,
                 date: {
                     gte: startOfDay,
                     lte: endOfDay
@@ -55,7 +62,7 @@ export async function GET(
         // Get today's transactions
         const transactions = await prisma.transaction.findMany({
             where: {
-                stationId,
+                stationId: station.dbId,
                 createdAt: {
                     gte: startOfDay,
                     lte: endOfDay
@@ -89,7 +96,7 @@ export async function GET(
         // Get latest gauge readings
         const latestGauge = await prisma.gaugeReading.findMany({
             where: {
-                stationId,
+                stationId: station.dbId,
                 date: {
                     gte: startOfDay,
                     lte: endOfDay
@@ -144,7 +151,7 @@ export async function GET(
                 // Add gauge start/end for close page
                 const shiftGauges = await prisma.gaugeReading.findMany({
                     where: {
-                        stationId,
+                        stationId: station.dbId,
                         shiftNumber: shift.shiftNumber,
                         date: {
                             gte: startOfDay,

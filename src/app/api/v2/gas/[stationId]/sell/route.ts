@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
-import { getTodayBangkok, getStartOfDayBangkokUTC, getEndOfDayBangkokUTC } from '@/lib/gas';
+import { getTodayBangkok, getStartOfDayBangkokUTC, getEndOfDayBangkokUTC, resolveGasStation, getNonGasStationError } from '@/lib/gas';
 
 /**
  * POST /api/v2/gas/[stationId]/sell
- * Record a sale transaction
+ * Record a sale transaction (GAS stations only)
  */
 export async function POST(
     request: NextRequest,
@@ -13,6 +13,12 @@ export async function POST(
 ) {
     try {
         const { stationId } = await params;
+
+        // Validate GAS station
+        const station = await resolveGasStation(stationId);
+        if (!station) {
+            return NextResponse.json(getNonGasStationError(), { status: 403 });
+        }
         const body = await request.json();
         const {
             paymentType,
@@ -58,7 +64,7 @@ export async function POST(
 
         const dailyRecord = await prisma.dailyRecord.findFirst({
             where: {
-                stationId,
+                stationId: station.dbId,
                 date: {
                     gte: startOfDay,
                     lte: endOfDay
@@ -84,7 +90,7 @@ export async function POST(
         // Create transaction
         const transaction = await prisma.transaction.create({
             data: {
-                stationId,
+                stationId: station.dbId,
                 dailyRecordId: dailyRecord.id,
                 ownerId: paymentType === 'CREDIT' ? ownerId : null,
                 truckId: paymentType === 'CREDIT' ? truckId : null,
@@ -112,7 +118,7 @@ export async function POST(
 
 /**
  * GET /api/v2/gas/[stationId]/sell
- * Get today's sales
+ * Get today's sales (GAS stations only)
  */
 export async function GET(
     request: NextRequest,
@@ -120,13 +126,20 @@ export async function GET(
 ) {
     try {
         const { stationId } = await params;
+
+        // Validate GAS station
+        const station = await resolveGasStation(stationId);
+        if (!station) {
+            return NextResponse.json(getNonGasStationError(), { status: 403 });
+        }
+
         const today = getTodayBangkok();
         const startOfDay = getStartOfDayBangkokUTC(today);
         const endOfDay = getEndOfDayBangkokUTC(today);
 
         const transactions = await prisma.transaction.findMany({
             where: {
-                stationId,
+                stationId: station.dbId,
                 createdAt: {
                     gte: startOfDay,
                     lte: endOfDay
