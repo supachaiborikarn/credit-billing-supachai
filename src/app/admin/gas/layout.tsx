@@ -45,7 +45,7 @@ export default function AdminGasLayout({
                 <div className="flex items-center justify-between px-4 py-3">
                     <div className="flex items-center gap-3">
                         <Link
-                            href="/admin"
+                            href="/dashboard"
                             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                         >
                             <ChevronLeft size={24} />
@@ -81,8 +81,8 @@ export default function AdminGasLayout({
                             key={item.href}
                             href={item.href}
                             className={`flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition-colors ${isActive(item.href, item.exact)
-                                    ? 'bg-purple-600 text-white'
-                                    : 'text-gray-400 hover:bg-white/10 hover:text-white'
+                                ? 'bg-purple-600 text-white'
+                                : 'text-gray-400 hover:bg-white/10 hover:text-white'
                                 }`}
                         >
                             <item.icon size={20} />
@@ -102,8 +102,8 @@ export default function AdminGasLayout({
                             href={item.href}
                             onClick={() => setMenuOpen(false)}
                             className={`flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition-colors ${isActive(item.href, item.exact)
-                                    ? 'bg-purple-600 text-white'
-                                    : 'text-gray-400 hover:bg-white/10'
+                                ? 'bg-purple-600 text-white'
+                                : 'text-gray-400 hover:bg-white/10'
                                 }`}
                         >
                             <item.icon size={20} />
