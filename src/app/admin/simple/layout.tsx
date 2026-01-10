@@ -10,7 +10,8 @@ import {
     Package,
     ChevronLeft,
     Menu,
-    X
+    X,
+    BarChart3
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -24,6 +25,7 @@ export default function SimpleAdminLayout({
 
     const navItems = [
         { href: '/admin/simple', icon: LayoutDashboard, label: 'Executive Overview', exact: true },
+        { href: '/admin/simple/analytics', icon: BarChart3, label: 'Advanced Analytics' },
         { href: '/admin/simple/stations', icon: Building2, label: 'Station Performance' },
         { href: '/admin/simple/fuel-time', icon: Clock, label: 'Fuel & Time Analytics' },
         { href: '/admin/simple/stock', icon: Package, label: 'Stock & Ordering' },
