@@ -1,24 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { STATIONS } from '@/constants';
+import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
 
 // GET: Get admin dashboard data for all gas stations
 export async function GET(request: NextRequest) {
     try {
         const gasStations = STATIONS.filter(s => s.type === 'GAS');
 
-        // Get date ranges
-        const now = new Date();
-        const todayStart = new Date(now);
-        todayStart.setHours(0, 0, 0, 0);
+        // Get date ranges using Bangkok timezone
+        const todayStr = getTodayBangkok();
+        const startOfDay = getStartOfDayBangkok(todayStr);
+        const endOfDay = getEndOfDayBangkok(todayStr);
 
-        const weekStart = new Date(now);
-        weekStart.setDate(weekStart.getDate() - 7);
-        weekStart.setHours(0, 0, 0, 0);
+        // Week ago
+        const weekAgo = new Date(startOfDay);
+        weekAgo.setDate(weekAgo.getDate() - 7);
 
-        const monthStart = new Date(now);
-        monthStart.setMonth(monthStart.getMonth() - 1);
-        monthStart.setHours(0, 0, 0, 0);
+        // Month ago
+        const monthAgo = new Date(startOfDay);
+        monthAgo.setMonth(monthAgo.getMonth() - 1);
 
         // Get station IDs - use station config IDs directly
         const stationIds = gasStations.map(s => s.id);
@@ -28,7 +29,9 @@ export async function GET(request: NextRequest) {
             prisma.transaction.aggregate({
                 where: {
                     stationId: { in: stationIds },
-                    createdAt: { gte: todayStart }
+                    date: { gte: startOfDay, lte: endOfDay },
+                    isVoided: false,
+                    deletedAt: null
                 },
                 _sum: { amount: true, liters: true },
                 _count: { id: true }
@@ -36,70 +39,75 @@ export async function GET(request: NextRequest) {
             prisma.transaction.aggregate({
                 where: {
                     stationId: { in: stationIds },
-                    createdAt: { gte: weekStart }
+                    date: { gte: weekAgo },
+                    isVoided: false,
+                    deletedAt: null
                 },
                 _sum: { amount: true }
             }),
             prisma.transaction.aggregate({
                 where: {
                     stationId: { in: stationIds },
-                    createdAt: { gte: monthStart }
+                    date: { gte: monthAgo },
+                    isVoided: false,
+                    deletedAt: null
                 },
                 _sum: { amount: true }
             })
         ]);
 
         // Fetch per-station data
+        const now = new Date();
         const stationsData = await Promise.all(
             gasStations.map(async (station) => {
                 const index = STATIONS.findIndex(s => s.id === station.id) + 1;
                 const dbId = station.id;
 
-                // Get current open shift with staff info
-                const currentShift = await prisma.shift.findFirst({
-                    where: {
-                        dailyRecord: {
-                            stationId: dbId
-                        },
-                        status: 'OPEN'
-                    },
-                    include: {
-                        staff: { select: { name: true } }
-                    },
-                    orderBy: { createdAt: 'desc' }
-                });
-
-                // Get today's transactions for this station
-                const todayData = await prisma.transaction.aggregate({
+                // Get today's daily record with shifts
+                const dailyRecord = await prisma.dailyRecord.findFirst({
                     where: {
                         stationId: dbId,
-                        createdAt: { gte: todayStart }
+                        date: { gte: startOfDay, lte: endOfDay }
                     },
-                    _sum: { amount: true, liters: true },
-                    _count: { id: true }
+                    include: {
+                        shifts: {
+                            include: {
+                                staff: { select: { name: true } },
+                                reconciliation: true
+                            },
+                            orderBy: { shiftNumber: 'asc' }
+                        }
+                    }
                 });
 
-                // Get latest gauge readings (all tanks)
-                const latestGauges = await prisma.gaugeReading.findMany({
+                // Find open shift
+                const openShift = dailyRecord?.shifts.find(s => s.status === 'OPEN');
+
+                // Get today's transactions for this station
+                const transactions = await prisma.transaction.findMany({
+                    where: {
+                        stationId: dbId,
+                        date: { gte: startOfDay, lte: endOfDay },
+                        isVoided: false,
+                        deletedAt: null
+                    }
+                });
+
+                const todaySales = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
+                const todayLiters = transactions.reduce((sum, t) => sum + Number(t.liters), 0);
+
+                // Get latest gauge reading
+                const latestGauge = await prisma.gaugeReading.findFirst({
                     where: { stationId: dbId },
-                    orderBy: { recordedAt: 'desc' },
-                    take: 3, // Get last 3 readings (one per tank)
-                    distinct: ['tankNumber']
+                    orderBy: { date: 'desc' }
                 });
-
-                // Calculate average gauge from latest readings
-                let gaugeAverage: number | null = null;
-                if (latestGauges.length > 0) {
-                    const percentages = latestGauges.map(g => Number(g.percentage));
-                    gaugeAverage = percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
-                }
 
                 // Generate alerts
                 const alerts: string[] = [];
-                if (gaugeAverage !== null && gaugeAverage < 20) {
+                if (latestGauge && Number(latestGauge.percentage) < 20) {
                     alerts.push('ระดับแก๊สต่ำ');
                 }
-                if (!currentShift) {
+                if (!openShift) {
                     // Only alert during business hours (6am - 10pm)
                     const hour = now.getHours();
                     if (hour >= 6 && hour <= 22) {
@@ -111,15 +119,17 @@ export async function GET(request: NextRequest) {
                     id: station.id,
                     name: station.name,
                     index,
-                    currentShift: currentShift ? {
-                        shiftNumber: currentShift.shiftNumber,
-                        status: currentShift.status,
-                        staffName: currentShift.staff?.name || null
+                    currentShift: openShift ? {
+                        shiftNumber: openShift.shiftNumber,
+                        status: openShift.status,
+                        staffName: openShift.staff?.name || null
                     } : null,
-                    todaySales: todayData._sum.amount || 0,
-                    todayLiters: todayData._sum.liters || 0,
-                    todayTransactions: todayData._count.id || 0,
-                    gaugeAverage,
+                    shiftsToday: dailyRecord?.shifts.length || 0,
+                    totalShifts: 2,
+                    todaySales,
+                    todayLiters,
+                    todayTransactions: transactions.length,
+                    gaugeAverage: latestGauge ? Number(latestGauge.percentage) : null,
                     alerts
                 };
             })
