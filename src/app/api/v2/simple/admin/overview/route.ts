@@ -3,9 +3,10 @@ import { prisma } from '@/lib/prisma';
 import { STATIONS } from '@/constants';
 import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
 
-// GET: Executive Overview data for Simple Stations
+// GET: Executive Overview data for Simple Stations only
 export async function GET(request: NextRequest) {
     try {
+        // Simple stations only (not FULL)
         const simpleStations = STATIONS.filter(s => s.type === 'SIMPLE');
         const stationIds = simpleStations.map(s => s.id);
 
@@ -119,7 +120,6 @@ export async function GET(request: NextRequest) {
                     revenue: Number(monthData._sum.amount) || 0,
                     transactions: monthData._count.id || 0
                 },
-                // TODO: Add margin and profit when cost_per_liter is available
                 margin: null,
                 profit: null
             },

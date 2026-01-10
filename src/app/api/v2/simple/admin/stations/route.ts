@@ -3,14 +3,14 @@ import { prisma } from '@/lib/prisma';
 import { STATIONS } from '@/constants';
 import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
 
-// GET: Station Performance data
+// GET: Station Performance data for Simple Stations only
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const days = parseInt(searchParams.get('days') || '7');
 
+        // Simple stations only (not FULL)
         const simpleStations = STATIONS.filter(s => s.type === 'SIMPLE');
-        const stationIds = simpleStations.map(s => s.id);
 
         const todayStr = getTodayBangkok();
         const endOfDay = getEndOfDayBangkok(todayStr);
@@ -53,7 +53,6 @@ export async function GET(request: NextRequest) {
                     totalLiters: Number(aggregate._sum.liters) || 0,
                     totalRevenue: Number(aggregate._sum.amount) || 0,
                     totalTransactions: aggregate._count.id || 0,
-                    // TODO: Add margin and profit when cost available
                     margin: null,
                     profit: null,
                     byNozzle: byNozzle.map(n => ({
@@ -66,7 +65,6 @@ export async function GET(request: NextRequest) {
             })
         );
 
-        // Sort by revenue descending
         stationsData.sort((a, b) => b.totalRevenue - a.totalRevenue);
 
         return NextResponse.json({

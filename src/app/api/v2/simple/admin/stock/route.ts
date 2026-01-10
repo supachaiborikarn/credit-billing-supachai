@@ -4,6 +4,7 @@ import { STATIONS, FUEL_TYPES } from '@/constants';
 // GET: Stock Dashboard (Mock - TODO: implement when Tank model is available)
 export async function GET(request: NextRequest) {
     try {
+        // Simple stations only
         const simpleStations = STATIONS.filter(s => s.type === 'SIMPLE');
 
         // Mock tank data - TODO: Replace with real data when Tank model is created
@@ -14,16 +15,15 @@ export async function GET(request: NextRequest) {
                 stationName: station.name,
                 fuelType: fuel.value,
                 fuelLabel: fuel.label,
-                capacity: 20000, // Mock: 20,000 liters
-                currentVolume: Math.floor(Math.random() * 15000) + 5000, // Mock random
+                capacity: 20000,
+                currentVolume: Math.floor(Math.random() * 15000) + 5000,
                 lastRefillDate: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
-                avgDailyUsage: 800 + Math.floor(Math.random() * 400), // Mock: 800-1200 L/day
+                avgDailyUsage: 800 + Math.floor(Math.random() * 400),
                 estimatedDaysToEmpty: 0,
                 status: 'OK' as 'OK' | 'ORDER_SOON' | 'ORDER_NOW'
             }))
         );
 
-        // Calculate estimated days and status
         mockTanks.forEach(tank => {
             tank.estimatedDaysToEmpty = tank.avgDailyUsage > 0
                 ? Math.floor(tank.currentVolume / tank.avgDailyUsage)
@@ -38,7 +38,6 @@ export async function GET(request: NextRequest) {
             }
         });
 
-        // Sort by estimatedDaysToEmpty ascending (urgent first)
         mockTanks.sort((a, b) => a.estimatedDaysToEmpty - b.estimatedDaysToEmpty);
 
         const urgentCount = mockTanks.filter(t => t.status === 'ORDER_NOW').length;
