@@ -2,17 +2,18 @@
  * Gas Station Resolver Utility
  * 
  * Resolves station ID from multiple formats and validates GAS station type
+ * NOTE: dbId now returns station-X format (e.g., station-5) to match existing data
  */
 
-import { STATIONS, findStationIndex } from '@/constants';
+import { STATIONS } from '@/constants';
 import { prisma } from '@/lib/prisma';
 
 export interface ResolvedStation {
-    id: string;
+    id: string;      // station-5, station-6
     name: string;
     type: 'GAS';
-    index: number;
-    dbId: string; // Actual database ID (UUID)
+    index: number;   // 5, 6
+    dbId: string;    // station-5, station-6 (for database queries)
 }
 
 /**
@@ -26,14 +27,12 @@ export async function resolveGasStation(stationIdOrIndex: string): Promise<Resol
     if (!isNaN(numericIndex) && numericIndex >= 1 && numericIndex <= STATIONS.length) {
         const station = STATIONS[numericIndex - 1];
         if (station.type === 'GAS') {
-            const aliases = 'aliases' in station ? station.aliases as readonly string[] : [];
-            const dbId = aliases[0] || station.id;
             return {
-                id: station.id,
+                id: station.id,          // station-5
                 name: station.name,
                 type: 'GAS',
-                index: numericIndex,
-                dbId
+                index: numericIndex,     // 5
+                dbId: station.id         // station-5 (NOT UUID!)
             };
         }
         return null; // Not a GAS station
@@ -46,21 +45,19 @@ export async function resolveGasStation(stationIdOrIndex: string): Promise<Resol
         if (idx >= 1 && idx <= STATIONS.length) {
             const station = STATIONS[idx - 1];
             if (station.type === 'GAS') {
-                const aliases = 'aliases' in station ? station.aliases as readonly string[] : [];
-                const dbId = aliases[0] || station.id;
                 return {
                     id: station.id,
                     name: station.name,
                     type: 'GAS',
                     index: idx,
-                    dbId
+                    dbId: station.id     // station-5 or station-6
                 };
             }
         }
         return null;
     }
 
-    // 3. Try as UUID alias from constants
+    // 3. Try as UUID alias from constants (resolve to station-X)
     for (let i = 0; i < STATIONS.length; i++) {
         const station = STATIONS[i];
         if (station.type === 'GAS' && 'aliases' in station) {
@@ -71,13 +68,13 @@ export async function resolveGasStation(stationIdOrIndex: string): Promise<Resol
                     name: station.name,
                     type: 'GAS',
                     index: i + 1,
-                    dbId: stationIdOrIndex
+                    dbId: station.id     // Return station-5 NOT the UUID!
                 };
             }
         }
     }
 
-    // 4. Try database lookup (for UUID matching)
+    // 4. Try database lookup (station-X format in DB)
     try {
         const dbStation = await prisma.station.findUnique({
             where: { id: stationIdOrIndex },
@@ -85,21 +82,15 @@ export async function resolveGasStation(stationIdOrIndex: string): Promise<Resol
         });
 
         if (dbStation && dbStation.type === 'GAS') {
-            // Find index from constants
-            let idx = -1;
-            for (let i = 0; i < STATIONS.length; i++) {
-                const s = STATIONS[i];
-                if ('aliases' in s && (s.aliases as readonly string[]).includes(dbStation.id)) {
-                    idx = i + 1;
-                    break;
-                }
-            }
+            // Extract index from station-X format
+            const match = dbStation.id.match(/^station-(\d+)$/);
+            const idx = match ? parseInt(match[1]) : -1;
             return {
-                id: idx > 0 ? STATIONS[idx - 1].id : dbStation.id,
+                id: dbStation.id,
                 name: dbStation.name,
                 type: 'GAS',
                 index: idx,
-                dbId: dbStation.id
+                dbId: dbStation.id  // station-5 or station-6
             };
         }
     } catch (error) {
@@ -119,13 +110,11 @@ export function getNonGasStationError(): { error: string } {
 }
 
 /**
- * Convert station index to database ID
+ * Convert station index to database ID (station-X format)
  */
 export function getStationDbId(stationIndex: number): string | null {
     if (stationIndex < 1 || stationIndex > STATIONS.length) return null;
     const station = STATIONS[stationIndex - 1];
-    if ('aliases' in station && station.aliases) {
-        return (station.aliases as readonly string[])[0] || station.id;
-    }
-    return station.id;
+    if (station.type !== 'GAS') return null;
+    return station.id;  // station-5 or station-6
 }

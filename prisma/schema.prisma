@@ -7,11 +7,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// GasSettings - global configuration for gas stations
 model GasSettings {
   id        String   @id @default(uuid())
-  key       String   @unique // gasPrice, tankCapacity, tankCount, etc.
-  value     String   // stored as string, parsed as needed
+  key       String   @unique
+  value     String
   updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
 
@@ -19,24 +18,24 @@ model GasSettings {
 }
 
 model User {
-  id               String         @id @default(uuid())
-  name             String
-  username         String         @unique
-  password         String
-  role             UserRole       @default(STAFF)
-  stationId        String?
-  createdAt        DateTime       @default(now())
-  auditLogs        AuditLog[]
-  sessions         Session[]
-  shifts           Shift[]        @relation("ShiftStaff")
-  shiftsClosedBy   Shift[]        @relation("ShiftClosedBy")
-  shiftsLockedBy   Shift[]        @relation("ShiftLockedBy")
-  transactions     Transaction[]
-  meterReadings    MeterReading[] @relation("MeterCapturedBy")
-  deviceTokens     DeviceToken[]
-  priceBooks       PriceBook[]    @relation("PriceBookCreatedBy")
+  id                String         @id @default(uuid())
+  name              String
+  username          String         @unique
+  password          String
+  role              UserRole       @default(STAFF)
+  stationId         String?
+  createdAt         DateTime       @default(now())
+  auditLogs         AuditLog[]
+  deviceTokens      DeviceToken[]
   reviewedAnomalies MeterAnomaly[]
-  station          Station?       @relation(fields: [stationId], references: [id])
+  meterReadings     MeterReading[] @relation("MeterCapturedBy")
+  priceBooks        PriceBook[]    @relation("PriceBookCreatedBy")
+  sessions          Session[]
+  shiftsClosedBy    Shift[]        @relation("ShiftClosedBy")
+  shiftsLockedBy    Shift[]        @relation("ShiftLockedBy")
+  shifts            Shift[]        @relation("ShiftStaff")
+  transactions      Transaction[]
+  station           Station?       @relation(fields: [stationId], references: [id])
 
   @@map("users")
 }
@@ -60,22 +59,21 @@ model Station {
   hasProducts        Boolean            @default(false)
   gasInitialStock    Decimal?           @default(0)
   dailyRecords       DailyRecord[]
+  deviceTokens       DeviceToken[]
+  dispensers         Dispenser[]
   gasSupplies        GasSupply[]
+  priceBooks         PriceBook[]
   productInventories ProductInventory[]
   transactions       Transaction[]
   users              User[]
-  deviceTokens       DeviceToken[]
-  priceBooks         PriceBook[]
-  dispensers         Dispenser[]
 
   @@map("stations")
 }
 
-// FuelProduct - ประเภทน้ำมัน (ดีเซล, แก๊สโซฮอล์ 91/95, E20, LPG)
 model FuelProduct {
   id             String          @id @default(uuid())
-  name           String // ดีเซล, แก๊สโซฮอล์ 91, etc.
-  code           String          @unique // DIESEL, GASOHOL_91, etc.
+  name           String
+  code           String          @unique
   isActive       Boolean         @default(true)
   createdAt      DateTime        @default(now())
   nozzles        Nozzle[]
@@ -84,11 +82,10 @@ model FuelProduct {
   @@map("fuel_products")
 }
 
-// Dispenser - ตู้จ่ายน้ำมัน
 model Dispenser {
   id        String    @id @default(uuid())
   stationId String
-  code      String // D1, D2, ...
+  code      String
   isActive  Boolean   @default(true)
   createdAt DateTime  @default(now())
   deletedAt DateTime?
@@ -99,18 +96,17 @@ model Dispenser {
   @@map("dispensers")
 }
 
-// Nozzle - หัวจ่ายน้ำมัน
 model Nozzle {
   id            String         @id @default(uuid())
   dispenserId   String
-  code          String // N1, N2, ...
+  code          String
   productId     String
   isActive      Boolean        @default(true)
   createdAt     DateTime       @default(now())
   deletedAt     DateTime?
+  meterReadings MeterReading[]
   dispenser     Dispenser      @relation(fields: [dispenserId], references: [id])
   product       FuelProduct    @relation(fields: [productId], references: [id])
-  meterReadings MeterReading[]
 
   @@unique([dispenserId, code])
   @@map("nozzles")
@@ -123,10 +119,10 @@ model Owner {
   venderCode    String?
   groupType     OwnerGroup    @default(GENERAL_CREDIT)
   code          String?
-  creditLimit   Decimal       @default(50000) // วงเงินเครดิต
-  currentCredit Decimal       @default(0) // ยอดเครดิตคงค้าง
   createdAt     DateTime      @default(now())
   deletedAt     DateTime?
+  creditLimit   Decimal       @default(50000)
+  currentCredit Decimal       @default(0)
   invoices      Invoice[]
   transactions  Transaction[]
   trucks        Truck[]
@@ -172,40 +168,39 @@ model Shift {
   dailyRecordId        String
   shiftNumber          Int
   staffId              String?
-  status               ShiftStatus          @default(OPEN)
   createdAt            DateTime             @default(now())
   closedAt             DateTime?
-  closedById           String?
-  lockedAt             DateTime?
-  lockedById           String?
   carryOverFromShiftId String?
   closingStock         Float?
   openingStock         Float?
-  varianceNote         String? // Required if variance > threshold
+  closedById           String?
+  lockedAt             DateTime?
+  lockedById           String?
+  varianceNote         String?
+  status               ShiftStatus          @default(OPEN)
+  anomalies            MeterAnomaly[]
   meters               MeterReading[]
   reconciliation       ShiftReconciliation?
-  anomalies            MeterAnomaly[]
-  dailyRecord          DailyRecord          @relation(fields: [dailyRecordId], references: [id])
-  staff                User?                @relation("ShiftStaff", fields: [staffId], references: [id])
   closedBy             User?                @relation("ShiftClosedBy", fields: [closedById], references: [id])
+  dailyRecord          DailyRecord          @relation(fields: [dailyRecordId], references: [id])
   lockedBy             User?                @relation("ShiftLockedBy", fields: [lockedById], references: [id])
+  staff                User?                @relation("ShiftStaff", fields: [staffId], references: [id])
 
   @@unique([dailyRecordId, shiftNumber])
   @@map("shifts")
 }
 
-// Shift Reconciliation - snapshot ยอดสรุปเมื่อปิดกะ (แก้ไขไม่ได้)
 model ShiftReconciliation {
   id                  String         @id @default(uuid())
   shiftId             String         @unique
-  expectedFuelAmount  Decimal // ยอดที่ควรได้จากน้ำมัน
-  expectedOtherAmount Decimal        @default(0) // ยอดจากสินค้าอื่น
-  totalExpected       Decimal // รวมยอดที่ควรได้
-  totalReceived       Decimal // รวมยอดที่รับจริง (cash+credit+transfer)
+  expectedFuelAmount  Decimal
+  expectedOtherAmount Decimal        @default(0)
+  totalExpected       Decimal
+  totalReceived       Decimal
   cashReceived        Decimal        @default(0)
   creditReceived      Decimal        @default(0)
   transferReceived    Decimal        @default(0)
-  variance            Decimal // expected - received
+  variance            Decimal
   varianceStatus      VarianceStatus @default(GREEN)
   createdAt           DateTime       @default(now())
   shift               Shift          @relation(fields: [shiftId], references: [id])
@@ -213,21 +208,20 @@ model ShiftReconciliation {
   @@map("shift_reconciliations")
 }
 
-// Meter Anomaly - บันทึกความผิดปกติของยอดขายมิเตอร์
 model MeterAnomaly {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   shiftId      String
   nozzleNumber Int
-  soldQty      Decimal  // ยอดขายจริง
-  averageQty   Decimal  // ค่าเฉลี่ย 7-30 วัน
-  percentDiff  Decimal  // เปอร์เซ็นต์ต่างจากค่าเฉลี่ย
-  severity     String   @default("WARNING") // WARNING, CRITICAL
-  note         String?  // หมายเหตุจากพนักงาน
-  reviewedById String?  // ผู้ตรวจสอบ
+  soldQty      Decimal
+  averageQty   Decimal
+  percentDiff  Decimal
+  severity     String    @default("WARNING")
+  note         String?
+  reviewedById String?
   reviewedAt   DateTime?
-  createdAt    DateTime @default(now())
-  shift        Shift    @relation(fields: [shiftId], references: [id])
-  reviewedBy   User?    @relation(fields: [reviewedById], references: [id])
+  createdAt    DateTime  @default(now())
+  reviewedBy   User?     @relation(fields: [reviewedById], references: [id])
+  shift        Shift     @relation(fields: [shiftId], references: [id])
 
   @@map("meter_anomalies")
 }
@@ -235,21 +229,21 @@ model MeterAnomaly {
 model MeterReading {
   id            String       @id @default(uuid())
   dailyRecordId String?
-  nozzleNumber  Int // Keep for backward compatibility
-  nozzleId      String? // New: link to Nozzle
+  nozzleNumber  Int
   startReading  Decimal      @default(0)
   endReading    Decimal?
-  soldQty       Decimal? // Auto-calculated: endReading - startReading
   startPhoto    String?
   endPhoto      String?
   shiftId       String?
-  capturedById  String? // Who recorded this reading
-  capturedAt    DateTime? // When was it recorded
-  note          String? // Optional note
-  dailyRecord   DailyRecord? @relation(fields: [dailyRecordId], references: [id])
-  shift         Shift?       @relation(fields: [shiftId], references: [id])
+  capturedAt    DateTime?
+  capturedById  String?
+  note          String?
+  soldQty       Decimal?
+  nozzleId      String?
   capturedBy    User?        @relation("MeterCapturedBy", fields: [capturedById], references: [id])
+  dailyRecord   DailyRecord? @relation(fields: [dailyRecordId], references: [id])
   nozzle        Nozzle?      @relation(fields: [nozzleId], references: [id])
+  shift         Shift?       @relation(fields: [shiftId], references: [id])
 
   @@unique([dailyRecordId, nozzleNumber])
   @@unique([shiftId, nozzleNumber])
@@ -437,6 +431,51 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+model DeviceToken {
+  id         String   @id @default(uuid())
+  deviceId   String   @unique
+  deviceName String?
+  stationId  String?
+  userId     String?
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  isActive   Boolean  @default(true)
+  station    Station? @relation(fields: [stationId], references: [id])
+  user       User?    @relation(fields: [userId], references: [id])
+
+  @@map("device_tokens")
+}
+
+model PriceBook {
+  id             String          @id @default(uuid())
+  stationId      String?
+  productType    String?
+  retailPrice    Decimal?
+  wholesalePrice Decimal?
+  effectiveFrom  DateTime
+  effectiveTo    DateTime?
+  createdAt      DateTime        @default(now())
+  createdById    String?
+  status         PriceBookStatus @default(DRAFT)
+  lines          PriceBookLine[]
+  createdBy      User?           @relation("PriceBookCreatedBy", fields: [createdById], references: [id])
+  station        Station?        @relation(fields: [stationId], references: [id])
+
+  @@map("price_books")
+}
+
+model PriceBookLine {
+  id           String      @id @default(uuid())
+  priceBookId  String
+  productId    String
+  pricePerUnit Decimal
+  priceBook    PriceBook   @relation(fields: [priceBookId], references: [id])
+  product      FuelProduct @relation(fields: [productId], references: [id])
+
+  @@unique([priceBookId, productId])
+  @@map("price_book_lines")
+}
+
 enum StationType {
   FULL
   SIMPLE
@@ -482,57 +521,9 @@ enum ShiftStatus {
 }
 
 enum VarianceStatus {
-  GREEN // <= 200 บาท
-  YELLOW // <= 500 บาท
-  RED // > 500 บาท
-}
-
-// Device Token - ผูกอุปกรณ์กับสถานี
-model DeviceToken {
-  id         String   @id @default(uuid())
-  deviceId   String   @unique // UUID จาก browser/app
-  deviceName String? // ชื่อเครื่อง
-  stationId  String?
-  userId     String?
-  lastUsedAt DateTime @default(now())
-  createdAt  DateTime @default(now())
-  isActive   Boolean  @default(true)
-  station    Station? @relation(fields: [stationId], references: [id])
-  user       User?    @relation(fields: [userId], references: [id])
-
-  @@map("device_tokens")
-}
-
-// Price Book - ราคาน้ำมันตามวัน/นโยบาย
-model PriceBook {
-  id             String          @id @default(uuid())
-  stationId      String? // null = ใช้กับทุกสถานี
-  productType    String? // Legacy: DIESEL, GASOHOL_95, etc.
-  retailPrice    Decimal? // Legacy: ราคาขายปลีก
-  wholesalePrice Decimal? // Legacy: ราคาขายส่ง
-  effectiveFrom  DateTime // เริ่มใช้ตั้งแต่
-  effectiveTo    DateTime? // หมดอายุเมื่อ
-  status         PriceBookStatus @default(DRAFT)
-  createdAt      DateTime        @default(now())
-  createdById    String?
-  station        Station?        @relation(fields: [stationId], references: [id])
-  createdBy      User?           @relation("PriceBookCreatedBy", fields: [createdById], references: [id])
-  lines          PriceBookLine[]
-
-  @@map("price_books")
-}
-
-// PriceBookLine - รายละเอียดราคาแต่ละผลิตภัณฑ์
-model PriceBookLine {
-  id           String      @id @default(uuid())
-  priceBookId  String
-  productId    String
-  pricePerUnit Decimal // ราคาต่อลิตร
-  priceBook    PriceBook   @relation(fields: [priceBookId], references: [id])
-  product      FuelProduct @relation(fields: [productId], references: [id])
-
-  @@unique([priceBookId, productId])
-  @@map("price_book_lines")
+  GREEN
+  YELLOW
+  RED
 }
 
 enum PriceBookStatus {
