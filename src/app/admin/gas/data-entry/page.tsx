@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, KeyboardEvent } from 'react';
 import {
     Calendar,
     FuelIcon,
@@ -53,6 +53,27 @@ export default function AdminDataEntryPage() {
     });
 
     const selectedStation = gasStations.find(s => s.id === stationId);
+
+    // Refs for meter inputs - order: start1, start2, start3, start4, end1, end2, end3, end4
+    const meterRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+    // Handle Enter key to move to next input
+    const handleMeterKeyDown = (e: KeyboardEvent<HTMLInputElement>, currentIndex: number) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            // Find next non-empty input or just go to next
+            const nextIndex = currentIndex + 1;
+            if (nextIndex < meterRefs.current.length) {
+                meterRefs.current[nextIndex]?.focus();
+            }
+        }
+    };
+
+    // Get ref index for meter input
+    // Order: start1(0), start2(1), start3(2), start4(3), end1(4), end2(5), end3(6), end4(7)
+    const getMeterRefIndex = (nozzle: number, field: 'start' | 'end') => {
+        return field === 'start' ? nozzle - 1 : nozzle + 3;
+    };
 
     // Fetch existing data when selection changes
     useEffect(() => {
@@ -262,23 +283,29 @@ export default function AdminDataEntryPage() {
                                 const liters = meter.start !== null && meter.end !== null
                                     ? Math.max(0, meter.end - meter.start)
                                     : 0;
+                                const startIdx = getMeterRefIndex(meter.nozzle, 'start');
+                                const endIdx = getMeterRefIndex(meter.nozzle, 'end');
                                 return (
                                     <tr key={meter.nozzle} className="border-t border-white/5">
                                         <td className="py-3 px-2 font-medium">หัว {meter.nozzle}</td>
                                         <td className="py-3 px-2">
                                             <input
+                                                ref={el => { meterRefs.current[startIdx] = el; }}
                                                 type="number"
                                                 value={meter.start ?? ''}
                                                 onChange={(e) => handleMeterChange(meter.nozzle, 'start', e.target.value)}
+                                                onKeyDown={(e) => handleMeterKeyDown(e, startIdx)}
                                                 placeholder="0"
                                                 className="w-full px-3 py-2 bg-gray-800 border border-white/10 rounded-lg text-right focus:border-blue-500 focus:outline-none"
                                             />
                                         </td>
                                         <td className="py-3 px-2">
                                             <input
+                                                ref={el => { meterRefs.current[endIdx] = el; }}
                                                 type="number"
                                                 value={meter.end ?? ''}
                                                 onChange={(e) => handleMeterChange(meter.nozzle, 'end', e.target.value)}
+                                                onKeyDown={(e) => handleMeterKeyDown(e, endIdx)}
                                                 placeholder="0"
                                                 className="w-full px-3 py-2 bg-gray-800 border border-white/10 rounded-lg text-right focus:border-blue-500 focus:outline-none"
                                             />
