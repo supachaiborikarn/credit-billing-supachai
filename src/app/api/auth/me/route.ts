@@ -24,6 +24,15 @@ export async function GET() {
             return NextResponse.json({ user: null }, { status: 401 });
         }
 
+        // Force re-login for GAS station staff for sessions created before 2026-01-11 (V2 migration)
+        const v2MigrationDate = new Date('2026-01-11T00:00:00+07:00');
+        const isGasStation = session.user.station?.type === 'GAS';
+        if (isGasStation && session.createdAt < v2MigrationDate) {
+            // Delete old session and force re-login
+            await prisma.session.delete({ where: { id: sessionId } });
+            return NextResponse.json({ user: null, reason: 'session_expired_v2_migration' }, { status: 401 });
+        }
+
         return NextResponse.json({
             user: {
                 id: session.user.id,

@@ -103,7 +103,7 @@ export default function Sidebar({ children }: SidebarProps) {
     // Filter stations for staff - only show their assigned station
     const getStationPath = (station: typeof STATIONS[number], index: number) => {
         if (station.type === 'FULL') return `/station/${index + 1}`;
-        if (station.type === 'GAS') return `/gas-station/${index + 1}`;
+        if (station.type === 'GAS') return `/gas/${station.id}`; // V2: use station.id for new gas control
         return `/simple-station/${index + 1}`;
     };
 

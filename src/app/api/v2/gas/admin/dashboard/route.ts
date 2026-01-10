@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
                     stationId: { in: stationIds },
                     createdAt: { gte: todayStart }
                 },
-                _sum: { totalAmount: true, liters: true },
+                _sum: { amount: true, liters: true },
                 _count: { id: true }
             }),
             prisma.transaction.aggregate({
@@ -38,30 +38,35 @@ export async function GET(request: NextRequest) {
                     stationId: { in: stationIds },
                     createdAt: { gte: weekStart }
                 },
-                _sum: { totalAmount: true }
+                _sum: { amount: true }
             }),
             prisma.transaction.aggregate({
                 where: {
                     stationId: { in: stationIds },
                     createdAt: { gte: monthStart }
                 },
-                _sum: { totalAmount: true }
+                _sum: { amount: true }
             })
         ]);
 
         // Fetch per-station data
         const stationsData = await Promise.all(
-            gasStations.map(async (station, i) => {
+            gasStations.map(async (station) => {
                 const index = STATIONS.findIndex(s => s.id === station.id) + 1;
                 const dbId = station.id;
 
-                // Get current open shift
+                // Get current open shift with staff info
                 const currentShift = await prisma.shift.findFirst({
                     where: {
-                        stationId: dbId,
+                        dailyRecord: {
+                            stationId: dbId
+                        },
                         status: 'OPEN'
                     },
-                    orderBy: { startTime: 'desc' }
+                    include: {
+                        staff: { select: { name: true } }
+                    },
+                    orderBy: { createdAt: 'desc' }
                 });
 
                 // Get today's transactions for this station
@@ -70,27 +75,23 @@ export async function GET(request: NextRequest) {
                         stationId: dbId,
                         createdAt: { gte: todayStart }
                     },
-                    _sum: { totalAmount: true, liters: true },
+                    _sum: { amount: true, liters: true },
                     _count: { id: true }
                 });
 
-                // Get latest gauge reading
-                const latestGauge = await prisma.gaugeReading.findFirst({
+                // Get latest gauge readings (all tanks)
+                const latestGauges = await prisma.gaugeReading.findMany({
                     where: { stationId: dbId },
-                    orderBy: { recordedAt: 'desc' }
+                    orderBy: { recordedAt: 'desc' },
+                    take: 3, // Get last 3 readings (one per tank)
+                    distinct: ['tankNumber']
                 });
 
-                // Calculate average gauge
+                // Calculate average gauge from latest readings
                 let gaugeAverage: number | null = null;
-                if (latestGauge) {
-                    const tanks = [
-                        latestGauge.tank1Pct,
-                        latestGauge.tank2Pct,
-                        latestGauge.tank3Pct
-                    ].filter(t => t !== null) as number[];
-                    if (tanks.length > 0) {
-                        gaugeAverage = tanks.reduce((sum, t) => sum + t, 0) / tanks.length;
-                    }
+                if (latestGauges.length > 0) {
+                    const percentages = latestGauges.map(g => Number(g.percentage));
+                    gaugeAverage = percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
                 }
 
                 // Generate alerts
@@ -113,9 +114,9 @@ export async function GET(request: NextRequest) {
                     currentShift: currentShift ? {
                         shiftNumber: currentShift.shiftNumber,
                         status: currentShift.status,
-                        staffName: currentShift.staffName
+                        staffName: currentShift.staff?.name || null
                     } : null,
-                    todaySales: todayData._sum.totalAmount || 0,
+                    todaySales: todayData._sum.amount || 0,
                     todayLiters: todayData._sum.liters || 0,
                     todayTransactions: todayData._count.id || 0,
                     gaugeAverage,
@@ -134,9 +135,9 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({
             summary: {
-                todayTotal: todayTxs._sum.totalAmount || 0,
-                weekTotal: weekTxs._sum.totalAmount || 0,
-                monthTotal: monthTxs._sum.totalAmount || 0,
+                todayTotal: todayTxs._sum.amount || 0,
+                weekTotal: weekTxs._sum.amount || 0,
+                monthTotal: monthTxs._sum.amount || 0,
                 todayTransactions: todayTxs._count.id || 0,
                 todayLiters: todayTxs._sum.liters || 0
             },

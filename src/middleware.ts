@@ -7,6 +7,7 @@ const protectedRoutes = [
     '/station',
     '/simple-station',
     '/gas-station',
+    '/gas',
     '/invoices',
     '/owners',
     '/trucks',
