@@ -5,7 +5,10 @@ import {
     AlertTriangle,
     CheckCircle,
     Loader2,
-    RefreshCw
+    RefreshCw,
+    TrendingDown,
+    XCircle,
+    Activity
 } from 'lucide-react';
 
 interface Anomaly {
@@ -13,7 +16,6 @@ interface Anomaly {
     severity: 'WARNING' | 'CRITICAL';
     message: string;
     date: string;
-    details?: Record<string, unknown>;
 }
 
 interface AnomalyData {
@@ -21,6 +23,26 @@ interface AnomalyData {
     anomalies: Anomaly[];
     stats: { avgDailyVolume: number; stdDevVolume: number };
 }
+
+const formatNumber = (n: number) => n.toLocaleString('th-TH', { maximumFractionDigits: 0 });
+
+const getAnomalyIcon = (type: string) => {
+    switch (type) {
+        case 'UNUSUAL_VOLUME': return <Activity className="text-orange-400" size={20} />;
+        case 'VOIDED_TRANSACTIONS': return <XCircle className="text-red-400" size={20} />;
+        case 'SUDDEN_DROP': return <TrendingDown className="text-red-400" size={20} />;
+        default: return <AlertTriangle className="text-yellow-400" size={20} />;
+    }
+};
+
+const getAnomalyTypeLabel = (type: string) => {
+    switch (type) {
+        case 'UNUSUAL_VOLUME': return 'ยอดผิดปกติ';
+        case 'VOIDED_TRANSACTIONS': return 'รายการยกเลิก';
+        case 'SUDDEN_DROP': return 'ยอดลดลงฉับพลัน';
+        default: return type;
+    }
+};
 
 export default function AnomaliesPage() {
     const [loading, setLoading] = useState(true);
@@ -79,113 +101,121 @@ export default function AnomaliesPage() {
                 </button>
             </div>
 
-            {/* Stats */}
+            {/* Summary Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-[#1a1a24] rounded-xl p-4 border border-white/10">
-                    <div className="text-sm text-gray-400">ค่าเฉลี่ย/วัน</div>
-                    <div className="text-xl font-bold text-amber-400">
-                        {data.stats.avgDailyVolume.toLocaleString('th-TH', { maximumFractionDigits: 0 })} L
+                <div className="bg-gradient-to-br from-amber-900/40 to-orange-900/40 rounded-xl p-5 border border-amber-500/30">
+                    <div className="text-sm text-amber-300/80">ค่าเฉลี่ย/วัน</div>
+                    <div className="text-2xl font-bold text-amber-400 mt-1">
+                        {formatNumber(data.stats.avgDailyVolume)} L
                     </div>
                 </div>
-                <div className="bg-[#1a1a24] rounded-xl p-4 border border-white/10">
-                    <div className="text-sm text-gray-400">Std Dev</div>
-                    <div className="text-xl font-bold">
-                        ±{data.stats.stdDevVolume.toLocaleString('th-TH', { maximumFractionDigits: 0 })} L
+                <div className="bg-gradient-to-br from-blue-900/40 to-cyan-900/40 rounded-xl p-5 border border-blue-500/30">
+                    <div className="text-sm text-blue-300/80">ค่าเบี่ยงเบน</div>
+                    <div className="text-2xl font-bold text-blue-400 mt-1">
+                        ±{formatNumber(data.stats.stdDevVolume)} L
                     </div>
                 </div>
-                <div className="bg-red-900/30 rounded-xl p-4 border border-red-500/30">
-                    <div className="text-sm text-red-300">วิกฤต</div>
-                    <div className="text-xl font-bold text-red-400">{criticalAnomalies.length}</div>
+                <div className="bg-gradient-to-br from-red-900/40 to-pink-900/40 rounded-xl p-5 border border-red-500/30">
+                    <div className="text-sm text-red-300/80">วิกฤต</div>
+                    <div className="text-3xl font-bold text-red-400 mt-1">{criticalAnomalies.length}</div>
                 </div>
-                <div className="bg-yellow-900/30 rounded-xl p-4 border border-yellow-500/30">
-                    <div className="text-sm text-yellow-300">เตือน</div>
-                    <div className="text-xl font-bold text-yellow-400">{warningAnomalies.length}</div>
+                <div className="bg-gradient-to-br from-yellow-900/40 to-amber-900/40 rounded-xl p-5 border border-yellow-500/30">
+                    <div className="text-sm text-yellow-300/80">เตือน</div>
+                    <div className="text-3xl font-bold text-yellow-400 mt-1">{warningAnomalies.length}</div>
                 </div>
             </div>
 
-            {/* No Anomalies */}
+            {/* No Anomalies - Good State */}
             {data.anomalies.length === 0 && (
-                <div className="bg-green-900/30 border border-green-500/30 rounded-xl p-8 text-center">
-                    <CheckCircle className="text-green-400 mx-auto mb-4" size={48} />
-                    <div className="text-xl font-medium text-green-300">ไม่พบความผิดปกติ</div>
-                    <p className="text-gray-400 text-sm mt-2">ข้อมูลการขายอยู่ในเกณฑ์ปกติ</p>
+                <div className="bg-gradient-to-br from-green-900/30 to-emerald-900/30 border border-green-500/40 rounded-2xl p-8 text-center">
+                    <CheckCircle className="text-green-400 mx-auto mb-4" size={64} />
+                    <div className="text-2xl font-bold text-green-300">✓ ทุกอย่างปกติ</div>
+                    <p className="text-gray-400 mt-2">ไม่พบความผิดปกติในข้อมูลการขายวันนี้</p>
                 </div>
             )}
 
             {/* Critical Anomalies */}
             {criticalAnomalies.length > 0 && (
-                <div className="space-y-3">
-                    <h2 className="text-lg font-semibold text-red-400">🚨 ความผิดปกติระดับวิกฤต</h2>
-                    {criticalAnomalies.map((a, i) => (
-                        <div key={i} className="bg-red-900/40 border border-red-500/50 rounded-xl p-4">
-                            <div className="flex items-start gap-3">
-                                <AlertTriangle className="text-red-400 flex-shrink-0 mt-1" size={20} />
-                                <div className="flex-1">
-                                    <div className="font-medium text-red-300">{a.message}</div>
-                                    <div className="text-xs text-red-400/70 mt-1">
-                                        ประเภท: {a.type} | วันที่: {a.date}
+                <div className="space-y-4">
+                    <h2 className="text-xl font-bold text-red-400 flex items-center gap-2">
+                        🚨 ต้องดำเนินการทันที
+                    </h2>
+                    <div className="grid gap-3">
+                        {criticalAnomalies.map((a, i) => (
+                            <div key={i} className="bg-gradient-to-r from-red-900/50 to-red-800/30 border border-red-500/50 rounded-xl p-5">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-red-500/20 rounded-full">
+                                        {getAnomalyIcon(a.type)}
                                     </div>
-                                    {a.details && (
-                                        <pre className="mt-2 text-xs bg-black/30 rounded p-2 text-gray-400 overflow-x-auto">
-                                            {JSON.stringify(a.details, null, 2)}
-                                        </pre>
-                                    )}
+                                    <div className="flex-1">
+                                        <div className="text-lg font-semibold text-white">{a.message}</div>
+                                        <div className="flex items-center gap-3 mt-1 text-sm text-gray-400">
+                                            <span className="px-2 py-0.5 bg-red-500/30 text-red-300 rounded">
+                                                {getAnomalyTypeLabel(a.type)}
+                                            </span>
+                                            <span>{a.date}</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
             )}
 
             {/* Warning Anomalies */}
             {warningAnomalies.length > 0 && (
-                <div className="space-y-3">
-                    <h2 className="text-lg font-semibold text-yellow-400">⚠️ ความผิดปกติระดับเตือน</h2>
-                    {warningAnomalies.map((a, i) => (
-                        <div key={i} className="bg-yellow-900/30 border border-yellow-500/30 rounded-xl p-4">
-                            <div className="flex items-start gap-3">
-                                <AlertTriangle className="text-yellow-400 flex-shrink-0 mt-1" size={20} />
-                                <div className="flex-1">
-                                    <div className="font-medium text-yellow-300">{a.message}</div>
-                                    <div className="text-xs text-yellow-400/70 mt-1">
-                                        ประเภท: {a.type} | วันที่: {a.date}
+                <div className="space-y-4">
+                    <h2 className="text-xl font-bold text-yellow-400 flex items-center gap-2">
+                        ⚠️ ควรตรวจสอบ
+                    </h2>
+                    <div className="grid gap-3">
+                        {warningAnomalies.map((a, i) => (
+                            <div key={i} className="bg-gradient-to-r from-yellow-900/40 to-amber-900/20 border border-yellow-500/40 rounded-xl p-5">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-yellow-500/20 rounded-full">
+                                        {getAnomalyIcon(a.type)}
                                     </div>
-                                    {a.details && (
-                                        <pre className="mt-2 text-xs bg-black/30 rounded p-2 text-gray-400 overflow-x-auto">
-                                            {JSON.stringify(a.details, null, 2)}
-                                        </pre>
-                                    )}
+                                    <div className="flex-1">
+                                        <div className="text-lg font-semibold text-white">{a.message}</div>
+                                        <div className="flex items-center gap-3 mt-1 text-sm text-gray-400">
+                                            <span className="px-2 py-0.5 bg-yellow-500/30 text-yellow-300 rounded">
+                                                {getAnomalyTypeLabel(a.type)}
+                                            </span>
+                                            <span>{a.date}</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
             )}
 
-            {/* Detection Rules */}
+            {/* Detection Rules - Simplified */}
             <div className="bg-[#1a1a24] rounded-xl p-6 border border-white/10">
-                <h2 className="text-lg font-semibold mb-4">📋 กฎการตรวจจับ</h2>
-                <div className="space-y-3 text-sm">
-                    <div className="flex items-start gap-3 p-3 bg-black/20 rounded-lg">
-                        <span className="text-red-400">🔴</span>
-                        <div>
-                            <div className="font-medium">UNUSUAL_VOLUME</div>
-                            <div className="text-gray-400">ยอดขายห่างจากค่าเฉลี่ยมากกว่า 2 เท่าของ Std Dev</div>
+                <h2 className="text-lg font-semibold mb-4">📋 ระบบตรวจจับอัตโนมัติ</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div className="p-4 bg-black/30 rounded-lg border border-orange-500/20">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Activity className="text-orange-400" size={18} />
+                            <span className="font-medium text-orange-300">ยอดผิดปกติ</span>
                         </div>
+                        <p className="text-gray-400">ยอดวันนี้ห่างจากค่าเฉลี่ย &gt;2 เท่าของค่าเบี่ยงเบน</p>
                     </div>
-                    <div className="flex items-start gap-3 p-3 bg-black/20 rounded-lg">
-                        <span className="text-yellow-400">🟡</span>
-                        <div>
-                            <div className="font-medium">VOIDED_TRANSACTIONS</div>
-                            <div className="text-gray-400">มีรายการยกเลิกในวันนั้น (≥3 = วิกฤต)</div>
+                    <div className="p-4 bg-black/30 rounded-lg border border-red-500/20">
+                        <div className="flex items-center gap-2 mb-2">
+                            <XCircle className="text-red-400" size={18} />
+                            <span className="font-medium text-red-300">รายการยกเลิก</span>
                         </div>
+                        <p className="text-gray-400">มีการยกเลิกรายการในวัน (≥3 = วิกฤต)</p>
                     </div>
-                    <div className="flex items-start gap-3 p-3 bg-black/20 rounded-lg">
-                        <span className="text-yellow-400">🟡</span>
-                        <div>
-                            <div className="font-medium">LARGE_TRANSACTIONS</div>
-                            <div className="text-gray-400">รายการมูลค่าสูง ({'>'}5,000 บาท)</div>
+                    <div className="p-4 bg-black/30 rounded-lg border border-red-500/20">
+                        <div className="flex items-center gap-2 mb-2">
+                            <TrendingDown className="text-red-400" size={18} />
+                            <span className="font-medium text-red-300">ยอดลดฉับพลัน</span>
                         </div>
+                        <p className="text-gray-400">ยอดลดลง &gt;50% เทียบเมื่อวาน</p>
                     </div>
                 </div>
             </div>

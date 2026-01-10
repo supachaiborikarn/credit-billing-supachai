@@ -122,31 +122,22 @@ export async function GET(request: NextRequest) {
                 type: 'VOIDED_TRANSACTIONS',
                 severity: voidedToday >= 3 ? 'CRITICAL' : 'WARNING',
                 message: `มีรายการยกเลิก ${voidedToday} รายการวันนี้`,
-                date: todayStr,
-                details: { count: voidedToday }
+                date: todayStr
             });
         }
 
-        // 3. Check for large single transactions (> 5000 baht)
-        const largeTransactions = await prisma.transaction.findMany({
-            where: {
-                stationId,
-                date: { gte: startOfDay, lte: endOfDay },
-                amount: { gte: 5000 },
-                isVoided: false,
-                deletedAt: null
-            },
-            select: { id: true, amount: true, liters: true, paymentType: true }
-        });
-
-        if (largeTransactions.length > 0) {
-            anomalies.push({
-                type: 'LARGE_TRANSACTIONS',
-                severity: 'WARNING',
-                message: `มีรายการมูลค่าสูง ${largeTransactions.length} รายการ (>5,000 บาท)`,
-                date: todayStr,
-                details: { count: largeTransactions.length, transactions: largeTransactions }
-            });
+        // 3. Check for sudden drop (today vs yesterday)
+        const yesterdayData = dailyTrend[dailyTrend.length - 2];
+        if (yesterdayData && yesterdayData.liters > 0 && todayLiters > 0) {
+            const dropPercent = ((yesterdayData.liters - todayLiters) / yesterdayData.liters) * 100;
+            if (dropPercent > 50) {
+                anomalies.push({
+                    type: 'SUDDEN_DROP',
+                    severity: dropPercent > 70 ? 'CRITICAL' : 'WARNING',
+                    message: `ยอดลดลง ${dropPercent.toFixed(0)}% เทียบกับเมื่อวาน`,
+                    date: todayStr
+                });
+            }
         }
 
         // ========== Fuel Type Breakdown ==========
