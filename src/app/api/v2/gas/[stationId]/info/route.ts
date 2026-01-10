@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveGasStation, getNonGasStationError } from '@/lib/gas';
+import { resolveGasStation, getNonGasStationError } from '@/lib/gas/station-resolver';
 
 /**
  * GET /api/v2/gas/[stationId]/info
