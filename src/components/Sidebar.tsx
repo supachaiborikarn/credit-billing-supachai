@@ -82,9 +82,13 @@ export default function Sidebar({ children }: SidebarProps) {
         { href: '/reports', icon: FileText, label: 'รายงาน', gradient: 'from-orange-500 to-yellow-500' },
     ];
 
+    // Hide old gas control after V2 migration date (2026-01-11)
+    const isAfterV2Migration = new Date() >= new Date('2026-01-11T00:00:00+07:00');
+
     const adminMenuItems = [
         { href: '/admin/gas', icon: Fuel, label: '🆕 Gas Control V2', gradient: 'from-purple-500 to-indigo-500' },
-        { href: '/admin/gas-control', icon: Fuel, label: '⛽ Gas Control', gradient: 'from-orange-500 to-red-500' },
+        // Hide old gas control after migration
+        ...(!isAfterV2Migration ? [{ href: '/admin/gas-control', icon: Fuel, label: '⛽ Gas Control', gradient: 'from-orange-500 to-red-500' }] : []),
         { href: '/admin/alerts', icon: Shield, label: '🛡️ Anti-Fraud', gradient: 'from-purple-500 to-pink-500' },
         { href: '/admin/transactions', icon: Edit, label: 'แก้ไขรายการ', gradient: 'from-red-500 to-orange-500' },
         { href: '/admin/owners', icon: Users, label: 'รวมเจ้าของ', gradient: 'from-indigo-500 to-blue-500' },
