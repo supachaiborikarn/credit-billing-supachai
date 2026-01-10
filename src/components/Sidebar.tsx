@@ -260,22 +260,6 @@ export default function Sidebar({ children }: SidebarProps) {
                                                         </span>
                                                         {station.type === 'GAS' && <span className={`text-xs ${color.text}`}>แก๊ส</span>}
                                                     </Link>
-                                                    {/* V2 Option for SIMPLE stations */}
-                                                    {station.type === 'SIMPLE' && (
-                                                        <Link
-                                                            href={`/gas/${station.id}`}
-                                                            className={`flex items-center gap-3 px-4 py-2 ml-4 rounded-lg text-xs transition-all duration-300 ${isV2Active
-                                                                ? 'bg-gradient-to-r from-purple-500/30 to-indigo-500/30 border border-purple-500/30'
-                                                                : 'hover:bg-white/5 border border-dashed border-white/10'
-                                                                }`}
-                                                            onClick={() => setIsMobileMenuOpen(false)}
-                                                        >
-                                                            <span className="text-purple-400">🆕</span>
-                                                            <span className={isV2Active ? 'text-purple-300 font-medium' : 'text-gray-500'}>
-                                                                {station.name} (V2)
-                                                            </span>
-                                                        </Link>
-                                                    )}
                                                 </div>
                                             );
                                         })}
