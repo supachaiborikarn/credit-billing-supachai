@@ -217,8 +217,8 @@ export default function GasStationHomePage() {
                                     {hasData && (
                                         <div
                                             className={`absolute bottom-0 left-0 right-0 transition-all ${pct >= 70 ? 'bg-green-500' :
-                                                    pct >= 40 ? 'bg-yellow-500' :
-                                                        pct >= 20 ? 'bg-orange-500' : 'bg-red-500'
+                                                pct >= 40 ? 'bg-yellow-500' :
+                                                    pct >= 20 ? 'bg-orange-500' : 'bg-red-500'
                                                 }`}
                                             style={{ height: `${pct}%` }}
                                         />
@@ -240,7 +240,7 @@ export default function GasStationHomePage() {
             </div>
 
             {/* Quick Actions */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 mb-8">
                 <Link
                     href={`/gas/${stationId}/sell`}
                     className="bg-gradient-to-br from-green-600 to-green-700 rounded-2xl p-6 text-center hover:from-green-500 hover:to-green-600 transition-all shadow-lg"

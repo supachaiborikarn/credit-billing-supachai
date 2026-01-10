@@ -198,7 +198,7 @@ export default function GasStationLayout({
             </nav>
 
             {/* Mobile Bottom Navigation */}
-            <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#1a1a24] border-t border-white/10 md:hidden">
+            <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#1a1a24] border-t border-white/10 md:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
                 <div className="flex justify-around py-2">
                     {navItems.slice(0, 4).map((item) => (
                         <Link
@@ -217,7 +217,7 @@ export default function GasStationLayout({
             </nav>
 
             {/* Main Content */}
-            <main className="pt-24 pb-28 px-4">
+            <main className="pt-24 pb-48 px-4">
                 {children}
             </main>
         </div>
