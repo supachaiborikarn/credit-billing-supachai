@@ -14,8 +14,10 @@ export async function GET(request: NextRequest) {
 
         const stationId = fullStation.id;
 
-        // Date ranges
-        const todayStr = getTodayBangkok();
+        // Get date from query params or use today
+        const { searchParams } = new URL(request.url);
+        const dateParam = searchParams.get('date');
+        const todayStr = dateParam || getTodayBangkok();
         const startOfDay = getStartOfDayBangkok(todayStr);
         const endOfDay = getEndOfDayBangkok(todayStr);
 
