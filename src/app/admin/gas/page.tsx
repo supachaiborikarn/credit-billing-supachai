@@ -9,13 +9,16 @@ import {
     Clock,
     AlertTriangle,
     ArrowRight,
-    Loader2
+    Loader2,
+    ExternalLink,
+    Play
 } from 'lucide-react';
 import { formatCurrency, formatThaiDate } from '@/lib/gas';
 
 interface StationSummary {
     id: string;
     name: string;
+    index: number;
     currentShift: { shiftNumber: number; status: string; staffName: string | null } | null;
     todaySales: number;
     todayLiters: number;
@@ -98,8 +101,8 @@ export default function AdminGasDashboardPage() {
                             key={range}
                             onClick={() => setTimeRange(range)}
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${timeRange === range
-                                    ? 'bg-purple-600 text-white'
-                                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                                ? 'bg-purple-600 text-white'
+                                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
                                 }`}
                         >
                             {range === 'today' ? 'วันนี้' : range === 'week' ? 'สัปดาห์' : 'เดือน'}
@@ -193,8 +196,8 @@ export default function AdminGasDashboardPage() {
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <div className={`w-3 h-3 rounded-full ${station.currentShift?.status === 'OPEN'
-                                                ? 'bg-green-400 animate-pulse'
-                                                : 'bg-gray-600'
+                                            ? 'bg-green-400 animate-pulse'
+                                            : 'bg-gray-600'
                                             }`} />
                                         <div>
                                             <div className="font-medium">{station.name}</div>
@@ -207,12 +210,35 @@ export default function AdminGasDashboardPage() {
                                         </div>
                                     </div>
 
-                                    <div className="text-right">
-                                        <div className="font-mono text-green-400">
-                                            ฿{formatCurrency(station.todaySales)}
+                                    <div className="flex items-center gap-4">
+                                        <div className="text-right">
+                                            <div className="font-mono text-green-400">
+                                                ฿{formatCurrency(station.todaySales)}
+                                            </div>
+                                            <div className="text-sm text-gray-400">
+                                                {station.todayLiters.toLocaleString()} L | {station.todayTransactions} รายการ
+                                            </div>
                                         </div>
-                                        <div className="text-sm text-gray-400">
-                                            {station.todayLiters.toLocaleString()} L | {station.todayTransactions} รายการ
+
+                                        {/* Links */}
+                                        <div className="flex gap-2">
+                                            {station.currentShift?.status === 'OPEN' ? (
+                                                <Link
+                                                    href={`/gas/${station.id}`}
+                                                    className="px-3 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm font-medium flex items-center gap-1 transition-colors"
+                                                >
+                                                    <ExternalLink size={14} />
+                                                    เข้าปั๊ม
+                                                </Link>
+                                            ) : (
+                                                <Link
+                                                    href={`/gas/${station.id}/shift/open`}
+                                                    className="px-3 py-2 bg-green-600 hover:bg-green-500 rounded-lg text-sm font-medium flex items-center gap-1 transition-colors"
+                                                >
+                                                    <Play size={14} />
+                                                    เปิดกะ
+                                                </Link>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
