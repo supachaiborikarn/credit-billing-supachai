@@ -217,7 +217,7 @@ export default function GasStationLayout({
             </nav>
 
             {/* Main Content */}
-            <main className="pt-24 pb-20 px-4">
+            <main className="pt-24 pb-28 px-4">
                 {children}
             </main>
         </div>
