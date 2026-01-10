@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
 
         // Mock tank data - TODO: Replace with real data when Tank model is created
         const mockTanks = simpleStations.flatMap(station =>
-            FUEL_TYPES.filter(f => !f.isProduct).slice(0, 3).map((fuel, index) => ({
+            FUEL_TYPES.filter(f => !('isProduct' in f && f.isProduct)).slice(0, 3).map((fuel) => ({
                 id: `mock-${station.id}-${fuel.value}`,
                 stationId: station.id,
                 stationName: station.name,
