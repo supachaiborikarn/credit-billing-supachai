@@ -299,6 +299,15 @@ export default function AdminGasDashboardPage() {
                     <div className="font-medium">กระทบยอด</div>
                     <div className="text-sm text-gray-400">ตรวจสอบส่วนต่าง</div>
                 </Link>
+
+                <Link
+                    href="/admin/gas/data-entry"
+                    className="bg-[#1a1a24] rounded-xl p-4 border border-orange-500/30 hover:border-orange-500/50 transition-colors group"
+                >
+                    <div className="text-orange-400 group-hover:text-orange-300 mb-2">📝</div>
+                    <div className="font-medium">ใส่ข้อมูลย้อนหลัง</div>
+                    <div className="text-sm text-gray-400">บันทึกมิเตอร์/เกจ/ยอดขาย</div>
+                </Link>
             </div>
         </div>
     );
