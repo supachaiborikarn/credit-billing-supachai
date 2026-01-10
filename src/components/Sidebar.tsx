@@ -83,6 +83,7 @@ export default function Sidebar({ children }: SidebarProps) {
     ];
 
     const adminMenuItems = [
+        { href: '/admin/gas', icon: Fuel, label: '🆕 Gas Control V2', gradient: 'from-purple-500 to-indigo-500' },
         { href: '/admin/gas-control', icon: Fuel, label: '⛽ Gas Control', gradient: 'from-orange-500 to-red-500' },
         { href: '/admin/alerts', icon: Shield, label: '🛡️ Anti-Fraud', gradient: 'from-purple-500 to-pink-500' },
         { href: '/admin/transactions', icon: Edit, label: 'แก้ไขรายการ', gradient: 'from-red-500 to-orange-500' },
@@ -233,31 +234,49 @@ export default function Sidebar({ children }: SidebarProps) {
                                     <ChevronDown size={16} className={`transition-transform duration-300 ${isStationsOpen ? 'rotate-180' : ''}`} />
                                 </button>
 
-                                <div className={`overflow-hidden transition-all duration-300 ${isStationsOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                <div className={`overflow-hidden transition-all duration-300 ${isStationsOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
                                     <div className="ml-2 space-y-1 mt-2">
                                         {visibleStations.map((station, index) => {
                                             const stationPath = getStationPath(station, index);
                                             const isStationActive = isActive(`/station/${index + 1}`) ||
                                                 isActive(`/simple-station/${index + 1}`) ||
                                                 isActive(`/gas-station/${index + 1}`);
+                                            const isV2Active = isActive(`/gas/${station.id}`);
                                             const color = getStationColors(station.type);
 
                                             return (
-                                                <Link
-                                                    key={station.id}
-                                                    href={stationPath}
-                                                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all duration-300 ${isStationActive
-                                                        ? `bg-gradient-to-r ${color.bg} border border-white/10`
-                                                        : 'hover:bg-white/5'
-                                                        }`}
-                                                    onClick={() => setIsMobileMenuOpen(false)}
-                                                >
-                                                    <span className={`w-2.5 h-2.5 rounded-full ${color.dot} ${isStationActive ? 'ring-2 ring-white/30' : ''}`} />
-                                                    <span className={`flex-1 ${isStationActive ? 'text-white font-medium' : 'text-gray-400'}`}>
-                                                        {station.name}
-                                                    </span>
-                                                    {station.type === 'GAS' && <span className={`text-xs ${color.text}`}>แก๊ส</span>}
-                                                </Link>
+                                                <div key={station.id} className="space-y-1">
+                                                    <Link
+                                                        href={stationPath}
+                                                        className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all duration-300 ${isStationActive
+                                                            ? `bg-gradient-to-r ${color.bg} border border-white/10`
+                                                            : 'hover:bg-white/5'
+                                                            }`}
+                                                        onClick={() => setIsMobileMenuOpen(false)}
+                                                    >
+                                                        <span className={`w-2.5 h-2.5 rounded-full ${color.dot} ${isStationActive ? 'ring-2 ring-white/30' : ''}`} />
+                                                        <span className={`flex-1 ${isStationActive ? 'text-white font-medium' : 'text-gray-400'}`}>
+                                                            {station.name}
+                                                        </span>
+                                                        {station.type === 'GAS' && <span className={`text-xs ${color.text}`}>แก๊ส</span>}
+                                                    </Link>
+                                                    {/* V2 Option for SIMPLE stations */}
+                                                    {station.type === 'SIMPLE' && (
+                                                        <Link
+                                                            href={`/gas/${station.id}`}
+                                                            className={`flex items-center gap-3 px-4 py-2 ml-4 rounded-lg text-xs transition-all duration-300 ${isV2Active
+                                                                ? 'bg-gradient-to-r from-purple-500/30 to-indigo-500/30 border border-purple-500/30'
+                                                                : 'hover:bg-white/5 border border-dashed border-white/10'
+                                                                }`}
+                                                            onClick={() => setIsMobileMenuOpen(false)}
+                                                        >
+                                                            <span className="text-purple-400">🆕</span>
+                                                            <span className={isV2Active ? 'text-purple-300 font-medium' : 'text-gray-500'}>
+                                                                {station.name} (V2)
+                                                            </span>
+                                                        </Link>
+                                                    )}
+                                                </div>
                                             );
                                         })}
                                     </div>

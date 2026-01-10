@@ -7,6 +7,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// GasSettings - global configuration for gas stations
+model GasSettings {
+  id        String   @id @default(uuid())
+  key       String   @unique // gasPrice, tankCapacity, tankCount, etc.
+  value     String   // stored as string, parsed as needed
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@map("gas_settings")
+}
+
 model User {
   id               String         @id @default(uuid())
   name             String
