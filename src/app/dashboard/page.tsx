@@ -304,6 +304,27 @@ export default function DashboardPage() {
                         เพิ่มรายการ
                     </button>
                     <button
+                        onClick={() => router.push('/admin/full')}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
+                    >
+                        <Fuel size={18} />
+                        🛢️ แท๊งลอย
+                    </button>
+                    <button
+                        onClick={() => router.push('/admin/simple')}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
+                    >
+                        <Fuel size={18} />
+                        ⛽ ปั๊มน้ำมัน
+                    </button>
+                    <button
+                        onClick={() => router.push('/admin/gas')}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
+                    >
+                        <Fuel size={18} />
+                        🔥 ปั๊มแก๊ส
+                    </button>
+                    <button
                         onClick={() => router.push('/reports')}
                         className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 text-white rounded-xl text-sm font-medium hover:bg-white/10 transition-all"
                     >
