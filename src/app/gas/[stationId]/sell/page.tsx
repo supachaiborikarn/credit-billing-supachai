@@ -36,6 +36,7 @@ export default function SellPage() {
     const [paymentType, setPaymentType] = useState<PaymentType>('CASH');
     const [liters, setLiters] = useState<string>('');
     const [amount, setAmount] = useState<string>('');
+    const [bookNo, setBookNo] = useState<string>('');
     const [billNo, setBillNo] = useState<string>('');
     const [notes, setNotes] = useState<string>('');
 
@@ -140,7 +141,8 @@ export default function SellPage() {
                     ownerId: selectedOwner?.id,
                     truckId: selectedTruck?.id,
                     licensePlate: selectedTruck?.licensePlate,
-                    billNo,
+                    bookNo: bookNo || null,
+                    billNo: billNo || null,
                     notes
                 })
             });
@@ -152,6 +154,7 @@ export default function SellPage() {
                     setPaymentType('CASH');
                     setLiters('');
                     setAmount('');
+                    setBookNo('');
                     setBillNo('');
                     setNotes('');
                     setSelectedOwner(null);
@@ -227,8 +230,8 @@ export default function SellPage() {
                                 key={type}
                                 onClick={() => setPaymentType(type)}
                                 className={`flex flex-col items-center gap-1 p-3 rounded-xl border transition-all ${isSelected
-                                        ? 'bg-orange-600/30 border-orange-500 ' + info.color
-                                        : 'bg-gray-800 border-white/10 text-gray-400 hover:border-white/30'
+                                    ? 'bg-orange-600/30 border-orange-500 ' + info.color
+                                    : 'bg-gray-800 border-white/10 text-gray-400 hover:border-white/30'
                                     }`}
                             >
                                 {type === 'CASH' && <Banknote size={20} />}
@@ -333,20 +336,51 @@ export default function SellPage() {
                 </div>
             </div>
 
+            {/* Book/Bill Number Fields - Required for Credit */}
+            {paymentType === 'CREDIT' && (
+                <div className="bg-purple-900/20 rounded-xl p-4 mb-4 border border-purple-500/30">
+                    <div className="text-sm text-purple-300 mb-3 font-medium">📝 ข้อมูลบิล (เงินเชื่อ)</div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm text-gray-400 mb-1">เล่มที่ *</label>
+                            <input
+                                type="text"
+                                value={bookNo}
+                                onChange={(e) => setBookNo(e.target.value)}
+                                placeholder="1"
+                                className="w-full bg-gray-800 border border-purple-500/50 rounded-lg px-3 py-2 focus:border-purple-400 focus:outline-none text-center font-mono"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm text-gray-400 mb-1">เลขที่บิล *</label>
+                            <input
+                                type="text"
+                                value={billNo}
+                                onChange={(e) => setBillNo(e.target.value)}
+                                placeholder="000001"
+                                className="w-full bg-gray-800 border border-purple-500/50 rounded-lg px-3 py-2 focus:border-purple-400 focus:outline-none text-center font-mono"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Optional Fields */}
             <div className="bg-[#1a1a24] rounded-xl p-4 mb-6 border border-white/10">
                 <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm text-gray-400 mb-1">เลขที่บิล (ถ้ามี)</label>
-                        <input
-                            type="text"
-                            value={billNo}
-                            onChange={(e) => setBillNo(e.target.value)}
-                            placeholder="000000"
-                            className="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 focus:border-orange-500 focus:outline-none"
-                        />
-                    </div>
-                    <div>
+                    {paymentType !== 'CREDIT' && (
+                        <div>
+                            <label className="block text-sm text-gray-400 mb-1">เลขที่บิล (ถ้ามี)</label>
+                            <input
+                                type="text"
+                                value={billNo}
+                                onChange={(e) => setBillNo(e.target.value)}
+                                placeholder="000000"
+                                className="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 focus:border-orange-500 focus:outline-none"
+                            />
+                        </div>
+                    )}
+                    <div className={paymentType !== 'CREDIT' ? '' : 'col-span-2'}>
                         <label className="block text-sm text-gray-400 mb-1">หมายเหตุ</label>
                         <input
                             type="text"
@@ -364,8 +398,8 @@ export default function SellPage() {
                 onClick={handleSubmit}
                 disabled={loading || !liters}
                 className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all ${loading || !liters
-                        ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg'
+                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg'
                     }`}
             >
                 {loading ? (
