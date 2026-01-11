@@ -41,11 +41,13 @@ export default function SellPage() {
     const [notes, setNotes] = useState<string>('');
 
     // Credit customer state
+    const [allOwners, setAllOwners] = useState<Owner[]>([]);
+    const [filteredOwners, setFilteredOwners] = useState<Owner[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState<Owner[]>([]);
     const [selectedOwner, setSelectedOwner] = useState<Owner | null>(null);
     const [selectedTruck, setSelectedTruck] = useState<{ id: string; licensePlate: string } | null>(null);
-    const [searching, setSearching] = useState(false);
+    const [showDropdown, setShowDropdown] = useState(false);
+    const [loadingOwners, setLoadingOwners] = useState(false);
 
     const [errors, setErrors] = useState<string[]>([]);
 
@@ -75,31 +77,50 @@ export default function SellPage() {
         }
     }, [liters, gasPrice]);
 
-    // Search customers for credit
-    const handleSearch = async () => {
-        if (!searchQuery.trim()) return;
-
-        setSearching(true);
-        try {
-            const res = await fetch(`/api/owners/search?q=${encodeURIComponent(searchQuery)}`);
-            if (res.ok) {
-                const data = await res.json();
-                setSearchResults(data.owners || []);
+    // Load all owners on mount
+    useEffect(() => {
+        const fetchOwners = async () => {
+            setLoadingOwners(true);
+            try {
+                const res = await fetch('/api/owners?limit=500');
+                if (res.ok) {
+                    const data = await res.json();
+                    const owners = data.owners || data || [];
+                    setAllOwners(owners);
+                    setFilteredOwners(owners);
+                }
+            } catch (error) {
+                console.error('Error fetching owners:', error);
+            } finally {
+                setLoadingOwners(false);
             }
-        } catch (error) {
-            console.error('Error searching owners:', error);
-        } finally {
-            setSearching(false);
+        };
+        fetchOwners();
+    }, []);
+
+    // Filter owners based on search
+    useEffect(() => {
+        if (!searchQuery.trim()) {
+            setFilteredOwners(allOwners);
+        } else {
+            const q = searchQuery.toLowerCase();
+            const filtered = allOwners.filter(o =>
+                o.name.toLowerCase().includes(q) ||
+                o.trucks.some(t => t.licensePlate.toLowerCase().includes(q))
+            );
+            setFilteredOwners(filtered);
         }
-    };
+    }, [searchQuery, allOwners]);
 
     const handleSelectOwner = (owner: Owner) => {
         setSelectedOwner(owner);
-        setSearchResults([]);
-        setSearchQuery(owner.name);
+        setShowDropdown(false);
+        setSearchQuery('');
         // Auto-select first truck if only one
         if (owner.trucks.length === 1) {
             setSelectedTruck(owner.trucks[0]);
+        } else {
+            setSelectedTruck(null);
         }
     };
 
@@ -245,50 +266,23 @@ export default function SellPage() {
                 </div>
             </div>
 
-            {/* Credit Customer Search */}
+            {/* Credit Customer Dropdown */}
             {paymentType === 'CREDIT' && (
                 <div className="bg-[#1a1a24] rounded-xl p-4 mb-4 border border-white/10">
-                    <label className="block text-sm text-gray-400 mb-2">ค้นหาลูกค้าเงินเชื่อ</label>
-                    <div className="flex gap-2 mb-2">
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                            placeholder="ชื่อลูกค้าหรือทะเบียนรถ..."
-                            className="flex-1 bg-gray-800 border border-white/10 rounded-lg px-4 py-2 focus:border-orange-500 focus:outline-none"
-                        />
-                        <button
-                            onClick={handleSearch}
-                            disabled={searching}
-                            className="bg-orange-600 hover:bg-orange-500 px-4 py-2 rounded-lg"
-                        >
-                            {searching ? <Loader2 className="animate-spin" size={20} /> : <Search size={20} />}
-                        </button>
-                    </div>
+                    <label className="block text-sm text-gray-400 mb-2">เลือกลูกค้าเงินเชื่อ</label>
 
-                    {/* Search Results */}
-                    {searchResults.length > 0 && (
-                        <div className="bg-gray-800 rounded-lg border border-white/10 max-h-40 overflow-y-auto">
-                            {searchResults.map((owner) => (
+                    {/* Selected Owner Display or Dropdown Trigger */}
+                    {selectedOwner ? (
+                        <div className="bg-purple-900/30 rounded-lg p-3 border border-purple-500/30">
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="text-purple-400 font-medium">{selectedOwner.name}</div>
                                 <button
-                                    key={owner.id}
-                                    onClick={() => handleSelectOwner(owner)}
-                                    className="w-full text-left px-4 py-2 hover:bg-white/10 border-b border-white/5 last:border-0"
+                                    onClick={() => { setSelectedOwner(null); setSelectedTruck(null); }}
+                                    className="text-xs text-gray-400 hover:text-white px-2 py-1 bg-gray-800 rounded"
                                 >
-                                    <div className="font-medium">{owner.name}</div>
-                                    <div className="text-xs text-gray-400">
-                                        {owner.trucks.map(t => t.licensePlate).join(', ')}
-                                    </div>
+                                    เปลี่ยน
                                 </button>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* Selected Owner & Truck */}
-                    {selectedOwner && (
-                        <div className="mt-3 bg-purple-900/30 rounded-lg p-3 border border-purple-500/30">
-                            <div className="text-purple-400 text-sm mb-2">ลูกค้า: {selectedOwner.name}</div>
+                            </div>
                             {selectedOwner.trucks.length > 1 ? (
                                 <select
                                     value={selectedTruck?.id || ''}
@@ -305,12 +299,58 @@ export default function SellPage() {
                                         </option>
                                     ))}
                                 </select>
-                            ) : (
+                            ) : selectedTruck && (
                                 <div className="text-white font-mono">
-                                    🚗 {selectedTruck?.licensePlate}
+                                    🚗 {selectedTruck.licensePlate}
                                 </div>
                             )}
                         </div>
+                    ) : (
+                        <div className="relative">
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => { setSearchQuery(e.target.value); setShowDropdown(true); }}
+                                onFocus={() => setShowDropdown(true)}
+                                placeholder={loadingOwners ? 'กำลังโหลด...' : 'พิมพ์ชื่อหรือทะเบียน หรือเลือกจากรายการ...'}
+                                className="w-full bg-gray-800 border border-orange-500/50 rounded-lg px-4 py-3 focus:border-orange-500 focus:outline-none"
+                            />
+
+                            {/* Dropdown List */}
+                            {showDropdown && (
+                                <div className="absolute z-20 w-full mt-1 bg-gray-800 rounded-lg border border-white/20 max-h-60 overflow-y-auto shadow-lg">
+                                    {filteredOwners.length > 0 ? (
+                                        filteredOwners.slice(0, 50).map((owner) => (
+                                            <button
+                                                key={owner.id}
+                                                onClick={() => handleSelectOwner(owner)}
+                                                className="w-full text-left px-4 py-3 hover:bg-orange-600/30 border-b border-white/5 last:border-0"
+                                            >
+                                                <div className="font-medium text-white">{owner.name}</div>
+                                                <div className="text-xs text-gray-400">
+                                                    {owner.trucks.length > 0
+                                                        ? owner.trucks.map(t => t.licensePlate).join(', ')
+                                                        : 'ไม่มีรถในระบบ'
+                                                    }
+                                                </div>
+                                            </button>
+                                        ))
+                                    ) : (
+                                        <div className="px-4 py-3 text-gray-400 text-center">
+                                            {loadingOwners ? 'กำลังโหลด...' : 'ไม่พบลูกค้า'}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Close dropdown when clicking outside */}
+                    {showDropdown && (
+                        <div
+                            className="fixed inset-0 z-10"
+                            onClick={() => setShowDropdown(false)}
+                        />
                     )}
                 </div>
             )}
