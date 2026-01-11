@@ -61,7 +61,11 @@ export default function ShiftReportPage() {
     useEffect(() => {
         fetch('/api/stations')
             .then(res => res.json())
-            .then(data => setStations(data.stations || []))
+            .then(data => {
+                const stationList = Array.isArray(data) ? data : (data.stations || []);
+                const gasStations = stationList.filter((s: { type?: string }) => s.type === 'GAS');
+                setStations(gasStations);
+            })
             .catch(console.error);
     }, []);
 
@@ -274,8 +278,8 @@ export default function ShiftReportPage() {
                                         </td>
                                         <td className="px-4 py-3 text-center">
                                             <span className={`px-2 py-1 rounded text-xs ${r.status === 'OPEN' ? 'bg-green-900/50 text-green-300' :
-                                                    r.status === 'CLOSED' ? 'bg-gray-700 text-gray-300' :
-                                                        'bg-blue-900/50 text-blue-300'
+                                                r.status === 'CLOSED' ? 'bg-gray-700 text-gray-300' :
+                                                    'bg-blue-900/50 text-blue-300'
                                                 }`}>
                                                 {r.status === 'OPEN' ? 'เปิด' :
                                                     r.status === 'CLOSED' ? 'ปิด' : 'ล็อค'}

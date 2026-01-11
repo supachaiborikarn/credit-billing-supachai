@@ -39,7 +39,11 @@ export default function ReconciliationPage() {
     useEffect(() => {
         fetch('/api/stations')
             .then(res => res.json())
-            .then(data => setStations(data.stations?.filter((s: { type: string }) => s.type === 'GAS') || []))
+            .then(data => {
+                const stationList = Array.isArray(data) ? data : (data.stations || []);
+                const gasStations = stationList.filter((s: { type?: string }) => s.type === 'GAS');
+                setStations(gasStations);
+            })
             .catch(console.error);
     }, []);
 
