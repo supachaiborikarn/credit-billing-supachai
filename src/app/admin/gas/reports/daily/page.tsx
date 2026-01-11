@@ -36,7 +36,13 @@ export default function DailyReportPage() {
     useEffect(() => {
         fetch('/api/stations')
             .then(res => res.json())
-            .then(data => setStations(data.stations || []))
+            .then(data => {
+                // Handle both array and { stations: [] } response
+                const stationList = Array.isArray(data) ? data : (data.stations || []);
+                // Filter only GAS type stations
+                const gasStations = stationList.filter((s: { type?: string }) => s.type === 'GAS');
+                setStations(gasStations);
+            })
             .catch(console.error);
     }, []);
 
