@@ -43,13 +43,24 @@ export async function checkDailyAnomaly(
                     gte: startOfDay,
                     lte: endOfDay
                 }
-            },
-            soldQty: { not: null }
+            }
         },
-        select: { soldQty: true }
+        select: {
+            startReading: true,
+            endReading: true,
+            soldQty: true
+        }
     });
 
-    const meterTotal = meterReadings.reduce((sum, r) => sum + Number(r.soldQty || 0), 0);
+    // Calculate meter total - use soldQty if available, otherwise calculate from readings
+    const meterTotal = meterReadings.reduce((sum, r) => {
+        if (r.soldQty !== null) {
+            return sum + Number(r.soldQty);
+        } else if (r.endReading !== null && r.startReading !== null) {
+            return sum + (Number(r.endReading) - Number(r.startReading));
+        }
+        return sum;
+    }, 0);
 
     // Get transaction total for the day
     const transactions = await prisma.transaction.findMany({
