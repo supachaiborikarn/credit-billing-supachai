@@ -18,24 +18,25 @@ model GasSettings {
 }
 
 model User {
-  id                String         @id @default(uuid())
-  name              String
-  username          String         @unique
-  password          String
-  role              UserRole       @default(STAFF)
-  stationId         String?
-  createdAt         DateTime       @default(now())
-  auditLogs         AuditLog[]
-  deviceTokens      DeviceToken[]
-  reviewedAnomalies MeterAnomaly[]
-  meterReadings     MeterReading[] @relation("MeterCapturedBy")
-  priceBooks        PriceBook[]    @relation("PriceBookCreatedBy")
-  sessions          Session[]
-  shiftsClosedBy    Shift[]        @relation("ShiftClosedBy")
-  shiftsLockedBy    Shift[]        @relation("ShiftLockedBy")
-  shifts            Shift[]        @relation("ShiftStaff")
-  transactions      Transaction[]
-  station           Station?       @relation(fields: [stationId], references: [id])
+  id                      String         @id @default(uuid())
+  name                    String
+  username                String         @unique
+  password                String
+  role                    UserRole       @default(STAFF)
+  stationId               String?
+  createdAt               DateTime       @default(now())
+  auditLogs               AuditLog[]
+  deviceTokens            DeviceToken[]
+  reviewedAnomalies       MeterAnomaly[]
+  dailyAnomaliesReviewed  DailyAnomaly[] @relation("DailyAnomalyReviewer")
+  meterReadings           MeterReading[] @relation("MeterCapturedBy")
+  priceBooks              PriceBook[]    @relation("PriceBookCreatedBy")
+  sessions                Session[]
+  shiftsClosedBy          Shift[]        @relation("ShiftClosedBy")
+  shiftsLockedBy          Shift[]        @relation("ShiftLockedBy")
+  shifts                  Shift[]        @relation("ShiftStaff")
+  transactions            Transaction[]
+  station                 Station?       @relation(fields: [stationId], references: [id])
 
   @@map("users")
 }
@@ -66,6 +67,7 @@ model Station {
   productInventories ProductInventory[]
   transactions       Transaction[]
   users              User[]
+  dailyAnomalies     DailyAnomaly[]
 
   @@map("stations")
 }
@@ -224,6 +226,26 @@ model MeterAnomaly {
   shift        Shift     @relation(fields: [shiftId], references: [id])
 
   @@map("meter_anomalies")
+}
+
+model DailyAnomaly {
+  id            String    @id @default(uuid())
+  stationId     String
+  date          DateTime  @db.Date
+  meterTotal    Decimal   // ยอดรวมมิเตอร์ (ลิตร)
+  transTotal    Decimal   // ยอดรวม transactions (ลิตร)
+  difference    Decimal   // ผลต่าง = transTotal - meterTotal
+  severity      String    @default("WARNING") // WARNING / CRITICAL
+  note          String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  
+  station       Station   @relation(fields: [stationId], references: [id])
+  reviewedBy    User?     @relation("DailyAnomalyReviewer", fields: [reviewedById], references: [id])
+
+  @@unique([stationId, date])
+  @@map("daily_anomalies")
 }
 
 model MeterReading {
