@@ -511,6 +511,7 @@ enum PaymentType {
   BOX_TRUCK
   OIL_TRUCK_SUPACHAI
   CREDIT_CARD
+  EXPENSE
 }
 
 enum OwnerGroup {

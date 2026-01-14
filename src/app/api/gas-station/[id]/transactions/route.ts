@@ -11,11 +11,13 @@ interface TransactionInput {
     ownerName?: string;
     ownerId?: string;
     paymentType: string;
-    nozzleNumber: number;
-    liters: number;
-    pricePerLiter: number;
+    nozzleNumber?: number;
+    liters?: number;
+    pricePerLiter?: number;
     amount: number;
     productType?: string;
+    notes?: string;
+    shiftNumber?: number;
 }
 
 export async function POST(
@@ -45,16 +47,23 @@ export async function POST(
             ownerName,
             ownerId,
             paymentType,
-            nozzleNumber,
-            liters,
-            pricePerLiter,
+            nozzleNumber = 0,
+            liters = 0,
+            pricePerLiter = 0,
             amount,
-            productType
+            productType,
+            notes,
+            shiftNumber
         } = body;
 
-        // Validate required fields
-        if (!paymentType || !liters || liters <= 0) {
-            return HttpErrors.badRequest('ข้อมูลไม่ครบถ้วน');
+        // Validate required fields - EXPENSE and CASH summary don't require liters
+        if (!paymentType || !amount) {
+            return HttpErrors.badRequest('ข้อมูลไม่ครบถ้วน: ต้องระบุประเภทการชำระเงินและจำนวนเงิน');
+        }
+
+        // For regular sales, require liters > 0 (skip for EXPENSE)
+        if (!['EXPENSE', 'CASH'].includes(paymentType) && (!liters || liters <= 0)) {
+            return HttpErrors.badRequest('ข้อมูลไม่ครบถ้วน: ต้องระบุจำนวนลิตร');
         }
 
         // CREDIT transactions require owner name
@@ -164,12 +173,13 @@ export async function POST(
                 ownerId: resolvedOwnerId,
                 ownerName: ownerName || null,
                 paymentType: paymentType as PaymentType,
-                nozzleNumber,
-                liters,
-                pricePerLiter,
+                nozzleNumber: nozzleNumber ?? 0,
+                liters: liters ?? 0,
+                pricePerLiter: pricePerLiter ?? 0,
                 amount,
-                productType: productType || 'LPG',
+                productType: productType || (paymentType === 'EXPENSE' ? 'EXPENSE' : 'LPG'),
                 recordedById: sessionUser.id,
+                notes: notes || null,
             }
         });
 
