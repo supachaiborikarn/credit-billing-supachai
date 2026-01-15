@@ -20,7 +20,8 @@ import {
     Clock,
     DollarSign,
     Banknote,
-    Receipt
+    Receipt,
+    LogOut
 } from 'lucide-react';
 import { GAS_PAYMENT_TYPES, STATIONS, DEFAULT_GAS_PRICE, STATION_STAFF, GAS_TANK_CAPACITY_LITERS, KG_TO_LITERS_CONVERSION, DEFAULT_STOCK_ALERT, NOZZLE_COUNT, TANK_COUNT } from '@/constants';
 import type { ShiftDataResponse, Shift, GaugeReading as GaugeReadingType } from '@/types/gas-station';
@@ -1076,6 +1077,16 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                 >
                                     ✨ V2 (Beta)
                                 </a>
+                                <button
+                                    onClick={async () => {
+                                        await fetch('/api/auth/logout', { method: 'POST' });
+                                        window.location.href = '/login';
+                                    }}
+                                    className="ml-2 px-3 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors flex items-center gap-1"
+                                >
+                                    <LogOut size={12} />
+                                    ออกจากระบบ
+                                </button>
                             </p>
                         </div>
                     </div>
