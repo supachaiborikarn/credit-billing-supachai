@@ -27,12 +27,12 @@ const STAFF_USERS = [
     { name: 'รงค์', username: 'รงค์', stationId: 'station-4' },
 
     // Station 5: ปั๊มแก๊สพงษ์อนันต์
-    { name: 'กุ้ง', username: 'กุ้ง', stationId: null },
-    { name: 'เล็ก', username: 'เล็ก', stationId: null },
+    { name: 'กุ้ง', username: 'กุ้ง', stationId: 'station-5' },
+    { name: 'เล็ก', username: 'เล็ก', stationId: 'station-5' },
 
     // Station 6: ปั๊มแก๊สศุภชัย
-    { name: 'เหน่ง', username: 'เหน่ง', stationId: null },
-    { name: 'คนอง', username: 'คนอง', stationId: null },
+    { name: 'เหน่ง', username: 'เหน่ง', stationId: 'station-6' },
+    { name: 'คนอง', username: 'คนอง', stationId: 'station-6' },
 ];
 
 async function main() {
