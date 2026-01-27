@@ -95,6 +95,7 @@ export default function Sidebar({ children }: SidebarProps) {
         { href: '/invoices', icon: FileText, label: 'วางบิล/ชำระเงิน', gradient: 'from-pink-500 to-rose-500' },
         { href: '/admin/inventory', icon: Fuel, label: '📦 จัดการสต็อก', gradient: 'from-green-500 to-emerald-500' },
         { href: '/admin/anomalies', icon: Shield, label: '⚠️ ตรวจ Anomaly', gradient: 'from-yellow-500 to-orange-500' },
+        { href: '/admin/daily-anomalies', icon: Shield, label: '📊 Anomaly รายวัน', gradient: 'from-amber-500 to-yellow-500' },
         { href: '/admin/low-stock', icon: Fuel, label: '🚨 สต็อกต่ำ', gradient: 'from-red-500 to-pink-500' },
         { href: '/admin/credit-limit', icon: Users, label: '💳 จัดการวงเงิน', gradient: 'from-blue-500 to-cyan-500' },
         { href: '/admin/outstanding', icon: Users, label: '📋 ลูกค้าค้างชำระ', gradient: 'from-orange-500 to-red-500' },
