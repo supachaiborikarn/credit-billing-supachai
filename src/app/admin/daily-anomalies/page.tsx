@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { AlertTriangle, CheckCircle, Calendar, ArrowLeft, RefreshCw } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Calendar, ArrowLeft, RefreshCw, Scan } from 'lucide-react';
 import Link from 'next/link';
 
 interface DailyAnomaly {
@@ -22,6 +22,7 @@ interface DailyAnomaly {
 export default function DailyAnomaliesPage() {
     const [anomalies, setAnomalies] = useState<DailyAnomaly[]>([]);
     const [loading, setLoading] = useState(true);
+    const [scanning, setScanning] = useState(false);
     const [status, setStatus] = useState<'pending' | 'reviewed' | 'all'>('pending');
 
     const fetchAnomalies = async () => {
@@ -36,6 +37,27 @@ export default function DailyAnomaliesPage() {
             console.error('Error fetching anomalies:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const triggerScan = async () => {
+        setScanning(true);
+        try {
+            const res = await fetch('/api/admin/daily-anomalies', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ days: 30 })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                alert(`สแกนเสร็จสิ้น! พบความผิดปกติ ${data.totalFound} รายการ`);
+                fetchAnomalies(); // Refresh the list
+            }
+        } catch (error) {
+            console.error('Error scanning:', error);
+            alert('เกิดข้อผิดพลาดในการสแกน');
+        } finally {
+            setScanning(false);
         }
     };
 
@@ -61,6 +83,14 @@ export default function DailyAnomaliesPage() {
                         <p className="text-gray-400 text-sm">เปรียบเทียบยอด transactions กับยอดมิเตอร์รายวัน</p>
                     </div>
                     <button
+                        onClick={triggerScan}
+                        disabled={scanning}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg"
+                    >
+                        <Scan size={18} className={scanning ? 'animate-pulse' : ''} />
+                        {scanning ? 'กำลังสแกน...' : 'Scan 30 วัน'}
+                    </button>
+                    <button
                         onClick={fetchAnomalies}
                         className="p-2 hover:bg-white/10 rounded-lg"
                     >
@@ -79,8 +109,8 @@ export default function DailyAnomaliesPage() {
                             key={opt.value}
                             onClick={() => setStatus(opt.value as typeof status)}
                             className={`px-4 py-2 rounded-lg transition-all ${status === opt.value
-                                    ? 'bg-yellow-600 text-white'
-                                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                                ? 'bg-yellow-600 text-white'
+                                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
                                 }`}
                         >
                             {opt.label}
@@ -154,8 +184,8 @@ export default function DailyAnomaliesPage() {
                                         </td>
                                         <td className="px-4 py-3 text-center">
                                             <span className={`px-2 py-1 rounded-full text-xs ${a.severity === 'CRITICAL'
-                                                    ? 'bg-red-500/20 text-red-400'
-                                                    : 'bg-yellow-500/20 text-yellow-400'
+                                                ? 'bg-red-500/20 text-red-400'
+                                                : 'bg-yellow-500/20 text-yellow-400'
                                                 }`}>
                                                 {a.severity}
                                             </span>
