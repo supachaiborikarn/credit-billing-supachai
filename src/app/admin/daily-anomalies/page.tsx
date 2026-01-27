@@ -72,7 +72,7 @@ export default function DailyAnomaliesPage() {
             <div className="max-w-6xl mx-auto">
                 {/* Header */}
                 <div className="flex items-center gap-4 mb-6">
-                    <Link href="/admin" className="p-2 hover:bg-white/10 rounded-lg">
+                    <Link href="/dashboard" className="p-2 hover:bg-white/10 rounded-lg">
                         <ArrowLeft size={24} />
                     </Link>
                     <div className="flex-1">
