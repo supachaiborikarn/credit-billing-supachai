@@ -85,24 +85,43 @@ export default function Sidebar({ children }: SidebarProps) {
     // Hide old gas control after V2 migration date (2026-01-11)
     const isAfterV2Migration = new Date() >= new Date('2026-01-11T00:00:00+07:00');
 
-    const adminMenuItems = [
-        { href: '/admin/gas', icon: Fuel, label: '🆕 Gas Control V2', gradient: 'from-purple-500 to-indigo-500' },
-        // Hide old gas control after migration
-        ...(!isAfterV2Migration ? [{ href: '/admin/gas-control', icon: Fuel, label: '⛽ Gas Control', gradient: 'from-orange-500 to-red-500' }] : []),
-        { href: '/admin/alerts', icon: Shield, label: '🛡️ Anti-Fraud', gradient: 'from-purple-500 to-pink-500' },
-        { href: '/admin/transactions', icon: Edit, label: 'แก้ไขรายการ', gradient: 'from-red-500 to-orange-500' },
-        { href: '/admin/owners', icon: Users, label: 'รวมเจ้าของ', gradient: 'from-indigo-500 to-blue-500' },
-        { href: '/invoices', icon: FileText, label: 'วางบิล/ชำระเงิน', gradient: 'from-pink-500 to-rose-500' },
-        { href: '/admin/inventory', icon: Fuel, label: '📦 จัดการสต็อก', gradient: 'from-green-500 to-emerald-500' },
-        { href: '/admin/anomalies', icon: Shield, label: '⚠️ ตรวจ Anomaly', gradient: 'from-yellow-500 to-orange-500' },
-        { href: '/admin/daily-anomalies', icon: Shield, label: '📊 Anomaly รายวัน', gradient: 'from-amber-500 to-yellow-500' },
-        { href: '/admin/low-stock', icon: Fuel, label: '🚨 สต็อกต่ำ', gradient: 'from-red-500 to-pink-500' },
-        { href: '/admin/credit-limit', icon: Users, label: '💳 จัดการวงเงิน', gradient: 'from-blue-500 to-cyan-500' },
-        { href: '/admin/outstanding', icon: Users, label: '📋 ลูกค้าค้างชำระ', gradient: 'from-orange-500 to-red-500' },
-        { href: '/admin/generate-invoices', icon: FileText, label: '📄 สร้าง Invoice', gradient: 'from-cyan-500 to-teal-500' },
-        { href: '/admin/invoices', icon: FileText, label: '📑 รายการ Invoice', gradient: 'from-teal-500 to-green-500' },
-        { href: '/users', icon: Users, label: 'จัดการผู้ใช้', gradient: 'from-violet-500 to-purple-500' },
-        { href: '/settings', icon: Settings, label: 'ตั้งค่า', gradient: 'from-gray-500 to-slate-500' },
+    // Admin menu organized into logical groups
+    const adminMenuGroups = [
+        {
+            title: '🛢️ ปั๊มน้ำมัน',
+            items: [
+                { href: '/admin/gas', icon: Fuel, label: 'Gas Control V2', gradient: 'from-purple-500 to-indigo-500' },
+                { href: '/admin/inventory', icon: Fuel, label: 'จัดการสต็อก', gradient: 'from-green-500 to-emerald-500' },
+                { href: '/admin/low-stock', icon: Fuel, label: 'สต็อกต่ำ', gradient: 'from-red-500 to-pink-500' },
+            ]
+        },
+        {
+            title: '⚠️ ตรวจสอบ',
+            items: [
+                { href: '/admin/alerts', icon: Shield, label: 'Anti-Fraud', gradient: 'from-purple-500 to-pink-500' },
+                { href: '/admin/anomalies', icon: Shield, label: 'ตรวจ Anomaly (กะ)', gradient: 'from-yellow-500 to-orange-500' },
+                { href: '/admin/daily-anomalies', icon: Shield, label: 'ตรวจ Anomaly (รายวัน)', gradient: 'from-amber-500 to-yellow-500' },
+            ]
+        },
+        {
+            title: '💰 การเงิน & บิล',
+            items: [
+                { href: '/invoices', icon: FileText, label: 'วางบิล/ชำระเงิน', gradient: 'from-pink-500 to-rose-500' },
+                { href: '/admin/generate-invoices', icon: FileText, label: 'สร้าง Invoice', gradient: 'from-cyan-500 to-teal-500' },
+                { href: '/admin/invoices', icon: FileText, label: 'รายการ Invoice', gradient: 'from-teal-500 to-green-500' },
+                { href: '/admin/outstanding', icon: Users, label: 'ลูกค้าค้างชำระ', gradient: 'from-orange-500 to-red-500' },
+                { href: '/admin/credit-limit', icon: Users, label: 'จัดการวงเงิน', gradient: 'from-blue-500 to-cyan-500' },
+            ]
+        },
+        {
+            title: '👥 ข้อมูลพื้นฐาน',
+            items: [
+                { href: '/admin/transactions', icon: Edit, label: 'แก้ไขรายการ', gradient: 'from-red-500 to-orange-500' },
+                { href: '/admin/owners', icon: Users, label: 'รวมเจ้าของ', gradient: 'from-indigo-500 to-blue-500' },
+                { href: '/users', icon: Users, label: 'จัดการผู้ใช้', gradient: 'from-violet-500 to-purple-500' },
+                { href: '/settings', icon: Settings, label: 'ตั้งค่า', gradient: 'from-gray-500 to-slate-500' },
+            ]
+        },
     ];
 
     // Filter stations for staff - only show their assigned station
@@ -305,28 +324,36 @@ export default function Sidebar({ children }: SidebarProps) {
 
                     {/* Admin Menu */}
                     {isAdmin && (
-                        <div className="pt-4 border-t border-white/10 mt-4">
-                            <p className="px-4 py-2 text-xs text-gray-500 uppercase tracking-wider">Admin</p>
-                            {adminMenuItems.map(item => (
-                                <Link
-                                    key={item.href}
-                                    href={item.href}
-                                    className={`group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${isActive(item.href)
-                                        ? 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border border-purple-500/30'
-                                        : 'hover:bg-white/5'
-                                        }`}
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                >
-                                    <div className={`p-2 rounded-lg transition-all duration-300 ${isActive(item.href)
-                                        ? `bg-gradient-to-br ${item.gradient}`
-                                        : 'bg-white/5 group-hover:bg-white/10'
-                                        }`}>
-                                        <item.icon size={18} className={isActive(item.href) ? 'text-white' : 'text-gray-400 group-hover:text-white'} />
+                        <div className="pt-4 border-t border-white/10 mt-4 space-y-4">
+                            {adminMenuGroups.map((group) => (
+                                <div key={group.title}>
+                                    <p className="px-4 py-2 text-xs text-gray-500 uppercase tracking-wider">
+                                        {group.title}
+                                    </p>
+                                    <div className="space-y-1">
+                                        {group.items.map(item => (
+                                            <Link
+                                                key={item.href}
+                                                href={item.href}
+                                                className={`group flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-300 ${isActive(item.href)
+                                                    ? 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border border-purple-500/30'
+                                                    : 'hover:bg-white/5'
+                                                    }`}
+                                                onClick={() => setIsMobileMenuOpen(false)}
+                                            >
+                                                <div className={`p-1.5 rounded-lg transition-all duration-300 ${isActive(item.href)
+                                                    ? `bg-gradient-to-br ${item.gradient}`
+                                                    : 'bg-white/5 group-hover:bg-white/10'
+                                                    }`}>
+                                                    <item.icon size={16} className={isActive(item.href) ? 'text-white' : 'text-gray-400 group-hover:text-white'} />
+                                                </div>
+                                                <span className={`text-sm font-medium transition-colors ${isActive(item.href) ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
+                                                    {item.label}
+                                                </span>
+                                            </Link>
+                                        ))}
                                     </div>
-                                    <span className={`font-medium transition-colors ${isActive(item.href) ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
-                                        {item.label}
-                                    </span>
-                                </Link>
+                                </div>
                             ))}
                         </div>
                     )}
