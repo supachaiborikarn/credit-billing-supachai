@@ -110,16 +110,37 @@ export async function checkDailyAnomaly(
 export async function checkAndSaveDailyAnomaly(
     stationId: string,
     date: Date
-): Promise<{ success: boolean; result: DailyAnomalyResult; saved: boolean }> {
+): Promise<{ success: boolean; result: DailyAnomalyResult; saved: boolean; deleted?: boolean }> {
     const result = await checkDailyAnomaly(stationId, date);
 
+    // Get date only for database lookup
+    const dateOnly = new Date(date);
+    dateOnly.setHours(0, 0, 0, 0);
+
     if (!result.hasAnomaly) {
+        // No anomaly - check if there's an existing record to delete
+        const existing = await prisma.dailyAnomaly.findUnique({
+            where: {
+                stationId_date: {
+                    stationId,
+                    date: dateOnly
+                }
+            }
+        });
+
+        if (existing) {
+            // Data was corrected - delete the old anomaly record
+            await prisma.dailyAnomaly.delete({
+                where: { id: existing.id }
+            });
+            console.log(`[DailyAnomaly] Deleted resolved anomaly for ${stationId} on ${dateOnly.toISOString().split('T')[0]}`);
+            return { success: true, result, saved: false, deleted: true };
+        }
+
         return { success: true, result, saved: false };
     }
 
-    // Check if already exists
-    const dateOnly = new Date(date);
-    dateOnly.setHours(0, 0, 0, 0);
+    // Check if already exists (dateOnly already declared above)
 
     const existing = await prisma.dailyAnomaly.findUnique({
         where: {
