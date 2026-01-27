@@ -63,10 +63,11 @@ export async function checkDailyAnomaly(
     }, 0);
 
     // Get transaction total for the day
+    // Use 'date' field instead of 'createdAt' to correctly count retroactive transactions
     const transactions = await prisma.transaction.findMany({
         where: {
             stationId,
-            createdAt: {
+            date: {
                 gte: startOfDay,
                 lte: endOfDay
             },
