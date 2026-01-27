@@ -7,6 +7,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
+import { getStartOfDayBangkok, getEndOfDayBangkok, formatDateBangkok } from '@/lib/date-utils';
 
 const WARNING_THRESHOLD = 10;   // ผลต่าง 10 ลิตร = WARNING
 const CRITICAL_THRESHOLD = 50;  // ผลต่าง 50 ลิตร = CRITICAL
@@ -28,11 +29,11 @@ export async function checkDailyAnomaly(
     stationId: string,
     date: Date
 ): Promise<DailyAnomalyResult> {
-    // Get start and end of day
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    // Convert date to Bangkok timezone string and get proper UTC ranges
+    const dateStr = formatDateBangkok(date);
+    const startOfDay = getStartOfDayBangkok(dateStr);
+    const endOfDay = getEndOfDayBangkok(dateStr);
+
 
     // Get meter total for the day
     const meterReadings = await prisma.meterReading.findMany({
@@ -114,9 +115,9 @@ export async function checkAndSaveDailyAnomaly(
 ): Promise<{ success: boolean; result: DailyAnomalyResult; saved: boolean; deleted?: boolean }> {
     const result = await checkDailyAnomaly(stationId, date);
 
-    // Get date only for database lookup
-    const dateOnly = new Date(date);
-    dateOnly.setHours(0, 0, 0, 0);
+    // Get date only for database lookup (using Bangkok timezone)
+    const dateStr = formatDateBangkok(date);
+    const dateOnly = getStartOfDayBangkok(dateStr);
 
     if (!result.hasAnomaly) {
         // No anomaly - check if there's an existing record to delete
