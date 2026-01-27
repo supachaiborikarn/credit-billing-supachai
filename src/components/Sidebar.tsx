@@ -77,8 +77,7 @@ export default function Sidebar({ children }: SidebarProps) {
 
     const menuItems = [
         { href: '/dashboard', icon: LayoutDashboard, label: 'ภาพรวม', gradient: 'from-purple-500 to-pink-500' },
-        { href: '/owners', icon: Users, label: 'รายชื่อเจ้าของ', gradient: 'from-blue-500 to-cyan-500' },
-        { href: '/trucks', icon: Truck, label: 'รายชื่อรถ', gradient: 'from-green-500 to-emerald-500' },
+        { href: '/owners', icon: Users, label: 'ลูกค้า & รถ', gradient: 'from-blue-500 to-cyan-500' },
         { href: '/reports', icon: FileText, label: 'รายงาน', gradient: 'from-orange-500 to-yellow-500' },
     ];
 

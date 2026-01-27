@@ -15,11 +15,41 @@ export async function GET() {
         const owners = await prisma.owner.findMany({
             orderBy: { name: 'asc' },
             include: {
+                trucks: {
+                    select: {
+                        id: true,
+                        licensePlate: true,
+                    },
+                    orderBy: { licensePlate: 'asc' }
+                },
                 _count: { select: { trucks: true, transactions: true } }
             }
         });
 
-        return NextResponse.json(owners);
+        // Get unpaid invoice totals for each owner
+        const ownerIds = owners.map(o => o.id);
+        const invoiceBalances = await prisma.invoice.groupBy({
+            by: ['ownerId'],
+            where: {
+                ownerId: { in: ownerIds },
+                status: { in: ['PENDING', 'PARTIAL'] }
+            },
+            _sum: { totalAmount: true, paidAmount: true }
+        });
+
+        const balanceMap = new Map(
+            invoiceBalances.map(b => [
+                b.ownerId,
+                (Number(b._sum?.totalAmount) || 0) - (Number(b._sum?.paidAmount) || 0)
+            ])
+        );
+
+        const result = owners.map(owner => ({
+            ...owner,
+            balance: balanceMap.get(owner.id) || 0
+        }));
+
+        return NextResponse.json(result);
     } catch (error) {
         console.error('[Owners GET]:', error);
         return HttpErrors.internal(getErrorMessage(error));
