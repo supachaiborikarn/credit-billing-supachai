@@ -106,7 +106,7 @@ export default function RefillModal({
             formData.append('file', transferProofFile);
             formData.append('type', 'transfer_proof');
 
-            const res = await fetch('/api/upload', {
+            const res = await fetch('/api/upload/transfer-proof', {
                 method: 'POST',
                 body: formData,
             });
