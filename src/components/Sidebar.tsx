@@ -95,11 +95,11 @@ export default function Sidebar({ children }: SidebarProps) {
             ]
         },
         {
-            title: '⚠️ ตรวจสอบ',
+            title: '⚠️ ตรวจสอบความผิดปกติ',
             items: [
-                { href: '/admin/alerts', icon: Shield, label: 'Anti-Fraud', gradient: 'from-purple-500 to-pink-500' },
-                { href: '/admin/anomalies', icon: Shield, label: 'ตรวจ Anomaly (กะ)', gradient: 'from-yellow-500 to-orange-500' },
-                { href: '/admin/daily-anomalies', icon: Shield, label: 'ตรวจ Anomaly (รายวัน)', gradient: 'from-amber-500 to-yellow-500' },
+                { href: '/admin/alerts', icon: Shield, label: 'Anti-Fraud (รายบิล)', gradient: 'from-purple-500 to-pink-500' },
+                { href: '/admin/anomalies', icon: Shield, label: 'Anomaly ปั๊มซิมเปิ้ล (กะ)', gradient: 'from-yellow-500 to-orange-500' },
+                { href: '/admin/daily-anomalies', icon: Shield, label: 'Anomaly แท๊งลอย (วัน)', gradient: 'from-amber-500 to-yellow-500' },
             ]
         },
         {
