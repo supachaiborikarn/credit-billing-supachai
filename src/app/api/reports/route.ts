@@ -85,14 +85,57 @@ export async function GET(request: Request) {
                 new Date(b.date).getTime() - new Date(a.date).getTime()
             );
 
-            // Calculate summary
+            // Calculate current period stats
+            const currentTotal = data.reduce((s, d) => s + d.totalAmount, 0);
+            const currentLiters = data.reduce((s, d) => s + d.totalLiters, 0);
+            const currentTransactions = data.reduce((s, d) => s + d.transactionCount, 0);
+            const currentCash = data.reduce((s, d) => s + d.cashAmount, 0);
+            const currentCredit = data.reduce((s, d) => s + d.creditAmount, 0);
+
+            // Calculate previous period for comparison
+            const periodLength = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+            const prevEnd = new Date(start.getTime() - (1000 * 60 * 60 * 24));
+            const prevStart = new Date(prevEnd.getTime() - periodLength * (1000 * 60 * 60 * 24));
+
+            const prevTransactions = await prisma.transaction.findMany({
+                where: {
+                    date: { gte: prevStart, lte: prevEnd },
+                    deletedAt: null,
+                },
+                select: { amount: true, liters: true }
+            });
+
+            const prevTotal = prevTransactions.reduce((s, t) => s + Number(t.amount), 0);
+            const prevLiters = prevTransactions.reduce((s, t) => s + Number(t.liters), 0);
+
+            // Calculate change percentages
+            const amountChange = prevTotal > 0 ? ((currentTotal - prevTotal) / prevTotal) * 100 : 0;
+            const litersChange = prevLiters > 0 ? ((currentLiters - prevLiters) / prevLiters) * 100 : 0;
+
+            // Calculate average per day
+            const daysWithData = data.length;
+            const avgPerDay = daysWithData > 0 ? currentTotal / daysWithData : 0;
+
             const summary = {
-                totalAmount: data.reduce((s, d) => s + d.totalAmount, 0),
-                totalLiters: data.reduce((s, d) => s + d.totalLiters, 0),
-                totalTransactions: data.reduce((s, d) => s + d.transactionCount, 0),
-                totalCash: data.reduce((s, d) => s + d.cashAmount, 0),
-                totalCredit: data.reduce((s, d) => s + d.creditAmount, 0),
-                dateRange: { start: start.toISOString(), end: end.toISOString() }
+                totalAmount: currentTotal,
+                totalLiters: currentLiters,
+                totalTransactions: currentTransactions,
+                totalCash: currentCash,
+                totalCredit: currentCredit,
+                // Comparison data
+                previousAmount: prevTotal,
+                previousLiters: prevLiters,
+                amountChange: Math.round(amountChange * 10) / 10,
+                litersChange: Math.round(litersChange * 10) / 10,
+                // Stats
+                avgPerDay: Math.round(avgPerDay * 100) / 100,
+                daysWithData,
+                dateRange: {
+                    start: start.toISOString(),
+                    end: end.toISOString(),
+                    startDisplay: formatDateBangkok(start),
+                    endDisplay: formatDateBangkok(end)
+                }
             };
 
             return NextResponse.json({ type: 'daily', data, summary });

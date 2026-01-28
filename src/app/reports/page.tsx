@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Spinner, { LoadingState } from '@/components/Spinner';
 import { formatCurrency, formatNumber, formatCompact } from '@/utils/format';
@@ -9,13 +9,17 @@ import {
     Download,
     Calendar,
     TrendingUp,
+    TrendingDown,
     Users,
     Fuel,
     DollarSign,
     AlertCircle,
     BarChart3,
     Sparkles,
-    Gauge
+    Gauge,
+    Info,
+    Building2,
+    CreditCard
 } from 'lucide-react';
 import {
     BarChart,
@@ -26,7 +30,8 @@ import {
     Tooltip,
     ResponsiveContainer,
     LineChart,
-    Line
+    Line,
+    ReferenceLine
 } from 'recharts';
 
 type ReportType = 'daily' | 'monthly' | 'debt' | 'station' | 'gas' | 'shift_meters';
@@ -218,14 +223,29 @@ export default function ReportsPage() {
 
 
 
-    const reportTypes = [
-        { value: 'daily', label: 'รายวัน', icon: Calendar },
-        { value: 'monthly', label: 'รายเดือน', icon: BarChart3 },
-        { value: 'gas', label: '⛽ ปั๊มแก๊ส', icon: Fuel, color: 'text-cyan-400' },
-        { value: 'shift_meters', label: '📊 มิเตอร์ตามกะ', icon: Gauge, color: 'text-yellow-400' },
-        { value: 'debt', label: 'ลูกหนี้ค้าง', icon: AlertCircle },
-        { value: 'station', label: 'ตามสถานี', icon: Fuel },
+    // Report categories - แยกตามประเภทและมุมมอง
+    const salesReports = [
+        { value: 'daily', label: 'ยอดขายรายวัน', icon: Calendar },
+        { value: 'monthly', label: 'ยอดขายรายเดือน', icon: BarChart3 },
+        { value: 'station', label: 'ยอดขายตามสถานี', icon: Building2 },
     ];
+    const specialReports = [
+        { value: 'debt', label: 'ลูกหนี้ค้างชำระ', icon: CreditCard },
+        { value: 'gas', label: 'ปั๊มแก๊ส LPG', icon: Fuel },
+        { value: 'shift_meters', label: 'มิเตอร์ตามกะ', icon: Gauge },
+    ];
+
+    // Get report label for scope display
+    const getReportLabel = () => {
+        const all = [...salesReports, ...specialReports];
+        return all.find(r => r.value === reportType)?.label || 'รายงาน';
+    };
+
+    // Format date for Thai display
+    const formatThaiDate = (dateStr: string) => {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+    };
 
     return (
         <Sidebar>
@@ -235,7 +255,7 @@ export default function ReportsPage() {
                     style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.3) 0%, transparent 70%)' }} />
 
                 {/* Header */}
-                <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+                <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
                     <div className="flex items-center gap-3">
                         <div className="p-3 rounded-2xl bg-gradient-to-br from-orange-500 to-yellow-500">
                             <FileText className="text-white" size={28} />
@@ -246,7 +266,7 @@ export default function ReportsPage() {
                             </h1>
                             <p className="text-gray-400 flex items-center gap-2">
                                 <Sparkles size={14} className="text-orange-400" />
-                                สรุปข้อมูลและ export รายงาน
+                                วิเคราะห์ข้อมูลเชิงธุรกิจ
                             </p>
                         </div>
                     </div>
@@ -268,24 +288,71 @@ export default function ReportsPage() {
                     </button>
                 </div>
 
-                {/* Report Type Tabs */}
-                <div className={`backdrop-blur-xl rounded-2xl border border-white/10 p-3 mb-6 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+                {/* Report Type Tabs - Organized into categories */}
+                <div className={`backdrop-blur-xl rounded-2xl border border-white/10 p-4 mb-4 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
                     style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)', transitionDelay: '100ms' }}>
-                    <div className="flex flex-wrap gap-2">
-                        {reportTypes.map(type => (
-                            <button
-                                key={type.value}
-                                onClick={() => setReportType(type.value as ReportType)}
-                                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all duration-300 ${reportType === type.value
-                                    ? 'bg-gradient-to-r from-orange-600 to-yellow-600 text-white shadow-lg shadow-orange-500/30'
-                                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
-                                    }`}
-                            >
-                                <type.icon size={18} />
-                                {type.label}
-                            </button>
-                        ))}
+
+                    {/* Sales Reports */}
+                    <div className="mb-3">
+                        <span className="text-xs text-gray-500 uppercase tracking-wider mb-2 block">📊 รายงานยอดขาย</span>
+                        <div className="flex flex-wrap gap-2">
+                            {salesReports.map(type => (
+                                <button
+                                    key={type.value}
+                                    onClick={() => setReportType(type.value as ReportType)}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 text-sm ${reportType === type.value
+                                        ? 'bg-gradient-to-r from-orange-600 to-yellow-600 text-white shadow-lg shadow-orange-500/30'
+                                        : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                                        }`}
+                                >
+                                    <type.icon size={16} />
+                                    {type.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
+
+                    {/* Special Reports */}
+                    <div>
+                        <span className="text-xs text-gray-500 uppercase tracking-wider mb-2 block">📋 รายงานพิเศษ</span>
+                        <div className="flex flex-wrap gap-2">
+                            {specialReports.map(type => (
+                                <button
+                                    key={type.value}
+                                    onClick={() => setReportType(type.value as ReportType)}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 text-sm ${reportType === type.value
+                                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30'
+                                        : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                                        }`}
+                                >
+                                    <type.icon size={16} />
+                                    {type.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Data Scope Header - ชัดเจนว่ากำลังดูอะไร */}
+                <div className={`flex items-center gap-3 px-4 py-3 mb-4 rounded-xl bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20 transition-all duration-700 ${mounted ? 'opacity-100' : 'opacity-0'}`}>
+                    <Info size={18} className="text-blue-400 shrink-0" />
+                    <p className="text-sm text-gray-300">
+                        <span className="font-semibold text-white">{getReportLabel()}</span>
+                        <span className="text-gray-500 mx-2">·</span>
+                        <span>{formatThaiDate(startDate)} – {formatThaiDate(endDate)}</span>
+                        {selectedStation && (
+                            <>
+                                <span className="text-gray-500 mx-2">·</span>
+                                <span className="text-cyan-400">{stations.find(s => s.id === selectedStation)?.name || 'สถานี'}</span>
+                            </>
+                        )}
+                        {!selectedStation && reportType !== 'shift_meters' && (
+                            <>
+                                <span className="text-gray-500 mx-2">·</span>
+                                <span className="text-green-400">ทุกสถานี</span>
+                            </>
+                        )}
+                    </p>
                 </div>
 
                 {/* Date Range Filter */}
@@ -354,24 +421,61 @@ export default function ReportsPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                         {reportType === 'daily' && (
                             <>
+                                {/* ยอดขายรวม - with comparison */}
                                 <div className="stat-card animate-fade-in">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <DollarSign className="text-green-400" size={20} />
-                                        <span className="text-gray-400 text-sm">ยอดขายรวม</span>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <DollarSign className="text-green-400" size={20} />
+                                            <span className="text-gray-400 text-sm">ยอดขายรวม</span>
+                                        </div>
+                                        {(summary as { amountChange?: number }).amountChange !== undefined && (
+                                            <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${(summary as { amountChange?: number }).amountChange! >= 0
+                                                ? 'bg-green-500/20 text-green-400'
+                                                : 'bg-red-500/20 text-red-400'
+                                                }`}>
+                                                {(summary as { amountChange?: number }).amountChange! >= 0
+                                                    ? <TrendingUp size={12} />
+                                                    : <TrendingDown size={12} />}
+                                                {Math.abs((summary as { amountChange?: number }).amountChange!).toFixed(1)}%
+                                            </div>
+                                        )}
                                     </div>
                                     <p className="text-2xl font-bold text-green-400">
                                         {formatCurrency((summary as { totalAmount?: number }).totalAmount || 0)}
                                     </p>
+                                    {(summary as { avgPerDay?: number }).avgPerDay && (
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            เฉลี่ย {formatCurrency((summary as { avgPerDay?: number }).avgPerDay!)} / วัน
+                                        </p>
+                                    )}
                                 </div>
+
+                                {/* ลิตรรวม - with comparison */}
                                 <div className="stat-card animate-fade-in" style={{ animationDelay: '0.1s' }}>
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Fuel className="text-blue-400" size={20} />
-                                        <span className="text-gray-400 text-sm">รวมลิตร</span>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <Fuel className="text-blue-400" size={20} />
+                                            <span className="text-gray-400 text-sm">รวมลิตร</span>
+                                        </div>
+                                        {(summary as { litersChange?: number }).litersChange !== undefined && (
+                                            <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${(summary as { litersChange?: number }).litersChange! >= 0
+                                                ? 'bg-green-500/20 text-green-400'
+                                                : 'bg-red-500/20 text-red-400'
+                                                }`}>
+                                                {(summary as { litersChange?: number }).litersChange! >= 0
+                                                    ? <TrendingUp size={12} />
+                                                    : <TrendingDown size={12} />}
+                                                {Math.abs((summary as { litersChange?: number }).litersChange!).toFixed(1)}%
+                                            </div>
+                                        )}
                                     </div>
                                     <p className="text-2xl font-bold text-blue-400">
-                                        {formatNumber((summary as { totalLiters?: number }).totalLiters || 0)}
+                                        {((summary as { totalLiters?: number }).totalLiters || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </p>
+                                    <p className="text-xs text-gray-500 mt-1">ลิตร</p>
                                 </div>
+
+                                {/* รายการทั้งหมด */}
                                 <div className="stat-card animate-fade-in" style={{ animationDelay: '0.2s' }}>
                                     <div className="flex items-center gap-2 mb-2">
                                         <FileText className="text-purple-400" size={20} />
@@ -380,15 +484,27 @@ export default function ReportsPage() {
                                     <p className="text-2xl font-bold text-purple-400">
                                         {formatNumber((summary as { totalTransactions?: number }).totalTransactions || 0)}
                                     </p>
+                                    {(summary as { daysWithData?: number }).daysWithData && (
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            {(summary as { daysWithData?: number }).daysWithData} วัน
+                                        </p>
+                                    )}
                                 </div>
+
+                                {/* เงินเชื่อ */}
                                 <div className="stat-card animate-fade-in" style={{ animationDelay: '0.3s' }}>
                                     <div className="flex items-center gap-2 mb-2">
-                                        <Users className="text-orange-400" size={20} />
+                                        <CreditCard className="text-orange-400" size={20} />
                                         <span className="text-gray-400 text-sm">เงินเชื่อ</span>
                                     </div>
                                     <p className="text-2xl font-bold text-orange-400">
                                         {formatCurrency((summary as { totalCredit?: number }).totalCredit || 0)}
                                     </p>
+                                    {(summary as { totalAmount?: number; totalCredit?: number }).totalAmount && (
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            {(((summary as { totalCredit?: number }).totalCredit || 0) / ((summary as { totalAmount?: number }).totalAmount || 1) * 100).toFixed(1)}% ของยอดขาย
+                                        </p>
+                                    )}
                                 </div>
                             </>
                         )}
@@ -487,67 +603,130 @@ export default function ReportsPage() {
                 )}
 
                 {/* Chart */}
-                {(reportType === 'daily' || reportType === 'monthly' || reportType === 'gas') && data.length > 0 && (
-                    <div className="glass-card p-6 mb-6 animate-fade-in">
-                        <h3 className="text-lg font-bold text-white mb-4">
-                            📈 กราฟยอดขาย{reportType === 'daily' ? 'รายวัน' : 'รายเดือน'}
-                        </h3>
-                        <div className="h-[300px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                {reportType === 'daily' ? (
-                                    <LineChart data={(data as DailyData[]).slice().reverse().slice(-14)}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                                        <XAxis
-                                            dataKey="date"
-                                            stroke="#9ca3af"
-                                            fontSize={11}
-                                            tickFormatter={(val) => new Date(val).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}
-                                        />
-                                        <YAxis stroke="#9ca3af" fontSize={11} tickFormatter={formatCompact} />
-                                        <Tooltip
-                                            formatter={(value) => formatCurrency(value as number) + ' บาท'}
-                                            labelFormatter={(label) => new Date(label).toLocaleDateString('th-TH')}
-                                            contentStyle={{
-                                                backgroundColor: 'rgba(15, 15, 35, 0.95)',
-                                                border: '1px solid rgba(139, 92, 246, 0.3)',
-                                                borderRadius: '12px'
-                                            }}
-                                        />
-                                        <Line
-                                            type="monotone"
-                                            dataKey="totalAmount"
-                                            stroke="#8b5cf6"
-                                            strokeWidth={3}
-                                            dot={{ fill: '#8b5cf6', r: 4 }}
-                                            activeDot={{ r: 6, fill: '#a78bfa' }}
-                                        />
-                                    </LineChart>
-                                ) : (
-                                    <BarChart data={(data as MonthlyData[]).slice().reverse()}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                                        <XAxis dataKey="month" stroke="#9ca3af" fontSize={11} />
-                                        <YAxis stroke="#9ca3af" fontSize={11} tickFormatter={formatCompact} />
-                                        <Tooltip
-                                            formatter={(value) => formatCurrency(value as number) + ' บาท'}
-                                            contentStyle={{
-                                                backgroundColor: 'rgba(15, 15, 35, 0.95)',
-                                                border: '1px solid rgba(139, 92, 246, 0.3)',
-                                                borderRadius: '12px'
-                                            }}
-                                        />
-                                        <Bar dataKey="totalAmount" fill="url(#barGradient)" radius={[6, 6, 0, 0]} />
-                                        <defs>
-                                            <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="0%" stopColor="#8b5cf6" />
-                                                <stop offset="100%" stopColor="#3b82f6" />
-                                            </linearGradient>
-                                        </defs>
-                                    </BarChart>
+                {(reportType === 'daily' || reportType === 'monthly' || reportType === 'gas') && data.length > 0 && (() => {
+                    // Calculate average for daily chart
+                    const chartData = reportType === 'daily'
+                        ? (data as DailyData[]).slice().reverse().slice(-14)
+                        : reportType === 'monthly'
+                            ? (data as MonthlyData[]).slice().reverse()
+                            : data;
+
+                    const avgAmount = chartData.reduce((sum, d) => sum + ((d as DailyData).totalAmount || 0), 0) / chartData.length;
+
+                    // Mark anomaly points (> 1.5x or < 0.5x average)
+                    const chartDataWithAnomaly = chartData.map(d => ({
+                        ...d,
+                        isAnomaly: (d as DailyData).totalAmount > avgAmount * 1.5 || (d as DailyData).totalAmount < avgAmount * 0.5
+                    }));
+
+                    return (
+                        <div className="glass-card p-6 mb-6 animate-fade-in">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-bold text-white">
+                                    📈 กราฟยอดขาย{reportType === 'daily' ? 'รายวัน' : reportType === 'monthly' ? 'รายเดือน' : ''}
+                                </h3>
+                                {reportType === 'daily' && (
+                                    <div className="flex items-center gap-4 text-xs">
+                                        <span className="flex items-center gap-1.5">
+                                            <div className="w-3 h-0.5 bg-orange-400"></div>
+                                            <span className="text-gray-400">เฉลี่ย {formatCurrency(avgAmount)}</span>
+                                        </span>
+                                        <span className="flex items-center gap-1.5">
+                                            <div className="w-2 h-2 rounded-full bg-red-400"></div>
+                                            <span className="text-gray-400">ผิดปกติ</span>
+                                        </span>
+                                    </div>
                                 )}
-                            </ResponsiveContainer>
+                            </div>
+                            <div className="h-[300px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    {reportType === 'daily' ? (
+                                        <LineChart data={chartDataWithAnomaly}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                                            <XAxis
+                                                dataKey="date"
+                                                stroke="#9ca3af"
+                                                fontSize={11}
+                                                tickFormatter={(val) => new Date(val).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}
+                                            />
+                                            <YAxis stroke="#9ca3af" fontSize={11} tickFormatter={formatCompact} />
+                                            <Tooltip
+                                                formatter={(value, name) => {
+                                                    const label = name === 'totalAmount' ? 'ยอดขาย' : name;
+                                                    return [formatCurrency(value as number), label];
+                                                }}
+                                                labelFormatter={(label) => new Date(label).toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                                contentStyle={{
+                                                    backgroundColor: 'rgba(15, 15, 35, 0.95)',
+                                                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                                                    borderRadius: '12px'
+                                                }}
+                                            />
+                                            {/* Average reference line */}
+                                            <ReferenceLine
+                                                y={avgAmount}
+                                                stroke="#f97316"
+                                                strokeDasharray="5 5"
+                                                strokeWidth={2}
+                                                label={{ value: 'AVG', position: 'right', fill: '#f97316', fontSize: 10 }}
+                                            />
+                                            <Line
+                                                type="monotone"
+                                                dataKey="totalAmount"
+                                                stroke="#8b5cf6"
+                                                strokeWidth={3}
+                                                dot={(props) => {
+                                                    const { cx, cy, payload } = props;
+                                                    if (payload.isAnomaly) {
+                                                        return (
+                                                            <circle
+                                                                cx={cx}
+                                                                cy={cy}
+                                                                r={6}
+                                                                fill="#ef4444"
+                                                                stroke="#fff"
+                                                                strokeWidth={2}
+                                                            />
+                                                        );
+                                                    }
+                                                    return <circle cx={cx} cy={cy} r={4} fill="#8b5cf6" />;
+                                                }}
+                                                activeDot={{ r: 6, fill: '#a78bfa' }}
+                                            />
+                                        </LineChart>
+                                    ) : (
+                                        <BarChart data={chartData}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                                            <XAxis dataKey="month" stroke="#9ca3af" fontSize={11} />
+                                            <YAxis stroke="#9ca3af" fontSize={11} tickFormatter={formatCompact} />
+                                            <Tooltip
+                                                formatter={(value) => [formatCurrency(value as number), 'ยอดขาย']}
+                                                contentStyle={{
+                                                    backgroundColor: 'rgba(15, 15, 35, 0.95)',
+                                                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                                                    borderRadius: '12px'
+                                                }}
+                                            />
+                                            <ReferenceLine
+                                                y={avgAmount}
+                                                stroke="#f97316"
+                                                strokeDasharray="5 5"
+                                                strokeWidth={2}
+                                            />
+                                            <Bar dataKey="totalAmount" fill="url(#barGradient)" radius={[6, 6, 0, 0]} />
+                                            <defs>
+                                                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="0%" stopColor="#8b5cf6" />
+                                                    <stop offset="100%" stopColor="#3b82f6" />
+                                                </linearGradient>
+                                            </defs>
+                                        </BarChart>
+                                    )}
+                                </ResponsiveContainer>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    );
+                })()}
 
                 {/* Data Table */}
                 <div className="glass-card overflow-hidden animate-fade-in">
@@ -636,16 +815,41 @@ export default function ReportsPage() {
                                         </tr>
                                     ) : (
                                         <>
-                                            {reportType === 'daily' && (data as DailyData[]).map((row, i) => (
-                                                <tr key={i}>
-                                                    <td className="font-mono">{new Date(row.date).toLocaleDateString('th-TH')}</td>
-                                                    <td className="text-right">{row.transactionCount}</td>
-                                                    <td className="text-right font-mono">{formatNumber(row.totalLiters)}</td>
-                                                    <td className="text-right font-mono text-green-400">{formatCurrency(row.cashAmount)}</td>
-                                                    <td className="text-right font-mono text-purple-400">{formatCurrency(row.creditAmount)}</td>
-                                                    <td className="text-right font-mono font-bold">{formatCurrency(row.totalAmount)}</td>
-                                                </tr>
-                                            ))}
+                                            {reportType === 'daily' && (
+                                                <>
+                                                    {(data as DailyData[]).map((row, i) => (
+                                                        <tr key={i}>
+                                                            <td className="font-mono">{new Date(row.date).toLocaleDateString('th-TH')}</td>
+                                                            <td className="text-right">{row.transactionCount}</td>
+                                                            <td className="text-right font-mono">{row.totalLiters.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                            <td className="text-right font-mono text-green-400">{row.cashAmount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                            <td className="text-right font-mono text-purple-400">{row.creditAmount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                            <td className="text-right font-mono font-bold">{row.totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                        </tr>
+                                                    ))}
+                                                    {/* Subtotal Row */}
+                                                    {summary && (
+                                                        <tr className="bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border-t-2 border-orange-500/30">
+                                                            <td className="font-bold text-orange-400">รวมทั้งหมด</td>
+                                                            <td className="text-right font-bold text-orange-400">
+                                                                {(summary as { totalTransactions?: number }).totalTransactions?.toLocaleString()}
+                                                            </td>
+                                                            <td className="text-right font-mono font-bold text-orange-400">
+                                                                {((summary as { totalLiters?: number }).totalLiters || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            </td>
+                                                            <td className="text-right font-mono font-bold text-green-400">
+                                                                {((summary as { totalCash?: number }).totalCash || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            </td>
+                                                            <td className="text-right font-mono font-bold text-purple-400">
+                                                                {((summary as { totalCredit?: number }).totalCredit || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            </td>
+                                                            <td className="text-right font-mono font-bold text-xl text-white">
+                                                                ฿{((summary as { totalAmount?: number }).totalAmount || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </>
+                                            )}
                                             {reportType === 'monthly' && (data as MonthlyData[]).map((row, i) => (
                                                 <tr key={i}>
                                                     <td className="font-mono">{row.month}</td>
