@@ -161,8 +161,10 @@ export default function RefillModal({
     };
 
     const handleSubmit = async () => {
-        if (!licensePlate || !liters || parseFloat(liters) <= 0) {
-            alert('กรุณากรอกข้อมูลให้ครบ');
+        // CASH: license plate is optional, other types require it
+        const requireLicensePlate = paymentType !== 'CASH';
+        if ((requireLicensePlate && !licensePlate) || !liters || parseFloat(liters) <= 0) {
+            alert(requireLicensePlate ? 'กรุณากรอกทะเบียนและจำนวนลิตร' : 'กรุณากรอกจำนวนลิตร');
             return;
         }
 
@@ -452,7 +454,7 @@ export default function RefillModal({
             <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4">
                 <button
                     onClick={handleSubmit}
-                    disabled={submitting || uploadingImage || !licensePlate || !liters || (isTransferPayment && !transferProofFile)}
+                    disabled={submitting || uploadingImage || (paymentType !== 'CASH' && !licensePlate) || !liters || (isTransferPayment && !transferProofFile)}
                     className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-lg rounded-xl disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                     {submitting || uploadingImage ? (
