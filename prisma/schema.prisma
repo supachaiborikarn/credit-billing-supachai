@@ -520,6 +520,7 @@ enum OwnerGroup {
   GENERAL_CREDIT
   BOX_TRUCK
   OIL_TRUCK
+  OOY_TRUCK
 }
 
 enum InvoiceStatus {

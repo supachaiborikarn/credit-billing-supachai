@@ -656,7 +656,8 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
     };
 
     // Calculate revenue from transactions
-    const calculateRevenue = () => {
+    // allDayMeter parameter allows using all-day meter total instead of current shift only
+    const calculateRevenue = (allDayMeter?: number) => {
         const cashTotal = transactions.filter(t => t.paymentType === 'CASH').reduce((s, t) => s + Number(t.amount), 0);
         const creditTotal = transactions.filter(t => t.paymentType === 'CREDIT').reduce((s, t) => s + Number(t.amount), 0);
         const cardTotal = transactions.filter(t => t.paymentType === 'CREDIT_CARD').reduce((s, t) => s + Number(t.amount), 0);
@@ -666,8 +667,8 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
         const totalLiters = transactions.reduce((s, t) => s + Number(t.liters), 0);
         const grandTotal = cashTotal + creditTotal + cardTotal + transferTotal + boxTruckTotal;
 
-        // Calculate from meters
-        const meterTotal = meters.reduce((s, m) => s + (m.end - m.start), 0);
+        // Use allDayMeter if provided, otherwise calculate from current shift meters
+        const meterTotal = allDayMeter ?? meters.reduce((s, m) => s + (m.end - m.start), 0);
         const meterRevenue = meterTotal * gasPrice;
 
         return {
@@ -1009,9 +1010,34 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
         return t.paymentType === activeFilter;
     });
 
-    const meterTotal = meters.reduce((sum, m) => sum + (m.end - m.start), 0);
+    // Calculate meter total from current shift selection
+    const currentShiftMeterTotal = meters.reduce((sum, m) => sum + (m.end - m.start), 0);
+
+    // Calculate ALL-DAY meter total from all shifts (for verification section)
+    // This ensures verification shows correct data even when viewing a shift without meters
+    const allDayMeterTotal = (() => {
+        if (!shiftData?.shifts || shiftData.shifts.length === 0) {
+            return currentShiftMeterTotal;
+        }
+
+        let total = 0;
+        for (const shift of shiftData.shifts) {
+            if (shift.meters && shift.meters.length > 0) {
+                for (const m of shift.meters) {
+                    const start = Number(m.startReading) || 0;
+                    const end = Number(m.endReading) || 0;
+                    total += (end - start);
+                }
+            }
+        }
+        return total > 0 ? total : currentShiftMeterTotal;
+    })();
+
+    // Use meterTotal for display in current shift view
+    const meterTotal = currentShiftMeterTotal;
+    // Use allDayMeterTotal for verification (comparing with transactions)
     const transactionsTotal = transactions.reduce((sum, t) => sum + Number(t.liters), 0);
-    const meterDiff = transactionsTotal - meterTotal;
+    const meterDiff = transactionsTotal - allDayMeterTotal;
 
     const formatNumber = (num: number) => new Intl.NumberFormat('th-TH').format(num);
     const formatCurrency = (num: number) => new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2 }).format(num);
@@ -1454,13 +1480,13 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                 const totalSupplyLiters = gasSupplies.reduce((sum, s) => sum + Number(s.liters), 0);
                                 // Formula: (startLiters + supplies) - endLiters
                                 const totalGaugeUsed = (totalStartLiters + totalSupplyLiters) - totalEndLiters;
-                                const metersTotal = meters.reduce((s, m) => s + (m.end - m.start), 0);
-                                const difference = metersTotal - totalGaugeUsed;
+                                // Use allDayMeterTotal for proper comparison (all shifts)
+                                const difference = allDayMeterTotal - totalGaugeUsed;
 
                                 if (totalStartLiters > 0 && totalEndLiters > 0) {
                                     return (
                                         <div className="mt-4 bg-white/5 rounded-xl p-4">
-                                            <h4 className="font-bold text-white mb-3">📈 เปรียบเทียบ</h4>
+                                            <h4 className="font-bold text-white mb-3">📈 เปรียบเทียบ (รวมทั้งวัน)</h4>
                                             <div className="grid grid-cols-3 gap-4 text-center">
                                                 <div>
                                                     <div className="text-gray-400 text-sm">จากเกจ (ใช้ไป)</div>
@@ -1468,7 +1494,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                                 </div>
                                                 <div>
                                                     <div className="text-gray-400 text-sm">จากมิเตอร์ (ขาย)</div>
-                                                    <div className="text-xl font-bold font-mono text-cyan-400">{formatNumber(metersTotal)} ลิตร</div>
+                                                    <div className="text-xl font-bold font-mono text-cyan-400">{formatNumber(allDayMeterTotal)} ลิตร</div>
                                                 </div>
                                                 <div>
                                                     <div className="text-gray-400 text-sm">ผลต่าง</div>
@@ -1673,13 +1699,16 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
 
                         {/* Meter Verification */}
                         <div className="glass-card p-6 mb-6">
-                            <h2 className="text-lg font-bold text-white mb-4">📊 ตรวจสอบยอดมิเตอร์</h2>
+                            <h2 className="text-lg font-bold text-white mb-2">📊 ตรวจสอบยอดมิเตอร์</h2>
+                            <p className="text-xs text-gray-400 mb-4">
+                                (รวมทุกกะที่บันทึกแล้ววันนี้)
+                            </p>
                             <div className="grid grid-cols-3 gap-4">
                                 <div className="text-center p-4 bg-cyan-900/20 rounded-xl">
                                     <p className="text-sm text-gray-400">ยอดรวมมิเตอร์</p>
-                                    <p className="text-2xl font-bold text-cyan-400">{formatNumber(meterTotal)}</p>
+                                    <p className="text-2xl font-bold text-cyan-400">{formatNumber(allDayMeterTotal)}</p>
                                     <p className="text-sm text-gray-400">ลิตร</p>
-                                    <p className="text-lg font-bold text-yellow-400 mt-2">{formatCurrency(meterTotal * gasPrice)}</p>
+                                    <p className="text-lg font-bold text-yellow-400 mt-2">{formatCurrency(allDayMeterTotal * gasPrice)}</p>
                                     <p className="text-xs text-gray-500">({gasPrice} บาท/ลิตร)</p>
                                 </div>
                                 <div className="text-center p-4 bg-green-900/20 rounded-xl">
@@ -2345,7 +2374,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                         {/* Modal Content */}
                         <div className="p-6 space-y-4">
                             {(() => {
-                                const revenue = calculateRevenue();
+                                const revenue = calculateRevenue(allDayMeterTotal);
                                 return (
                                     <>
                                         {/* From Transactions */}
