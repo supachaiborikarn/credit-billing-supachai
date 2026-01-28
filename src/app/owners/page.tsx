@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { LoadingState } from '@/components/Spinner';
 import { useToast } from '@/components/Toast';
@@ -69,9 +69,55 @@ export default function OwnersPage() {
     // Deactivate Confirmation
     const [confirmDeactivate, setConfirmDeactivate] = useState<Owner | null>(null);
 
+    // Duplicate Warning
+    interface DuplicateOwner {
+        id: string;
+        name: string;
+        phone: string | null;
+        code: string | null;
+        status: string;
+    }
+    const [duplicates, setDuplicates] = useState<DuplicateOwner[]>([]);
+    const [checkingDuplicate, setCheckingDuplicate] = useState(false);
+
     // Add Truck Modal (inline)
     const [addingTruckForOwner, setAddingTruckForOwner] = useState<string | null>(null);
     const [newTruckPlate, setNewTruckPlate] = useState('');
+
+    // Check for duplicates when form changes
+    const checkDuplicates = useCallback(async (name: string, phone: string) => {
+        if (name.length < 3 && phone.length < 6) {
+            setDuplicates([]);
+            return;
+        }
+        setCheckingDuplicate(true);
+        try {
+            const params = new URLSearchParams();
+            if (name.length >= 3) params.set('name', name);
+            if (phone.length >= 6) params.set('phone', phone);
+            const res = await fetch(`/api/owners/check-duplicate?${params}`);
+            if (res.ok) {
+                const data = await res.json();
+                setDuplicates(data.duplicates || []);
+            }
+        } catch (error) {
+            console.error('Duplicate check error:', error);
+        } finally {
+            setCheckingDuplicate(false);
+        }
+    }, []);
+
+    // Debounced duplicate check
+    useEffect(() => {
+        if (!showAddModal) {
+            setDuplicates([]);
+            return;
+        }
+        const timer = setTimeout(() => {
+            checkDuplicates(formData.name, formData.phone);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [formData.name, formData.phone, showAddModal, checkDuplicates]);
 
     useEffect(() => {
         setMounted(true);
@@ -642,6 +688,34 @@ export default function OwnersPage() {
                                     </select>
                                 </div>
                             </div>
+
+                            {/* Duplicate Warning */}
+                            {duplicates.length > 0 && (
+                                <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+                                    <div className="flex items-center gap-2 text-yellow-400 text-sm font-medium mb-2">
+                                        <AlertTriangle size={16} />
+                                        พบลูกค้าที่คล้ายกัน
+                                    </div>
+                                    <div className="space-y-2">
+                                        {duplicates.map(dup => (
+                                            <div key={dup.id} className="flex items-center justify-between text-sm bg-white/5 rounded-lg px-3 py-2">
+                                                <div>
+                                                    <span className="text-white">{dup.name}</span>
+                                                    {dup.phone && <span className="text-gray-400 ml-2">({dup.phone})</span>}
+                                                    {dup.code && <span className="text-blue-400 ml-2">[{dup.code}]</span>}
+                                                </div>
+                                                <span className={`text-xs px-2 py-0.5 rounded ${dup.status === 'ACTIVE' ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>
+                                                    {dup.status === 'ACTIVE' ? 'ใช้งาน' : 'ปิดใช้งาน'}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <p className="text-xs text-yellow-400/70 mt-2">
+                                        คุณยังสามารถเพิ่มลูกค้าใหม่ได้ หากต้องการ
+                                    </p>
+                                </div>
+                            )}
+
                             <div className="flex gap-3 mt-6">
                                 <button
                                     onClick={() => setShowAddModal(false)}
@@ -652,9 +726,12 @@ export default function OwnersPage() {
                                 <button
                                     onClick={handleAddOwner}
                                     disabled={saving}
-                                    className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl text-white font-medium hover:opacity-90 disabled:opacity-50"
+                                    className={`flex-1 px-4 py-3 rounded-xl text-white font-medium hover:opacity-90 disabled:opacity-50 ${duplicates.length > 0
+                                            ? 'bg-gradient-to-r from-yellow-600 to-orange-500'
+                                            : 'bg-gradient-to-r from-blue-500 to-cyan-500'
+                                        }`}
                                 >
-                                    {saving ? 'กำลังบันทึก...' : 'เพิ่มลูกค้า'}
+                                    {saving ? 'กำลังบันทึก...' : duplicates.length > 0 ? 'เพิ่มต่อไป' : 'เพิ่มลูกค้า'}
                                 </button>
                             </div>
                         </div>
