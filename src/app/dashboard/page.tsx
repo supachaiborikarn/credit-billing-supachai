@@ -28,7 +28,9 @@ import {
     Info,
     AlertCircle,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    ChevronDown,
+    MoreHorizontal
 } from 'lucide-react';
 import { STATIONS } from '@/constants';
 import {
@@ -69,6 +71,7 @@ export default function DashboardPage() {
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [mounted, setMounted] = useState(false);
     const [heatMapMonth, setHeatMapMonth] = useState(new Date());
+    const [showQuickMenu, setShowQuickMenu] = useState(false);
 
     useEffect(() => {
         setMounted(true);
@@ -225,10 +228,18 @@ export default function DashboardPage() {
                                 <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-white via-purple-200 to-white bg-clip-text text-transparent">
                                     Dashboard
                                 </h1>
-                                <p className="text-gray-400 flex items-center gap-2">
-                                    <Sparkles size={14} className="text-purple-400" />
-                                    ภาพรวมทุกสถานี
-                                </p>
+                                <div className="flex items-center gap-3 text-gray-400">
+                                    <span className="flex items-center gap-1.5">
+                                        <Sparkles size={14} className="text-purple-400" />
+                                        ภาพรวมทุกสถานี
+                                    </span>
+                                    {stats?.lastUpdated && (
+                                        <span className="flex items-center gap-1 text-xs text-gray-500">
+                                            <Clock size={12} />
+                                            อัปเดต {new Date(stats.lastUpdated).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -294,48 +305,68 @@ export default function DashboardPage() {
                     </div>
                 )}
 
-                {/* Quick Actions */}
+                {/* Quick Actions - Simplified */}
                 <div className={`flex flex-wrap gap-3 mb-6 transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`} style={{ transitionDelay: '100ms' }}>
+                    {/* Primary Action */}
                     <button
                         onClick={() => router.push('/station/cm9qx0d2v0001qnfnm3w0qx5e')}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity shadow-lg shadow-purple-500/25"
+                        className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity shadow-lg shadow-purple-500/25"
                     >
                         <Plus size={18} />
-                        เพิ่มรายการ
+                        เพิ่มรายการขาย
                     </button>
-                    <button
-                        onClick={() => router.push('/admin/full')}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
-                    >
-                        <Fuel size={18} />
-                        🛢️ แท๊งลอย
-                    </button>
-                    <button
-                        onClick={() => router.push('/admin/simple')}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
-                    >
-                        <Fuel size={18} />
-                        ⛽ ปั๊มน้ำมัน
-                    </button>
-                    <button
-                        onClick={() => router.push('/admin/gas')}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
-                    >
-                        <Fuel size={18} />
-                        🔥 ปั๊มแก๊ส
-                    </button>
+
+                    {/* Station Quick Access Dropdown */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowQuickMenu(!showQuickMenu)}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 text-white rounded-xl text-sm font-medium hover:bg-white/10 transition-all"
+                        >
+                            <Fuel size={18} />
+                            ไปยังสถานี
+                            <ChevronDown size={16} className={`transition-transform ${showQuickMenu ? 'rotate-180' : ''}`} />
+                        </button>
+                        {showQuickMenu && (
+                            <div className="absolute top-full left-0 mt-2 w-56 backdrop-blur-xl rounded-xl border border-white/10 overflow-hidden z-50"
+                                style={{ background: 'rgba(15, 15, 35, 0.95)' }}>
+                                <button
+                                    onClick={() => { router.push('/admin/full'); setShowQuickMenu(false); }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-left text-white hover:bg-white/10 transition-colors"
+                                >
+                                    <span className="text-lg">🛢️</span>
+                                    แท๊งลอย
+                                </button>
+                                <button
+                                    onClick={() => { router.push('/admin/simple'); setShowQuickMenu(false); }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-left text-white hover:bg-white/10 transition-colors"
+                                >
+                                    <span className="text-lg">⛽</span>
+                                    ปั๊มน้ำมัน
+                                </button>
+                                <button
+                                    onClick={() => { router.push('/admin/gas'); setShowQuickMenu(false); }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-left text-white hover:bg-white/10 transition-colors"
+                                >
+                                    <span className="text-lg">🔥</span>
+                                    ปั๊มแก๊ส
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Secondary Actions - more subtle */}
                     <button
                         onClick={() => router.push('/reports')}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 text-white rounded-xl text-sm font-medium hover:bg-white/10 transition-all"
+                        className="flex items-center gap-2 px-3 py-2.5 text-gray-400 hover:text-white rounded-xl text-sm transition-colors"
                     >
-                        <FileText size={18} />
+                        <FileText size={16} />
                         รายงาน
                     </button>
                     <button
                         onClick={() => router.push('/invoices')}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 text-white rounded-xl text-sm font-medium hover:bg-white/10 transition-all"
+                        className="flex items-center gap-2 px-3 py-2.5 text-gray-400 hover:text-white rounded-xl text-sm transition-colors"
                     >
-                        <CreditCard size={18} />
+                        <CreditCard size={16} />
                         ใบวางบิล
                     </button>
                 </div>
@@ -374,8 +405,8 @@ export default function DashboardPage() {
                                             </p>
                                             <div className="flex items-center justify-between mt-1">
                                                 <p className="text-sm text-gray-500">{card.unit}</p>
-                                                {/* Percentage change indicator */}
-                                                {card.percentChange !== undefined && (
+                                                {/* Percentage change indicator - only show when we have comparison data */}
+                                                {card.percentChange !== undefined && card.percentChange !== null && (
                                                     <div className={`flex items-center gap-1 text-xs font-medium ${card.percentChange >= 0 ? 'text-green-400' : 'text-red-400'
                                                         }`}>
                                                         {card.percentChange >= 0 ? (

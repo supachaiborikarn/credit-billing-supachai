@@ -140,18 +140,21 @@ export interface DashboardStats {
         liters: number;
         count: number;
     }[];
-    // Comparison data
+    // Comparison data (null when no yesterday data for comparison)
     yesterdayAmount: number;
     yesterdayLiters: number;
     yesterdayTransactions: number;
-    amountPercentChange: number;
-    litersPercentChange: number;
-    countPercentChange: number;
+    amountPercentChange: number | null;
+    litersPercentChange: number | null;
+    countPercentChange: number | null;
     // Recent transactions feed
     recentTransactions: RecentTransaction[];
     // Monthly heat map
     monthlyHeatMap: { date: string; amount: number }[];
     // Alerts
     alerts: DashboardAlert[];
+    // Metadata
+    lastUpdated: string;
+    dataDate: string;
 }
 

@@ -173,16 +173,16 @@ export async function GET(request: Request) {
         const yesterdayLiters = yesterdayTransactions.reduce((sum, t) => sum + Number(t.liters), 0);
         const pendingAmount = pendingInvoices.reduce((sum, i) => sum + Number(i.totalAmount), 0);
 
-        // Calculate percentage changes
+        // Calculate percentage changes (null if yesterday = 0 to avoid misleading percentages)
         const amountPercentChange = yesterdayAmount > 0
             ? ((todayAmount - yesterdayAmount) / yesterdayAmount) * 100
-            : todayAmount > 0 ? 100 : 0;
+            : null; // Don't show % when no comparison available
         const litersPercentChange = yesterdayLiters > 0
             ? ((todayLiters - yesterdayLiters) / yesterdayLiters) * 100
-            : todayLiters > 0 ? 100 : 0;
+            : null;
         const countPercentChange = yesterdayTransactions.length > 0
             ? ((todayTransactions.length - yesterdayTransactions.length) / yesterdayTransactions.length) * 100
-            : todayTransactions.length > 0 ? 100 : 0;
+            : null;
 
         // Station stats
         const stationStats = stations.map(station => {
@@ -293,14 +293,14 @@ export async function GET(request: Request) {
         // Generate alerts
         const alerts: { type: string; severity: 'info' | 'warning' | 'critical'; message: string }[] = [];
 
-        // Alert: Sales spike or drop > 30%
-        if (Math.abs(amountPercentChange) > 30 && yesterdayAmount > 0) {
+        // Alert: Sales spike or drop > 30% (only when we have valid comparison)
+        if (amountPercentChange !== null && Math.abs(amountPercentChange) > 30) {
             alerts.push({
                 type: 'sales',
                 severity: amountPercentChange > 0 ? 'info' : 'warning',
                 message: amountPercentChange > 0
-                    ? `ยอดขายวันนี้พุ่งขึ้น ${amountPercentChange.toFixed(0)}% จากเมื่อวาน`
-                    : `ยอดขายวันนี้ลดลง ${Math.abs(amountPercentChange).toFixed(0)}% จากเมื่อวาน`
+                    ? `📈 ยอดขายวันนี้เพิ่มขึ้น ${amountPercentChange.toFixed(0)}% จากเมื่อวาน`
+                    : `📉 ยอดขายวันนี้ลดลง ${Math.abs(amountPercentChange).toFixed(0)}% จากเมื่อวาน`
             });
         }
 
@@ -318,12 +318,13 @@ export async function GET(request: Request) {
             const stationGauges = latestGaugeReadings.filter(g => g.stationId === station.id);
             for (const gauge of stationGauges) {
                 const percentage = Number(gauge.percentage);
-                const alertLevel = station.gasStockAlert ? Number(station.gasStockAlert) : 20; // Default 20%
+                const alertLevel = station.gasStockAlert ? Number(station.gasStockAlert) : 20;
                 if (percentage < alertLevel) {
+                    const severityLabel = percentage < 10 ? 'Critical' : 'Warning';
                     alerts.push({
                         type: 'gas',
                         severity: percentage < 10 ? 'critical' : 'warning',
-                        message: `⛽ ${station.name} ถังที่ ${gauge.tankNumber}: แก๊สเหลือ ${percentage.toFixed(0)}% (ต่ำกว่า ${alertLevel}%)`
+                        message: `⛽ ${station.name} ถังที่ ${gauge.tankNumber}: แก๊สเหลือ ${percentage.toFixed(0)}% — ${severityLabel}, ต่ำกว่าระดับสั่งเติม (${alertLevel}%)`
                     });
                 }
             }
@@ -360,19 +361,22 @@ export async function GET(request: Request) {
             weeklySales,
             paymentTypeStats,
             topCustomers,
-            // New: Comparison data
+            // Comparison data
             yesterdayAmount,
             yesterdayLiters,
             yesterdayTransactions: yesterdayTransactions.length,
             amountPercentChange,
             litersPercentChange,
             countPercentChange,
-            // New: Recent transactions feed
+            // Recent transactions feed
             recentTransactions,
-            // New: Monthly heat map
+            // Monthly heat map
             monthlyHeatMap: heatMapData,
-            // New: Alerts
+            // Alerts
             alerts,
+            // Metadata
+            lastUpdated: new Date().toISOString(),
+            dataDate: dateStr,
         });
     } catch (error) {
         console.error('Dashboard error:', error);
