@@ -110,13 +110,19 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                 if (res.ok) {
                     const data = await res.json();
                     setCurrentUser(data.user);
+
+                    // Force redirect staff to V2 (non-admin users)
+                    if (data.user && data.user.role !== 'ADMIN') {
+                        window.location.href = `/station/${id}/v2`;
+                        return;
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching user:', error);
             }
         };
         fetchCurrentUser();
-    }, []);
+    }, [id]);
 
     // Helper: determines if section should be visible based on tab
     // Before mount, show all sections to avoid flash. After mount, use tab logic on mobile.
