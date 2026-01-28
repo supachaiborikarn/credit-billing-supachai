@@ -326,7 +326,7 @@ export default function MeterSection({
                                         value={activeTab === 'start' ? m.startReading : m.endReading || ''}
                                         onChange={e => updateMeter(m.nozzleNumber, parseFloat(e.target.value) || 0)}
                                         disabled={isCurrentTabLocked && !isAdmin}
-                                        className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-xl font-mono text-right focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                        className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-xl font-mono font-bold text-gray-900 text-right focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:text-gray-300"
                                         inputMode="numeric"
                                         placeholder="0"
                                     />
