@@ -42,6 +42,10 @@ export default function OwnersPage() {
     const [mounted, setMounted] = useState(false);
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 20;
+
     // Add Owner Modal
     const [showAddModal, setShowAddModal] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -251,6 +255,18 @@ export default function OwnersPage() {
         });
     }, [owners, search, filterGroup]);
 
+    // Reset page when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [search, filterGroup, filterStatus]);
+
+    // Pagination
+    const totalPages = Math.ceil(filteredOwners.length / ITEMS_PER_PAGE);
+    const paginatedOwners = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        return filteredOwners.slice(start, start + ITEMS_PER_PAGE);
+    }, [filteredOwners, currentPage]);
+
     // Stats
     const stats = useMemo(() => ({
         total: filteredOwners.length,
@@ -343,8 +359,8 @@ export default function OwnersPage() {
                                 key={status}
                                 onClick={() => setFilterStatus(status)}
                                 className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${filterStatus === status
-                                        ? 'bg-blue-500 text-white'
-                                        : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                    ? 'bg-blue-500 text-white'
+                                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
                                     }`}
                             >
                                 {icons[status]}
@@ -393,7 +409,7 @@ export default function OwnersPage() {
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        {filteredOwners.map((owner, index) => {
+                        {paginatedOwners.map((owner, index) => {
                             const isExpanded = expandedIds.has(owner.id);
                             const color = getGroupColor(owner.groupType);
                             const statusBadge = getStatusBadge(owner.status || 'ACTIVE');
@@ -540,6 +556,35 @@ export default function OwnersPage() {
                                 </div>
                             );
                         })}
+                    </div>
+                )}
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-6 p-4 backdrop-blur-xl rounded-2xl border border-white/10"
+                        style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)' }}>
+                        <span className="text-gray-400 text-sm">
+                            แสดง {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, filteredOwners.length)} จาก {filteredOwners.length} ราย
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/10"
+                            >
+                                ก่อนหน้า
+                            </button>
+                            <span className="text-white font-medium px-4">
+                                {currentPage} / {totalPages}
+                            </span>
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/10"
+                            >
+                                ถัดไป
+                            </button>
+                        </div>
                     </div>
                 )}
 
