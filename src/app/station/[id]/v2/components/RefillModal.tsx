@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { X, Check } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, Check, Upload, Image as ImageIcon } from 'lucide-react';
 import { PAYMENT_TYPES } from '@/constants';
 
 interface TruckSearchResult {
@@ -46,13 +46,22 @@ export default function RefillModal({
     const [billBookNo, setBillBookNo] = useState('');
     const [billNo, setBillNo] = useState('');
 
+    // Transfer proof state
+    const [transferProofFile, setTransferProofFile] = useState<File | null>(null);
+    const [transferProofPreview, setTransferProofPreview] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     // UI state
     const [searchResults, setSearchResults] = useState<TruckSearchResult[]>([]);
     const [searching, setSearching] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [uploadingImage, setUploadingImage] = useState(false);
 
     // Calculate amount
     const amount = (parseFloat(liters) || 0) * (parseFloat(pricePerLiter) || 0);
+
+    // Check if transfer proof is required
+    const isTransferPayment = paymentType === 'TRANSFER';
 
     // Update price based on payment type
     useEffect(() => {
@@ -62,6 +71,60 @@ export default function RefillModal({
             setPricePerLiter(wholesalePrice.toString());
         }
     }, [paymentType, retailPrice, wholesalePrice]);
+
+    // Handle file selection
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                alert('กรุณาเลือกไฟล์รูปภาพเท่านั้น');
+                return;
+            }
+            // Validate file size (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('ไฟล์ขนาดใหญ่เกินไป (สูงสุด 5MB)');
+                return;
+            }
+            setTransferProofFile(file);
+            // Create preview
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setTransferProofPreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    // Upload image to server
+    const uploadTransferProof = async (): Promise<string | null> => {
+        if (!transferProofFile) return null;
+
+        setUploadingImage(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', transferProofFile);
+            formData.append('type', 'transfer_proof');
+
+            const res = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                return data.url;
+            } else {
+                console.error('Upload failed');
+                return null;
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            return null;
+        } finally {
+            setUploadingImage(false);
+        }
+    };
 
     // Search trucks
     const searchTrucks = async () => {
@@ -103,8 +166,25 @@ export default function RefillModal({
             return;
         }
 
+        // Validate transfer proof for TRANSFER payment
+        if (isTransferPayment && !transferProofFile) {
+            alert('กรุณาแนบหลักฐานการโอนเงิน');
+            return;
+        }
+
         setSubmitting(true);
         try {
+            // Upload transfer proof first if exists
+            let transferProofUrl = null;
+            if (transferProofFile) {
+                transferProofUrl = await uploadTransferProof();
+                if (!transferProofUrl && isTransferPayment) {
+                    alert('อัพโหลดรูปภาพไม่สำเร็จ กรุณาลองใหม่');
+                    setSubmitting(false);
+                    return;
+                }
+            }
+
             const res = await fetch(`/api/station/${stationId}/transactions`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -121,6 +201,7 @@ export default function RefillModal({
                     amount,
                     billBookNo,
                     billNo,
+                    transferProofUrl,
                 }),
             });
 
@@ -168,8 +249,8 @@ export default function RefillModal({
                                 type="button"
                                 onClick={() => setNozzle(n)}
                                 className={`py-3 rounded-xl font-bold transition ${nozzle === n
-                                        ? 'bg-blue-500 text-white'
-                                        : 'bg-white border border-gray-200 text-gray-700'
+                                    ? 'bg-blue-500 text-white'
+                                    : 'bg-white border border-gray-200 text-gray-700'
                                     }`}
                             >
                                 {n}
@@ -188,8 +269,8 @@ export default function RefillModal({
                                 type="button"
                                 onClick={() => setPaymentType(pt.value)}
                                 className={`px-4 py-2 rounded-xl font-medium transition ${paymentType === pt.value
-                                        ? `${pt.color} text-white`
-                                        : 'bg-white border border-gray-200 text-gray-700'
+                                    ? `${pt.color} text-white`
+                                    : 'bg-white border border-gray-200 text-gray-700'
                                     }`}
                             >
                                 {pt.label}
@@ -197,6 +278,56 @@ export default function RefillModal({
                         ))}
                     </div>
                 </div>
+
+                {/* Transfer Proof Upload - Show only for TRANSFER */}
+                {isTransferPayment && (
+                    <div className="bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
+                        <label className="text-sm text-blue-700 font-medium block mb-2">
+                            📎 หลักฐานการโอนเงิน <span className="text-red-500">*</span>
+                        </label>
+
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            accept="image/*"
+                            onChange={handleFileSelect}
+                            className="hidden"
+                        />
+
+                        {transferProofPreview ? (
+                            <div className="relative">
+                                <img
+                                    src={transferProofPreview}
+                                    alt="หลักฐานการโอน"
+                                    className="w-full max-h-48 object-contain rounded-lg border border-blue-300"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setTransferProofFile(null);
+                                        setTransferProofPreview(null);
+                                    }}
+                                    className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition"
+                                >
+                                    <X size={16} />
+                                </button>
+                                <p className="text-xs text-green-600 mt-2 text-center">
+                                    ✓ แนบรูปแล้ว: {transferProofFile?.name}
+                                </p>
+                            </div>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                className="w-full py-6 border-2 border-dashed border-blue-300 rounded-xl bg-white hover:bg-blue-50 transition flex flex-col items-center gap-2"
+                            >
+                                <Upload size={32} className="text-blue-500" />
+                                <span className="text-blue-600 font-medium">แตะเพื่อเลือกรูปภาพ</span>
+                                <span className="text-xs text-gray-400">หรือถ่ายรูปสลิปโอนเงิน</span>
+                            </button>
+                        )}
+                    </div>
+                )}
 
                 {/* License Plate Search */}
                 <div className="bg-gray-50 rounded-xl p-4">
@@ -321,13 +452,13 @@ export default function RefillModal({
             <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4">
                 <button
                     onClick={handleSubmit}
-                    disabled={submitting || !licensePlate || !liters}
+                    disabled={submitting || uploadingImage || !licensePlate || !liters || (isTransferPayment && !transferProofFile)}
                     className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-lg rounded-xl disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                    {submitting ? (
+                    {submitting || uploadingImage ? (
                         <>
                             <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            กำลังบันทึก...
+                            {uploadingImage ? 'กำลังอัพโหลดรูป...' : 'กำลังบันทึก...'}
                         </>
                     ) : (
                         <>
