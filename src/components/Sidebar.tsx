@@ -125,7 +125,7 @@ export default function Sidebar({ children }: SidebarProps) {
 
     // Filter stations for staff - only show their assigned station
     const getStationPath = (station: typeof STATIONS[number], index: number) => {
-        if (station.type === 'FULL') return `/station/${index + 1}`;
+        if (station.type === 'FULL') return `/station/${index + 1}/v2`; // Default to V2
         if (station.type === 'GAS') return `/gas/${station.id}`; // V2: use station.id for new gas control
         return `/simple-station/${index + 1}`;
     };
@@ -263,8 +263,8 @@ export default function Sidebar({ children }: SidebarProps) {
                                             const stationPath = getStationPath(station, index);
                                             const isStationActive = isActive(`/station/${index + 1}`) ||
                                                 isActive(`/simple-station/${index + 1}`) ||
-                                                isActive(`/gas-station/${index + 1}`);
-                                            const isV2Active = isActive(`/gas/${station.id}`);
+                                                isActive(`/gas-station/${index + 1}`) ||
+                                                isActive(`/gas/${station.id}`);
                                             const color = getStationColors(station.type);
 
                                             return (
@@ -281,6 +281,7 @@ export default function Sidebar({ children }: SidebarProps) {
                                                         <span className={`flex-1 ${isStationActive ? 'text-white font-medium' : 'text-gray-400'}`}>
                                                             {station.name}
                                                         </span>
+                                                        {station.type === 'FULL' && <span className="text-xs text-purple-400">V2</span>}
                                                         {station.type === 'GAS' && <span className={`text-xs ${color.text}`}>แก๊ส</span>}
                                                     </Link>
                                                 </div>
