@@ -162,9 +162,15 @@ export default function RefillModal({
 
     const handleSubmit = async () => {
         // Only CREDIT requires license plate. CASH and TRANSFER don't.
-        const requireLicensePlate = paymentType === 'CREDIT';
-        if ((requireLicensePlate && !licensePlate) || !liters || parseFloat(liters) <= 0) {
-            alert(requireLicensePlate ? 'กรุณากรอกทะเบียนและจำนวนลิตร' : 'กรุณากรอกจำนวนลิตร');
+        const isCreditPayment = paymentType === 'CREDIT';
+        if ((isCreditPayment && !licensePlate) || !liters || parseFloat(liters) <= 0) {
+            alert(isCreditPayment ? 'กรุณากรอกทะเบียนและจำนวนลิตร' : 'กรุณากรอกจำนวนลิตร');
+            return;
+        }
+
+        // CREDIT requires bill book number and bill number
+        if (isCreditPayment && (!billBookNo || !billNo)) {
+            alert('กรุณากรอก เล่มที่ และ เลขที่บิล สำหรับเงินเชื่อ');
             return;
         }
 
@@ -454,7 +460,7 @@ export default function RefillModal({
             <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4">
                 <button
                     onClick={handleSubmit}
-                    disabled={submitting || uploadingImage || (paymentType === 'CREDIT' && !licensePlate) || !liters || (isTransferPayment && !transferProofFile)}
+                    disabled={submitting || uploadingImage || (paymentType === 'CREDIT' && (!licensePlate || !billBookNo || !billNo)) || !liters || (isTransferPayment && !transferProofFile)}
                     className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-lg rounded-xl disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                     {submitting || uploadingImage ? (
