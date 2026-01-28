@@ -109,21 +109,23 @@ export async function DELETE(
             return HttpErrors.notFound('ไม่พบข้อมูลลูกค้า');
         }
 
-        // Prevent deletion if has trucks or transactions
-        if (existing._count.trucks > 0) {
-            return HttpErrors.badRequest(
-                `ไม่สามารถลบได้ ลูกค้านี้มีรถ ${existing._count.trucks} คัน กรุณาลบรถก่อน`
-            );
-        }
-        if (existing._count.transactions > 0) {
-            return HttpErrors.badRequest(
-                `ไม่สามารถลบได้ ลูกค้านี้มีประวัติธุรกรรม ${existing._count.transactions} รายการ`
-            );
-        }
+        // Soft delete: set status to INACTIVE instead of hard delete
+        // This preserves data integrity for historical transactions
+        await prisma.owner.update({
+            where: { id },
+            data: {
+                status: 'INACTIVE',
+                deletedAt: new Date()
+            }
+        });
 
-        await prisma.owner.delete({ where: { id } });
-
-        return NextResponse.json({ success: true, message: 'ลบลูกค้าสำเร็จ' });
+        return NextResponse.json({
+            success: true,
+            message: 'ปิดการใช้งานลูกค้าสำเร็จ',
+            note: existing._count.transactions > 0
+                ? `ลูกค้านี้มีประวัติธุรกรรม ${existing._count.transactions} รายการ (ยังเก็บข้อมูลไว้)`
+                : undefined
+        });
     } catch (error) {
         console.error('[Owner DELETE]:', error);
         return HttpErrors.internal(getErrorMessage(error));

@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { HttpErrors, getErrorMessage } from '@/lib/api-error';
-import { OwnerGroup } from '@prisma/client';
+import { OwnerGroup, OwnerStatus } from '@prisma/client';
 
 interface OwnerInput {
     name: string;
@@ -10,9 +10,19 @@ interface OwnerInput {
     groupType?: string;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
+        const { searchParams } = new URL(request.url);
+        const statusFilter = searchParams.get('status') as OwnerStatus | 'ALL' | null;
+
+        // Build where clause based on status filter
+        const where: { status?: OwnerStatus } = {};
+        if (statusFilter && statusFilter !== 'ALL') {
+            where.status = statusFilter;
+        }
+
         const owners = await prisma.owner.findMany({
+            where,
             orderBy: { name: 'asc' },
             include: {
                 trucks: {
