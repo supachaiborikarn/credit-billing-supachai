@@ -1,8 +1,15 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Check, Upload, Image as ImageIcon } from 'lucide-react';
+import { X, Check, Upload, Search, ChevronDown } from 'lucide-react';
 import { PAYMENT_TYPES } from '@/constants';
+
+interface Owner {
+    id: string;
+    name: string;
+    code: string | null;
+    licensePlates?: string[];
+}
 
 interface TruckSearchResult {
     id: string;
@@ -51,6 +58,13 @@ export default function RefillModal({
     const [transferProofPreview, setTransferProofPreview] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // Owner dropdown state
+    const [owners, setOwners] = useState<Owner[]>([]);
+    const [ownerSearchQuery, setOwnerSearchQuery] = useState('');
+    const [showOwnerDropdown, setShowOwnerDropdown] = useState(false);
+    const [selectedOwner, setSelectedOwner] = useState<Owner | null>(null);
+    const ownerDropdownRef = useRef<HTMLDivElement>(null);
+
     // UI state
     const [searchResults, setSearchResults] = useState<TruckSearchResult[]>([]);
     const [searching, setSearching] = useState(false);
@@ -71,6 +85,40 @@ export default function RefillModal({
             setPricePerLiter(wholesalePrice.toString());
         }
     }, [paymentType, retailPrice, wholesalePrice]);
+
+    // Fetch owners on mount
+    useEffect(() => {
+        const fetchOwners = async () => {
+            try {
+                const res = await fetch('/api/owners');
+                if (res.ok) {
+                    const data = await res.json();
+                    setOwners(data);
+                }
+            } catch (error) {
+                console.error('Failed to fetch owners:', error);
+            }
+        };
+        fetchOwners();
+    }, []);
+
+    // Close owner dropdown on outside click
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (ownerDropdownRef.current && !ownerDropdownRef.current.contains(e.target as Node)) {
+                setShowOwnerDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Filter owners
+    const filteredOwners = owners.filter(o =>
+        o.name.toLowerCase().includes(ownerSearchQuery.toLowerCase()) ||
+        (o.code && o.code.toLowerCase().includes(ownerSearchQuery.toLowerCase())) ||
+        (o.licensePlates && o.licensePlates.some(lp => lp.toLowerCase().includes(ownerSearchQuery.toLowerCase())))
+    );
 
     // Handle file selection
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,6 +207,22 @@ export default function RefillModal({
         setOwnerId(truck.id);
         setSearchResults([]);
     };
+
+    const handleOwnerSelect = (owner: Owner) => {
+        setSelectedOwner(owner);
+        setOwnerName(owner.name);
+        setOwnerCode(owner.code || '');
+        setOwnerId(owner.id);
+        // Set first license plate if available
+        if (owner.licensePlates && owner.licensePlates.length > 0) {
+            setLicensePlate(owner.licensePlates[0]);
+        }
+        setShowOwnerDropdown(false);
+        setOwnerSearchQuery('');
+    };
+
+    const inputBaseClass = "w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white";
+    const inputNumberClass = `${inputBaseClass} text-right text-xl font-mono font-semibold`;
 
     const handleSubmit = async () => {
         // Only CREDIT requires license plate. CASH and TRANSFER don't.
@@ -337,6 +401,66 @@ export default function RefillModal({
                     </div>
                 )}
 
+                {/* Owner Dropdown */}
+                <div ref={ownerDropdownRef} className="bg-gray-50 rounded-xl p-4 relative">
+                    <label className="text-sm text-gray-600 block mb-2">ลูกค้า / เจ้าของรถ</label>
+                    <button
+                        type="button"
+                        onClick={() => setShowOwnerDropdown(!showOwnerDropdown)}
+                        className={`${inputBaseClass} flex items-center justify-between`}
+                    >
+                        <span className={selectedOwner ? 'text-gray-900' : 'text-gray-400'}>
+                            {selectedOwner ? `${selectedOwner.name}${selectedOwner.code ? ` (${selectedOwner.code})` : ''}` : 'เลือกลูกค้า...'}
+                        </span>
+                        <ChevronDown size={18} className="text-gray-400" />
+                    </button>
+
+                    {showOwnerDropdown && (
+                        <div className="absolute z-20 mt-1 left-4 right-4 bg-white border border-gray-200 rounded-xl shadow-lg max-h-72 overflow-hidden">
+                            {/* Search */}
+                            <div className="p-2 border-b border-gray-100">
+                                <div className="relative">
+                                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        value={ownerSearchQuery}
+                                        onChange={e => setOwnerSearchQuery(e.target.value)}
+                                        placeholder="ค้นหาชื่อ, รหัส, หรือทะเบียน..."
+                                        className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        autoFocus
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Options */}
+                            <div className="max-h-56 overflow-y-auto">
+                                {filteredOwners.length > 0 ? (
+                                    filteredOwners.slice(0, 20).map(owner => (
+                                        <button
+                                            key={owner.id}
+                                            type="button"
+                                            onClick={() => handleOwnerSelect(owner)}
+                                            className="w-full px-4 py-3 text-left hover:bg-blue-50 flex items-center justify-between border-b border-gray-50 last:border-0"
+                                        >
+                                            <div>
+                                                <p className="font-medium text-gray-900">{owner.name}</p>
+                                                <p className="text-xs text-gray-500">
+                                                    {owner.code && <span className="mr-2">รหัส: {owner.code}</span>}
+                                                    {owner.licensePlates && owner.licensePlates.length > 0 && (
+                                                        <span>ทะเบียน: {owner.licensePlates.slice(0, 2).join(', ')}</span>
+                                                    )}
+                                                </p>
+                                            </div>
+                                        </button>
+                                    ))
+                                ) : (
+                                    <p className="px-4 py-3 text-gray-400 text-center">ไม่พบข้อมูล</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
                 {/* License Plate Search */}
                 <div className="bg-gray-50 rounded-xl p-4">
                     <label className="text-sm text-gray-600 block mb-2">ทะเบียนรถ</label>
@@ -346,7 +470,7 @@ export default function RefillModal({
                             value={licensePlate}
                             onChange={e => setLicensePlate(e.target.value)}
                             placeholder="พิมพ์ทะเบียน..."
-                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className={inputBaseClass}
                         />
                         {searching && (
                             <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -365,8 +489,8 @@ export default function RefillModal({
                                     onClick={() => selectTruck(truck)}
                                     className="w-full px-4 py-3 text-left border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition"
                                 >
-                                    <span className="font-mono font-bold">{truck.licensePlate}</span>
-                                    <span className="text-gray-500 ml-2">{truck.ownerName}</span>
+                                    <span className="font-mono font-bold text-gray-900">{truck.licensePlate}</span>
+                                    <span className="text-gray-600 ml-2">{truck.ownerName}</span>
                                     {truck.ownerCode && (
                                         <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">
                                             {truck.ownerCode}
@@ -386,7 +510,7 @@ export default function RefillModal({
                                 value={ownerName}
                                 onChange={e => setOwnerName(e.target.value)}
                                 placeholder="ชื่อเจ้าของรถ..."
-                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className={inputBaseClass}
                             />
                         </div>
                     )}
@@ -398,23 +522,23 @@ export default function RefillModal({
                         <label className="text-sm text-gray-600 block mb-2">เลขบิล</label>
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="text-xs text-gray-400">เล่มที่</label>
+                                <label className="text-xs text-gray-500">เล่มที่</label>
                                 <input
                                     type="text"
                                     value={billBookNo}
                                     onChange={e => setBillBookNo(e.target.value)}
                                     placeholder="เล่ม..."
-                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className={inputBaseClass}
                                 />
                             </div>
                             <div>
-                                <label className="text-xs text-gray-400">เลขที่</label>
+                                <label className="text-xs text-gray-500">เลขที่</label>
                                 <input
                                     type="text"
                                     value={billNo}
                                     onChange={e => setBillNo(e.target.value)}
                                     placeholder="เลขที่..."
-                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className={inputBaseClass}
                                 />
                             </div>
                         </div>
@@ -430,7 +554,7 @@ export default function RefillModal({
                         onChange={e => setLiters(e.target.value)}
                         placeholder="0"
                         inputMode="decimal"
-                        className="w-full px-4 py-4 border border-gray-200 rounded-xl text-2xl font-mono text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-4 border border-gray-300 rounded-xl text-2xl font-mono font-bold text-right text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     />
                 </div>
 
@@ -443,7 +567,7 @@ export default function RefillModal({
                         onChange={e => setPricePerLiter(e.target.value)}
                         step="0.01"
                         inputMode="decimal"
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-xl font-mono text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl text-xl font-mono font-semibold text-right text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     />
                 </div>
 
