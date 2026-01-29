@@ -133,7 +133,7 @@ export async function GET(request: Request) {
         ]);
 
         // Additional queries for alerts
-        const [latestGaugeReadings, transfersWithoutProof, transactionsWithoutMeter] = await Promise.all([
+        const [latestGaugeReadings, transfersWithoutProof, transactionsWithoutMeter, yesterdayTankStation] = await Promise.all([
             // Latest gauge readings for each gas station
             prisma.gaugeReading.findMany({
                 where: {
@@ -162,6 +162,21 @@ export async function GET(request: Request) {
                     date: { gte: startOfDay, lte: endOfDay },
                     nozzleNumber: null,
                     station: { type: 'FULL' }
+                }
+            }),
+            // Check if แท๊งลอย (station-1) closed meters yesterday
+            prisma.dailyRecord.findFirst({
+                where: {
+                    stationId: 'station-1',
+                    date: {
+                        gte: yesterdayStart,
+                        lte: yesterdayEnd
+                    }
+                },
+                select: {
+                    id: true,
+                    date: true,
+                    meters: true
                 }
             })
         ]);
@@ -345,6 +360,30 @@ export async function GET(request: Request) {
                 type: 'meter',
                 severity: 'info',
                 message: `🔢 มีรายการวันนี้ ${transactionsWithoutMeter} รายการที่ไม่ได้ระบุหัวจ่าย`
+            });
+        }
+
+        // Alert: แท๊งลอย (station-1) didn't close meters yesterday
+        if (yesterdayTankStation) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const meters = yesterdayTankStation.meters as any[] | null;
+            const hasEndMeter = meters && meters.length > 0 && meters.some(m => m.endReading && Number(m.endReading) > 0);
+            if (!hasEndMeter) {
+                const yesterdayDateStr = formatDateBangkok(yesterdayStart);
+                alerts.push({
+                    type: 'tank_unclosed',
+                    severity: 'critical',
+                    message: `🚨 แท๊งลอยวัชรเกียรติ ยังไม่ได้ปิดมิเตอร์วันที่ ${yesterdayDateStr} กรุณาลงมิเตอร์ปิดวัน`
+                });
+            }
+        } else {
+            // No DailyRecord for yesterday means no activity - still alert if there should be
+            const yesterdayDateStr = formatDateBangkok(yesterdayStart);
+            // Only alert on weekdays (optional - remove if alerting everyday)
+            alerts.push({
+                type: 'tank_unclosed',
+                severity: 'warning',
+                message: `⚠️ แท๊งลอยวัชรเกียรติ ไม่มีบันทึกวันที่ ${yesterdayDateStr}`
             });
         }
 

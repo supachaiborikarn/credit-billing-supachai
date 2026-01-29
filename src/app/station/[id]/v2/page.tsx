@@ -14,6 +14,7 @@ import HistoryView from './components/HistoryView';
 import AuditTrail from './components/AuditTrail';
 import EditTransactionModal from './components/EditTransactionModal';
 import TimeBasedReminder from '@/components/TimeBasedReminder';
+import PreviousDayBlocker from './components/PreviousDayBlocker';
 import { Settings } from 'lucide-react';
 
 interface MeterReading {
@@ -358,6 +359,14 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
 
     return (
         <div className="min-h-screen bg-gray-100">
+            {/* Block if previous day not closed */}
+            <PreviousDayBlocker
+                stationId={`station-${id}`}
+                currentDate={selectedDate}
+                onGoToPreviousDay={(date) => setSelectedDate(date)}
+                isAdmin={isAdmin}
+            />
+
             {/* Time-based Reminder for Staff */}
             <TimeBasedReminder
                 meterLink={`/station/${id}/v2`}
