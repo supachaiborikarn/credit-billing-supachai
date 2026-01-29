@@ -11,6 +11,7 @@ interface TransactionInput {
     date: string;
     licensePlate?: string;
     ownerName?: string;
+    ownerId?: string;
     paymentType: string;
     nozzleNumber?: number;
     liters: number;
@@ -166,9 +167,9 @@ export async function POST(
             dailyRecordId = dailyRecord.id;
         }
 
-        // Find owner by name if credit
-        let ownerId = null;
-        if (paymentType === 'CREDIT' && ownerName) {
+        // Find owner - prioritize ownerId from frontend, fallback to name search
+        let ownerId: string | null = body.ownerId || null;
+        if (!ownerId && paymentType === 'CREDIT' && ownerName) {
             const owner = await prisma.owner.findFirst({
                 where: { name: { contains: ownerName } }
             });
@@ -227,6 +228,34 @@ export async function POST(
             }
         }
 
+        // Auto-create truck for owner if license plate is new
+        let truckId = null;
+        const hasValidPlateForTruck = licensePlate && licensePlate.trim() !== '' && licensePlate !== '0';
+
+        if (hasValidPlateForTruck && ownerId) {
+            // Check if this plate already exists for this owner
+            const existingTruck = await prisma.truck.findFirst({
+                where: {
+                    ownerId,
+                    licensePlate: licensePlate.trim(),
+                }
+            });
+
+            if (existingTruck) {
+                truckId = existingTruck.id;
+            } else {
+                // Auto-create new truck for this owner
+                const newTruck = await prisma.truck.create({
+                    data: {
+                        licensePlate: licensePlate.trim(),
+                        ownerId,
+                    }
+                });
+                truckId = newTruck.id;
+                console.log(`[Auto-create truck] Created new truck ${licensePlate} for owner ${ownerId}`);
+            }
+        }
+
         // Create transaction
         const transaction = await prisma.transaction.create({
             data: {
@@ -236,6 +265,7 @@ export async function POST(
                 licensePlate,
                 ownerName,
                 ownerId,
+                truckId,
                 paymentType: paymentType as PaymentType,
                 nozzleNumber,
                 liters,
