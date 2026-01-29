@@ -55,17 +55,30 @@ export async function GET(
             },
             include: {
                 meters: true,
-                transactions: {
-                    where: {
-                        deletedAt: null,
-                        isVoided: false,
-                    },
-                },
             },
             orderBy: {
                 date: 'desc',
             },
-        }) as unknown as DailyRecordWithIncludes[];
+        });
+
+        // Separately fetch ALL transactions for this station and date range
+        // This ensures we count transactions even if they don't have dailyRecordId
+        const allTransactions = await prisma.transaction.findMany({
+            where: {
+                stationId: station.id,
+                date: {
+                    gte: startDate,
+                    lte: new Date(endDate.getTime() + 24 * 60 * 60 * 1000), // End of day
+                },
+                deletedAt: null,
+                isVoided: false,
+            },
+            select: {
+                date: true,
+                liters: true,
+                amount: true,
+            },
+        });
 
         // Transform to history items
         const history = dailyRecords.map((record) => {
@@ -75,13 +88,20 @@ export async function GET(
                 return sum + (end - start);
             }, 0);
 
-            const transactionTotal = record.transactions.reduce(
-                (sum: number, t: Transaction) => sum + (t.liters?.toNumber() || 0),
+            // Filter transactions for this specific date
+            const recordDateStr = record.date.toISOString().split('T')[0];
+            const dayTransactions = allTransactions.filter(t => {
+                const txDateStr = t.date.toISOString().split('T')[0];
+                return txDateStr === recordDateStr;
+            });
+
+            const transactionTotal = dayTransactions.reduce(
+                (sum, t) => sum + (t.liters?.toNumber() || 0),
                 0
             );
 
-            const totalAmount = record.transactions.reduce(
-                (sum: number, t: Transaction) => sum + (t.amount?.toNumber() || 0),
+            const totalAmount = dayTransactions.reduce(
+                (sum, t) => sum + (t.amount?.toNumber() || 0),
                 0
             );
 
@@ -103,12 +123,12 @@ export async function GET(
             const hasPostCloseEdit = false; // TODO: Implement when audit log integration is complete
 
             return {
-                date: record.date.toISOString().split('T')[0],
+                date: recordDateStr,
                 status,
                 meterTotal,
                 transactionTotal,
                 difference,
-                transactionCount: record.transactions.length,
+                transactionCount: dayTransactions.length,
                 totalAmount,
                 hasAnomaly,
                 hasPostCloseEdit,
