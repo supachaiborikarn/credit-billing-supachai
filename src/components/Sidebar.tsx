@@ -281,6 +281,20 @@ export default function Sidebar({ children }: SidebarProps) {
                                                         {station.type === 'FULL' && <span className="text-xs text-purple-400">V2</span>}
                                                         {station.type === 'GAS' && <span className={`text-xs ${color.text}`}>แก๊ส</span>}
                                                     </Link>
+                                                    {/* Admin: Show V1 (Classic) option for FULL stations */}
+                                                    {station.type === 'FULL' && isAdmin && (
+                                                        <Link
+                                                            href={`/station/${index + 1}`}
+                                                            className={`flex items-center gap-3 px-4 py-2 ml-5 rounded-lg text-xs transition-all duration-300 ${isActive(`/station/${index + 1}`) && !pathname.includes('/v2')
+                                                                ? 'bg-white/10 text-white'
+                                                                : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                                                                }`}
+                                                            onClick={() => setIsMobileMenuOpen(false)}
+                                                        >
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-gray-500" />
+                                                            <span>Classic (V1)</span>
+                                                        </Link>
+                                                    )}
                                                 </div>
                                             );
                                         })}
