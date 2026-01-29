@@ -43,6 +43,14 @@ export function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/dashboard', request.url));
     }
 
+    // Force gas-station users to use new v2 UI
+    // Redirect /gas-station/[id] to /gas-station/[id]/new/home
+    const gasStationMatch = pathname.match(/^\/gas-station\/(\d+)$/);
+    if (gasStationMatch) {
+        const stationId = gasStationMatch[1];
+        return NextResponse.redirect(new URL(`/gas-station/${stationId}/new/home`, request.url));
+    }
+
     return NextResponse.next();
 }
 
