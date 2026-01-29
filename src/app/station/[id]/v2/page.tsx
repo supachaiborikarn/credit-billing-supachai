@@ -13,6 +13,7 @@ import StartMeterPrompt from './components/StartMeterPrompt';
 import HistoryView from './components/HistoryView';
 import AuditTrail from './components/AuditTrail';
 import EditTransactionModal from './components/EditTransactionModal';
+import TimeBasedReminder from '@/components/TimeBasedReminder';
 import { Settings } from 'lucide-react';
 
 interface MeterReading {
@@ -357,6 +358,15 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
 
     return (
         <div className="min-h-screen bg-gray-100">
+            {/* Time-based Reminder for Staff */}
+            <TimeBasedReminder
+                meterLink={`/station/${id}/v2`}
+                actionLabel="ตรวจสอบมิเตอร์"
+                isDayClosed={isDayClosed}
+                isAdmin={isAdmin}
+                date={selectedDate}
+            />
+
             {/* Header */}
             <header className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-5 sticky top-0 z-30">
                 <div className="flex items-center justify-between mb-3">

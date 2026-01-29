@@ -8,6 +8,7 @@ import DailyCashEntry from '../../components/DailyCashEntry';
 import { useRouter } from 'next/navigation';
 import ShiftGuard from '../../components/ShiftGuard';
 import AutoLogout from '@/components/AutoLogout';
+import TimeBasedReminder from '@/components/TimeBasedReminder';
 
 interface ShiftData {
     id: string;
@@ -253,6 +254,15 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
         <AutoLogout>
             <ShiftGuard stationId={stationId} urlId={id}>
                 <div className="min-h-screen bg-[#f6f6f6] text-neutral-900">
+                    {/* Time-based Reminder for Staff */}
+                    <TimeBasedReminder
+                        meterLink={`/simple-station/${id}/new/shift-end`}
+                        actionLabel="ลงมิเตอร์ปิดกะ"
+                        isDayClosed={!currentShift}
+                        isAdmin={isAdmin}
+                        date={selectedDate}
+                    />
+
                     {/* Header */}
                     <header className="sticky top-0 z-50 bg-[#f6f6f6]/80 backdrop-blur border-b border-black/10">
                         <div className="px-4 py-4 flex items-center justify-between">
