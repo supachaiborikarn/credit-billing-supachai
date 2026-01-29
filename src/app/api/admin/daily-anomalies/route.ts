@@ -33,7 +33,7 @@ async function autoScanRecentDays() {
                 await checkAndSaveDailyAnomaly(station.id, date);
             }
         }
-        console.log(`[Auto-Scan] Scanned ${fullStations.length} stations for last 7 days`);
+        // Auto-scan completed for all full stations
     } catch (error) {
         console.error('[Auto-Scan Error]:', error);
     }

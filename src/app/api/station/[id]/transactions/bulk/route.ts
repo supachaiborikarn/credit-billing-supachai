@@ -102,7 +102,7 @@ export async function POST(
             });
             if (truck?.owner && !truck.owner.deletedAt) {
                 resolvedOwnerId = truck.owner.id;
-                console.log(`Found owner from truck plate: ${licensePlate} -> ${truck.owner.name}`);
+                // Resolved owner from truck plate
             }
         }
 
@@ -125,7 +125,7 @@ export async function POST(
                     }
                 });
                 truckId = newTruck.id;
-                console.log(`Auto-created truck: ${licensePlate} for owner ${resolvedOwnerId}`);
+                // Auto-created truck for owner
             }
         }
 
@@ -148,7 +148,7 @@ export async function POST(
 
             // Log duplicate for reference but don't block - different owners can have same bill numbers
             if (billDuplicate) {
-                console.log(`Bill duplicate info: เล่ม ${billBookNo} เลขที่ ${billNo} exists (date: ${billDuplicate.date.toLocaleDateString('th-TH')}), but allowing different owner entry`);
+                // Bill duplicate info - allowing different owner entry
             }
         }
 

@@ -191,7 +191,7 @@ export async function POST(
             });
 
             if (billDuplicate) {
-                console.log(`[Bill Duplicate Info] เล่ม ${billBookNo} เลขที่ ${billNo} exists`);
+                // Bill duplicate detected - proceeding with different owner entry
             }
         }
 
@@ -267,7 +267,7 @@ export async function POST(
                 });
 
                 // Log the product sale (optional - for tracking)
-                console.log(`[Product Sale] ${item.productId} x${item.qty} at ${stationId}`);
+                // Product sale recorded
             }
         }
 

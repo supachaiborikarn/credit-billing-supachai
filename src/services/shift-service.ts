@@ -8,6 +8,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { VARIANCE_THRESHOLD, getVarianceLevel } from '@/constants/thresholds';
+import { calculateProductSales } from './inventory-service';
 
 export type ShiftStatus = 'OPEN' | 'CLOSED' | 'LOCKED';
 export type VarianceStatus = 'GREEN' | 'YELLOW' | 'RED';
@@ -75,8 +76,9 @@ export async function validateCloseShift(shiftId: string): Promise<CloseShiftVal
     // 2. Skip meter validation for SIMPLE stations (no meters yet)
     const stationType = shift.dailyRecord?.station?.type;
     if (stationType !== 'SIMPLE') {
-        // ตรวจสอบมิเตอร์ครบทุกหัว (สำหรับ FULL และ GAS เท่านั้น)
-        const expectedNozzles = stationType === 'GAS' ? 4 : 4;
+        // GAS and FULL stations have 4 nozzles by default
+        const EXPECTED_NOZZLES_PER_STATION = 4;
+        const expectedNozzles = EXPECTED_NOZZLES_PER_STATION;
         const completedMeters = shift.meters.filter(m => m.endReading !== null);
 
         if (completedMeters.length < expectedNozzles) {
@@ -146,7 +148,6 @@ export async function calculateReconciliation(shiftId: string): Promise<Reconcil
     const expectedFuelAmount = totalSoldLiters * gasPrice;
 
     // ยอดจากสินค้าอื่น
-    const { calculateProductSales } = await import('./inventory-service');
     const expectedOtherAmount = await calculateProductSales(shiftId);
 
     const totalExpected = expectedFuelAmount + expectedOtherAmount;
@@ -391,7 +392,7 @@ export async function createNextShiftWithCarryOver(
                     }
                 }
             });
-            console.log(`[SHIFT SERVICE] Carry-over: Created shift ${nextShiftNumber} with startReadings and openingStock=${closingStock}`);
+            // Shift carry-over: Created next shift with startReadings and openingStock
             return { success: true, nextShiftId: nextShift.id };
         } else {
             // Update existing shift's meter startReadings (if they're still 0)
@@ -409,7 +410,7 @@ export async function createNextShiftWithCarryOver(
                     });
                 }
             }
-            console.log(`[SHIFT SERVICE] Carry-over: Updated existing shift ${nextShiftNumber} startReadings`);
+            // Shift carry-over: Updated existing shift startReadings
             return { success: true, nextShiftId: existingNextShift.id };
         }
     } catch (error) {

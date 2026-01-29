@@ -135,7 +135,7 @@ export async function checkAndSaveDailyAnomaly(
             await prisma.dailyAnomaly.delete({
                 where: { id: existing.id }
             });
-            console.log(`[DailyAnomaly] Deleted resolved anomaly for ${stationId} on ${dateOnly.toISOString().split('T')[0]}`);
+            // Deleted resolved anomaly record
             return { success: true, result, saved: false, deleted: true };
         }
 
@@ -199,7 +199,7 @@ export async function scanHistoricalAnomalies(
         const { result, saved } = await checkAndSaveDailyAnomaly(stationId, date);
         if (result.hasAnomaly) {
             found++;
-            console.log(`[DailyAnomaly] ${date.toISOString().split('T')[0]}: diff=${result.difference.toFixed(2)}L (${result.severity})`);
+            // Anomaly detected - logged for review
         }
     }
 

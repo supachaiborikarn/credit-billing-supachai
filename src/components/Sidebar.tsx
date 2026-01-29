@@ -81,9 +81,6 @@ export default function Sidebar({ children }: SidebarProps) {
         { href: '/reports', icon: FileText, label: 'รายงาน', gradient: 'from-orange-500 to-yellow-500' },
     ];
 
-    // Hide old gas control after V2 migration date (2026-01-11)
-    const isAfterV2Migration = new Date() >= new Date('2026-01-11T00:00:00+07:00');
-
     // Admin menu organized into logical groups
     const adminMenuGroups = [
         {

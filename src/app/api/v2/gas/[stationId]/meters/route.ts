@@ -125,7 +125,7 @@ export async function POST(
         );
 
         // Log the action
-        console.log(`[Meters] Saved ${type} readings for shift ${shiftId}: ${readings.length} nozzles by user ${userId}`);
+        // Meter readings saved successfully
 
         return NextResponse.json({
             success: true,
