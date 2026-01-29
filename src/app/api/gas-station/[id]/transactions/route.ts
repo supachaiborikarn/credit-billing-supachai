@@ -17,7 +17,7 @@ interface TransactionInput {
     amount: number;
     productType?: string;
     notes?: string;
-    shiftNumber?: number;
+    shiftId?: string;  // Changed from shiftNumber to shiftId
 }
 
 export async function POST(
@@ -53,7 +53,7 @@ export async function POST(
             amount,
             productType,
             notes,
-            shiftNumber
+            shiftId  // Changed from shiftNumber to shiftId
         } = body;
 
         // Validate required fields - EXPENSE and CASH summary don't require liters
@@ -180,6 +180,7 @@ export async function POST(
                 productType: productType || (paymentType === 'EXPENSE' ? 'EXPENSE' : 'LPG'),
                 recordedById: sessionUser.id,
                 notes: notes || null,
+                shiftId: shiftId || null,  // NEW: link to shift
             }
         });
 

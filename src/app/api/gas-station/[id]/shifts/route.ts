@@ -112,11 +112,28 @@ export async function POST(
                 where: {
                     dailyRecord: { stationId, date },
                     status: 'OPEN'
+                },
+                include: {
+                    meters: true  // Include meters to update endReading
                 }
             });
 
             if (!openShift) {
                 return HttpErrors.badRequest('ไม่มีกะที่เปิดอยู่');
+            }
+
+            // Update meter readings with endReading (if not already set)
+            // Set endReading = startReading if no sales were recorded on this nozzle
+            for (const meter of openShift.meters) {
+                if (meter.endReading === null) {
+                    await prisma.meterReading.update({
+                        where: { id: meter.id },
+                        data: {
+                            endReading: meter.startReading,  // Default to start (no sales)
+                            // soldQty will be 0 if no actual end reading was entered
+                        }
+                    });
+                }
             }
 
             const closedShift = await prisma.shift.update({

@@ -66,8 +66,13 @@ export async function GET(
             }
         };
 
-        // NOTE: Gas station transactions don't have shiftNumber, so we don't filter by shift
-        // (Unlike simple-station which tracks shiftNumber per transaction)
+        // Filter by shiftId if specific shift is selected (shiftNumber > 0)
+        if (shiftNumber !== null && shiftNumber > 0 && dailyRecord?.shifts) {
+            const selectedShift = dailyRecord.shifts.find(s => s.shiftNumber === shiftNumber);
+            if (selectedShift) {
+                transactionWhere.shiftId = selectedShift.id;
+            }
+        }
 
         const transactions = await prisma.transaction.findMany({
             where: transactionWhere,

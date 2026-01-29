@@ -183,6 +183,7 @@ model Shift {
   status               ShiftStatus          @default(OPEN)
   anomalies            MeterAnomaly[]
   meters               MeterReading[]
+  transactions         Transaction[]        // NEW: transactions linked to this shift
   reconciliation       ShiftReconciliation?
   closedBy             User?                @relation("ShiftClosedBy", fields: [closedById], references: [id])
   dailyRecord          DailyRecord          @relation(fields: [dailyRecordId], references: [id])
@@ -301,10 +302,12 @@ model Transaction {
   voidReason       String?
   voidedAt         DateTime?
   voidedById       String?
+  shiftId          String?      // NEW: link to shift for gas station
   dailyRecord      DailyRecord? @relation(fields: [dailyRecordId], references: [id])
   invoice          Invoice?     @relation(fields: [invoiceId], references: [id])
   owner            Owner?       @relation(fields: [ownerId], references: [id])
   recordedBy       User         @relation(fields: [recordedById], references: [id])
+  shift            Shift?       @relation(fields: [shiftId], references: [id])  // NEW
   station          Station      @relation(fields: [stationId], references: [id])
   truck            Truck?       @relation(fields: [truckId], references: [id])
 

@@ -27,6 +27,7 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
     const [loading, setLoading] = useState(false);
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [gasPrice, setGasPrice] = useState(DEFAULT_GAS_PRICE);
+    const [currentShiftId, setCurrentShiftId] = useState<string | null>(null);  // NEW: track current shift
 
     // Form state
     const [licensePlate, setLicensePlate] = useState('');
@@ -64,7 +65,7 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
         setAmount(l * gasPrice);
     }, [liters, gasPrice]);
 
-    // Fetch gas price
+    // Fetch gas price and current shift
     useEffect(() => {
         const fetchPrice = async () => {
             try {
@@ -73,6 +74,14 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
                     const data = await res.json();
                     if (data.dailyRecord?.gasPrice) {
                         setGasPrice(data.dailyRecord.gasPrice);
+                    }
+                    // Get current open shift ID to link transactions
+                    if (data.currentShift?.id && data.currentShift?.status === 'OPEN') {
+                        setCurrentShiftId(data.currentShift.id);
+                    } else {
+                        // Find open shift from shifts list
+                        const openShift = data.dailyRecord?.shifts?.find((s: { status: string; id: string }) => s.status === 'OPEN');
+                        setCurrentShiftId(openShift?.id || null);
                     }
                 }
             } catch (error) {
@@ -264,6 +273,7 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
                     liters: parseFloat(liters),
                     pricePerLiter: gasPrice,
                     amount,
+                    shiftId: currentShiftId,  // NEW: link to current shift
                 }),
             });
 
