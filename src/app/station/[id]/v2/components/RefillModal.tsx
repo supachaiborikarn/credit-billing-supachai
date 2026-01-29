@@ -8,7 +8,7 @@ interface Owner {
     id: string;
     name: string;
     code: string | null;
-    licensePlates?: string[];
+    trucks?: { id: string; licensePlate: string }[];
 }
 
 interface TruckSearchResult {
@@ -117,7 +117,7 @@ export default function RefillModal({
     const filteredOwners = owners.filter(o =>
         o.name.toLowerCase().includes(ownerSearchQuery.toLowerCase()) ||
         (o.code && o.code.toLowerCase().includes(ownerSearchQuery.toLowerCase())) ||
-        (o.licensePlates && o.licensePlates.some(lp => lp.toLowerCase().includes(ownerSearchQuery.toLowerCase())))
+        (o.trucks && o.trucks.some(t => t.licensePlate.toLowerCase().includes(ownerSearchQuery.toLowerCase())))
     );
 
     // Handle file selection
@@ -214,8 +214,8 @@ export default function RefillModal({
         setOwnerCode(owner.code || '');
         setOwnerId(owner.id);
         // Set first license plate if available
-        if (owner.licensePlates && owner.licensePlates.length > 0) {
-            setLicensePlate(owner.licensePlates[0]);
+        if (owner.trucks && owner.trucks.length > 0) {
+            setLicensePlate(owner.trucks[0].licensePlate);
         }
         setShowOwnerDropdown(false);
         setOwnerSearchQuery('');
@@ -446,8 +446,8 @@ export default function RefillModal({
                                                 <p className="font-medium text-gray-900">{owner.name}</p>
                                                 <p className="text-xs text-gray-500">
                                                     {owner.code && <span className="mr-2">รหัส: {owner.code}</span>}
-                                                    {owner.licensePlates && owner.licensePlates.length > 0 && (
-                                                        <span>ทะเบียน: {owner.licensePlates.slice(0, 2).join(', ')}</span>
+                                                    {owner.trucks && owner.trucks.length > 0 && (
+                                                        <span>ทะเบียน: {owner.trucks.slice(0, 2).map(t => t.licensePlate).join(', ')}</span>
                                                     )}
                                                 </p>
                                             </div>

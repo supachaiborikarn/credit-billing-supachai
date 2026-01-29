@@ -24,7 +24,7 @@ interface Owner {
     id: string;
     name: string;
     code: string | null;
-    licensePlates?: string[];
+    trucks?: { id: string; licensePlate: string }[];
 }
 
 interface EditTransactionModalProps {
@@ -94,7 +94,7 @@ export default function EditTransactionModal({
     const filteredOwners = owners.filter(o =>
         o.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (o.code && o.code.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (o.licensePlates && o.licensePlates.some(lp => lp.toLowerCase().includes(searchQuery.toLowerCase())))
+        (o.trucks && o.trucks.some(t => t.licensePlate.toLowerCase().includes(searchQuery.toLowerCase())))
     );
 
     // Auto-calculate amount when liters or price changes
@@ -114,7 +114,7 @@ export default function EditTransactionModal({
             ...prev,
             ownerName: owner.name,
             ownerId: owner.id,
-            licensePlate: owner.licensePlates?.[0] || prev.licensePlate,
+            licensePlate: owner.trucks?.[0]?.licensePlate || prev.licensePlate,
         }));
         setShowOwnerDropdown(false);
         setSearchQuery('');
@@ -219,8 +219,8 @@ export default function EditTransactionModal({
                                                     <p className="font-medium text-gray-900">{owner.name}</p>
                                                     <p className="text-xs text-gray-500">
                                                         {owner.code && <span className="mr-2">รหัส: {owner.code}</span>}
-                                                        {owner.licensePlates && owner.licensePlates.length > 0 && (
-                                                            <span>ทะเบียน: {owner.licensePlates.slice(0, 2).join(', ')}</span>
+                                                        {owner.trucks && owner.trucks.length > 0 && (
+                                                            <span>ทะเบียน: {owner.trucks.slice(0, 2).map(t => t.licensePlate).join(', ')}</span>
                                                         )}
                                                     </p>
                                                 </div>
