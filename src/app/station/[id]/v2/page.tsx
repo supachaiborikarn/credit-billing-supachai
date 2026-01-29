@@ -12,6 +12,7 @@ import AdminSettingsModal from './components/AdminSettingsModal';
 import StartMeterPrompt from './components/StartMeterPrompt';
 import HistoryView from './components/HistoryView';
 import AuditTrail from './components/AuditTrail';
+import EditTransactionModal from './components/EditTransactionModal';
 import { Settings } from 'lucide-react';
 
 interface MeterReading {
@@ -66,6 +67,7 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
     // Modal states
     const [showRefillModal, setShowRefillModal] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
+    const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
     // Bottom tab
     const [activeTab, setActiveTab] = useState<TabType>('home');
@@ -235,8 +237,9 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
                                     <TransactionCard
                                         key={t.id}
                                         transaction={t}
-                                        onEdit={() => { }}
-                                        onDelete={() => { }}
+                                        onEdit={() => setEditingTransaction(t)}
+                                        onDelete={() => fetchDailyData()}
+                                        showActions={!isDayClosed || isAdmin}
                                         isLocked={isDayClosed && !isAdmin}
                                     />
                                 ))}
@@ -266,7 +269,7 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
                                 <TransactionCard
                                     key={t.id}
                                     transaction={t}
-                                    onEdit={() => { }}
+                                    onEdit={() => setEditingTransaction(t)}
                                     onDelete={() => fetchDailyData()}
                                     showActions={!isDayClosed || isAdmin}
                                     isLocked={isDayClosed && !isAdmin}
@@ -379,12 +382,12 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
             </header>
 
             {/* Main Content - with padding for bottom elements */}
-            <main className="p-4 space-y-4 pb-40">
+            <main className="p-4 space-y-4 pb-52">
                 {renderContent()}
             </main>
 
             {/* Sticky Refill Button - above tab bar */}
-            <div className="fixed bottom-20 left-0 right-0 px-4 z-40">
+            <div className="fixed bottom-28 left-0 right-0 px-4 z-40">
                 <button
                     onClick={handleRefillClick}
                     disabled={buttonState.disabled}
@@ -420,6 +423,19 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
                     wholesalePrice={dailyRecord?.wholesalePrice || 30.5}
                     onClose={() => setShowSettings(false)}
                     onSave={fetchDailyData}
+                />
+            )}
+
+            {/* Edit Transaction Modal */}
+            {editingTransaction && (
+                <EditTransactionModal
+                    stationId={id}
+                    transaction={editingTransaction}
+                    onClose={() => setEditingTransaction(null)}
+                    onSuccess={() => {
+                        setEditingTransaction(null);
+                        fetchDailyData();
+                    }}
                 />
             )}
         </div>
