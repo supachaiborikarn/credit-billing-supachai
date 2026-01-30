@@ -386,9 +386,10 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
                     {isAdmin && (
                         <button
                             onClick={() => setShowSettings(true)}
-                            className="p-2.5 bg-white/20 rounded-xl hover:bg-white/30 transition"
+                            className="flex flex-col items-center gap-1 p-2.5 bg-white/20 rounded-xl hover:bg-white/30 transition"
                         >
                             <Settings size={20} />
+                            <span className="text-[10px] font-medium">ตั้งราคาน้ำมัน</span>
                         </button>
                     )}
                 </div>
