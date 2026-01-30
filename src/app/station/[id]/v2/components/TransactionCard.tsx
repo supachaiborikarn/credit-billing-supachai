@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Edit, Trash2, Lock, Image as ImageIcon, X } from 'lucide-react';
 import { PAYMENT_TYPES } from '@/constants';
+import ConfirmModal from '@/components/ConfirmModal';
 
 interface Transaction {
     id: string;
@@ -37,6 +38,8 @@ export default function TransactionCard({
     isLocked = false,
 }: TransactionCardProps) {
     const [showImageModal, setShowImageModal] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     const paymentConfig = PAYMENT_TYPES.find(p => p.value === transaction.paymentType);
     const paymentLabel = paymentConfig?.label || transaction.paymentType;
@@ -61,24 +64,30 @@ export default function TransactionCard({
             minute: '2-digit',
         });
 
-    const handleDelete = async () => {
+    const handleDeleteClick = () => {
         if (isLocked) {
             alert('ไม่สามารถลบได้ วันนี้ปิดแล้ว');
             return;
         }
-        if (!confirm('ต้องการลบรายการนี้?')) return;
+        setShowDeleteConfirm(true);
+    };
 
+    const handleConfirmDelete = async () => {
+        setDeleting(true);
         try {
             const res = await fetch(`/api/station/transactions/${transaction.id}`, {
                 method: 'DELETE',
             });
             if (res.ok) {
+                setShowDeleteConfirm(false);
                 onDelete();
             } else {
                 alert('ลบไม่สำเร็จ');
             }
         } catch {
             alert('เกิดข้อผิดพลาด');
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -169,7 +178,7 @@ export default function TransactionCard({
                             <Edit size={18} />
                         </button>
                         <button
-                            onClick={handleDelete}
+                            onClick={handleDeleteClick}
                             className="p-2 text-gray-400 hover:text-red-500 transition"
                         >
                             <Trash2 size={18} />
@@ -217,6 +226,20 @@ export default function TransactionCard({
                     </div>
                 </div>
             )}
+
+            {/* Delete Confirmation Modal */}
+            <ConfirmModal
+                isOpen={showDeleteConfirm}
+                title="ยืนยันการลบรายการ"
+                message={`ต้องการลบรายการเติมน้ำมัน ${transaction.licensePlate || 'รายการนี้'} จำนวน ${formatCurrency(transaction.amount)} หรือไม่? การลบไม่สามารถย้อนกลับได้`}
+                confirmText="ลบรายการ"
+                cancelText="ยกเลิก"
+                variant="danger"
+                onConfirm={handleConfirmDelete}
+                onCancel={() => setShowDeleteConfirm(false)}
+                loading={deleting}
+            />
         </>
     );
 }
+
