@@ -103,10 +103,9 @@ function LoginContent() {
                         if (stationType === 'FULL') {
                             router.push(`/station/${stationNum}`);
                         } else if (stationType === 'GAS') {
-                            // Show shift selection modal for Gas Station
-                            setPendingRedirect({ stationNum });
-                            setShowShiftModal(true);
-                            setRedirecting(false);
+                            // Redirect directly to old gas station page where data exists
+                            const stationId = data.user.stationId; // e.g., 'station-5'
+                            router.push(`/gas/${stationId}`);
                         } else {
                             router.push(`/simple-station/${stationNum}/new/home`);
                         }
