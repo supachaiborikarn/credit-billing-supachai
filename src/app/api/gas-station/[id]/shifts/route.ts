@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { getStartOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
 import { HttpErrors, getErrorMessage } from '@/lib/api-error';
+import { resolveGasStation } from '@/lib/gas/station-resolver';
 
 interface MeterInput {
     nozzleNumber: number;
@@ -22,7 +23,14 @@ export async function GET(
 ) {
     try {
         const { id } = await params;
-        const stationId = `station-${id}`;
+
+        // Use resolveGasStation for consistent station lookup
+        const resolvedStation = await resolveGasStation(id);
+        if (!resolvedStation) {
+            return HttpErrors.badRequest('Gas station not found');
+        }
+        const stationId = resolvedStation.dbId;
+
         const { searchParams } = new URL(request.url);
         const dateStr = searchParams.get('date') || getTodayBangkok();
 
@@ -78,7 +86,14 @@ export async function POST(
 ) {
     try {
         const { id } = await params;
-        const stationId = `station-${id}`;
+
+        // Use resolveGasStation for consistent station lookup
+        const resolvedStation = await resolveGasStation(id);
+        if (!resolvedStation) {
+            return HttpErrors.badRequest('Gas station not found');
+        }
+        const stationId = resolvedStation.dbId;
+
         const body = await request.json();
         const { shiftNumber: providedShiftNumber, meters, dateStr, action, staffName } = body;
 

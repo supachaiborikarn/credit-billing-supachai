@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { STATIONS } from '@/constants';
+import { resolveGasStation } from '@/lib/gas/station-resolver';
 
 export async function GET(
     request: Request,
@@ -8,21 +9,22 @@ export async function GET(
 ) {
     try {
         const { id } = await params;
-        const stationIndex = parseInt(id) - 1;
-        const stationConfig = STATIONS[stationIndex];
 
-        if (!stationConfig || stationConfig.type !== 'GAS') {
+        // Use resolveGasStation for consistent station lookup
+        const resolvedStation = await resolveGasStation(id);
+        if (!resolvedStation) {
             return NextResponse.json({ error: 'Gas station not found' }, { status: 404 });
         }
 
+        const stationConfig = STATIONS[resolvedStation.index - 1];
         const url = new URL(request.url);
         const dateStr = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
         const shiftStr = url.searchParams.get('shift');
         const shiftNumber = shiftStr ? parseInt(shiftStr) : null;
         const date = new Date(dateStr + 'T00:00:00Z');
 
-        // Get or create station with consistent ID
-        const stationId = `station-${id}`;
+        // Use resolved dbId for database queries
+        const stationId = resolvedStation.dbId;
         const station = await prisma.station.upsert({
             where: { id: stationId },
             update: {},

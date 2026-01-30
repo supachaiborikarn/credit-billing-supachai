@@ -103,9 +103,8 @@ function LoginContent() {
                         if (stationType === 'FULL') {
                             router.push(`/station/${stationNum}`);
                         } else if (stationType === 'GAS') {
-                            // Redirect directly to old gas station page where data exists
-                            const stationId = data.user.stationId; // e.g., 'station-5'
-                            router.push(`/gas/${stationId}`);
+                            // Redirect to new gas station UI with synced data
+                            router.push(`/gas-station/${stationNum}/new/home`);
                         } else {
                             router.push(`/simple-station/${stationNum}/new/home`);
                         }
