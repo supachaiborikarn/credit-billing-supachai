@@ -55,12 +55,30 @@ export default function GasStationMetersPage({ params }: { params: Promise<{ id:
             if (res.ok) {
                 const data = await res.json();
 
-                // Set meters
-                if (data.dailyRecord?.meters) {
-                    setMeters(data.dailyRecord.meters.map((m: MeterReading) => ({
+                // Get meters from current shift or latest shift (shift meters are where data is saved)
+                let metersData = null;
+
+                // Priority: currentShift > first shift with data > dailyRecord.meters
+                if (data.currentShift?.meters && data.currentShift.meters.length > 0) {
+                    metersData = data.currentShift.meters;
+                } else if (data.dailyRecord?.shifts && data.dailyRecord.shifts.length > 0) {
+                    // Find shift with meters data
+                    const shiftWithMeters = data.dailyRecord.shifts.find(
+                        (s: { meters?: MeterReading[] }) => s.meters && s.meters.length > 0
+                    );
+                    if (shiftWithMeters) {
+                        metersData = shiftWithMeters.meters;
+                    }
+                } else if (data.dailyRecord?.meters) {
+                    // Fallback to dailyRecord.meters
+                    metersData = data.dailyRecord.meters;
+                }
+
+                if (metersData && metersData.length > 0) {
+                    setMeters(metersData.map((m: MeterReading) => ({
                         nozzleNumber: m.nozzleNumber,
-                        startReading: m.startReading || 0,
-                        endReading: m.endReading,
+                        startReading: Number(m.startReading) || 0,
+                        endReading: m.endReading ? Number(m.endReading) : null,
                         startImageUrl: m.startImageUrl,
                         endImageUrl: m.endImageUrl,
                     })));
@@ -381,8 +399,8 @@ export default function GasStationMetersPage({ params }: { params: Promise<{ id:
                                                     setStartGauges(newGauges);
                                                 }}
                                                 className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all ${startGauges[i] === val
-                                                        ? 'bg-orange-500 text-white'
-                                                        : 'bg-gray-100 text-gray-600 hover:bg-orange-100'
+                                                    ? 'bg-orange-500 text-white'
+                                                    : 'bg-gray-100 text-gray-600 hover:bg-orange-100'
                                                     }`}
                                             >
                                                 {val}%
