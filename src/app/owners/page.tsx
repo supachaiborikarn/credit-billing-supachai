@@ -4,10 +4,11 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { LoadingState } from '@/components/Spinner';
 import { useToast } from '@/components/Toast';
+import Breadcrumb from '@/components/Breadcrumb';
 import {
     Users, Search, Plus, Phone, Truck, X, Sparkles, ChevronDown,
     Edit2, Trash2, DollarSign, CheckCircle, XCircle, AlertTriangle,
-    Ban, Power
+    Ban, Power, SlidersHorizontal, ArrowUpDown
 } from 'lucide-react';
 import { OWNER_GROUPS } from '@/constants';
 
@@ -31,6 +32,8 @@ interface Owner {
 }
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+type SortOption = 'name' | 'balance_desc' | 'balance_asc' | 'trucks_desc' | 'recent';
+type BalanceFilter = 'all' | 'has_balance' | 'no_balance' | 'over_10k' | 'over_50k';
 
 export default function OwnersPage() {
     const { showToast } = useToast();
@@ -45,6 +48,11 @@ export default function OwnersPage() {
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 20;
+
+    // Advanced Search states
+    const [showAdvanced, setShowAdvanced] = useState(false);
+    const [sortBy, setSortBy] = useState<SortOption>('name');
+    const [balanceFilter, setBalanceFilter] = useState<BalanceFilter>('all');
 
     // Add Owner Modal
     const [showAddModal, setShowAddModal] = useState(false);
@@ -290,21 +298,42 @@ export default function OwnersPage() {
 
     // Filter owners
     const filteredOwners = useMemo(() => {
-        return owners.filter(o => {
+        let result = owners.filter(o => {
             const searchLower = search.toLowerCase();
             const matchesSearch = o.name.toLowerCase().includes(searchLower) ||
                 o.phone?.includes(search) ||
                 o.code?.toLowerCase().includes(searchLower) ||
                 o.trucks.some(t => t.licensePlate.toLowerCase().includes(searchLower));
             const matchesGroup = filterGroup === 'all' || o.groupType === filterGroup;
-            return matchesSearch && matchesGroup;
+
+            // Balance filter
+            let matchesBalance = true;
+            if (balanceFilter === 'has_balance') matchesBalance = o.balance > 0;
+            else if (balanceFilter === 'no_balance') matchesBalance = o.balance === 0;
+            else if (balanceFilter === 'over_10k') matchesBalance = o.balance > 10000;
+            else if (balanceFilter === 'over_50k') matchesBalance = o.balance > 50000;
+
+            return matchesSearch && matchesGroup && matchesBalance;
         });
-    }, [owners, search, filterGroup]);
+
+        // Sorting
+        result.sort((a, b) => {
+            switch (sortBy) {
+                case 'balance_desc': return b.balance - a.balance;
+                case 'balance_asc': return a.balance - b.balance;
+                case 'trucks_desc': return b._count.trucks - a._count.trucks;
+                case 'recent': return b._count.transactions - a._count.transactions;
+                default: return a.name.localeCompare(b.name, 'th');
+            }
+        });
+
+        return result;
+    }, [owners, search, filterGroup, balanceFilter, sortBy]);
 
     // Reset page when filters change
     useEffect(() => {
         setCurrentPage(1);
-    }, [search, filterGroup, filterStatus]);
+    }, [search, filterGroup, filterStatus, balanceFilter, sortBy]);
 
     // Pagination
     const totalPages = Math.ceil(filteredOwners.length / ITEMS_PER_PAGE);
@@ -443,7 +472,60 @@ export default function OwnersPage() {
                             </select>
                             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
                         </div>
+                        <button
+                            onClick={() => setShowAdvanced(!showAdvanced)}
+                            className={`flex items-center gap-2 px-4 py-3 rounded-xl border transition-all ${showAdvanced
+                                    ? 'bg-blue-500/20 border-blue-500/30 text-blue-400'
+                                    : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
+                                }`}
+                        >
+                            <SlidersHorizontal size={18} />
+                            <span className="hidden sm:inline">ขั้นสูง</span>
+                        </button>
                     </div>
+
+                    {/* Advanced Search Panel */}
+                    {showAdvanced && (
+                        <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {/* Sort By */}
+                            <div>
+                                <label className="text-xs text-gray-400 mb-2 block flex items-center gap-1">
+                                    <ArrowUpDown size={12} />
+                                    เรียงลำดับ
+                                </label>
+                                <select
+                                    value={sortBy}
+                                    onChange={(e) => setSortBy(e.target.value as SortOption)}
+                                    className="w-full appearance-none px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500/50"
+                                >
+                                    <option value="name" className="bg-gray-900">ชื่อ (ก-ฮ)</option>
+                                    <option value="balance_desc" className="bg-gray-900">ยอดค้างมากสุด</option>
+                                    <option value="balance_asc" className="bg-gray-900">ยอดค้างน้อยสุด</option>
+                                    <option value="trucks_desc" className="bg-gray-900">รถมากสุด</option>
+                                    <option value="recent" className="bg-gray-900">ธุรกรรมมากสุด</option>
+                                </select>
+                            </div>
+
+                            {/* Balance Filter */}
+                            <div>
+                                <label className="text-xs text-gray-400 mb-2 block flex items-center gap-1">
+                                    <DollarSign size={12} />
+                                    ยอดค้าง
+                                </label>
+                                <select
+                                    value={balanceFilter}
+                                    onChange={(e) => setBalanceFilter(e.target.value as BalanceFilter)}
+                                    className="w-full appearance-none px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500/50"
+                                >
+                                    <option value="all" className="bg-gray-900">ทั้งหมด</option>
+                                    <option value="has_balance" className="bg-gray-900">มียอดค้าง</option>
+                                    <option value="no_balance" className="bg-gray-900">ไม่มียอดค้าง</option>
+                                    <option value="over_10k" className="bg-gray-900">ค้าง &gt; 10,000 บาท</option>
+                                    <option value="over_50k" className="bg-gray-900">ค้าง &gt; 50,000 บาท</option>
+                                </select>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Owner List */}
@@ -727,8 +809,8 @@ export default function OwnersPage() {
                                     onClick={handleAddOwner}
                                     disabled={saving}
                                     className={`flex-1 px-4 py-3 rounded-xl text-white font-medium hover:opacity-90 disabled:opacity-50 ${duplicates.length > 0
-                                            ? 'bg-gradient-to-r from-yellow-600 to-orange-500'
-                                            : 'bg-gradient-to-r from-blue-500 to-cyan-500'
+                                        ? 'bg-gradient-to-r from-yellow-600 to-orange-500'
+                                        : 'bg-gradient-to-r from-blue-500 to-cyan-500'
                                         }`}
                                 >
                                     {saving ? 'กำลังบันทึก...' : duplicates.length > 0 ? 'เพิ่มต่อไป' : 'เพิ่มลูกค้า'}
