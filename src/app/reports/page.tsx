@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Sidebar from '@/components/Sidebar';
-import Spinner, { LoadingState } from '@/components/Spinner';
+import Spinner, { LoadingState, TableLoadingState } from '@/components/Spinner';
 import { formatCurrency, formatNumber, formatCompact } from '@/utils/format';
 import {
     FileText,
@@ -731,7 +731,7 @@ export default function ReportsPage() {
                 {/* Data Table */}
                 <div className="glass-card overflow-hidden animate-fade-in">
                     {loading ? (
-                        <LoadingState />
+                        <TableLoadingState rows={8} />
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="table-glass">
