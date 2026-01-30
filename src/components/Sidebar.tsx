@@ -172,7 +172,9 @@ export default function Sidebar({ children }: SidebarProps) {
                     </div>
                     <button
                         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                        className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
+                        className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors touch-target"
+                        aria-label={isMobileMenuOpen ? 'ปิดเมนู' : 'เปิดเมนู'}
+                        aria-expanded={isMobileMenuOpen}
                     >
                         {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                     </button>
@@ -235,7 +237,12 @@ export default function Sidebar({ children }: SidebarProps) {
                 </div>
 
                 {/* Navigation */}
-                <nav className="p-4 space-y-2 overflow-y-auto scroll-smooth overscroll-contain pb-64" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+                <nav
+                    className="p-4 space-y-2 overflow-y-auto scroll-smooth overscroll-contain pb-64"
+                    style={{ maxHeight: 'calc(100vh - 120px)' }}
+                    aria-label="เมนูหลัก"
+                    role="navigation"
+                >
                     {/* Main Menu - Admin only */}
                     {isAdmin && menuItems.map(item => (
                         <Link

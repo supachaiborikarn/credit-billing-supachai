@@ -1232,3 +1232,147 @@ select {
     display: block;
   }
 }
+
+/* ==========================================================================
+   Mobile Responsive Utilities
+   ========================================================================== */
+
+/* Touch-friendly minimum tap targets (44x44px as per Apple HIG) */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Stack on mobile */
+@media (max-width: 640px) {
+  .stack-mobile {
+    flex-direction: column !important;
+  }
+
+  .stack-mobile>* {
+    width: 100% !important;
+  }
+
+  /* Full width buttons on mobile */
+  .btn-mobile-full {
+    width: 100% !important;
+  }
+
+  /* Better table scroll indicator */
+  .table-scroll-container {
+    position: relative;
+  }
+
+  .table-scroll-container::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 30px;
+    background: linear-gradient(to right, transparent, rgba(10, 10, 18, 0.8));
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.3s;
+  }
+
+  .table-scroll-container.scrolled::after {
+    opacity: 0;
+  }
+
+  /* Mobile cards */
+  .mobile-card {
+    padding: 12px !important;
+    border-radius: 12px !important;
+  }
+
+  /* Reduce padding on mobile */
+  .mobile-compact-padding {
+    padding: 12px !important;
+  }
+
+  /* Mobile modals - full screen */
+  .modal-mobile-full {
+    min-width: 100vw !important;
+    min-height: 100vh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Mobile text sizes */
+  .text-mobile-sm {
+    font-size: 12px !important;
+  }
+
+  .text-mobile-base {
+    font-size: 14px !important;
+  }
+
+  /* Hide on mobile */
+  .hide-mobile {
+    display: none !important;
+  }
+
+  /* Mobile-optimized stats grid */
+  .stats-grid-mobile {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .stats-grid-mobile .stat-card {
+    padding: 12px !important;
+  }
+
+  .stats-grid-mobile .stat-card .text-2xl {
+    font-size: 1.25rem !important;
+  }
+}
+
+/* Show only on mobile */
+@media (min-width: 641px) {
+  .show-mobile-only {
+    display: none !important;
+  }
+}
+
+/* Better touch scrolling */
+.smooth-scroll {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Safe area padding for notched devices */
+.safe-area-bottom {
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+.safe-area-top {
+  padding-top: max(16px, env(safe-area-inset-top));
+}
+
+/* Prevent layout shift on mobile */
+.fixed-height-mobile {
+  min-height: 100dvh;
+}
+
+/* Better focus states for accessibility */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #8b5cf6;
+  outline-offset: 2px;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
