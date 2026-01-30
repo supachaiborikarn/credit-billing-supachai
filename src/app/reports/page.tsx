@@ -358,6 +358,68 @@ export default function ReportsPage() {
                 {/* Date Range Filter */}
                 <div className={`backdrop-blur-xl rounded-2xl border border-white/10 p-4 mb-6 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
                     style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)', transitionDelay: '200ms' }}>
+
+                    {/* Quick Date Presets */}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                        <button
+                            onClick={() => {
+                                const today = new Date().toISOString().split('T')[0];
+                                setStartDate(today);
+                                setEndDate(today);
+                            }}
+                            className="px-3 py-1.5 text-xs rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all border border-transparent hover:border-white/20"
+                        >
+                            วันนี้
+                        </button>
+                        <button
+                            onClick={() => {
+                                const today = new Date();
+                                const startOfWeek = new Date(today);
+                                startOfWeek.setDate(today.getDate() - today.getDay());
+                                setStartDate(startOfWeek.toISOString().split('T')[0]);
+                                setEndDate(today.toISOString().split('T')[0]);
+                            }}
+                            className="px-3 py-1.5 text-xs rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all border border-transparent hover:border-white/20"
+                        >
+                            สัปดาห์นี้
+                        </button>
+                        <button
+                            onClick={() => {
+                                const today = new Date();
+                                const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                                setStartDate(startOfMonth.toISOString().split('T')[0]);
+                                setEndDate(today.toISOString().split('T')[0]);
+                            }}
+                            className="px-3 py-1.5 text-xs rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all border border-transparent hover:border-white/20"
+                        >
+                            เดือนนี้
+                        </button>
+                        <button
+                            onClick={() => {
+                                const today = new Date();
+                                const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                                const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+                                setStartDate(startOfLastMonth.toISOString().split('T')[0]);
+                                setEndDate(endOfLastMonth.toISOString().split('T')[0]);
+                            }}
+                            className="px-3 py-1.5 text-xs rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all border border-transparent hover:border-white/20"
+                        >
+                            เดือนที่แล้ว
+                        </button>
+                        <button
+                            onClick={() => {
+                                const today = new Date();
+                                const last30 = new Date(today);
+                                last30.setDate(today.getDate() - 30);
+                                setStartDate(last30.toISOString().split('T')[0]);
+                                setEndDate(today.toISOString().split('T')[0]);
+                            }}
+                            className="px-3 py-1.5 text-xs rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all border border-transparent hover:border-white/20"
+                        >
+                            30 วันล่าสุด
+                        </button>
+                    </div>
+
                     <div className="flex flex-col sm:flex-row gap-4 items-end">
                         <div className="flex-1">
                             <label className="block text-sm text-gray-400 mb-2">ตั้งแต่วันที่</label>
