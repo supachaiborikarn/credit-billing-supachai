@@ -14,6 +14,8 @@ import {
     Menu,
     X,
     ChevronDown,
+    ChevronLeft,
+    ChevronRight,
     Sun,
     Moon,
     Sparkles,
@@ -34,8 +36,24 @@ export default function Sidebar({ children }: SidebarProps) {
     const [user, setUser] = useState<{ name: string; role: string; stationId?: string } | null>(null);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isStationsOpen, setIsStationsOpen] = useState(true);
+    const [isCollapsed, setIsCollapsed] = useState(false);
 
     const [isLoading, setIsLoading] = useState(true);
+
+    // Load collapsed state from localStorage
+    useEffect(() => {
+        const saved = localStorage.getItem('sidebar-collapsed');
+        if (saved === 'true') {
+            setIsCollapsed(true);
+        }
+    }, []);
+
+    // Save collapsed state to localStorage
+    const toggleCollapse = () => {
+        const newState = !isCollapsed;
+        setIsCollapsed(newState);
+        localStorage.setItem('sidebar-collapsed', String(newState));
+    };
 
     useEffect(() => {
         fetchUser();
@@ -164,28 +182,30 @@ export default function Sidebar({ children }: SidebarProps) {
             {/* Sidebar */}
             <aside className={`
                 fixed lg:static inset-y-0 left-0 z-[60]
-                w-72 backdrop-blur-2xl border-r border-white/10
+                ${isCollapsed ? 'lg:w-[72px]' : 'w-72'} backdrop-blur-2xl border-r border-white/10
                 transform transition-all duration-300 ease-out
                 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
                 pt-16 lg:pt-0
             `} style={{ background: 'linear-gradient(180deg, rgba(15, 15, 35, 0.98) 0%, rgba(10, 10, 18, 0.98) 100%)' }}>
                 {/* Logo */}
-                <div className="hidden lg:flex items-center gap-3 px-6 py-6 border-b border-white/10">
+                <div className={`hidden lg:flex items-center ${isCollapsed ? 'justify-center px-2' : 'gap-3 px-6'} py-6 border-b border-white/10`}>
                     <div className="relative">
                         <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-cyan-500 rounded-2xl blur-lg opacity-50" />
-                        <div className="relative p-3 rounded-2xl bg-gradient-to-br from-purple-500 to-cyan-500">
-                            <Fuel className="text-white" size={28} />
+                        <div className={`relative ${isCollapsed ? 'p-2' : 'p-3'} rounded-2xl bg-gradient-to-br from-purple-500 to-cyan-500`}>
+                            <Fuel className="text-white" size={isCollapsed ? 20 : 28} />
                         </div>
                     </div>
-                    <div>
-                        <h1 className="font-bold text-lg bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                            Credit Billing
-                        </h1>
-                        <p className="text-xs text-gray-500 flex items-center gap-1">
-                            <Sparkles size={10} className="text-purple-400" />
-                            Supachai Group
-                        </p>
-                    </div>
+                    {!isCollapsed && (
+                        <div>
+                            <h1 className="font-bold text-lg bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
+                                Credit Billing
+                            </h1>
+                            <p className="text-xs text-gray-500 flex items-center gap-1">
+                                <Sparkles size={10} className="text-purple-400" />
+                                Supachai Group
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Quick Action Button - Always visible at top for mobile */}
@@ -221,11 +241,12 @@ export default function Sidebar({ children }: SidebarProps) {
                         <Link
                             key={item.href}
                             href={item.href}
-                            className={`group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${isActive(item.href)
+                            className={`group flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} ${isCollapsed ? 'px-2' : 'px-4'} py-3 rounded-xl transition-all duration-300 ${isActive(item.href)
                                 ? 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border border-purple-500/30'
                                 : 'hover:bg-white/5'
                                 }`}
                             onClick={() => setIsMobileMenuOpen(false)}
+                            title={isCollapsed ? item.label : undefined}
                         >
                             <div className={`p-2 rounded-lg transition-all duration-300 ${isActive(item.href)
                                 ? `bg-gradient-to-br ${item.gradient}`
@@ -233,14 +254,16 @@ export default function Sidebar({ children }: SidebarProps) {
                                 }`}>
                                 <item.icon size={18} className={isActive(item.href) ? 'text-white' : 'text-gray-400 group-hover:text-white'} />
                             </div>
-                            <span className={`font-medium transition-colors ${isActive(item.href) ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
-                                {item.label}
-                            </span>
+                            {!isCollapsed && (
+                                <span className={`font-medium transition-colors ${isActive(item.href) ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
+                                    {item.label}
+                                </span>
+                            )}
                         </Link>
                     ))}
 
-                    {/* Stations Section */}
-                    <div className="pt-4">
+                    {/* Stations Section - Hidden when collapsed */}
+                    <div className={`pt-4 ${isCollapsed ? 'hidden lg:hidden' : ''}`}>
                         {isAdmin ? (
                             <>
                                 <button
@@ -333,8 +356,8 @@ export default function Sidebar({ children }: SidebarProps) {
                         )}
                     </div>
 
-                    {/* Admin Menu */}
-                    {isAdmin && (
+                    {/* Admin Menu - Hidden when collapsed */}
+                    {isAdmin && !isCollapsed && (
                         <div className="pt-4 border-t border-white/10 mt-4 space-y-4">
                             {adminMenuGroups.map((group) => (
                                 <div key={group.title}>
@@ -370,44 +393,84 @@ export default function Sidebar({ children }: SidebarProps) {
                     )}
                 </nav>
 
-                {/* User Info */}
-                <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10 backdrop-blur-xl"
+                {/* User Info & Collapse Toggle */}
+                <div className={`absolute bottom-0 left-0 right-0 ${isCollapsed ? 'p-2' : 'p-4'} border-t border-white/10 backdrop-blur-xl`}
                     style={{ background: 'rgba(10, 10, 18, 0.9)' }}>
-                    <div className="flex items-center justify-between mb-3">
-                        <button
-                            onClick={toggleTheme}
-                            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-300 text-sm group"
-                            title={theme === 'dark' ? 'เปลี่ยนเป็น Light Mode' : 'เปลี่ยนเป็น Dark Mode'}
-                        >
-                            {theme === 'dark' ? (
-                                <>
-                                    <Sun size={16} className="text-yellow-400 group-hover:rotate-180 transition-transform duration-500" />
-                                    <span className="text-gray-300">Light</span>
-                                </>
-                            ) : (
-                                <>
-                                    <Moon size={16} className="text-purple-400 group-hover:rotate-12 transition-transform duration-300" />
-                                    <span className="text-gray-300">Dark</span>
-                                </>
+
+                    {/* Collapse Toggle Button - Desktop only */}
+                    <button
+                        onClick={toggleCollapse}
+                        className="hidden lg:flex w-full items-center justify-center gap-2 px-3 py-2 mb-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-300 text-sm text-gray-400 hover:text-white"
+                        title={isCollapsed ? 'ขยาย Sidebar' : 'ย่อ Sidebar'}
+                    >
+                        {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+                        {!isCollapsed && <span>ย่อเมนู</span>}
+                    </button>
+
+                    {!isCollapsed && (
+                        <>
+                            <div className="flex items-center justify-between mb-3">
+                                <button
+                                    onClick={toggleTheme}
+                                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-300 text-sm group"
+                                    title={theme === 'dark' ? 'เปลี่ยนเป็น Light Mode' : 'เปลี่ยนเป็น Dark Mode'}
+                                >
+                                    {theme === 'dark' ? (
+                                        <>
+                                            <Sun size={16} className="text-yellow-400 group-hover:rotate-180 transition-transform duration-500" />
+                                            <span className="text-gray-300">Light</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Moon size={16} className="text-purple-400 group-hover:rotate-12 transition-transform duration-300" />
+                                            <span className="text-gray-300">Dark</span>
+                                        </>
+                                    )}
+                                </button>
+                                <button
+                                    onClick={handleLogout}
+                                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-all duration-300 text-sm"
+                                >
+                                    <LogOut size={16} />
+                                    <span>ออก</span>
+                                </button>
+                            </div>
+                            {user && (
+                                <div className="flex items-center gap-3 px-3 py-2 bg-white/5 rounded-xl">
+                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center text-white font-bold">
+                                        {user.name.charAt(0)}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-white truncate">{user.name}</p>
+                                        <p className="text-xs text-gray-500">{user.role === 'ADMIN' ? 'ผู้ดูแลระบบ' : 'พนักงาน'}</p>
+                                    </div>
+                                </div>
                             )}
-                        </button>
-                        <button
-                            onClick={handleLogout}
-                            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-all duration-300 text-sm"
-                        >
-                            <LogOut size={16} />
-                            <span>ออก</span>
-                        </button>
-                    </div>
-                    {user && (
-                        <div className="flex items-center gap-3 px-3 py-2 bg-white/5 rounded-xl">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center text-white font-bold">
-                                {user.name.charAt(0)}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-white truncate">{user.name}</p>
-                                <p className="text-xs text-gray-500">{user.role === 'ADMIN' ? 'ผู้ดูแลระบบ' : 'พนักงาน'}</p>
-                            </div>
+                        </>
+                    )}
+
+                    {/* Collapsed mode: show only icons */}
+                    {isCollapsed && (
+                        <div className="hidden lg:flex flex-col items-center gap-2">
+                            <button
+                                onClick={toggleTheme}
+                                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all"
+                                title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                            >
+                                {theme === 'dark' ? <Sun size={18} className="text-yellow-400" /> : <Moon size={18} className="text-purple-400" />}
+                            </button>
+                            <button
+                                onClick={handleLogout}
+                                className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400"
+                                title="ออกจากระบบ"
+                            >
+                                <LogOut size={18} />
+                            </button>
+                            {user && (
+                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center text-white text-xs font-bold">
+                                    {user.name.charAt(0)}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
