@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { STATIONS } from '@/constants';
 import { resolveGasStation } from '@/lib/gas/station-resolver';
+import { getStartOfDayBangkokUTC, getEndOfDayBangkokUTC, getTodayBangkok } from '@/lib/gas/date-utils';
 
 export async function GET(
     request: Request,
@@ -18,10 +19,13 @@ export async function GET(
 
         const stationConfig = STATIONS[resolvedStation.index - 1];
         const url = new URL(request.url);
-        const dateStr = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
+        const dateStr = url.searchParams.get('date') || getTodayBangkok();
         const shiftStr = url.searchParams.get('shift');
         const shiftNumber = shiftStr ? parseInt(shiftStr) : null;
-        const date = new Date(dateStr + 'T00:00:00Z');
+
+        // Use Bangkok timezone-aware date range (like v2 API)
+        const startOfDay = getStartOfDayBangkokUTC(dateStr);
+        const endOfDay = getEndOfDayBangkokUTC(dateStr);
 
         // Use resolved dbId for database queries
         const stationId = resolvedStation.dbId;
@@ -37,11 +41,14 @@ export async function GET(
             }
         });
 
-        // Get daily record with shifts
+        // Get daily record with shifts (use date RANGE like v2 API)
         const dailyRecord = await prisma.dailyRecord.findFirst({
             where: {
                 stationId: station.id,
-                date: date,
+                date: {
+                    gte: startOfDay,
+                    lte: endOfDay
+                }
             },
             include: {
                 meters: true,
@@ -56,8 +63,6 @@ export async function GET(
         });
 
         // Get transactions for the day (filtered by shift if specified)
-        const startOfDay = new Date(dateStr + 'T00:00:00Z');
-        const endOfDay = new Date(dateStr + 'T23:59:59Z');
 
         const transactionWhere: Record<string, unknown> = {
             stationId: station.id,
