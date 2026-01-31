@@ -38,10 +38,10 @@ export function middleware(request: NextRequest) {
         return NextResponse.redirect(loginUrl);
     }
 
-    // If auth route and has session, redirect to dashboard
-    if (isAuthRoute && sessionCookie) {
-        return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
+    // If auth route and has session, let the page handle redirect
+    // This allows login page to redirect staff to their specific station
+    // instead of always going to dashboard
+    // (The redirect logic is in login/page.tsx which checks user role and stationId)
 
     // Force gas-station users to use new v2 UI
     // Redirect /gas-station/[id] to /gas-station/[id]/new/home

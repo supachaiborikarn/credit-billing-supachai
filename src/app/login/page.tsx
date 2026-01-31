@@ -25,7 +25,43 @@ function LoginContent() {
 
     useEffect(() => {
         setMounted(true);
-    }, []);
+
+        // Check if user is already logged in
+        const checkSession = async () => {
+            try {
+                const res = await fetch('/api/auth/me');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.user) {
+                        setRedirecting(true);
+
+                        // Redirect based on role
+                        if (data.user.role === 'STAFF' && data.user.stationId) {
+                            const { findStationIndex } = await import('@/constants');
+                            const stationNum = findStationIndex(data.user.stationId);
+
+                            if (stationNum > 0) {
+                                if (data.user.stationType === 'FULL') {
+                                    router.push(`/station/${stationNum}`);
+                                } else if (data.user.stationType === 'GAS') {
+                                    router.push(`/gas-station/${stationNum}/new/home`);
+                                } else {
+                                    router.push(`/simple-station/${stationNum}/new/home`);
+                                }
+                                return;
+                            }
+                        }
+                        // Default: redirect to dashboard
+                        router.push('/dashboard');
+                    }
+                }
+            } catch {
+                // Not logged in, show login form
+            }
+        };
+
+        checkSession();
+    }, [router]);
 
     // Validate username
     const validateUsername = (value: string) => {
