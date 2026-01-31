@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* Exclude non-source folders from Tailwind v4 content scan */
+@source not "../../.agent";
+@source not "../../node_modules";
+@source not "../../.git";
+@source not "../../.next";
+@source not "../../prisma";
+@source not "../../scripts";
+@source not "../../docs";
+
 :root {
   --background: #0a0a12;
   --foreground: #ededed;

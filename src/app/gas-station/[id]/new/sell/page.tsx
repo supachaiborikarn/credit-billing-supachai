@@ -319,7 +319,7 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
                     </div>
                     <div className="flex items-center gap-1 bg-orange-50 px-3 py-1.5 rounded-lg">
                         <Fuel size={16} className="text-orange-500" />
-                        <span className="text-orange-700 font-semibold">{gasPrice.toFixed(2)}</span>
+                        <span className="text-orange-700 font-semibold">{Number(gasPrice).toFixed(2)}</span>
                         <span className="text-orange-600 text-sm">/ลิตร</span>
                     </div>
                 </div>
