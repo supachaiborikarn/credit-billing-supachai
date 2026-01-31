@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use, useRef } from 'react';
 import Sidebar from '@/components/Sidebar';
+import Breadcrumb from '@/components/Breadcrumb';
 import {
     Calendar,
     Save,
@@ -1060,6 +1061,9 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
     return (
         <Sidebar>
             <div className="max-w-6xl mx-auto relative">
+                {/* Breadcrumb */}
+                <Breadcrumb items={[{ label: 'ปั๊มแก๊ส' }, { label: station.name }]} className="mb-4" />
+
                 {/* Background orbs */}
                 <div className="fixed top-20 right-20 w-[400px] h-[400px] rounded-full opacity-20 blur-3xl pointer-events-none"
                     style={{ background: 'radial-gradient(circle, rgba(6, 182, 212, 0.3) 0%, transparent 70%)' }} />

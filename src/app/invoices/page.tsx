@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
+import Breadcrumb from '@/components/Breadcrumb';
 import { LoadingState } from '@/components/Spinner';
 import { formatCurrency } from '@/utils/format';
 import { Invoice, OwnerWithBalance } from '@/types';
@@ -191,6 +192,9 @@ export default function InvoicesPage() {
     return (
         <Sidebar>
             <div className="max-w-6xl mx-auto relative">
+                {/* Breadcrumb */}
+                <Breadcrumb items={[{ label: 'ใบวางบิล' }]} className="mb-4" />
+
                 {/* Background orbs */}
                 <div className="fixed top-20 right-20 w-[400px] h-[400px] rounded-full opacity-20 blur-3xl pointer-events-none"
                     style={{ background: 'radial-gradient(circle, rgba(236, 72, 153, 0.3) 0%, transparent 70%)' }} />

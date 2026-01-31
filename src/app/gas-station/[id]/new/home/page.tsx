@@ -4,6 +4,7 @@ import { useState, use } from 'react';
 import { Calendar, AlertTriangle } from 'lucide-react';
 import { STATIONS } from '@/constants';
 import Link from 'next/link';
+import { BreadcrumbLight } from '@/components/Breadcrumb';
 import { useGasStation } from '../../hooks/useGasStation';
 import StatsCard from '../../components/StatsCard';
 import ShiftControls from '../../components/ShiftControls';
@@ -78,6 +79,9 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
                 </div>
             ) : (
                 <main className="mx-auto max-w-6xl px-4 py-6 space-y-5">
+                    {/* Breadcrumb */}
+                    <BreadcrumbLight items={[{ label: station.name }]} className="mb-2" />
+
                     {/* Hero Stats Card */}
                     <div className="rounded-3xl border border-black/10 bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
                         {/* Shift Status Badge */}

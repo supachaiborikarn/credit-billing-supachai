@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { LoadingState } from '@/components/Spinner';
+import Breadcrumb from '@/components/Breadcrumb';
 import { formatNumber, formatCurrency, formatCompact } from '@/utils/format';
 import { DashboardStats } from '@/types';
 import {
@@ -208,6 +209,9 @@ export default function DashboardPage() {
                     style={{ background: 'radial-gradient(circle, rgba(168, 85, 247, 0.3) 0%, transparent 70%)' }} />
                 <div className="fixed bottom-0 left-0 w-[400px] h-[400px] rounded-full opacity-20 blur-3xl pointer-events-none"
                     style={{ background: 'radial-gradient(circle, rgba(34, 211, 238, 0.3) 0%, transparent 70%)' }} />
+
+                {/* Breadcrumb */}
+                <Breadcrumb items={[{ label: 'Dashboard' }]} className="mb-4" />
 
                 {/* =============== HEADER =============== */}
                 <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>

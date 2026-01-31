@@ -92,7 +92,7 @@ export async function GET(
                 liters: Number(t.liters),
                 pricePerLiter: Number(t.pricePerLiter),
                 amount: Number(t.amount),
-                bookNo: t.billBookNo || '',
+                billBookNo: t.billBookNo || '',
                 billNo: t.billNo || '',
                 recordedByName: t.recordedBy?.name || '-',
             };

@@ -15,6 +15,8 @@ interface Transaction {
     liters: number;
     amount: number;
     recordedByName?: string;
+    billBookNo?: string | null;
+    billNo?: string | null;
 }
 
 export default function StationListPage({ params }: { params: Promise<{ id: string }> }) {
@@ -186,6 +188,11 @@ export default function StationListPage({ params }: { params: Promise<{ id: stri
                                     {t.ownerName || '-'}
                                     {t.liters && ` • ${t.liters} ล.`}
                                 </p>
+                                {(t.billBookNo || t.billNo) && (
+                                    <p className="text-xs text-orange-600 font-medium">
+                                        📄 {t.billBookNo && `เล่ม ${t.billBookNo}`}{t.billBookNo && t.billNo && ' '}{t.billNo && `เลขที่ ${t.billNo}`}
+                                    </p>
+                                )}
                                 <p className="text-xs text-gray-400">
                                     {new Date(t.date).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
                                     {t.recordedByName && ` • ${t.recordedByName}`}

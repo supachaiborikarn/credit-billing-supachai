@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Sidebar from '@/components/Sidebar';
+import Breadcrumb from '@/components/Breadcrumb';
 import Spinner, { LoadingState, TableLoadingState } from '@/components/Spinner';
 import { formatCurrency, formatNumber, formatCompact } from '@/utils/format';
 import {
@@ -250,6 +251,9 @@ export default function ReportsPage() {
     return (
         <Sidebar>
             <div className="max-w-7xl mx-auto relative">
+                {/* Breadcrumb */}
+                <Breadcrumb items={[{ label: 'รายงาน' }]} className="mb-4" />
+
                 {/* Background orbs */}
                 <div className="fixed top-20 right-20 w-[400px] h-[400px] rounded-full opacity-20 blur-3xl pointer-events-none"
                     style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.3) 0%, transparent 70%)' }} />
