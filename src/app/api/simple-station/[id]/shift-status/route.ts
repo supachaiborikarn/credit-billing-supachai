@@ -24,6 +24,7 @@ export async function GET(
             },
             include: {
                 shifts: {
+                    where: { status: 'OPEN' },
                     orderBy: { shiftNumber: 'desc' },
                     take: 1,
                 },
