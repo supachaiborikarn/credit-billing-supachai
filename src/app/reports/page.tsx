@@ -800,16 +800,16 @@ export default function ReportsPage() {
                         <TableLoadingState rows={8} />
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="table-glass">
+                            <table className="table-glass" style={{ tableLayout: 'fixed' }}>
                                 <thead>
                                     {reportType === 'daily' && (
                                         <tr>
-                                            <th>วันที่</th>
-                                            <th className="text-right">รายการ</th>
-                                            <th className="text-right">ลิตร</th>
-                                            <th className="text-right">เงินสด</th>
-                                            <th className="text-right">เงินเชื่อ</th>
-                                            <th className="text-right">รวม</th>
+                                            <th style={{ width: '12%' }}>วันที่</th>
+                                            <th className="text-right" style={{ width: '10%' }}>รายการ</th>
+                                            <th className="text-right" style={{ width: '15%' }}>ลิตร</th>
+                                            <th className="text-right" style={{ width: '18%' }}>เงินสด</th>
+                                            <th className="text-right" style={{ width: '18%' }}>เงินเชื่อ</th>
+                                            <th className="text-right" style={{ width: '18%' }}>รวม</th>
                                         </tr>
                                     )}
                                     {reportType === 'monthly' && (
