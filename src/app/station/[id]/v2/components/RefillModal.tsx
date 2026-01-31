@@ -78,8 +78,9 @@ export default function RefillModal({
     const isTransferPayment = paymentType === 'TRANSFER';
 
     // Update price based on payment type
+    // CASH and CREDIT use retail price, others use wholesale
     useEffect(() => {
-        if (paymentType === 'CASH') {
+        if (paymentType === 'CASH' || paymentType === 'CREDIT') {
             setPricePerLiter(retailPrice.toString());
         } else {
             setPricePerLiter(wholesalePrice.toString());
