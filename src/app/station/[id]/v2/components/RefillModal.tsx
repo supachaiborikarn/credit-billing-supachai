@@ -516,8 +516,8 @@ export default function RefillModal({
                     )}
                 </div>
 
-                {/* Bill Numbers (for CREDIT) */}
-                {paymentType === 'CREDIT' && (
+                {/* Bill Numbers (for CREDIT, OIL_TRUCK_SUPACHAI, BOX_TRUCK) */}
+                {(paymentType === 'CREDIT' || paymentType === 'OIL_TRUCK_SUPACHAI' || paymentType === 'BOX_TRUCK') && (
                     <div className="bg-gray-50 rounded-xl p-4">
                         <label className="text-sm text-gray-600 block mb-2">เลขบิล</label>
                         <div className="grid grid-cols-2 gap-3">
