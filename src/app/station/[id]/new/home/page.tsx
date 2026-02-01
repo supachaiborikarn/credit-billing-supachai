@@ -301,7 +301,7 @@ export default function StationHomePage({ params }: { params: Promise<{ id: stri
                     {/* Quick Actions */}
                     <div className="bg-white rounded-2xl shadow-sm p-4">
                         <h2 className="font-semibold text-gray-800 mb-3">⚡ ทางลัด</h2>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className={`grid gap-3 ${station?.type === 'FULL' ? 'grid-cols-2' : 'grid-cols-1'}`}>
                             <Link
                                 href={`/station/${id}/new/record`}
                                 className="flex items-center gap-3 bg-blue-500 text-white p-4 rounded-xl hover:bg-blue-600 transition"
@@ -316,20 +316,25 @@ export default function StationHomePage({ params }: { params: Promise<{ id: stri
                                 <TrendingUp size={24} />
                                 <span>ดูรายการ</span>
                             </Link>
-                            <Link
-                                href={`/station/${id}/new/shift-end`}
-                                className="flex items-center gap-3 bg-orange-500 text-white p-4 rounded-xl hover:bg-orange-600 transition"
-                            >
-                                <Fuel size={24} />
-                                <span>ลงมิเตอร์/ปิดกะ</span>
-                            </Link>
-                            <Link
-                                href={`/station/${id}/new/summary`}
-                                className="flex items-center gap-3 bg-cyan-500 text-white p-4 rounded-xl hover:bg-cyan-600 transition"
-                            >
-                                <Calendar size={24} />
-                                <span>สรุปกะ</span>
-                            </Link>
+                            {/* Meter-related links - only for FULL stations */}
+                            {station?.type === 'FULL' && (
+                                <>
+                                    <Link
+                                        href={`/station/${id}/new/shift-end`}
+                                        className="flex items-center gap-3 bg-orange-500 text-white p-4 rounded-xl hover:bg-orange-600 transition"
+                                    >
+                                        <Fuel size={24} />
+                                        <span>ลงมิเตอร์/ปิดกะ</span>
+                                    </Link>
+                                    <Link
+                                        href={`/station/${id}/new/summary`}
+                                        className="flex items-center gap-3 bg-cyan-500 text-white p-4 rounded-xl hover:bg-cyan-600 transition"
+                                    >
+                                        <Calendar size={24} />
+                                        <span>สรุปกะ</span>
+                                    </Link>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
