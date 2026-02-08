@@ -33,6 +33,11 @@ export default function InvoicesPage() {
     const [endDate, setEndDate] = useState('');
     const [combineOwners, setCombineOwners] = useState(false);
 
+    // Invoice multi-select for bulk delete
+    const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
+    const [invoiceSelectMode, setInvoiceSelectMode] = useState(false);
+    const [deletingInvoices, setDeletingInvoices] = useState(false);
+
     useEffect(() => {
         setMounted(true);
         fetchData();
@@ -152,6 +157,62 @@ export default function InvoicesPage() {
         }
     };
 
+    // Invoice multi-select functions
+    const toggleInvoiceSelection = (invoiceId: string) => {
+        setSelectedInvoiceIds(prev =>
+            prev.includes(invoiceId)
+                ? prev.filter(id => id !== invoiceId)
+                : [...prev, invoiceId]
+        );
+    };
+
+    const selectAllInvoices = () => {
+        const filtered = filteredInvoices.map(inv => inv.id);
+        setSelectedInvoiceIds(filtered);
+    };
+
+    const clearInvoiceSelection = () => {
+        setSelectedInvoiceIds([]);
+    };
+
+    const handleBulkDeleteInvoices = async () => {
+        if (selectedInvoiceIds.length === 0) return;
+
+        const selectedCount = selectedInvoiceIds.length;
+        const selectedInvoiceNumbers = filteredInvoices
+            .filter(inv => selectedInvoiceIds.includes(inv.id))
+            .map(inv => inv.invoiceNumber);
+
+        if (!confirm(`ต้องการลบใบวางบิล ${selectedCount} ใบ ใช่หรือไม่?\n\n${selectedInvoiceNumbers.join(', ')}\n\nรายการทั้งหมดจะกลับไปสถานะรอวางบิล`)) {
+            return;
+        }
+
+        setDeletingInvoices(true);
+        try {
+            const res = await fetch('/api/invoices/bulk-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ invoiceIds: selectedInvoiceIds }),
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                alert(`✅ ${data.message}\n\nรายการที่คืนสถานะ: ${data.transactionsUnlinked} รายการ`);
+                setSelectedInvoiceIds([]);
+                setInvoiceSelectMode(false);
+                fetchData();
+            } else {
+                const errData = await res.json();
+                alert(`❌ ${errData.error}`);
+            }
+        } catch (error) {
+            console.error('Bulk delete invoice error:', error);
+            alert('เกิดข้อผิดพลาดในการลบ');
+        } finally {
+            setDeletingInvoices(false);
+        }
+    };
+
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'PAID': return 'badge-green';
@@ -188,6 +249,10 @@ export default function InvoicesPage() {
     const selectedTotal = filteredPendingOwners
         .filter(o => selectedOwnerIds.includes(o.id))
         .reduce((sum, o) => sum + o.totalCredit, 0);
+
+    const selectedInvoicesTotal = filteredInvoices
+        .filter(inv => selectedInvoiceIds.includes(inv.id))
+        .reduce((sum, inv) => sum + Number(inv.totalAmount), 0);
 
     return (
         <Sidebar>
@@ -363,6 +428,50 @@ export default function InvoicesPage() {
                     </div>
                 )}
 
+                {/* Multi-Select Controls (for invoices tab) */}
+                {activeTab === 'invoices' && (
+                    <div className="glass-card p-4 mb-4">
+                        <div className="flex flex-wrap items-center gap-4">
+                            <button
+                                onClick={() => {
+                                    setInvoiceSelectMode(!invoiceSelectMode);
+                                    if (invoiceSelectMode) setSelectedInvoiceIds([]);
+                                }}
+                                className={`btn ${invoiceSelectMode ? 'btn-primary' : 'btn-secondary'}`}
+                            >
+                                <FileText size={18} />
+                                {invoiceSelectMode ? 'ยกเลิกเลือกหลายใบ' : 'เลือกหลายใบ'}
+                            </button>
+
+                            {invoiceSelectMode && (
+                                <>
+                                    <button onClick={selectAllInvoices} className="btn btn-secondary text-sm">
+                                        เลือกทั้งหมด
+                                    </button>
+                                    <button onClick={clearInvoiceSelection} className="btn btn-secondary text-sm">
+                                        ล้างการเลือก
+                                    </button>
+                                    {selectedInvoiceIds.length > 0 && (
+                                        <div className="flex items-center gap-3 ml-auto">
+                                            <span className="text-red-400">
+                                                เลือก {selectedInvoiceIds.length} ใบ | ยอดรวม: {formatCurrency(selectedInvoicesTotal)} บาท
+                                            </span>
+                                            <button
+                                                onClick={handleBulkDeleteInvoices}
+                                                disabled={deletingInvoices}
+                                                className="btn bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+                                            >
+                                                <Trash2 size={18} />
+                                                {deletingInvoices ? 'กำลังลบ...' : `ลบ ${selectedInvoiceIds.length} ใบ`}
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 {/* Content */}
                 <div className="glass-card overflow-hidden">
                     {loading ? (
@@ -433,6 +542,7 @@ export default function InvoicesPage() {
                             <table className="table-glass">
                                 <thead>
                                     <tr>
+                                        {invoiceSelectMode && <th className="w-12">เลือก</th>}
                                         <th>เลขที่บิล</th>
                                         <th>ลูกค้า</th>
                                         <th>จำนวนรายการ</th>
@@ -440,13 +550,13 @@ export default function InvoicesPage() {
                                         <th>ชำระแล้ว</th>
                                         <th>สถานะ</th>
                                         <th>วันที่</th>
-                                        <th>จัดการ</th>
+                                        {!invoiceSelectMode && <th>จัดการ</th>}
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {filteredInvoices.length === 0 ? (
                                         <tr>
-                                            <td colSpan={7} className="text-center py-8 text-gray-400">
+                                            <td colSpan={invoiceSelectMode ? 8 : 8} className="text-center py-8 text-gray-400">
                                                 ไม่มีใบวางบิล
                                             </td>
                                         </tr>
@@ -454,9 +564,19 @@ export default function InvoicesPage() {
                                         filteredInvoices.map(inv => (
                                             <tr
                                                 key={inv.id}
-                                                className="cursor-pointer hover:bg-purple-500/10"
-                                                onClick={() => window.location.href = `/invoices/${inv.id}`}
+                                                className={`cursor-pointer hover:bg-purple-500/10 ${invoiceSelectMode && selectedInvoiceIds.includes(inv.id) ? 'bg-red-500/20' : ''}`}
+                                                onClick={() => invoiceSelectMode ? toggleInvoiceSelection(inv.id) : window.location.href = `/invoices/${inv.id}`}
                                             >
+                                                {invoiceSelectMode && (
+                                                    <td onClick={(e) => e.stopPropagation()}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedInvoiceIds.includes(inv.id)}
+                                                            onChange={() => toggleInvoiceSelection(inv.id)}
+                                                            className="w-5 h-5 rounded cursor-pointer accent-red-500"
+                                                        />
+                                                    </td>
+                                                )}
                                                 <td className="font-mono text-blue-400">{inv.invoiceNumber}</td>
                                                 <td>
                                                     <span className="font-medium text-white">{inv.owner.name}</span>
@@ -475,15 +595,17 @@ export default function InvoicesPage() {
                                                 <td className="text-sm text-gray-400">
                                                     {new Date(inv.createdAt).toLocaleDateString('th-TH')}
                                                 </td>
-                                                <td>
-                                                    <button
-                                                        onClick={(e) => handleDeleteInvoice(inv.id, inv.invoiceNumber, e)}
-                                                        className="p-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/40 text-red-400 transition-colors"
-                                                        title="ลบใบวางบิล"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
-                                                </td>
+                                                {!invoiceSelectMode && (
+                                                    <td>
+                                                        <button
+                                                            onClick={(e) => handleDeleteInvoice(inv.id, inv.invoiceNumber, e)}
+                                                            className="p-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/40 text-red-400 transition-colors"
+                                                            title="ลบใบวางบิล"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </td>
+                                                )}
                                             </tr>
                                         ))
                                     )}
