@@ -166,6 +166,14 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                         </div>
                     </div>
                     <div className="flex gap-2">
+                        <a href={`/api/invoices/${id}/export?format=excel`} target="_blank" className="btn btn-primary">
+                            <FileText size={18} />
+                            Excel
+                        </a>
+                        <a href={`/api/invoices/${id}/export?format=csv`} target="_blank" className="btn btn-secondary">
+                            <FileText size={18} />
+                            CSV
+                        </a>
                         <button onClick={() => window.print()} className="btn btn-success">
                             <Printer size={18} />
                             พิมพ์ใบวางบิล

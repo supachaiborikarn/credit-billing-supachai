@@ -133,11 +133,15 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
         if (!dailyRecord?.meters || dailyRecord.meters.length === 0) {
             return 'not_started';
         }
+
+        // Trust backend status
+        if (dailyRecord.status === 'CLOSED') {
+            return 'closed';
+        }
+
         const hasStartMeter = dailyRecord.meters.some(m => m.startReading > 0);
-        const hasEndMeter = dailyRecord.meters.some(m => m.endReading && m.endReading > 0);
 
         if (!hasStartMeter) return 'not_started';
-        if (hasEndMeter) return 'closed';
         return 'recording';
     };
 

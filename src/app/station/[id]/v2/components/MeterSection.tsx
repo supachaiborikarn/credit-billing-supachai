@@ -40,20 +40,23 @@ export default function MeterSection({
     });
     const [saving, setSaving] = useState(false);
     const [meters, setMeters] = useState(() => {
-        // Initialize with 4 nozzles if empty
-        if (initialMeters.length === 0) {
-            return [1, 2, 3, 4].map(n => ({
+        // Always ensure all 4 nozzles exist, padding missing ones with defaults
+        return [1, 2, 3, 4].map(n => {
+            const existing = initialMeters.find(m => m.nozzleNumber === n);
+            if (existing) {
+                return {
+                    ...existing,
+                    endReading: existing.endReading || 0,
+                };
+            }
+            return {
                 nozzleNumber: n,
                 startReading: 0,
                 endReading: 0,
                 startPhoto: null as string | null,
                 endPhoto: null as string | null,
-            }));
-        }
-        return initialMeters.map(m => ({
-            ...m,
-            endReading: m.endReading || 0,
-        }));
+            };
+        });
     });
 
     // Photo upload state

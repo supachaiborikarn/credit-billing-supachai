@@ -349,15 +349,18 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                     setWholesalePrice(data.dailyRecord.wholesalePrice);
                     // Only update meters if API returns non-empty array
                     if (data.dailyRecord.meters && data.dailyRecord.meters.length > 0) {
-                        const currentMeters = data.dailyRecord.meters.map((m: MeterReading) => ({
+                        const apiMeters = data.dailyRecord.meters.map((m: MeterReading) => ({
                             nozzle: m.nozzleNumber,
                             start: Number(m.startReading),
                             end: Number(m.endReading) || 0,
                             startPhoto: m.startPhoto || undefined,
                             endPhoto: m.endPhoto || undefined,
                         }));
-                        // Sort by nozzle number to ensure display order 1, 2, 3, 4
-                        currentMeters.sort((a: { nozzle: number }, b: { nozzle: number }) => a.nozzle - b.nozzle);
+                        // Ensure all 4 nozzles exist (pad missing ones with defaults)
+                        const currentMeters = [1, 2, 3, 4].map(nozzleNum => {
+                            const existing = apiMeters.find((m: { nozzle: number }) => m.nozzle === nozzleNum);
+                            return existing || { nozzle: nozzleNum, start: 0, end: 0 };
+                        });
                         setMeters(currentMeters);
 
                         // Check meter continuity warnings

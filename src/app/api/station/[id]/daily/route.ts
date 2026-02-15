@@ -30,6 +30,26 @@ export async function GET(
             include: { meters: true }
         });
 
+        // For FULL stations, ensure all 4 nozzle records exist
+        if (id === '1' && dailyRecord && dailyRecord.meters.length > 0 && dailyRecord.meters.length < 4) {
+            const existingNozzles = dailyRecord.meters.map(m => m.nozzleNumber);
+            const missingNozzles = [1, 2, 3, 4].filter(n => !existingNozzles.includes(n));
+            if (missingNozzles.length > 0) {
+                await prisma.meterReading.createMany({
+                    data: missingNozzles.map(nozzleNumber => ({
+                        dailyRecordId: dailyRecord.id,
+                        nozzleNumber,
+                        startReading: 0,
+                    }))
+                });
+                // Re-fetch meters after auto-creating missing ones
+                const updatedMeters = await prisma.meterReading.findMany({
+                    where: { dailyRecordId: dailyRecord.id }
+                });
+                dailyRecord.meters = updatedMeters;
+            }
+        }
+
         // Get transactions for the day (Bangkok timezone range)
         const startOfDay = getStartOfDayBangkok(dateStr);
         const endOfDay = getEndOfDayBangkok(dateStr);
@@ -87,14 +107,16 @@ export async function GET(
                 status: dailyRecord.status,
                 retailPrice: Number(dailyRecord.retailPrice),
                 wholesalePrice: Number(dailyRecord.wholesalePrice),
-                meters: dailyRecord.meters.map(m => ({
-                    id: m.id,
-                    nozzleNumber: m.nozzleNumber,
-                    startReading: Number(m.startReading),
-                    endReading: Number(m.endReading) || 0,
-                    startPhoto: m.startPhoto,
-                    endPhoto: m.endPhoto,
-                })),
+                meters: dailyRecord.meters
+                    .sort((a, b) => a.nozzleNumber - b.nozzleNumber)
+                    .map(m => ({
+                        id: m.id,
+                        nozzleNumber: m.nozzleNumber,
+                        startReading: Number(m.startReading),
+                        endReading: Number(m.endReading) || 0,
+                        startPhoto: m.startPhoto,
+                        endPhoto: m.endPhoto,
+                    })),
             } : null,
             transactions: transactions.map(t => {
                 const plate = t.licensePlate || t.truck?.licensePlate || '';
