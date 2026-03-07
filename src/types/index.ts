@@ -104,6 +104,53 @@ export interface DashboardAlert {
     message: string;
 }
 
+// ==================== Billing Collection Types ====================
+
+export interface BillingCollection {
+    id: string;
+    collectionNo: string;
+    ownerId: string;
+    ownerName: string;
+    periodStart: string;
+    periodEnd: string;
+    periodLabel: string | null;
+    totalAmount: number;
+    paidAmount: number;
+    status: 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE';
+    dueDate: string | null;
+    notes: string | null;
+    createdAt: string;
+    updatedAt: string;
+    owner?: Owner;
+    items?: BillingCollectionItem[];
+    paymentSlips?: PaymentSlipType[];
+    _count?: { items: number; paymentSlips: number };
+}
+
+export interface BillingCollectionItem {
+    id: string;
+    sourceDescription: string;
+    sourceStation: string | null;
+    sourceInvoiceNo: string | null;
+    amount: number;
+    notes: string | null;
+    createdAt: string;
+}
+
+export interface PaymentSlipType {
+    id: string;
+    slipImageUrl: string;
+    amount: number;
+    transferDate: string | null;
+    senderName: string | null;
+    bankName: string | null;
+    status: 'PENDING' | 'VERIFIED' | 'REJECTED';
+    verifiedAt: string | null;
+    verifiedById: string | null;
+    notes: string | null;
+    createdAt: string;
+}
+
 export interface DashboardStats {
     totalOwners: number;
     totalTrucks: number;

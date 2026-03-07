@@ -126,9 +126,11 @@ model Owner {
   deletedAt     DateTime?
   creditLimit   Decimal       @default(50000)
   currentCredit Decimal       @default(0)
+  billingCollections BillingCollection[]
   invoices      Invoice[]
   transactions  Transaction[]
   trucks        Truck[]
+  lineUserId    String?          @unique // LINE Official user ID for webhook mapping
 
   @@map("owners")
 }
@@ -564,4 +566,79 @@ enum PriceBookStatus {
   DRAFT
   ACTIVE
   ARCHIVED
+}
+
+// ==================== Billing Collection Models ====================
+
+// ใบวางบิลรวม — รวมยอดจากหลายสถานีของลูกค้าแต่ละเจ้า ตามช่วงเวลา
+model BillingCollection {
+  id              String                   @id @default(uuid())
+  collectionNo    String                   @unique  // เลขที่ เช่น BC-2026-03-001
+  ownerId         String
+  ownerName       String                   // Snapshot ชื่อลูกค้าตอนวางบิล
+  periodStart     DateTime                 // เริ่มต้นช่วงวางบิล
+  periodEnd       DateTime                 // สิ้นสุดช่วงวางบิล
+  periodLabel     String?                  // เช่น "1-15 มี.ค. 2569"
+  totalAmount     Decimal                  // ยอดรวมทั้งหมด
+  paidAmount      Decimal         @default(0)
+  status          BillingCollectionStatus   @default(PENDING)
+  dueDate         DateTime?
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  owner           Owner           @relation(fields: [ownerId], references: [id])
+  items           BillingCollectionItem[]
+  paymentSlips    PaymentSlip[]
+
+  @@map("billing_collections")
+}
+
+// รายการย่อยในใบวางบิลรวม
+model BillingCollectionItem {
+  id                  String             @id @default(uuid())
+  billingCollectionId String
+  sourceDescription   String             // เช่น "ดีเซล 500 ลิตร"
+  sourceStation       String?            // ชื่อสถานีต้นทาง
+  sourceInvoiceNo     String?            // เลขที่บิลจากสถานีเดิม
+  amount              Decimal
+  notes               String?
+  createdAt           DateTime  @default(now())
+
+  billingCollection   BillingCollection  @relation(fields: [billingCollectionId], references: [id], onDelete: Cascade)
+
+  @@map("billing_collection_items")
+}
+
+// สลิปการชำระเงิน
+model PaymentSlip {
+  id                  String             @id @default(uuid())
+  billingCollectionId String
+  slipImageUrl        String             // URL รูปสลิป (Cloudinary)
+  amount              Decimal            // ยอดเงินในสลิป
+  transferDate        DateTime?          // วันที่โอน
+  senderName          String?            // ชื่อผู้โอน
+  bankName            String?            // ธนาคาร
+  status              PaymentSlipStatus  @default(PENDING)
+  verifiedAt          DateTime?
+  verifiedById        String?
+  notes               String?
+  createdAt           DateTime  @default(now())
+
+  billingCollection   BillingCollection  @relation(fields: [billingCollectionId], references: [id], onDelete: Cascade)
+
+  @@map("payment_slips")
+}
+
+enum BillingCollectionStatus {
+  PENDING    // รอชำระ
+  PARTIAL    // ชำระบางส่วน
+  PAID       // ชำระครบ
+  OVERDUE    // เกินกำหนด
+}
+
+enum PaymentSlipStatus {
+  PENDING    // รอตรวจสอบ
+  VERIFIED   // ตรวจสอบแล้ว
+  REJECTED   // ปฏิเสธ
 }

@@ -1,8 +1,18 @@
 ---
-description: ข้อมูลสำคัญของโปรเจกต์ที่ต้องจำ
+description: ข้อมูลสำคัญของโปรเจกต์ที่ต้องจำ - อ่านไฟล์นี้ทุก session
 ---
 
 # Project Context - Credit Billing Supachai
+
+> **⚠️ IMPORTANT: ก่อนทำงานใดๆ ต้องอ่าน `.brain/index.md` ก่อนเสมอ**
+> สมอง AI อยู่ที่ `.brain/` directory - เก็บบริบทข้ามเซสชันทั้งหมด
+
+// turbo
+## Step 1: อ่านสมอง AI
+1. อ่าน `.brain/index.md` (สารบัญ)
+2. ตรวจสอบว่างานที่จะทำเกี่ยวกับ topic ไหน
+3. อ่าน SUMMARY ของ topic ที่เกี่ยวข้อง (บรรทัดแรกของไฟล์)
+4. ถ้า SUMMARY ไม่พอ → อ่านทั้งไฟล์
 
 ## Deployment
 - **Platform**: Vercel
@@ -35,3 +45,8 @@ description: ข้อมูลสำคัญของโปรเจกต์�
 ## User Roles
 - **ADMIN**: เห็นทุกสถานี, แก้ไขได้ทั้งหมด
 - **STAFF**: เห็นเฉพาะสถานีที่ได้รับมอบหมาย
+
+## 🧠 Brain System
+- **สมอง AI**: `.brain/` directory - ระบบจดจำข้อมูลข้ามเซสชัน
+- **เริ่มทุก session**: อ่าน `.brain/index.md` ก่อนเสมอ
+- **หลังทำงานเสร็จ**: update brain ตาม workflow `/brain-system`
