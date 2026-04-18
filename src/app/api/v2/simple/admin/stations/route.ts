@@ -1,75 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { STATIONS } from '@/constants';
-import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
+import { getEndOfDayBangkok, getStartOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
+import {
+    addDaysToDateKey,
+    buildNozzleMetrics,
+    filterOperationalRowsByDateKeyRange,
+    getOperationalSalesDataset,
+    summarizeOperationalRows,
+} from '@/lib/operational-sales';
 
 // GET: Station Performance data for Simple Stations only
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
-        const days = parseInt(searchParams.get('days') || '7');
+        const requestedDays = Number.parseInt(searchParams.get('days') || '7', 10);
+        const days = Number.isFinite(requestedDays) && requestedDays > 0 ? requestedDays : 7;
 
         // Simple stations only (not FULL)
         const simpleStations = STATIONS.filter(s => s.type === 'SIMPLE');
+        const stationIds = simpleStations.map((station) => station.id);
 
-        const todayStr = getTodayBangkok();
-        const endOfDay = getEndOfDayBangkok(todayStr);
+        const endDateKey = getTodayBangkok();
+        const startDateKey = addDaysToDateKey(endDateKey, -(days - 1));
+        const { rows, watcharaExternal } = await getOperationalSalesDataset({
+            stationIds,
+            startDateKey,
+            endDateKey,
+        });
 
-        const startDate = new Date(endOfDay);
-        startDate.setDate(startDate.getDate() - days);
-        startDate.setHours(0, 0, 0, 0);
+        const periodRows = filterOperationalRowsByDateKeyRange(rows, startDateKey, endDateKey);
+        const stationsData = simpleStations.map((station) => {
+            const stationRows = periodRows.filter((row) => row.stationId === station.id);
+            const aggregate = summarizeOperationalRows(stationRows);
 
-        // Get aggregated data per station
-        const stationsData = await Promise.all(
-            simpleStations.map(async (station) => {
-                const [aggregate, byNozzle] = await Promise.all([
-                    prisma.transaction.aggregate({
-                        where: {
-                            stationId: station.id,
-                            date: { gte: startDate, lte: endOfDay },
-                            isVoided: false,
-                            deletedAt: null
-                        },
-                        _sum: { liters: true, amount: true },
-                        _count: { id: true }
-                    }),
-                    prisma.transaction.groupBy({
-                        by: ['nozzleNumber'],
-                        where: {
-                            stationId: station.id,
-                            date: { gte: startDate, lte: endOfDay },
-                            isVoided: false,
-                            deletedAt: null,
-                            nozzleNumber: { not: null }
-                        },
-                        _sum: { liters: true, amount: true },
-                        _count: { id: true }
-                    })
-                ]);
-
-                return {
-                    id: station.id,
-                    name: station.name,
-                    totalLiters: Number(aggregate._sum.liters) || 0,
-                    totalRevenue: Number(aggregate._sum.amount) || 0,
-                    totalTransactions: aggregate._count.id || 0,
-                    margin: null,
-                    profit: null,
-                    byNozzle: byNozzle.map(n => ({
-                        nozzle: n.nozzleNumber,
-                        liters: Number(n._sum.liters) || 0,
-                        revenue: Number(n._sum.amount) || 0,
-                        count: n._count.id
-                    }))
-                };
-            })
-        );
+            return {
+                id: station.id,
+                name: station.name,
+                totalLiters: aggregate.liters,
+                totalRevenue: aggregate.revenue,
+                totalTransactions: aggregate.transactions,
+                margin: null,
+                profit: null,
+                byNozzle: buildNozzleMetrics(stationRows),
+            };
+        });
 
         stationsData.sort((a, b) => b.totalRevenue - a.totalRevenue);
 
         return NextResponse.json({
-            period: { days, startDate: startDate.toISOString(), endDate: endOfDay.toISOString() },
-            stations: stationsData
+            period: {
+                days,
+                startDate: getStartOfDayBangkok(startDateKey).toISOString(),
+                endDate: getEndOfDayBangkok(endDateKey).toISOString(),
+            },
+            stations: stationsData,
+            watcharaExternal,
         });
     } catch (error) {
         console.error('Error fetching stations:', error);

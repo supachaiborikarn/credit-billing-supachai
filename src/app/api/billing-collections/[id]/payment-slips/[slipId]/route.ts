@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdminApi } from '@/lib/api-auth';
 
 // PATCH /api/billing-collections/[id]/payment-slips/[slipId] — ยืนยัน/ปฏิเสธสลิป
 export async function PATCH(
@@ -7,6 +8,9 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string; slipId: string }> }
 ) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const { id, slipId } = await params;
         const body = await request.json();
         const { status, notes } = body; // status: 'VERIFIED' | 'REJECTED'
@@ -94,6 +98,9 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string; slipId: string }> }
 ) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const { id, slipId } = await params;
 
         // Delete the slip

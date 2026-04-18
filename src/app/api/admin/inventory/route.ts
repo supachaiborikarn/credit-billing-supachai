@@ -1,9 +1,13 @@
 import { NextResponse, NextRequest } from 'next/server';
+import { requireAdminApi } from '@/lib/api-auth';
 import { getStationInventorySummary } from '@/services/inventory-service';
 
 // GET - ดึงสรุป Inventory ของสถานี
 export async function GET(request: NextRequest) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const { searchParams } = new URL(request.url);
         const stationId = searchParams.get('stationId');
 

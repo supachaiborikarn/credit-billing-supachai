@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdminApi } from '@/lib/api-auth';
 
 // Temporary endpoint to fix stuck shifts
 export async function POST(request: Request) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const body = await request.json();
         const { shiftId, action, newNumber } = body;
 

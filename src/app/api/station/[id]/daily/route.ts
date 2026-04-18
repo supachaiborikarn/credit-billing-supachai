@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
 import { buildTruckCodeMap, findCodeByPlate } from '@/lib/truck-utils';
-import { getSessionUser } from '@/lib/auth-utils';
+import { requireStationAccessApi } from '@/lib/api-auth';
 
 export async function GET(
     request: NextRequest,
@@ -13,14 +13,14 @@ export async function GET(
         const stationId = `station-${id}`;
         const { searchParams } = new URL(request.url);
         const dateStr = searchParams.get('date') || getTodayBangkok();
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
 
         // Parse date using Bangkok timezone utilities
         const date = getStartOfDayBangkok(dateStr);
 
-        // Get user from session (for filtering) - using shared auth helper
-        const sessionUser = await getSessionUser();
-        const userId = sessionUser?.id || null;
-        const userRole = sessionUser?.role || 'STAFF';
+        const userId = auth.user.id;
+        const userRole = auth.user.role;
 
         // Get daily record with meters
         const dailyRecord = await prisma.dailyRecord.findUnique({
@@ -153,6 +153,9 @@ export async function POST(
         const { id } = await params;
         const stationId = `station-${id}`;
         const body = await request.json();
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
+
         const { date: dateStr, retailPrice, wholesalePrice } = body;
 
         const date = getStartOfDayBangkok(dateStr);

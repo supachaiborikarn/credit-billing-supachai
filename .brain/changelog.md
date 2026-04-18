@@ -9,3 +9,66 @@
   - สร้าง `changelog.md` (ไฟล์นี้)
   - สร้าง `sync.sh` (git auto-sync script)
   - สร้าง workflow `.agent/workflows/brain-system.md`
+
+## 2026-04-18
+- 🆕 เพิ่ม topic `watchara-shared-dispenser.md`
+  - สรุป mapping ของ external Watchara dispenser → local `station-2`
+  - บันทึกข้อควรระวังเรื่อง business date, stale source, และ missing source metadata
+  - บันทึกว่าระบบจริงมีหลาย route/service ที่ query `prisma.transaction` ตรง ต้อง patch ให้ครบก่อน merge external sales
+- 📝 เพิ่ม decision `2026-04-18-watchara-shared-dispenser-safe-rollout.md`
+  - ตกลงใช้ rollout แบบเก็บ raw แยก ไม่ปน `transactions`
+  - ต้อง align reporting กับ anomaly/reconciliation ก่อนเปิดใช้ production
+- 📝 เพิ่มเอกสาร `docs/WATCHARA_SHARED_DISPENSER_SAFE_ROLLOUT.md`
+  - ระบุ rollout ตามไฟล์จริงใน repo
+  - ระบุเงื่อนไขก่อน push/deploy อย่างปลอดภัย
+- 🛠️ เพิ่ม Wave 1 scaffolding ใน code สำหรับ Watchara shared dispenser
+  - เพิ่ม Prisma schema สำหรับ raw external sales landing
+  - เพิ่ม client/sync/status libraries และ admin APIs
+  - เพิ่ม helper tests และผ่าน `prisma generate`, `vitest`, `tsc`
+- 🗄️ อัปเดตฐานข้อมูลจริงสำหรับ Watchara shared dispenser
+  - รัน `prisma db push` สำเร็จ
+  - bootstrap source registry `watchara_shared_dispenser`
+  - ยืนยันสถานะล่าสุด: source 1 รายการ, imported transactions 0 รายการ
+- 🖥️ เพิ่มหน้า admin สำหรับ Watchara shared dispenser
+  - route `/admin/watchara-dispenser`
+  - ใช้ดู status, bootstrap, probe external, dry-run sync, และ import จริง
+- 🔌 ยืนยัน external connection ของ Watchara shared dispenser ใช้งานได้แล้ว
+  - ใส่ `WATCHARA_DISPENSER_DATABASE_URL` ใน local environment
+  - probe external DB ผ่าน
+  - ยืนยัน source state: 4954 rows, ข้อมูลขายถึง 2026-03-14, latest row update 2026-03-23
+  - เริ่ม historical backfill เข้า local landing tables แล้ว
+- ✅ ปิด historical backfill ของ Watchara shared dispenser สำเร็จ
+  - import local landing rows ครบ `4954`
+  - distinct external transaction ids ตรงกับ source `4954`
+  - source registry ไม่มี `lastError`
+- 📊 เพิ่ม Wave 2 merge สำหรับ Watchara shared dispenser ใน simple admin
+  - เพิ่ม helper กลาง `src/lib/operational-sales.ts`
+  - patch API routes: overview, analytics, stations, fuel-time
+  - patch UI pages และเพิ่ม banner เตือน stale source
+  - ยืนยัน smoke test merge กับ DB จริงผ่าน
+- 🧾 เพิ่มเอกสาร handoff `docs/WATCHARA_SHARED_DISPENSER_AI_HANDOFF.md`
+  - สรุปสิ่งที่ทำแล้ว, file touchpoints, smoke result, และงานค้างสำหรับ AI/engineer คนถัดไป
+- 🌐 เพิ่ม Wave 3 สำหรับ Watchara shared dispenser ใน global reporting
+  - patch reports route/page
+  - patch executive route/page แบบ additive
+  - patch CSV export ให้ใช้ merged dataset และ business day เดียวกับ report
+- 🧮 เพิ่ม Wave 4 core service alignment
+  - patch daily anomaly, shift reconciliation, และ shift service
+  - เติม synthetic external contribution เข้า expected/meter side
+  - smoke test วันที่ `2026-03-13` แล้ว variance กลับมา `GREEN`
+- 📝 อัปเดตเอกสาร handoff/safe rollout หลัง Wave 4
+  - ระบุว่ายังไม่ได้ push/deploy
+  - ระบุ production/staging env ต้องตั้งเองและห้าม commit credential
+  - ระบุ persisted `shift_reconciliations` เก่ายังไม่ได้ backfill/recalculate อัตโนมัติ
+- 🔎 บันทึกผล audit code รอบ production-readiness
+  - priority หลักคือ API auth/access-control gap เพราะ middleware exclude `/api` และไม่ protect `/admin`
+  - บันทึก gotchas เรื่อง audit log atomicity และ variance sign convention
+- 🔐 Implement push-hardening รอบแรกก่อน push ชุด Watchara
+  - เพิ่ม `/admin` server-side admin guard และ helper `src/lib/api-auth.ts`
+  - ล็อก high-risk APIs สำหรับ users/settings/admin maintenance/station transactions/gas v2/upload/billing collection
+  - LINE webhook fail-closed และ transaction edit/void audit เป็น atomic
+- 🔒 ปิด final legacy write API auth sweep ก่อน push
+  - ล็อก gas-station/simple-station/station write APIs ด้วย station access
+  - ล็อก invoice/payment/product/price-book/dispenser/nozzle/admin data-entry ด้วย session/admin guard
+  - เพิ่ม resource ownership checks สำหรับ shift/inventory/dispenser/nozzle
+  - quick scan ล่าสุดรายงาน `NO_UNGUARDED_WRITE_ROUTES`

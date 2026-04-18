@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdminApi } from '@/lib/api-auth';
 import { checkAndSaveDailyAnomaly } from '@/services/daily-anomaly-detection';
 
 // Track last scan time to avoid scanning too frequently
@@ -45,6 +46,9 @@ async function autoScanRecentDays() {
  */
 export async function GET(request: NextRequest) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         // Auto-scan recent days before returning data
         await autoScanRecentDays();
 
@@ -99,6 +103,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const body = await request.json().catch(() => ({}));
         const days = body.days || 30;
 

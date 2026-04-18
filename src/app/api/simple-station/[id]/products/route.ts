@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireStationAccessApi } from '@/lib/api-auth';
 
 // GET - Fetch products for this station
 export async function GET(
@@ -9,6 +10,8 @@ export async function GET(
     try {
         const { id } = await params;
         const stationId = `station-${id}`;
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
 
         // Get products with inventory for this station
         const inventory = await prisma.productInventory.findMany({
@@ -44,6 +47,9 @@ export async function POST(
     try {
         const { id } = await params;
         const stationId = `station-${id}`;
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
+
         const body = await request.json();
 
         const { name, unit, salePrice, quantity } = body;
@@ -89,6 +95,9 @@ export async function PUT(
     try {
         const { id } = await params;
         const stationId = `station-${id}`;
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
+
         const body = await request.json();
 
         const { id: productId, name, unit, salePrice, quantity } = body;
@@ -133,6 +142,9 @@ export async function DELETE(
     try {
         const { id } = await params;
         const stationId = `station-${id}`;
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
+
         const { searchParams } = new URL(request.url);
         const productId = searchParams.get('productId');
 

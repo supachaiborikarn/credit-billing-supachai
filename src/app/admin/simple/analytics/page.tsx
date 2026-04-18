@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import {
     TrendingUp,
-    TrendingDown,
     Users,
     Calendar,
     Loader2,
@@ -11,6 +10,7 @@ import {
     ArrowDownRight
 } from 'lucide-react';
 import { STATIONS } from '@/constants';
+import WatcharaExternalStatusBanner from '@/components/WatcharaExternalStatusBanner';
 
 interface AnalyticsData {
     weekComparison: {
@@ -27,6 +27,25 @@ interface AnalyticsData {
     heatmap: { date: string; stations: { stationId: string; stationName: string; revenue: number; liters: number }[] }[];
     dailyTrend: { date: string; revenue: number; liters: number }[];
     stations: { id: string; name: string }[];
+    topCustomersScope?: string;
+    watcharaExternal?: {
+        schemaReady: boolean;
+        available: boolean;
+        enabled: boolean;
+        targetStationIncluded: boolean;
+        includedInMerge: boolean;
+        rowsInRange: number;
+        litersInRange: number;
+        revenueInRange: number;
+        lastSyncedAt: string | null;
+        lastSeenSourceAt: string | null;
+        lastError: string | null;
+        stale: {
+            isStale: boolean;
+            staleHours: number | null;
+            thresholdHours: number;
+        };
+    };
 }
 
 const formatCurrency = (n: number) => n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -104,6 +123,8 @@ export default function AnalyticsPage() {
                     ))}
                 </select>
             </div>
+
+            <WatcharaExternalStatusBanner status={data.watcharaExternal} />
 
             {/* Week vs Week Comparison */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -294,6 +315,11 @@ export default function AnalyticsPage() {
                     <Users className="text-yellow-400" size={20} />
                     🏆 Top 10 ลูกค้าเดือนนี้
                 </h2>
+                {data.watcharaExternal?.targetStationIncluded && data.topCustomersScope === 'internal_pos_only' && (
+                    <div className="mb-4 rounded-lg border border-white/10 bg-black/20 p-3 text-xs text-gray-300">
+                        อันดับลูกค้ายังอิงเฉพาะ POS ภายใน เพราะ source หัวจ่ายร่วมของ Watchara ไม่มีข้อมูล owner/customer
+                    </div>
+                )}
                 {data.topCustomers.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {data.topCustomers.map((customer, index) => (

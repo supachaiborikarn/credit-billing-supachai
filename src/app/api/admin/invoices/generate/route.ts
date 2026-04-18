@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
+import { requireAdminApi } from '@/lib/api-auth';
 import { generateAllMonthlyInvoices } from '@/services/credit-service';
 
 // POST - สร้าง Invoice ทั้งหมดสำหรับเดือนที่ระบุ
 export async function POST(request: Request) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const body = await request.json();
         const { month, year } = body;
 

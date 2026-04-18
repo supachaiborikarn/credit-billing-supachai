@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdminApi } from '@/lib/api-auth';
 
 // DELETE multiple invoices at once
 export async function POST(request: NextRequest) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const body = await request.json();
         const { invoiceIds } = body as { invoiceIds: string[] };
 
@@ -50,8 +54,9 @@ export async function POST(request: NextRequest) {
                 });
 
                 deletedInvoices.push(invoice.invoiceNumber);
-            } catch (err: any) {
-                errors.push(`${invoice.invoiceNumber}: ${err.message}`);
+            } catch (err: unknown) {
+                const message = err instanceof Error ? err.message : String(err);
+                errors.push(`${invoice.invoiceNumber}: ${message}`);
             }
         }
 

@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok, formatDateBangkok } from '@/lib/date-utils';
+import { STATIONS } from '@/constants';
+import { filterOperationalRowsByDateKeyRange, getOperationalSalesDataset } from '@/lib/operational-sales';
+
+const SALES_REPORT_TYPES = new Set(['daily', 'monthly', 'station']);
+const stationNameById: Map<string, string> = new Map(STATIONS.map((station) => [station.id, station.name]));
 
 export async function GET(request: Request) {
     try {
@@ -183,6 +188,70 @@ export async function GET(request: Request) {
             });
         }
 
+        // Generate CSV content
+        const headers = [
+            'วันที่',
+            'สถานี',
+            'ทะเบียน',
+            'ลูกค้า',
+            'รหัสลูกค้า',
+            'ประเภทชำระ',
+            'ประเภทน้ำมัน',
+            'ลิตร',
+            'ราคา/ลิตร',
+            'รวมเงิน',
+            'เล่ม/เลขบิล'
+        ];
+
+        const paymentTypeLabels: Record<string, string> = {
+            'CASH': 'เงินสด',
+            'CREDIT': 'เงินเชื่อ',
+            'TRANSFER': 'โอนเงิน',
+            'BOX_TRUCK': 'รถตู้ทึบ',
+            'OIL_TRUCK_SUPACHAI': 'รถน้ำมันศุภชัย',
+            'CREDIT_CARD': 'บัตรเครดิต',
+        };
+
+        if (SALES_REPORT_TYPES.has(type)) {
+            const { rows: mergedRows } = await getOperationalSalesDataset({
+                stationIds: STATIONS.map((station) => station.id),
+                startDateKey: startStr,
+                endDateKey: endStr,
+            });
+            const transactions = filterOperationalRowsByDateKeyRange(mergedRows, startStr, endStr)
+                .sort((a, b) => b.soldAt.getTime() - a.soldAt.getTime());
+
+            const rows = transactions.map((t) => [
+                t.dateKey,
+                stationNameById.get(t.stationId) || t.stationId,
+                '-',
+                t.ownerName || '-',
+                '-',
+                paymentTypeLabels[t.paymentType || ''] || t.paymentType || '-',
+                t.fuelType || '-',
+                t.liters.toFixed(2),
+                t.pricePerLiter !== null ? t.pricePerLiter.toFixed(2) : '-',
+                t.revenue.toFixed(2),
+                `${t.billBookNo || '-'}/${t.billNo || '-'}`
+            ]);
+
+            const BOM = '\uFEFF';
+            const csvContent = BOM + [
+                headers.join(','),
+                ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+            ].join('\n');
+
+            const filename = `report_${type}_${start.toISOString().split('T')[0]}_to_${end.toISOString().split('T')[0]}.csv`;
+
+            return new NextResponse(csvContent, {
+                status: 200,
+                headers: {
+                    'Content-Type': 'text/csv; charset=utf-8',
+                    'Content-Disposition': `attachment; filename="${filename}"`,
+                },
+            });
+        }
+
         // Fetch transactions
         const transactions = await prisma.transaction.findMany({
             where: {
@@ -204,29 +273,6 @@ export async function GET(request: Request) {
             },
             orderBy: { date: 'desc' }
         });
-
-        // Generate CSV content
-        const headers = [
-            'วันที่',
-            'สถานี',
-            'ทะเบียน',
-            'ลูกค้า',
-            'รหัสลูกค้า',
-            'ประเภทชำระ',
-            'ประเภทน้ำมัน',
-            'ลิตร',
-            'ราคา/ลิตร',
-            'รวมเงิน',
-            'เล่ม/เลขบิล'
-        ];
-
-        const paymentTypeLabels: Record<string, string> = {
-            'CASH': 'เงินสด',
-            'CREDIT': 'เงินเชื่อ',
-            'TRANSFER': 'โอนเงิน',
-            'BOX_TRUCK': 'รถตู้ทึบ',
-            'OIL_TRUCK_SUPACHAI': 'รถน้ำมันศุภชัย'
-        };
 
         const rows = transactions.map(t => [
             new Date(t.date).toLocaleDateString('th-TH'),

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { HttpErrors, getErrorMessage } from '@/lib/api-error';
+import { requireAdminApi, requireApiSession } from '@/lib/api-auth';
 
 interface ProductInput {
     name: string;
@@ -11,6 +12,9 @@ interface ProductInput {
 
 export async function GET() {
     try {
+        const auth = await requireApiSession();
+        if (auth.response) return auth.response;
+
         const products = await prisma.product.findMany({
             orderBy: { name: 'asc' },
         });
@@ -28,6 +32,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const body: ProductInput = await request.json();
         const { name, unit, costPrice, salePrice } = body;
 

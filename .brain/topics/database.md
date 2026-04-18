@@ -52,3 +52,5 @@
 - 2026-02-24: สร้างไฟล์ brain topic นี้
 - 2026-02-23: migrate ไป Neon account ใหม่
 - 2026-02-22: วิเคราะห์ data transfer usage เพื่อ optimize
+- 2026-04-18: เพิ่ม Prisma models `external_sales_sources` และ `external_dispenser_transactions` เพื่อรองรับ Watchara shared dispenser safe landing
+- 2026-04-18: รัน `prisma db push` สำเร็จกับ Neon project database เพื่อสร้าง Watchara external-sales tables

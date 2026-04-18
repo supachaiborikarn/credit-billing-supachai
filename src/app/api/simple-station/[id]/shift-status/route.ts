@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
+import { requireStationAccessApi } from '@/lib/api-auth';
 
 // GET /api/simple-station/[id]/shift-status - Check shift status for mandatory workflow
 export async function GET(
@@ -11,6 +12,8 @@ export async function GET(
         const { id } = await params;
         // Normalize stationId - could be '4' or 'station-4'
         const stationId = id.startsWith('station-') ? id : `station-${id}`;
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
 
         const today = getTodayBangkok();
         const startOfToday = getStartOfDayBangkok(today);
@@ -80,11 +83,24 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id: stationId } = await params;
+        const { id } = await params;
+        const stationId = id.startsWith('station-') ? id : `station-${id}`;
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
+
         const body = await request.json();
         const { action, shiftId } = body;
 
         if (action === 'force-close' && shiftId) {
+            const shift = await prisma.shift.findUnique({
+                where: { id: shiftId },
+                include: { dailyRecord: { select: { stationId: true } } },
+            });
+
+            if (!shift || shift.dailyRecord.stationId !== stationId) {
+                return NextResponse.json({ error: 'ไม่พบกะนี้ในสถานีนี้' }, { status: 404 });
+            }
+
             // Force close the old shift
             await prisma.shift.update({
                 where: { id: shiftId },

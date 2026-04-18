@@ -8,6 +8,7 @@ import {
     BarChart3
 } from 'lucide-react';
 import { FUEL_TYPES } from '@/constants';
+import WatcharaExternalStatusBanner from '@/components/WatcharaExternalStatusBanner';
 
 interface FuelTimeData {
     period: { days: number };
@@ -15,6 +16,24 @@ interface FuelTimeData {
     hourlyData: { hour: number; liters: number; revenue: number; count: number }[];
     peakHour: { hour: number; count: number };
     dailyByFuel: { date: string; fuels: { [key: string]: number } }[];
+    watcharaExternal?: {
+        schemaReady: boolean;
+        available: boolean;
+        enabled: boolean;
+        targetStationIncluded: boolean;
+        includedInMerge: boolean;
+        rowsInRange: number;
+        litersInRange: number;
+        revenueInRange: number;
+        lastSyncedAt: string | null;
+        lastSeenSourceAt: string | null;
+        lastError: string | null;
+        stale: {
+            isStale: boolean;
+            staleHours: number | null;
+            thresholdHours: number;
+        };
+    };
 }
 
 const formatCurrency = (n: number) => n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -99,6 +118,8 @@ export default function FuelTimePage() {
                     ))}
                 </div>
             </div>
+
+            <WatcharaExternalStatusBanner status={data.watcharaExternal} />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* By Fuel Type */}

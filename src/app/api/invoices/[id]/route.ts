@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdminApi, requireApiSession } from '@/lib/api-auth';
 
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const auth = await requireApiSession();
+        if (auth.response) return auth.response;
+
         const { id } = await params;
 
         const invoice = await prisma.invoice.findUnique({
@@ -50,6 +54,9 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const { id } = await params;
 
         // Check if invoice exists

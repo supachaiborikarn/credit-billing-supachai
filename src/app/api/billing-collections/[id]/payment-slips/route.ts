@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireApiSession } from '@/lib/api-auth';
 
 // POST /api/billing-collections/[id]/payment-slips — เพิ่มสลิปการชำระเงิน
 export async function POST(
@@ -7,6 +8,9 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const auth = await requireApiSession();
+        if (auth.response) return auth.response;
+
         const { id } = await params;
         const body = await request.json();
         const { slipImageUrl, amount, transferDate, senderName, bankName, notes } = body;

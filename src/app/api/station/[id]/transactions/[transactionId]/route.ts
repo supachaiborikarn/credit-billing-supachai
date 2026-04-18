@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { cookies } from 'next/headers';
 import { checkShiftModifiable } from '@/services/shift-service';
+import { requireApiSession } from '@/lib/api-auth';
+import { canAccessStation } from '@/lib/auth-utils';
 
 // GET single transaction
 export async function GET(
@@ -10,16 +11,23 @@ export async function GET(
 ) {
     try {
         const { transactionId } = await params;
+        const auth = await requireApiSession();
+        if (auth.response) return auth.response;
 
         const transaction = await prisma.transaction.findUnique({
             where: { id: transactionId },
             include: {
                 owner: { select: { name: true, code: true } },
+                recordedBy: { select: { name: true } },
             }
         });
 
         if (!transaction) {
             return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
+        }
+
+        if (!canAccessStation(auth.user, transaction.stationId)) {
+            return NextResponse.json({ error: 'ไม่มีสิทธิ์เข้าถึงรายการนี้' }, { status: 403 });
         }
 
         return NextResponse.json(transaction);
@@ -37,23 +45,10 @@ export async function PUT(
     try {
         const { transactionId } = await params;
         const body = await request.json();
-
-        // Get user from session with role
-        const cookieStore = await cookies();
-        const sessionId = cookieStore.get('session')?.value;
-
-        let userId = 'system';
-        let userRole = 'STAFF';
-        if (sessionId) {
-            const session = await prisma.session.findUnique({
-                where: { id: sessionId },
-                include: { user: { select: { id: true, role: true } } }
-            });
-            if (session) {
-                userId = session.userId;
-                userRole = session.user.role;
-            }
-        }
+        const auth = await requireApiSession();
+        if (auth.response) return auth.response;
+        const userId = auth.user.id;
+        const userRole = auth.user.role;
 
         const {
             licensePlate,
@@ -85,6 +80,10 @@ export async function PUT(
             return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
         }
 
+        if (!canAccessStation(auth.user, oldTransaction.stationId)) {
+            return NextResponse.json({ error: 'ไม่มีสิทธิ์แก้ไขรายการนี้' }, { status: 403 });
+        }
+
         // Anti-Fraud: Check if locked (Admin can bypass)
         if (userRole !== 'ADMIN') {
             const closedShifts = oldTransaction.dailyRecord?.shifts || [];
@@ -112,46 +111,48 @@ export async function PUT(
             }
         }
 
-        // Update transaction
-        const transaction = await prisma.transaction.update({
-            where: { id: transactionId },
-            data: {
-                licensePlate,
-                ownerName,
-                ownerId,
-                paymentType,
-                nozzleNumber,
-                liters,
-                pricePerLiter,
-                amount,
-                billBookNo,
-                billNo,
-                transferProofUrl,
-            }
-        });
-
-        // Log audit with old and new data
-        await prisma.auditLog.create({
-            data: {
-                userId,
-                action: 'UPDATE',
-                model: 'Transaction',
-                recordId: transactionId,
-                oldData: {
-                    licensePlate: oldTransaction.licensePlate,
-                    ownerName: oldTransaction.ownerName,
-                    paymentType: oldTransaction.paymentType,
-                    liters: Number(oldTransaction.liters),
-                    amount: Number(oldTransaction.amount),
-                },
-                newData: {
+        const transaction = await prisma.$transaction(async (tx) => {
+            const updated = await tx.transaction.update({
+                where: { id: transactionId },
+                data: {
                     licensePlate,
                     ownerName,
+                    ownerId,
                     paymentType,
-                    liters: Number(liters),
-                    amount: Number(amount),
-                },
-            }
+                    nozzleNumber,
+                    liters,
+                    pricePerLiter,
+                    amount,
+                    billBookNo,
+                    billNo,
+                    transferProofUrl,
+                }
+            });
+
+            await tx.auditLog.create({
+                data: {
+                    userId,
+                    action: 'UPDATE',
+                    model: 'Transaction',
+                    recordId: transactionId,
+                    oldData: {
+                        licensePlate: oldTransaction.licensePlate,
+                        ownerName: oldTransaction.ownerName,
+                        paymentType: oldTransaction.paymentType,
+                        liters: Number(oldTransaction.liters),
+                        amount: Number(oldTransaction.amount),
+                    },
+                    newData: {
+                        licensePlate,
+                        ownerName,
+                        paymentType,
+                        liters: Number(liters),
+                        amount: Number(amount),
+                    },
+                }
+            });
+
+            return updated;
         });
 
         return NextResponse.json({ success: true, transaction });
@@ -168,6 +169,10 @@ export async function DELETE(
 ) {
     try {
         const { transactionId } = await params;
+        const auth = await requireApiSession();
+        if (auth.response) return auth.response;
+        const userId = auth.user.id;
+        const userRole = auth.user.role;
 
         // Get reason from query string or body
         const url = new URL(request.url);
@@ -178,23 +183,6 @@ export async function DELETE(
             if (body.reason) reason = body.reason;
         } catch {
             // No body, use query param
-        }
-
-        // Get user from session with role
-        const cookieStore = await cookies();
-        const sessionId = cookieStore.get('session')?.value;
-
-        let userId = 'system';
-        let userRole = 'STAFF';
-        if (sessionId) {
-            const session = await prisma.session.findUnique({
-                where: { id: sessionId },
-                include: { user: { select: { id: true, role: true } } }
-            });
-            if (session) {
-                userId = session.userId;
-                userRole = session.user.role;
-            }
         }
 
         // Get old data for audit log
@@ -211,6 +199,10 @@ export async function DELETE(
 
         if (!oldTransaction) {
             return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
+        }
+
+        if (!canAccessStation(auth.user, oldTransaction.stationId)) {
+            return NextResponse.json({ error: 'ไม่มีสิทธิ์ยกเลิกรายการนี้' }, { status: 403 });
         }
 
         // Anti-Fraud: Check if locked (Admin can bypass)
@@ -239,35 +231,37 @@ export async function DELETE(
             }
         }
 
-        // Soft delete: set isVoided = true, deletedAt = now()
-        await prisma.transaction.update({
-            where: { id: transactionId },
-            data: {
-                isVoided: true,
-                voidedAt: new Date(),
-                voidedById: userId,
-                voidReason: reason,
-                deletedAt: new Date(),
-            }
-        });
+        await prisma.$transaction(async (tx) => {
+            const now = new Date();
 
-        // Log audit
-        await prisma.auditLog.create({
-            data: {
-                userId,
-                action: 'DELETE',
-                model: 'Transaction',
-                recordId: transactionId,
-                oldData: {
-                    licensePlate: oldTransaction.licensePlate,
-                    ownerName: oldTransaction.ownerName,
-                    amount: Number(oldTransaction.amount),
-                },
-                newData: {
+            await tx.transaction.update({
+                where: { id: transactionId },
+                data: {
                     isVoided: true,
+                    voidedAt: now,
+                    voidedById: userId,
                     voidReason: reason,
-                },
-            }
+                    deletedAt: now,
+                }
+            });
+
+            await tx.auditLog.create({
+                data: {
+                    userId,
+                    action: 'DELETE',
+                    model: 'Transaction',
+                    recordId: transactionId,
+                    oldData: {
+                        licensePlate: oldTransaction.licensePlate,
+                        ownerName: oldTransaction.ownerName,
+                        amount: Number(oldTransaction.amount),
+                    },
+                    newData: {
+                        isVoided: true,
+                        voidReason: reason,
+                    },
+                }
+            });
         });
 
         return NextResponse.json({ success: true, message: 'รายการถูกยกเลิกเรียบร้อย' });

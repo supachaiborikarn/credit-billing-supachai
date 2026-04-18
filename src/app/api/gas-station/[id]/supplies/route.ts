@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { STATIONS } from '@/constants';
+import { requireStationAccessApi } from '@/lib/api-auth';
 
 export async function GET(
     request: Request,
@@ -17,6 +18,9 @@ export async function GET(
 
         // Get or create station with consistent ID
         const stationId = `station-${id}`;
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
+
         const station = await prisma.station.upsert({
             where: { id: stationId },
             update: {},
@@ -60,11 +64,14 @@ export async function POST(
             return NextResponse.json({ error: 'Gas station not found' }, { status: 404 });
         }
 
+        const stationId = `station-${id}`;
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
+
         const body = await request.json();
         const { date: dateStr, liters, supplier, invoiceNo, pricePerLiter } = body;
 
         // Get or create station with consistent ID
-        const stationId = `station-${id}`;
         const station = await prisma.station.upsert({
             where: { id: stationId },
             update: {},

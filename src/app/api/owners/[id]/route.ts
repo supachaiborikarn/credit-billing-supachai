@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { HttpErrors, getErrorMessage } from '@/lib/api-error';
 import { OwnerGroup } from '@prisma/client';
+import { requireAdminApi, requireApiSession } from '@/lib/api-auth';
 
 interface UpdateOwnerInput {
     name?: string;
@@ -16,6 +17,9 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const auth = await requireApiSession();
+        if (auth.response) return auth.response;
+
         const { id } = await params;
 
         const owner = await prisma.owner.findUnique({
@@ -45,6 +49,9 @@ export async function PUT(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const auth = await requireApiSession();
+        if (auth.response) return auth.response;
+
         const { id } = await params;
         const body: UpdateOwnerInput = await request.json();
 
@@ -97,6 +104,9 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const { id } = await params;
 
         // Check if owner exists

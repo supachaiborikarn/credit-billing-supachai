@@ -1,14 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { Fragment, useEffect, useState } from 'react';
 import {
     Building2,
-    TrendingUp,
-    Fuel,
     Loader2,
     ChevronRight
 } from 'lucide-react';
+import WatcharaExternalStatusBanner from '@/components/WatcharaExternalStatusBanner';
 
 interface StationData {
     id: string;
@@ -24,6 +22,24 @@ interface StationData {
 interface StationsResponse {
     period: { days: number };
     stations: StationData[];
+    watcharaExternal?: {
+        schemaReady: boolean;
+        available: boolean;
+        enabled: boolean;
+        targetStationIncluded: boolean;
+        includedInMerge: boolean;
+        rowsInRange: number;
+        litersInRange: number;
+        revenueInRange: number;
+        lastSyncedAt: string | null;
+        lastSeenSourceAt: string | null;
+        lastError: string | null;
+        stale: {
+            isStale: boolean;
+            staleHours: number | null;
+            thresholdHours: number;
+        };
+    };
 }
 
 const formatCurrency = (n: number) => n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -96,6 +112,8 @@ export default function StationsPage() {
                 </div>
             </div>
 
+            <WatcharaExternalStatusBanner status={data.watcharaExternal} />
+
             {/* Bar Chart Comparison */}
             <div className="bg-[#1a1a24] rounded-xl p-6 border border-white/10">
                 <h2 className="text-lg font-semibold mb-4">📊 เปรียบเทียบยอดขาย</h2>
@@ -135,9 +153,8 @@ export default function StationsPage() {
                         </thead>
                         <tbody>
                             {data.stations.map(s => (
-                                <>
+                                <Fragment key={s.id}>
                                     <tr
-                                        key={s.id}
                                         className="border-t border-white/5 hover:bg-white/5 cursor-pointer"
                                         onClick={() => setExpanded(expanded === s.id ? null : s.id)}
                                     >
@@ -168,7 +185,7 @@ export default function StationsPage() {
                                             </td>
                                         </tr>
                                     )}
-                                </>
+                                </Fragment>
                             ))}
                         </tbody>
                     </table>

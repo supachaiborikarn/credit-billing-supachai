@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { STATIONS } from '@/constants';
+import { requireAdminApi } from '@/lib/api-auth';
 
 // GET: Fetch existing shift data for a specific date/station/shift
 export async function GET(request: NextRequest) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const { searchParams } = new URL(request.url);
         const stationId = searchParams.get('stationId');
         const dateStr = searchParams.get('date');
@@ -117,8 +121,11 @@ export async function GET(request: NextRequest) {
 // POST: Save shift data
 export async function POST(request: NextRequest) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const body = await request.json();
-        const { stationId, date: dateStr, shiftNumber, meters, gauges, sales } = body;
+        const { stationId, date: dateStr, shiftNumber, meters, gauges } = body;
 
         if (!stationId || !dateStr || !shiftNumber) {
             return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
@@ -134,7 +141,7 @@ export async function POST(request: NextRequest) {
         date.setHours(0, 0, 0, 0);
 
         // Upsert daily record
-        let dailyRecord = await prisma.dailyRecord.upsert({
+        const dailyRecord = await prisma.dailyRecord.upsert({
             where: {
                 stationId_date: { stationId, date }
             },

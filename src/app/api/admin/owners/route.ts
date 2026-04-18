@@ -1,14 +1,17 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdminApi } from '@/lib/api-auth';
 
 // GET - ดึงรายการ Owner
 export async function GET(request: Request) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const { searchParams } = new URL(request.url);
-        const hasCredit = searchParams.get('hasCredit');
         const outstanding = searchParams.get('outstanding');
 
-        let where: Record<string, unknown> = { deletedAt: null };
+        const where: Record<string, unknown> = { deletedAt: null };
 
         if (outstanding === 'true') {
             where.currentCredit = { gt: 0 };

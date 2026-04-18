@@ -4,6 +4,7 @@ import type { NextRequest } from 'next/server';
 // Routes that require authentication
 const protectedRoutes = [
     '/dashboard',
+    '/admin',
     '/station',
     '/simple-station',
     '/gas-station',
@@ -16,9 +17,6 @@ const protectedRoutes = [
     '/settings',
 ];
 
-// Routes that should redirect authenticated users
-const authRoutes = ['/login'];
-
 export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
     const sessionCookie = request.cookies.get('session');
@@ -28,20 +26,12 @@ export function middleware(request: NextRequest) {
         pathname === route || pathname.startsWith(route + '/')
     );
 
-    // Check if route is auth route (login)
-    const isAuthRoute = authRoutes.some(route => pathname === route);
-
     // If protected route and no session, redirect to login
     if (isProtectedRoute && !sessionCookie) {
         const loginUrl = new URL('/login', request.url);
         loginUrl.searchParams.set('redirect', pathname);
         return NextResponse.redirect(loginUrl);
     }
-
-    // If auth route and has session, let the page handle redirect
-    // This allows login page to redirect staff to their specific station
-    // instead of always going to dashboard
-    // (The redirect logic is in login/page.tsx which checks user role and stationId)
 
     // Force gas-station users to use new v2 UI
     // Redirect /gas-station/[id] to /gas-station/[id]/new/home

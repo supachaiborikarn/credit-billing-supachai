@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { STATIONS } from '@/constants';
-import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
+import { getTodayBangkok } from '@/lib/date-utils';
+import {
+    addDaysToDateKey,
+    buildFuelTypeMetrics,
+    buildHourlyMetrics,
+    filterOperationalRowsByDateKeyRange,
+    getOperationalSalesDataset,
+    listDateKeys,
+    normalizeOperationalFuelType,
+} from '@/lib/operational-sales';
 
 // GET: Fuel Type & Time Analytics
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
-        const days = parseInt(searchParams.get('days') || '7');
+        const requestedDays = Number.parseInt(searchParams.get('days') || '7', 10);
+        const days = Number.isFinite(requestedDays) && requestedDays > 0 ? requestedDays : 7;
         const selectedStation = searchParams.get('stationId');
 
         const simpleStations = STATIONS.filter(s => s.type === 'SIMPLE');
@@ -15,72 +24,32 @@ export async function GET(request: NextRequest) {
             ? [selectedStation]
             : simpleStations.map(s => s.id);
 
-        const todayStr = getTodayBangkok();
-        const endOfDay = getEndOfDayBangkok(todayStr);
-
-        const startDate = new Date(endOfDay);
-        startDate.setDate(startDate.getDate() - days);
-        startDate.setHours(0, 0, 0, 0);
+        const endDateKey = getTodayBangkok();
+        const startDateKey = addDaysToDateKey(endDateKey, -(days - 1));
+        const { rows, watcharaExternal } = await getOperationalSalesDataset({
+            stationIds,
+            startDateKey,
+            endDateKey,
+        });
+        const periodRows = filterOperationalRowsByDateKeyRange(rows, startDateKey, endDateKey);
 
         // ========== By Fuel Type ==========
-        const byFuelType = await prisma.transaction.groupBy({
-            by: ['productType'],
-            where: {
-                stationId: { in: stationIds },
-                date: { gte: startDate, lte: endOfDay },
-                isVoided: false,
-                deletedAt: null
-            },
-            _sum: { liters: true, amount: true },
-            _count: { id: true }
-        });
+        const byFuelType = buildFuelTypeMetrics(periodRows);
 
         // ========== By Hour (Peak Hour Analysis) ==========
-        const transactions = await prisma.transaction.findMany({
-            where: {
-                stationId: { in: stationIds },
-                date: { gte: startDate, lte: endOfDay },
-                isVoided: false,
-                deletedAt: null
-            },
-            select: { date: true, liters: true, amount: true }
-        });
-
-        // Group by hour
-        const byHour: { [hour: number]: { liters: number; revenue: number; count: number } } = {};
-        for (let i = 0; i < 24; i++) {
-            byHour[i] = { liters: 0, revenue: 0, count: 0 };
-        }
-
-        transactions.forEach(t => {
-            const hour = t.date.getHours();
-            byHour[hour].liters += Number(t.liters);
-            byHour[hour].revenue += Number(t.amount);
-            byHour[hour].count += 1;
-        });
-
-        const hourlyData = Object.entries(byHour).map(([hour, data]) => ({
-            hour: parseInt(hour),
-            liters: data.liters,
-            revenue: data.revenue,
-            count: data.count
-        }));
+        const hourlyData = buildHourlyMetrics(periodRows);
 
         // ========== Daily Breakdown by Fuel Type ==========
         const dailyByFuel: { [date: string]: { [fuel: string]: number } } = {};
 
-        for (let i = days - 1; i >= 0; i--) {
-            const d = new Date(endOfDay);
-            d.setDate(d.getDate() - i);
-            dailyByFuel[d.toISOString().split('T')[0]] = {};
-        }
+        listDateKeys(startDateKey, endDateKey).forEach((dateKey) => {
+            dailyByFuel[dateKey] = {};
+        });
 
-        transactions.forEach(t => {
-            const dateKey = t.date.toISOString().split('T')[0];
-            // Note: productType might be null
-            const fuelType = 'productType' in t && t.productType ? String(t.productType) : 'อื่นๆ';
-            if (dailyByFuel[dateKey]) {
-                dailyByFuel[dateKey][fuelType] = (dailyByFuel[dateKey][fuelType] || 0) + Number(t.liters);
+        periodRows.forEach((row) => {
+            const fuelType = normalizeOperationalFuelType(row.fuelType);
+            if (dailyByFuel[row.dateKey]) {
+                dailyByFuel[row.dateKey][fuelType] = (dailyByFuel[row.dateKey][fuelType] || 0) + row.liters;
             }
         });
 
@@ -94,15 +63,11 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({
             period: { days },
-            byFuelType: byFuelType.map(f => ({
-                fuelType: f.productType || 'อื่นๆ',
-                liters: Number(f._sum.liters) || 0,
-                revenue: Number(f._sum.amount) || 0,
-                count: f._count.id
-            })),
+            byFuelType,
             hourlyData,
             peakHour: { hour: peakHour.hour, count: peakHour.count },
-            dailyByFuel: dailyFuelData
+            dailyByFuel: dailyFuelData,
+            watcharaExternal,
         });
     } catch (error) {
         console.error('Error fetching fuel-time:', error);

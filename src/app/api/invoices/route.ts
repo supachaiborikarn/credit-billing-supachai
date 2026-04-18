@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { Invoice, Owner, Prisma } from '@prisma/client';
+import { Invoice, Owner } from '@prisma/client';
+import { requireAdminApi, requireApiSession } from '@/lib/api-auth';
 
 type InvoiceWithRelations = Invoice & {
     owner: Pick<Owner, 'id' | 'name' | 'code'>;
@@ -9,6 +10,9 @@ type InvoiceWithRelations = Invoice & {
 
 export async function GET() {
     try {
+        const auth = await requireApiSession();
+        if (auth.response) return auth.response;
+
         const invoices = await prisma.invoice.findMany({
             orderBy: { createdAt: 'desc' },
             include: {
@@ -28,6 +32,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const body = await request.json();
         const { ownerId, ownerIds, startDate, endDate, combineOwners } = body;
 

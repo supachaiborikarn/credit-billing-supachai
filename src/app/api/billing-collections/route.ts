@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdminApi, requireApiSession } from '@/lib/api-auth';
 
 // GET /api/billing-collections — ดึงรายการใบวางบิลรวม
 export async function GET(request: Request) {
     try {
+        const auth = await requireApiSession();
+        if (auth.response) return auth.response;
+
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status');
         const search = searchParams.get('search');
@@ -45,6 +49,9 @@ export async function GET(request: Request) {
 // POST /api/billing-collections — สร้างใบวางบิลรวมใหม่
 export async function POST(request: Request) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const body = await request.json();
         const { ownerId, periodStart, periodEnd, periodLabel, dueDate, notes, items } = body;
 

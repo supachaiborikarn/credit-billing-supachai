@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireStationAccessApi } from '@/lib/api-auth';
 
 // POST - Add product to inventory (receive stock)
 export async function POST(
@@ -9,6 +10,9 @@ export async function POST(
     try {
         const { id } = await params;
         const stationId = `station-${id}`;
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
+
         const body = await request.json();
         const { inventoryId, quantity, note, supplier, invoiceNo, costPrice } = body;
 
@@ -24,6 +28,10 @@ export async function POST(
 
         if (!inventory) {
             return NextResponse.json({ error: 'ไม่พบสินค้า' }, { status: 404 });
+        }
+
+        if (inventory.stationId !== stationId) {
+            return NextResponse.json({ error: 'ไม่พบสินค้าในสถานีนี้' }, { status: 404 });
         }
 
         // Transaction: increase inventory and create receipt record

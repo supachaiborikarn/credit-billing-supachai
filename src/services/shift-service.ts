@@ -7,8 +7,13 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { VARIANCE_THRESHOLD, getVarianceLevel } from '@/constants/thresholds';
+import { VARIANCE_THRESHOLD } from '@/constants/thresholds';
+import { formatDateBangkok } from '@/lib/date-utils';
 import { calculateProductSales } from './inventory-service';
+import {
+    getWatcharaExternalDailySummary,
+    shouldApplyWatcharaExternalToShift,
+} from '@/lib/operational-sales';
 
 export type ShiftStatus = 'OPEN' | 'CLOSED' | 'LOCKED';
 export type VarianceStatus = 'GREEN' | 'YELLOW' | 'RED';
@@ -145,28 +150,49 @@ export async function calculateReconciliation(shiftId: string): Promise<Reconcil
     const totalSoldLiters = shift.meters.reduce((sum, m) =>
         sum + (m.soldQty ? Number(m.soldQty) : 0), 0
     );
-    const expectedFuelAmount = totalSoldLiters * gasPrice;
+    let expectedFuelAmount = totalSoldLiters * gasPrice;
 
     // ยอดจากสินค้าอื่น
     const expectedOtherAmount = await calculateProductSales(shiftId);
 
-    const totalExpected = expectedFuelAmount + expectedOtherAmount;
-
     // คำนวณยอดรับจริงจาก transactions
     const transactions = shift.dailyRecord?.transactions || [];
 
-    const cashReceived = transactions
+    let cashReceived = transactions
         .filter(t => t.paymentType === 'CASH')
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
-    const creditReceived = transactions
+    let creditReceived = transactions
         .filter(t => ['CREDIT', 'BOX_TRUCK', 'OIL_TRUCK_SUPACHAI'].includes(t.paymentType))
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
-    const transferReceived = transactions
+    let transferReceived = transactions
         .filter(t => ['TRANSFER', 'CREDIT_CARD'].includes(t.paymentType))
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
+    const dateKey = shift.dailyRecord ? formatDateBangkok(shift.dailyRecord.date) : null;
+    if (shift.dailyRecord && dateKey) {
+        const shouldApplyExternal = await shouldApplyWatcharaExternalToShift({
+            stationId: shift.dailyRecord.stationId,
+            dailyRecordId: shift.dailyRecordId,
+            shiftNumber: shift.shiftNumber,
+            dateKey,
+        });
+
+        if (shouldApplyExternal) {
+            const externalSummary = await getWatcharaExternalDailySummary({
+                stationId: shift.dailyRecord.stationId,
+                dateKey,
+            });
+
+            expectedFuelAmount += externalSummary.summary.revenue;
+            cashReceived += externalSummary.payments.cash;
+            creditReceived += externalSummary.payments.credit + externalSummary.payments.boxTruck + externalSummary.payments.oilTruckSupachai;
+            transferReceived += externalSummary.payments.transfer + externalSummary.payments.card;
+        }
+    }
+
+    const totalExpected = expectedFuelAmount + expectedOtherAmount;
     const totalReceived = cashReceived + creditReceived + transferReceived;
     const variance = totalExpected - totalReceived;
     const varianceStatus = calculateVarianceStatus(variance);
@@ -418,4 +444,3 @@ export async function createNextShiftWithCarryOver(
         return { success: false, error: 'Carry-over failed' };
     }
 }
-

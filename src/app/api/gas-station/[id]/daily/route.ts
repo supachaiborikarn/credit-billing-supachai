@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { STATIONS } from '@/constants';
 import { resolveGasStation } from '@/lib/gas/station-resolver';
 import { getStartOfDayBangkokUTC, getEndOfDayBangkokUTC, getTodayBangkok } from '@/lib/gas/date-utils';
+import { requireStationAccessApi } from '@/lib/api-auth';
 
 export async function GET(
     request: Request,
@@ -16,6 +17,9 @@ export async function GET(
         if (!resolvedStation) {
             return NextResponse.json({ error: 'Gas station not found' }, { status: 404 });
         }
+
+        const auth = await requireStationAccessApi(resolvedStation.dbId);
+        if (auth.response) return auth.response;
 
         const stationConfig = STATIONS[resolvedStation.index - 1];
         const url = new URL(request.url);
@@ -194,12 +198,15 @@ export async function POST(
             return NextResponse.json({ error: 'Gas station not found' }, { status: 404 });
         }
 
+        const stationId = `station-${id}`;
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
+
         const body = await request.json();
         const { date: dateStr, gasPrice } = body;
         const date = new Date(dateStr + 'T00:00:00Z');
 
         // Get or create station with consistent ID
-        const stationId = `station-${id}`;
         const station = await prisma.station.upsert({
             where: { id: stationId },
             update: {},

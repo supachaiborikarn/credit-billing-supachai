@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v2 as cloudinary } from 'cloudinary';
+import { requireApiSession } from '@/lib/api-auth';
+
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 
 // Configure Cloudinary
 cloudinary.config({
@@ -10,11 +13,22 @@ cloudinary.config({
 
 export async function POST(request: NextRequest) {
     try {
+        const auth = await requireApiSession();
+        if (auth.response) return auth.response;
+
         const formData = await request.formData();
         const file = formData.get('file') as File;
 
         if (!file) {
             return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+        }
+
+        if (!file.type.startsWith('image/')) {
+            return NextResponse.json({ error: 'Only image uploads are allowed' }, { status: 400 });
+        }
+
+        if (file.size > MAX_UPLOAD_BYTES) {
+            return NextResponse.json({ error: 'File is too large' }, { status: 413 });
         }
 
         // Check Cloudinary config

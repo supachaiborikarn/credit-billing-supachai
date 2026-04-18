@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdminApi } from '@/lib/api-auth';
 
 // PUT - Update nozzle
 export async function PUT(
@@ -7,9 +8,26 @@ export async function PUT(
     { params }: { params: Promise<{ stationId: string; dispenserId: string; nozzleId: string }> }
 ) {
     try {
-        const { nozzleId } = await params;
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
+        const { stationId, dispenserId, nozzleId } = await params;
         const body = await request.json();
         const { code, productId, isActive } = body;
+
+        const existing = await prisma.nozzle.findFirst({
+            where: {
+                id: nozzleId,
+                dispenserId,
+                deletedAt: null,
+                dispenser: { stationId },
+            },
+            select: { id: true },
+        });
+
+        if (!existing) {
+            return NextResponse.json({ error: 'Nozzle not found' }, { status: 404 });
+        }
 
         const nozzle = await prisma.nozzle.update({
             where: { id: nozzleId },
@@ -36,7 +54,24 @@ export async function DELETE(
     { params }: { params: Promise<{ stationId: string; dispenserId: string; nozzleId: string }> }
 ) {
     try {
-        const { nozzleId } = await params;
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
+        const { stationId, dispenserId, nozzleId } = await params;
+
+        const existing = await prisma.nozzle.findFirst({
+            where: {
+                id: nozzleId,
+                dispenserId,
+                deletedAt: null,
+                dispenser: { stationId },
+            },
+            select: { id: true },
+        });
+
+        if (!existing) {
+            return NextResponse.json({ error: 'Nozzle not found' }, { status: 404 });
+        }
 
         await prisma.nozzle.update({
             where: { id: nozzleId },

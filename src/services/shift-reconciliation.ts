@@ -1,5 +1,10 @@
 import { prisma } from '@/lib/prisma';
 import { VarianceStatus } from '@prisma/client';
+import { formatDateBangkok } from '@/lib/date-utils';
+import {
+    getWatcharaExternalDailySummary,
+    shouldApplyWatcharaExternalToShift,
+} from '@/lib/operational-sales';
 
 /**
  * Calculate variance status based on absolute variance amount
@@ -111,7 +116,9 @@ export async function calculateForShift(shiftId: string): Promise<Reconciliation
     // 3. Get transactions for this shift's time period
     const transactions = await prisma.transaction.findMany({
         where: {
-            dailyRecordId: shift.dailyRecordId
+            dailyRecordId: shift.dailyRecordId,
+            deletedAt: null,
+            isVoided: false,
         },
         select: {
             amount: true,
@@ -142,6 +149,26 @@ export async function calculateForShift(shiftId: string): Promise<Reconciliation
         }
     });
 
+    const dateKey = formatDateBangkok(shift.dailyRecord.date);
+    const shouldApplyExternal = await shouldApplyWatcharaExternalToShift({
+        stationId: shift.dailyRecord.stationId,
+        dailyRecordId: shift.dailyRecordId,
+        shiftNumber: shift.shiftNumber,
+        dateKey,
+    });
+
+    if (shouldApplyExternal) {
+        const externalSummary = await getWatcharaExternalDailySummary({
+            stationId: shift.dailyRecord.stationId,
+            dateKey,
+        });
+
+        expectedFuelAmount += externalSummary.summary.revenue;
+        cashReceived += externalSummary.payments.cash;
+        creditReceived += externalSummary.payments.credit + externalSummary.payments.boxTruck + externalSummary.payments.oilTruckSupachai;
+        transferReceived += externalSummary.payments.transfer + externalSummary.payments.card;
+    }
+
     const totalReceived = cashReceived + creditReceived + transferReceived;
     const totalExpected = expectedFuelAmount + expectedOtherAmount;
     const variance = totalReceived - totalExpected;
@@ -163,7 +190,7 @@ export async function calculateForShift(shiftId: string): Promise<Reconciliation
 /**
  * Save or update ShiftReconciliation record
  */
-export async function saveShiftReconciliation(shiftId: string, userId?: string) {
+export async function saveShiftReconciliation(shiftId: string) {
     const result = await calculateForShift(shiftId);
 
     return await prisma.shiftReconciliation.upsert({

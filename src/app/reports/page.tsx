@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Breadcrumb from '@/components/Breadcrumb';
-import Spinner, { LoadingState, TableLoadingState } from '@/components/Spinner';
+import { TableLoadingState } from '@/components/Spinner';
+import WatcharaExternalStatusBanner from '@/components/WatcharaExternalStatusBanner';
 import { formatCurrency, formatNumber, formatCompact } from '@/utils/format';
 import {
     FileText,
@@ -141,6 +142,68 @@ interface StationOption {
     name: string;
 }
 
+interface WatcharaExternalStatus {
+    schemaReady: boolean;
+    available: boolean;
+    enabled: boolean;
+    targetStationIncluded: boolean;
+    includedInMerge: boolean;
+    rowsInRange: number;
+    litersInRange: number;
+    revenueInRange: number;
+    lastSyncedAt: string | null;
+    lastSeenSourceAt: string | null;
+    lastError: string | null;
+    stale: {
+        isStale: boolean;
+        staleHours: number | null;
+        thresholdHours: number;
+    };
+}
+
+async function fetchReportResult({
+    reportType,
+    startDate,
+    endDate,
+    selectedStation,
+}: {
+    reportType: ReportType;
+    startDate: string;
+    endDate: string;
+    selectedStation: string;
+}) {
+    if (reportType === 'shift_meters') {
+        const stationParam = selectedStation ? `&stationId=${selectedStation}` : '';
+        const res = await fetch(`/api/reports/shift-meters?startDate=${startDate}&endDate=${endDate}${stationParam}`);
+        if (!res.ok) {
+            throw new Error('Failed to fetch shift meters report');
+        }
+
+        const result = await res.json();
+        return {
+            data: [],
+            gasStock: [],
+            shiftMetersData: result || [],
+            summary: { totalShifts: result.length },
+            watcharaExternal: null,
+        };
+    }
+
+    const res = await fetch(`/api/reports?type=${reportType}&startDate=${startDate}&endDate=${endDate}`);
+    if (!res.ok) {
+        throw new Error('Failed to fetch report');
+    }
+
+    const result = await res.json();
+    return {
+        data: result.data || [],
+        gasStock: result.stockData || [],
+        shiftMetersData: [],
+        summary: result.summary || null,
+        watcharaExternal: result.watcharaExternal || null,
+    };
+}
+
 export default function ReportsPage() {
     const [loading, setLoading] = useState(true);
     const [reportType, setReportType] = useState<ReportType>('daily');
@@ -159,40 +222,54 @@ export default function ReportsPage() {
     const [stations, setStations] = useState<StationOption[]>([]);
     const [selectedStation, setSelectedStation] = useState<string>('');
     const [selectedShift, setSelectedShift] = useState<string>('');
+    const [watcharaExternal, setWatcharaExternal] = useState<WatcharaExternalStatus | null>(null);
 
     useEffect(() => {
         setMounted(true);
-        fetchReport();
-        // Fetch stations for filter
         fetch('/api/stations').then(res => res.json()).then(data => {
             if (Array.isArray(data)) setStations(data);
         }).catch(console.error);
+    }, []);
+
+    useEffect(() => {
+        const run = async () => {
+            setLoading(true);
+            try {
+                const result = await fetchReportResult({
+                    reportType,
+                    startDate,
+                    endDate,
+                    selectedStation,
+                });
+                setData(result.data);
+                setGasStock(result.gasStock);
+                setShiftMetersData(result.shiftMetersData);
+                setSummary(result.summary);
+                setWatcharaExternal(result.watcharaExternal);
+            } catch (error) {
+                console.error('Error fetching report:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        void run();
     }, [reportType, startDate, endDate, selectedStation]);
 
     const fetchReport = async () => {
         setLoading(true);
         try {
-            if (reportType === 'shift_meters') {
-                // Fetch shift meters from separate endpoint
-                const stationParam = selectedStation ? `&stationId=${selectedStation}` : '';
-                const res = await fetch(`/api/reports/shift-meters?startDate=${startDate}&endDate=${endDate}${stationParam}`);
-                if (res.ok) {
-                    const result = await res.json();
-                    setShiftMetersData(result || []);
-                    setData([]);
-                    setSummary({ totalShifts: result.length });
-                }
-            } else {
-                const res = await fetch(`/api/reports?type=${reportType}&startDate=${startDate}&endDate=${endDate}`);
-                if (res.ok) {
-                    const result = await res.json();
-                    setData(result.data || []);
-                    setSummary(result.summary || null);
-                    if (result.stockData) {
-                        setGasStock(result.stockData);
-                    }
-                }
-            }
+            const result = await fetchReportResult({
+                reportType,
+                startDate,
+                endDate,
+                selectedStation,
+            });
+            setData(result.data);
+            setGasStock(result.gasStock);
+            setShiftMetersData(result.shiftMetersData);
+            setSummary(result.summary);
+            setWatcharaExternal(result.watcharaExternal);
         } catch (error) {
             console.error('Error fetching report:', error);
         } finally {
@@ -358,6 +435,8 @@ export default function ReportsPage() {
                         )}
                     </p>
                 </div>
+
+                <WatcharaExternalStatusBanner status={watcharaExternal} />
 
                 {/* Date Range Filter */}
                 <div className={`backdrop-blur-xl rounded-2xl border border-white/10 p-4 mb-6 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}

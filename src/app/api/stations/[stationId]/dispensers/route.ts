@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdminApi, requireStationAccessApi } from '@/lib/api-auth';
 
 export async function GET(
     request: Request,
@@ -7,6 +8,8 @@ export async function GET(
 ) {
     try {
         const { stationId } = await params;
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
 
         // Get all dispensers with their nozzles and products
         const dispensers = await prisma.dispenser.findMany({
@@ -40,6 +43,9 @@ export async function POST(
     { params }: { params: Promise<{ stationId: string }> }
 ) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const { stationId } = await params;
         const body = await request.json();
         const { code, nozzles } = body;

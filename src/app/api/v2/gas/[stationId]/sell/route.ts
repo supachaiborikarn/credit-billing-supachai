@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { cookies } from 'next/headers';
 import { getTodayBangkok, getStartOfDayBangkokUTC, getEndOfDayBangkokUTC } from '@/lib/gas';
 import { resolveGasStation, getNonGasStationError } from '@/lib/gas/station-resolver';
+import { requireStationAccessApi } from '@/lib/api-auth';
 
 /**
  * POST /api/v2/gas/[stationId]/sell
@@ -20,6 +20,9 @@ export async function POST(
         if (!station) {
             return NextResponse.json(getNonGasStationError(), { status: 403 });
         }
+        const auth = await requireStationAccessApi(station.dbId);
+        if (auth.response) return auth.response;
+
         const body = await request.json();
         const {
             paymentType,
@@ -32,17 +35,7 @@ export async function POST(
             billNo
         } = body;
 
-        // Get user from session
-        const cookieStore = await cookies();
-        const sessionId = cookieStore.get('session')?.value;
-        let userId: string | null = null;
-
-        if (sessionId) {
-            const session = await prisma.session.findUnique({
-                where: { id: sessionId }
-            });
-            userId = session?.userId || null;
-        }
+        const userId = auth.user.id;
 
         // Validate required fields
         if (!paymentType || !liters || !amount) {
@@ -102,7 +95,7 @@ export async function POST(
                 amount,
                 paymentType,
                 billNo,
-                recordedById: userId || ''
+                recordedById: userId
             }
         });
 
@@ -133,6 +126,8 @@ export async function GET(
         if (!station) {
             return NextResponse.json(getNonGasStationError(), { status: 403 });
         }
+        const auth = await requireStationAccessApi(station.dbId);
+        if (auth.response) return auth.response;
 
         const today = getTodayBangkok();
         const startOfDay = getStartOfDayBangkokUTC(today);

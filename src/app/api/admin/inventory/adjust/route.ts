@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
+import { requireAdminApi } from '@/lib/api-auth';
 import { updateInventory } from '@/services/inventory-service';
 
 // POST - ปรับสต็อกสินค้า
 export async function POST(request: Request) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const body = await request.json();
         const { stationId, productId, quantityChange } = body;
 

@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdminApi } from '@/lib/api-auth';
 
 // GET - List all price books
 export async function GET(request: Request) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const { searchParams } = new URL(request.url);
         const stationId = searchParams.get('stationId');
         const status = searchParams.get('status');
@@ -35,6 +39,9 @@ export async function GET(request: Request) {
 // POST - Create new price book
 export async function POST(request: Request) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const body = await request.json();
         const { stationId, effectiveFrom, effectiveTo, lines } = body;
 

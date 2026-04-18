@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdminApi } from '@/lib/api-auth';
 
 // GET all settings
 export async function GET() {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const settings = await prisma.setting.findMany();
 
         // Convert to key-value object
@@ -45,6 +49,9 @@ export async function GET() {
 // POST update settings
 export async function POST(request: Request) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const body = await request.json();
         const updates: { key: string; value: string }[] = [];
 

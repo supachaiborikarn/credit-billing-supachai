@@ -11,6 +11,7 @@ const OPTIONAL_ENV_VARS = [
     'CLOUDINARY_API_KEY',
     'CLOUDINARY_API_SECRET',
     'LOG_LEVEL',
+    'WATCHARA_DISPENSER_DATABASE_URL',
 ];
 
 interface EnvValidationResult {

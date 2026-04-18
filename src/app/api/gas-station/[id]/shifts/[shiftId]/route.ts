@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getStartOfDayBangkok } from '@/lib/date-utils';
 import { createNextShiftWithCarryOver } from '@/services/shift-service';
+import { requireStationAccessApi } from '@/lib/api-auth';
 
 // PUT - Close shift (add end meter readings)
 export async function PUT(
@@ -25,6 +25,9 @@ export async function PUT(
         if (!shift) {
             return NextResponse.json({ error: 'ไม่พบกะนี้' }, { status: 404 });
         }
+
+        const auth = await requireStationAccessApi(shift.dailyRecord.stationId);
+        if (auth.response) return auth.response;
 
         if (shift.status === 'CLOSED') {
             return NextResponse.json({ error: 'กะนี้ปิดแล้ว' }, { status: 400 });
@@ -124,12 +127,16 @@ export async function GET(
             include: {
                 staff: { select: { name: true } },
                 meters: { orderBy: { nozzleNumber: 'asc' } },
+                dailyRecord: { select: { stationId: true } },
             }
         });
 
         if (!shift) {
             return NextResponse.json({ error: 'ไม่พบกะนี้' }, { status: 404 });
         }
+
+        const auth = await requireStationAccessApi(shift.dailyRecord.stationId);
+        if (auth.response) return auth.response;
 
         const meterComparison = shift.meters.map(m => ({
             nozzleNumber: m.nozzleNumber,

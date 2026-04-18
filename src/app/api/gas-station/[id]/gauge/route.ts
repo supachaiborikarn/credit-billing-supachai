@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { STATIONS } from '@/constants';
+import { requireStationAccessApi } from '@/lib/api-auth';
 
 // GET - fetch gauge readings for a date
 export async function GET(
@@ -23,6 +24,9 @@ export async function GET(
 
         // Get or create station with consistent ID
         const stationId = `station-${id}`;
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
+
         const station = await prisma.station.upsert({
             where: { id: stationId },
             update: {},
@@ -117,6 +121,10 @@ export async function POST(
             return NextResponse.json({ error: 'Gas station not found' }, { status: 404 });
         }
 
+        const stationId = `station-${id}`;
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
+
         const body = await request.json();
         const { date: dateStr, tankNumber, percentage, type, photoUrl, shiftNumber = 0 } = body;
 
@@ -133,7 +141,6 @@ export async function POST(
         }
 
         // Get or create station with consistent ID
-        const stationId = `station-${id}`;
         const station = await prisma.station.upsert({
             where: { id: stationId },
             update: {},
@@ -201,4 +208,3 @@ export async function POST(
         return NextResponse.json({ error: 'Failed to save gauge reading' }, { status: 500 });
     }
 }
-

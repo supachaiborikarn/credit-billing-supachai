@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { cookies } from 'next/headers';
 import { getStartOfDayBangkok, getEndOfDayBangkok, createTransactionDate, getTodayBangkok } from '@/lib/date-utils';
 import { buildTruckCodeMap, findCodeByPlate } from '@/lib/truck-utils';
 import { HttpErrors, getErrorMessage } from '@/lib/api-error';
-import { getSessionUser, getSessionWithError } from '@/lib/auth-utils';
+import { requireStationAccessApi } from '@/lib/api-auth';
 import { PaymentType } from '@prisma/client';
 
 interface TransactionInput {
@@ -36,14 +35,15 @@ export async function GET(
         const { searchParams } = new URL(request.url);
         const dateStr = searchParams.get('date') || getTodayBangkok();
 
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
+
         // Get transactions for the day (Bangkok timezone)
         const startOfDay = getStartOfDayBangkok(dateStr);
         const endOfDay = getEndOfDayBangkok(dateStr);
 
-        // Get user from session to filter by staff (using shared auth helper)
-        const sessionUser = await getSessionUser();
-        const userId = sessionUser?.id || null;
-        const userRole = sessionUser?.role || 'STAFF';
+        const userId = auth.user.id;
+        const userRole = auth.user.role;
 
         // Build where clause - Staff sees only their own, Admin sees all
         const whereClause: Record<string, unknown> = {
@@ -113,6 +113,9 @@ export async function POST(
         const { id } = await params;
         const stationId = `station-${id}`;
         const body: TransactionInput = await request.json();
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
+
         const {
             date: dateStr,
             licensePlate,
@@ -137,14 +140,7 @@ export async function POST(
             return HttpErrors.badRequest('รายการเงินเชื่อต้องระบุชื่อเจ้าของ');
         }
 
-        // Get user from session - REQUIRE authentication (using shared auth helper)
-        const { user: sessionUser, error: authError } = await getSessionWithError();
-
-        if (!sessionUser || authError) {
-            return HttpErrors.unauthorized(authError || 'กรุณาเข้าสู่ระบบ');
-        }
-
-        const userId = sessionUser.id;
+        const userId = auth.user.id;
 
         // Get or create daily record for FULL station
         const date = getStartOfDayBangkok(dateStr);

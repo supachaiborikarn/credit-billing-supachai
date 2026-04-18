@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import WatcharaExternalStatusBanner from '@/components/WatcharaExternalStatusBanner';
 
 interface ExecutiveOverview {
     date: string;
@@ -10,6 +11,14 @@ interface ExecutiveOverview {
         expected_amount_total: number;
         shop_total: number;
         variance_abs_total: number;
+    };
+    operational_sales: {
+        total_amount: number;
+        total_liters: number;
+        total_transactions: number;
+        external_amount_total: number;
+        external_liters_total: number;
+        external_transactions_total: number;
     };
     shift_status: {
         total: number;
@@ -21,6 +30,9 @@ interface ExecutiveOverview {
         cash: number;
         transfer: number;
         credit: number;
+        card: number;
+        box_truck: number;
+        oil_truck_supachai: number;
         total: number;
     };
     ar: {
@@ -38,9 +50,35 @@ interface ExecutiveOverview {
         fuel_liters_total: number;
         expected_amount_total: number;
         shift_status: { green: number; yellow: number; red: number };
+        operational_sales: {
+            amount_total: number;
+            liters_total: number;
+            transactions_total: number;
+            external_amount_total: number;
+            external_liters_total: number;
+            external_transactions_total: number;
+        };
         last_closed_at: string | null;
         last_variance_status: string | null;
     }>;
+    watcharaExternal?: {
+        schemaReady: boolean;
+        available: boolean;
+        enabled: boolean;
+        targetStationIncluded: boolean;
+        includedInMerge: boolean;
+        rowsInRange: number;
+        litersInRange: number;
+        revenueInRange: number;
+        lastSyncedAt: string | null;
+        lastSeenSourceAt: string | null;
+        lastError: string | null;
+        stale: {
+            isStale: boolean;
+            staleHours: number | null;
+            thresholdHours: number;
+        };
+    };
 }
 
 function formatCurrency(amount: number) {
@@ -63,6 +101,15 @@ function formatThaiTime(isoString: string | null) {
     return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 }
 
+async function fetchExecutiveOverview(date: string): Promise<ExecutiveOverview> {
+    const res = await fetch(`/api/dashboard/executive?date=${date}`);
+    if (!res.ok) {
+        throw new Error('Failed to fetch executive dashboard');
+    }
+
+    return res.json();
+}
+
 export default function ExecutiveDashboardPage() {
     const router = useRouter();
     const [overview, setOverview] = useState<ExecutiveOverview | null>(null);
@@ -70,23 +117,20 @@ export default function ExecutiveDashboardPage() {
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
 
     useEffect(() => {
-        loadData();
-    }, [date]);
-
-    const loadData = async () => {
-        setLoading(true);
-        try {
-            const res = await fetch(`/api/dashboard/executive?date=${date}`);
-            if (res.ok) {
-                const data = await res.json();
+        const run = async () => {
+            setLoading(true);
+            try {
+                const data = await fetchExecutiveOverview(date);
                 setOverview(data);
+            } catch (error) {
+                console.error('Failed to load dashboard:', error);
+            } finally {
+                setLoading(false);
             }
-        } catch (error) {
-            console.error('Failed to load dashboard:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+        };
+
+        void run();
+    }, [date]);
 
     if (loading) {
         return (
@@ -132,6 +176,8 @@ export default function ExecutiveDashboardPage() {
 
             {overview && (
                 <div className="p-4 space-y-4">
+                    <WatcharaExternalStatusBanner status={overview.watcharaExternal} />
+
                     {/* KPI Cards - 2x2 Grid */}
                     <div className="grid grid-cols-2 gap-3">
                         {/* Expected Amount */}
@@ -184,6 +230,48 @@ export default function ExecutiveDashboardPage() {
                                     🚨 เกิน 30 วัน: {formatCurrency(overview.ar.aging['31_plus'])}
                                 </div>
                             )}
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-xl shadow p-4">
+                        <div className="flex items-center justify-between gap-3 mb-3">
+                            <div>
+                                <div className="font-medium">Operational Sales (merged)</div>
+                                <div className="text-xs text-gray-500">
+                                    รวม POS ภายในกับ Watchara shared dispenser เฉพาะข้อมูลที่มีในวันนั้น
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <div className="text-lg font-bold text-blue-600">
+                                    {formatCurrency(overview.operational_sales.total_amount)}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                    {overview.operational_sales.total_liters.toLocaleString(undefined, { maximumFractionDigits: 0 })} L • {overview.operational_sales.total_transactions} รายการ
+                                </div>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                            <div className="rounded-lg bg-slate-50 p-3">
+                                <div className="text-gray-500">ยอดจาก Watchara</div>
+                                <div className="font-semibold text-slate-800">
+                                    {formatCurrency(overview.operational_sales.external_amount_total)}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                    {overview.operational_sales.external_liters_total.toLocaleString(undefined, { maximumFractionDigits: 0 })} L • {overview.operational_sales.external_transactions_total} รายการ
+                                </div>
+                            </div>
+                            <div className="rounded-lg bg-slate-50 p-3">
+                                <div className="text-gray-500">Cash / Transfer / Credit</div>
+                                <div className="font-semibold text-slate-800">
+                                    {formatCurrency(overview.payments_today.cash)} / {formatCurrency(overview.payments_today.transfer)} / {formatCurrency(overview.payments_today.credit)}
+                                </div>
+                            </div>
+                            <div className="rounded-lg bg-slate-50 p-3">
+                                <div className="text-gray-500">Box Truck / Oil Truck / Card</div>
+                                <div className="font-semibold text-slate-800">
+                                    {formatCurrency(overview.payments_today.box_truck)} / {formatCurrency(overview.payments_today.oil_truck_supachai)} / {formatCurrency(overview.payments_today.card)}
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -240,6 +328,15 @@ export default function ExecutiveDashboardPage() {
                                                     <div>
                                                         💰 {formatCurrency(station.expected_amount_total)} •
                                                         ⛽ {station.fuel_liters_total.toLocaleString(undefined, { maximumFractionDigits: 0 })} L
+                                                    </div>
+                                                    <div>
+                                                        📊 Operational {formatCurrency(station.operational_sales.amount_total)} •
+                                                        ⛽ {station.operational_sales.liters_total.toLocaleString(undefined, { maximumFractionDigits: 0 })} L
+                                                        {station.operational_sales.external_transactions_total > 0 && (
+                                                            <span className="text-blue-600">
+                                                                {' '}• Watchara +{formatCurrency(station.operational_sales.external_amount_total)}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <div className="flex items-center gap-1 text-xs">
                                                         🕐 ปิดล่าสุด: {formatThaiTime(station.last_closed_at)}

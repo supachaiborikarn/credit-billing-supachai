@@ -8,6 +8,7 @@ import {
     Loader2,
     Building2
 } from 'lucide-react';
+import WatcharaExternalStatusBanner from '@/components/WatcharaExternalStatusBanner';
 
 interface OverviewData {
     kpi: {
@@ -18,6 +19,24 @@ interface OverviewData {
     };
     dailyTrend: { date: string; revenue: number; liters: number; count: number }[];
     stations: { id: string; name: string; todayLiters: number; todayRevenue: number; todayTransactions: number }[];
+    watcharaExternal?: {
+        schemaReady: boolean;
+        available: boolean;
+        enabled: boolean;
+        targetStationIncluded: boolean;
+        includedInMerge: boolean;
+        rowsInRange: number;
+        litersInRange: number;
+        revenueInRange: number;
+        lastSyncedAt: string | null;
+        lastSeenSourceAt: string | null;
+        lastError: string | null;
+        stale: {
+            isStale: boolean;
+            staleHours: number | null;
+            thresholdHours: number;
+        };
+    };
 }
 
 const formatCurrency = (n: number) => n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -65,6 +84,8 @@ export default function SimpleOverviewPage() {
                 <h1 className="text-2xl font-bold">📊 Executive Overview</h1>
                 <p className="text-gray-400 text-sm">ภาพรวมปั๊มน้ำมัน (Simple Stations)</p>
             </div>
+
+            <WatcharaExternalStatusBanner status={data.watcharaExternal} />
 
             {/* KPI Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

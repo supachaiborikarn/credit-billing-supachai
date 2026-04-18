@@ -1,12 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import {
     LayoutDashboard,
     Users,
-    Truck,
     Fuel,
     FileText,
     Settings,
@@ -31,7 +30,6 @@ interface SidebarProps {
 
 export default function Sidebar({ children }: SidebarProps) {
     const pathname = usePathname();
-    const router = useRouter();
     const { theme, toggleTheme } = useTheme();
     const [user, setUser] = useState<{ name: string; role: string; stationId?: string } | null>(null);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -135,6 +133,12 @@ export default function Sidebar({ children }: SidebarProps) {
                 { href: '/admin/owners', icon: Users, label: 'รวมเจ้าของ', gradient: 'from-indigo-500 to-blue-500' },
                 { href: '/users', icon: Users, label: 'จัดการผู้ใช้', gradient: 'from-violet-500 to-purple-500' },
                 { href: '/settings', icon: Settings, label: 'ตั้งค่า', gradient: 'from-gray-500 to-slate-500' },
+            ]
+        },
+        {
+            title: '🔌 Integrations',
+            items: [
+                { href: '/admin/watchara-dispenser', icon: Fuel, label: 'Watchara Dispenser', gradient: 'from-amber-500 to-orange-500' },
             ]
         },
     ];
@@ -336,7 +340,7 @@ export default function Sidebar({ children }: SidebarProps) {
                             // Staff: Show only their assigned station directly
                             <div className="space-y-1">
                                 <p className="px-4 py-2 text-xs text-gray-500 uppercase tracking-wider">สถานีของคุณ</p>
-                                {visibleStations.map((station, index) => {
+                                {visibleStations.map((station) => {
                                     const originalIndex = STATIONS.findIndex(s => s.id === station.id);
                                     const stationPath = getStationPath(station, originalIndex);
                                     const isStationActive = isActive(stationPath);

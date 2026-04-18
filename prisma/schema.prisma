@@ -62,6 +62,8 @@ model Station {
   dailyRecords       DailyRecord[]
   deviceTokens       DeviceToken[]
   dispensers         Dispenser[]
+  externalDispenserTransactions ExternalDispenserTransaction[]
+  externalSalesSources ExternalSalesSource[]
   gasSupplies        GasSupply[]
   priceBooks         PriceBook[]
   productInventories ProductInventory[]
@@ -70,6 +72,64 @@ model Station {
   dailyAnomalies     DailyAnomaly[]
 
   @@map("stations")
+}
+
+model ExternalSalesSource {
+  id                String                         @id @default(uuid())
+  code              String                         @unique
+  name              String
+  stationId         String
+  sourceStationRef  String
+  fuelFamily        String
+  rollupMode        String
+  isEnabled         Boolean                        @default(true)
+  lastSyncAttemptAt DateTime?
+  lastSyncedAt      DateTime?
+  lastSeenSourceAt  DateTime?
+  lastError         String?
+  createdAt         DateTime                       @default(now())
+  updatedAt         DateTime                       @updatedAt
+  station           Station                        @relation(fields: [stationId], references: [id])
+  transactions      ExternalDispenserTransaction[]
+
+  @@index([stationId, isEnabled])
+  @@map("external_sales_sources")
+}
+
+model ExternalDispenserTransaction {
+  id                   String              @id @default(uuid())
+  sourceId             String
+  stationId            String
+  externalTxId         String
+  externalStationRef   String
+  externalDailyRecordRef String?
+  soldAt               DateTime
+  businessDate         DateTime            @db.Date
+  shiftKey             String              @default("ALL_DAY")
+  nozzleNumber         Int?
+  fuelFamily           String
+  productLabel         String?
+  liters               Decimal
+  amountBaht           Decimal
+  pricePerLiter        Decimal?
+  paymentType          String?
+  billNo               String?
+  recordedByRef        String?
+  rawJson              Json
+  sourceUpdatedAt      DateTime?
+  isVoided             Boolean             @default(false)
+  isDeleted            Boolean             @default(false)
+  syncedAt             DateTime            @default(now())
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  source               ExternalSalesSource @relation(fields: [sourceId], references: [id])
+  station              Station             @relation(fields: [stationId], references: [id])
+
+  @@unique([sourceId, externalTxId])
+  @@index([stationId, businessDate])
+  @@index([sourceId, businessDate])
+  @@index([businessDate, fuelFamily])
+  @@map("external_dispenser_transactions")
 }
 
 model FuelProduct {

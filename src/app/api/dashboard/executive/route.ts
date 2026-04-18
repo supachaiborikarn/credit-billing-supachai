@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
 import { VarianceStatus } from '@prisma/client';
+import {
+    filterOperationalRowsByDateKeyRange,
+    getOperationalSalesDataset,
+    summarizeOperationalRows,
+} from '@/lib/operational-sales';
 
 export async function GET(request: Request) {
     try {
@@ -15,6 +20,7 @@ export async function GET(request: Request) {
         const stations = await prisma.station.findMany({
             select: { id: true, name: true, type: true }
         });
+        const stationIds = stations.map((station) => station.id);
 
         // 2. Get daily records with shifts for today
         const dailyRecords = await prisma.dailyRecord.findMany({
@@ -33,29 +39,37 @@ export async function GET(request: Request) {
             }
         });
 
-        // 3. Calculate KPIs from transactions
-        const todayTransactions = await prisma.transaction.findMany({
-            where: {
-                date: { gte: startOfDay, lte: endOfDay }
-            },
-            select: {
-                amount: true,
-                liters: true,
-                paymentType: true,
-                stationId: true
-            }
+        // 3. Calculate operational sales / payment KPIs from merged rows
+        const { rows: operationalRows, watcharaExternal } = await getOperationalSalesDataset({
+            stationIds,
+            startDateKey: dateStr,
+            endDateKey: dateStr,
         });
+        const todayTransactions = filterOperationalRowsByDateKeyRange(operationalRows, dateStr, dateStr);
+        const operationalSummary = summarizeOperationalRows(todayTransactions);
+        const watcharaContribution = summarizeOperationalRows(
+            todayTransactions.filter((row) => row.source === 'watchara_external')
+        );
 
         // 4. Get payments summary by type
         const cashTotal = todayTransactions
             .filter(t => t.paymentType === 'CASH')
-            .reduce((sum, t) => sum + Number(t.amount), 0);
+            .reduce((sum, t) => sum + t.revenue, 0);
         const transferTotal = todayTransactions
             .filter(t => t.paymentType === 'TRANSFER')
-            .reduce((sum, t) => sum + Number(t.amount), 0);
+            .reduce((sum, t) => sum + t.revenue, 0);
         const creditTotal = todayTransactions
             .filter(t => t.paymentType === 'CREDIT')
-            .reduce((sum, t) => sum + Number(t.amount), 0);
+            .reduce((sum, t) => sum + t.revenue, 0);
+        const cardTotal = todayTransactions
+            .filter(t => t.paymentType === 'CREDIT_CARD')
+            .reduce((sum, t) => sum + t.revenue, 0);
+        const boxTruckTotal = todayTransactions
+            .filter(t => t.paymentType === 'BOX_TRUCK')
+            .reduce((sum, t) => sum + t.revenue, 0);
+        const oilTruckSupachaiTotal = todayTransactions
+            .filter(t => t.paymentType === 'OIL_TRUCK_SUPACHAI')
+            .reduce((sum, t) => sum + t.revenue, 0);
 
         // 5. Calculate shift status from reconciliations
         let greenCount = 0;
@@ -126,6 +140,11 @@ export async function GET(request: Request) {
             let stationExpected = 0, stationLiters = 0;
             let lastClosedAtStr: string | null = null;
             let lastVarianceStatus: string | null = null;
+            const stationOperationalRows = todayTransactions.filter((row) => row.stationId === station.id);
+            const stationOperationalSummary = summarizeOperationalRows(stationOperationalRows);
+            const stationExternalSummary = summarizeOperationalRows(
+                stationOperationalRows.filter((row) => row.source === 'watchara_external')
+            );
 
             if (record) {
                 record.shifts.forEach(shift => {
@@ -159,6 +178,14 @@ export async function GET(request: Request) {
                     yellow: stationYellow,
                     red: stationRed
                 },
+                operational_sales: {
+                    amount_total: Math.round(stationOperationalSummary.revenue * 100) / 100,
+                    liters_total: Math.round(stationOperationalSummary.liters * 100) / 100,
+                    transactions_total: stationOperationalSummary.transactions,
+                    external_amount_total: Math.round(stationExternalSummary.revenue * 100) / 100,
+                    external_liters_total: Math.round(stationExternalSummary.liters * 100) / 100,
+                    external_transactions_total: stationExternalSummary.transactions,
+                },
                 last_closed_at: lastClosedAtStr,
                 last_variance_status: lastVarianceStatus
             };
@@ -172,6 +199,14 @@ export async function GET(request: Request) {
                 shop_total: Math.round((cashTotal + transferTotal) * 100) / 100,
                 variance_abs_total: Math.round(varianceAbsTotal * 100) / 100
             },
+            operational_sales: {
+                total_amount: Math.round(operationalSummary.revenue * 100) / 100,
+                total_liters: Math.round(operationalSummary.liters * 100) / 100,
+                total_transactions: operationalSummary.transactions,
+                external_amount_total: Math.round(watcharaContribution.revenue * 100) / 100,
+                external_liters_total: Math.round(watcharaContribution.liters * 100) / 100,
+                external_transactions_total: watcharaContribution.transactions,
+            },
             shift_status: {
                 total: totalShifts,
                 green: greenCount,
@@ -182,13 +217,17 @@ export async function GET(request: Request) {
                 cash: Math.round(cashTotal * 100) / 100,
                 transfer: Math.round(transferTotal * 100) / 100,
                 credit: Math.round(creditTotal * 100) / 100,
-                total: Math.round((cashTotal + transferTotal + creditTotal) * 100) / 100
+                card: Math.round(cardTotal * 100) / 100,
+                box_truck: Math.round(boxTruckTotal * 100) / 100,
+                oil_truck_supachai: Math.round(oilTruckSupachaiTotal * 100) / 100,
+                total: Math.round((cashTotal + transferTotal + creditTotal + cardTotal + boxTruckTotal + oilTruckSupachaiTotal) * 100) / 100
             },
             ar: {
                 outstanding_total: Math.round(arOutstandingTotal * 100) / 100,
                 aging
             },
-            stations: stationList
+            stations: stationList,
+            watcharaExternal,
         });
     } catch (error) {
         console.error('Executive dashboard error:', error);

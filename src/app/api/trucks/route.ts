@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { HttpErrors, getErrorMessage } from '@/lib/api-error';
+import { requireApiSession } from '@/lib/api-auth';
 
 interface TruckInput {
     licensePlate: string;
@@ -10,6 +11,9 @@ interface TruckInput {
 
 export async function GET() {
     try {
+        const auth = await requireApiSession();
+        if (auth.response) return auth.response;
+
         const trucks = await prisma.truck.findMany({
             orderBy: { licensePlate: 'asc' },
             include: {
@@ -28,6 +32,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
+        const auth = await requireApiSession();
+        if (auth.response) return auth.response;
+
         const body = await request.json();
 
         // Handle single truck with ownerName (from simple-station sell page)
@@ -144,4 +151,3 @@ export async function POST(request: Request) {
         return HttpErrors.internal(getErrorMessage(error));
     }
 }
-

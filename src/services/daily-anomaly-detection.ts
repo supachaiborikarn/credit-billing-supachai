@@ -8,6 +8,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { getStartOfDayBangkok, getEndOfDayBangkok, formatDateBangkok } from '@/lib/date-utils';
+import { getWatcharaExternalDailySummary } from '@/lib/operational-sales';
 
 const WARNING_THRESHOLD = 10;   // ผลต่าง 10 ลิตร = WARNING
 const CRITICAL_THRESHOLD = 50;  // ผลต่าง 50 ลิตร = CRITICAL
@@ -17,6 +18,7 @@ export interface DailyAnomalyResult {
     meterTotal: number;
     transTotal: number;
     difference: number;
+    externalLiters: number;
     severity?: 'WARNING' | 'CRITICAL';
 }
 
@@ -72,15 +74,20 @@ export async function checkDailyAnomaly(
                 gte: startOfDay,
                 lte: endOfDay
             },
-            isVoided: { not: true }
+            isVoided: { not: true },
+            deletedAt: null,
         },
         select: { liters: true }
     });
 
-    const transTotal = transactions.reduce((sum, t) => sum + Number(t.liters || 0), 0);
+    const internalTransTotal = transactions.reduce((sum, t) => sum + Number(t.liters || 0), 0);
+    const externalSummary = await getWatcharaExternalDailySummary({ stationId, dateKey: dateStr });
+    const externalLiters = externalSummary.summary.liters;
+    const adjustedMeterTotal = meterTotal + externalLiters;
+    const transTotal = internalTransTotal + externalLiters;
 
     // Calculate difference
-    const difference = transTotal - meterTotal;
+    const difference = transTotal - adjustedMeterTotal;
     const absDiff = Math.abs(difference);
 
     // Determine severity
@@ -97,9 +104,10 @@ export async function checkDailyAnomaly(
 
     return {
         hasAnomaly,
-        meterTotal,
+        meterTotal: adjustedMeterTotal,
         transTotal,
         difference,
+        externalLiters,
         severity
     };
 }
@@ -196,7 +204,7 @@ export async function scanHistoricalAnomalies(
         const date = new Date();
         date.setDate(date.getDate() - i);
 
-        const { result, saved } = await checkAndSaveDailyAnomaly(stationId, date);
+        const { result } = await checkAndSaveDailyAnomaly(stationId, date);
         if (result.hasAnomaly) {
             found++;
             // Anomaly detected - logged for review

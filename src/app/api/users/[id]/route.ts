@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { UserRole, Prisma } from '@prisma/client';
+import { requireAdminApi } from '@/lib/api-auth';
 import bcrypt from 'bcryptjs';
 
 interface UserUpdateData {
@@ -19,6 +20,9 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const { id } = await params;
 
         const user = await prisma.user.findUnique({
@@ -48,6 +52,9 @@ export async function PUT(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const { id } = await params;
         const body = await request.json();
         const { fullName, role, stationId, password } = body;
@@ -86,7 +93,14 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const { id } = await params;
+
+        if (auth.user.id === id) {
+            return NextResponse.json({ error: 'ไม่สามารถลบผู้ใช้ตัวเองได้' }, { status: 400 });
+        }
 
         // Don't allow deleting yourself or the last admin
         const adminCount = await prisma.user.count({ where: { role: 'ADMIN' } });

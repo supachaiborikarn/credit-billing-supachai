@@ -1,6 +1,31 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok, formatDateBangkok } from '@/lib/date-utils';
+import { STATIONS } from '@/constants';
+import {
+    addDaysToDateKey,
+    filterOperationalRowsByDateKeyRange,
+    getOperationalSalesDataset,
+    summarizeOperationalRows,
+} from '@/lib/operational-sales';
+
+const stationNameById: Map<string, string> = new Map(STATIONS.map((station) => [station.id, station.name]));
+
+function parseDateOnlyUtc(dateKey: string): Date {
+    const [year, month, day] = dateKey.split('-').map(Number);
+    return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+}
+
+function addMonthsToDateKey(dateKey: string, months: number): string {
+    const date = parseDateOnlyUtc(dateKey);
+    date.setUTCMonth(date.getUTCMonth() + months);
+    return date.toISOString().split('T')[0];
+}
+
+function getInclusiveDayCount(startDateKey: string, endDateKey: string): number {
+    const diffMs = parseDateOnlyUtc(endDateKey).getTime() - parseDateOnlyUtc(startDateKey).getTime();
+    return Math.floor(diffMs / (24 * 60 * 60 * 1000)) + 1;
+}
 
 export async function GET(request: Request) {
     try {
@@ -18,36 +43,25 @@ export async function GET(request: Request) {
             startStr = startDateParam;
         } else {
             // Default ranges based on type
-            const today = new Date();
             if (type === 'daily') {
-                today.setDate(today.getDate() - 30);
+                startStr = addDaysToDateKey(endStr, -30);
             } else if (type === 'monthly') {
-                today.setMonth(today.getMonth() - 12);
+                startStr = addMonthsToDateKey(endStr, -12);
             } else if (type === 'debt') {
                 startStr = '2020-01-01';
             }
-            if (type !== 'debt') {
-                startStr = today.toISOString().split('T')[0];
-            }
         }
         const start = getStartOfDayBangkok(startStr);
+        const allStationIds = STATIONS.map((station) => station.id);
 
         if (type === 'daily') {
             // Daily sales report
-            const transactions = await prisma.transaction.findMany({
-                where: {
-                    date: { gte: start, lte: end },
-                    deletedAt: null,
-                },
-                select: {
-                    date: true,
-                    amount: true,
-                    liters: true,
-                    paymentType: true,
-                    station: { select: { name: true } }
-                },
-                orderBy: { date: 'desc' }
+            const { rows, watcharaExternal } = await getOperationalSalesDataset({
+                stationIds: allStationIds,
+                startDateKey: startStr,
+                endDateKey: endStr,
             });
+            const transactions = filterOperationalRowsByDateKeyRange(rows, startStr, endStr);
 
             // Group by date
             const grouped: Record<string, {
@@ -60,7 +74,7 @@ export async function GET(request: Request) {
             }> = {};
 
             transactions.forEach(t => {
-                const dateKey = new Date(t.date).toISOString().split('T')[0];
+                const dateKey = t.dateKey;
                 if (!grouped[dateKey]) {
                     grouped[dateKey] = {
                         date: dateKey,
@@ -71,13 +85,13 @@ export async function GET(request: Request) {
                         creditAmount: 0
                     };
                 }
-                grouped[dateKey].totalAmount += Number(t.amount);
-                grouped[dateKey].totalLiters += Number(t.liters);
+                grouped[dateKey].totalAmount += t.revenue;
+                grouped[dateKey].totalLiters += t.liters;
                 grouped[dateKey].transactionCount += 1;
                 if (t.paymentType === 'CASH') {
-                    grouped[dateKey].cashAmount += Number(t.amount);
+                    grouped[dateKey].cashAmount += t.revenue;
                 } else if (t.paymentType === 'CREDIT') {
-                    grouped[dateKey].creditAmount += Number(t.amount);
+                    grouped[dateKey].creditAmount += t.revenue;
                 }
             });
 
@@ -93,20 +107,20 @@ export async function GET(request: Request) {
             const currentCredit = data.reduce((s, d) => s + d.creditAmount, 0);
 
             // Calculate previous period for comparison
-            const periodLength = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-            const prevEnd = new Date(start.getTime() - (1000 * 60 * 60 * 24));
-            const prevStart = new Date(prevEnd.getTime() - periodLength * (1000 * 60 * 60 * 24));
+            const periodLength = getInclusiveDayCount(startStr, endStr);
+            const prevEndStr = addDaysToDateKey(startStr, -1);
+            const prevStartStr = addDaysToDateKey(prevEndStr, -(periodLength - 1));
 
-            const prevTransactions = await prisma.transaction.findMany({
-                where: {
-                    date: { gte: prevStart, lte: prevEnd },
-                    deletedAt: null,
-                },
-                select: { amount: true, liters: true }
+            const prevDataset = await getOperationalSalesDataset({
+                stationIds: allStationIds,
+                startDateKey: prevStartStr,
+                endDateKey: prevEndStr,
             });
-
-            const prevTotal = prevTransactions.reduce((s, t) => s + Number(t.amount), 0);
-            const prevLiters = prevTransactions.reduce((s, t) => s + Number(t.liters), 0);
+            const prevSummary = summarizeOperationalRows(
+                filterOperationalRowsByDateKeyRange(prevDataset.rows, prevStartStr, prevEndStr)
+            );
+            const prevTotal = prevSummary.revenue;
+            const prevLiters = prevSummary.liters;
 
             // Calculate change percentages
             const amountChange = prevTotal > 0 ? ((currentTotal - prevTotal) / prevTotal) * 100 : 0;
@@ -138,21 +152,16 @@ export async function GET(request: Request) {
                 }
             };
 
-            return NextResponse.json({ type: 'daily', data, summary });
+            return NextResponse.json({ type: 'daily', data, summary, watcharaExternal });
 
         } else if (type === 'monthly') {
             // Monthly sales report
-            const transactions = await prisma.transaction.findMany({
-                where: {
-                    date: { gte: start, lte: end },
-                    deletedAt: null,
-                },
-                select: {
-                    date: true,
-                    amount: true,
-                    liters: true
-                }
+            const { rows, watcharaExternal } = await getOperationalSalesDataset({
+                stationIds: allStationIds,
+                startDateKey: startStr,
+                endDateKey: endStr,
             });
+            const transactions = filterOperationalRowsByDateKeyRange(rows, startStr, endStr);
 
             // Group by month
             const grouped: Record<string, {
@@ -163,8 +172,7 @@ export async function GET(request: Request) {
             }> = {};
 
             transactions.forEach(t => {
-                const date = new Date(t.date);
-                const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                const monthKey = t.dateKey.slice(0, 7);
                 if (!grouped[monthKey]) {
                     grouped[monthKey] = {
                         month: monthKey,
@@ -173,8 +181,8 @@ export async function GET(request: Request) {
                         transactionCount: 0
                     };
                 }
-                grouped[monthKey].totalAmount += Number(t.amount);
-                grouped[monthKey].totalLiters += Number(t.liters);
+                grouped[monthKey].totalAmount += t.revenue;
+                grouped[monthKey].totalLiters += t.liters;
                 grouped[monthKey].transactionCount += 1;
             });
 
@@ -182,7 +190,7 @@ export async function GET(request: Request) {
                 b.month.localeCompare(a.month)
             );
 
-            return NextResponse.json({ type: 'monthly', data });
+            return NextResponse.json({ type: 'monthly', data, watcharaExternal });
 
         } else if (type === 'debt') {
             // Debt/Credit report
@@ -256,18 +264,12 @@ export async function GET(request: Request) {
 
         } else if (type === 'station') {
             // Station comparison report
-            const transactions = await prisma.transaction.findMany({
-                where: {
-                    date: { gte: start, lte: end },
-                    deletedAt: null,
-                },
-                select: {
-                    amount: true,
-                    liters: true,
-                    paymentType: true,
-                    station: { select: { id: true, name: true } }
-                }
+            const { rows, watcharaExternal } = await getOperationalSalesDataset({
+                stationIds: allStationIds,
+                startDateKey: startStr,
+                endDateKey: endStr,
             });
+            const transactions = filterOperationalRowsByDateKeyRange(rows, startStr, endStr);
 
             // Group by station
             const grouped: Record<string, {
@@ -281,10 +283,10 @@ export async function GET(request: Request) {
             }> = {};
 
             transactions.forEach(t => {
-                if (!grouped[t.station.id]) {
-                    grouped[t.station.id] = {
-                        stationId: t.station.id,
-                        stationName: t.station.name,
+                if (!grouped[t.stationId]) {
+                    grouped[t.stationId] = {
+                        stationId: t.stationId,
+                        stationName: stationNameById.get(t.stationId) || t.stationId,
                         totalAmount: 0,
                         totalLiters: 0,
                         transactionCount: 0,
@@ -292,19 +294,19 @@ export async function GET(request: Request) {
                         creditAmount: 0
                     };
                 }
-                grouped[t.station.id].totalAmount += Number(t.amount);
-                grouped[t.station.id].totalLiters += Number(t.liters);
-                grouped[t.station.id].transactionCount += 1;
+                grouped[t.stationId].totalAmount += t.revenue;
+                grouped[t.stationId].totalLiters += t.liters;
+                grouped[t.stationId].transactionCount += 1;
                 if (t.paymentType === 'CASH') {
-                    grouped[t.station.id].cashAmount += Number(t.amount);
+                    grouped[t.stationId].cashAmount += t.revenue;
                 } else if (t.paymentType === 'CREDIT') {
-                    grouped[t.station.id].creditAmount += Number(t.amount);
+                    grouped[t.stationId].creditAmount += t.revenue;
                 }
             });
 
             const data = Object.values(grouped).sort((a, b) => b.totalAmount - a.totalAmount);
 
-            return NextResponse.json({ type: 'station', data });
+            return NextResponse.json({ type: 'station', data, watcharaExternal });
 
         } else if (type === 'gas') {
             // Gas Station Report

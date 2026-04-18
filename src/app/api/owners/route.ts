@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { HttpErrors, getErrorMessage } from '@/lib/api-error';
 import { OwnerGroup, OwnerStatus } from '@prisma/client';
+import { requireApiSession } from '@/lib/api-auth';
 
 interface OwnerInput {
     name: string;
@@ -12,6 +13,9 @@ interface OwnerInput {
 
 export async function GET(request: NextRequest) {
     try {
+        const auth = await requireApiSession();
+        if (auth.response) return auth.response;
+
         const { searchParams } = new URL(request.url);
         const statusFilter = searchParams.get('status') as OwnerStatus | 'ALL' | null;
 
@@ -68,6 +72,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: Request) {
     try {
+        const auth = await requireApiSession();
+        if (auth.response) return auth.response;
+
         const body: OwnerInput = await request.json();
         const { name, phone, venderCode, groupType } = body;
 

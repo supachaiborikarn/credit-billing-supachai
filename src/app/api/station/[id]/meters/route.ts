@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getStartOfDayBangkok } from '@/lib/date-utils';
+import { requireStationAccessApi } from '@/lib/api-auth';
 
 export async function POST(
     request: NextRequest,
@@ -9,6 +10,9 @@ export async function POST(
     try {
         const { id } = await params;
         const stationId = `station-${id}`;
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
+
         const body = await request.json();
         const { date: dateStr, type, meters } = body;
 

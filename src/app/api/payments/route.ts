@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { updateOwnerCredit } from '@/services/credit-service';
+import { requireAdminApi, requireApiSession } from '@/lib/api-auth';
 
 // POST - บันทึกการชำระเงิน
 export async function POST(request: Request) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const body = await request.json();
         const { invoiceId, amount, paymentMethod, note } = body;
 
@@ -83,6 +87,9 @@ export async function POST(request: Request) {
 // GET - ดึงรายการ payments
 export async function GET(request: Request) {
     try {
+        const auth = await requireApiSession();
+        if (auth.response) return auth.response;
+
         const { searchParams } = new URL(request.url);
         const invoiceId = searchParams.get('invoiceId');
 

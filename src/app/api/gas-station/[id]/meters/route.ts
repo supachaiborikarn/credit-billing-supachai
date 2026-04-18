@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { STATIONS } from '@/constants';
 import { prepareMeterSaveData } from '@/services';
+import { requireStationAccessApi } from '@/lib/api-auth';
 
 export async function POST(
     request: Request,
@@ -16,12 +17,16 @@ export async function POST(
             return NextResponse.json({ error: 'Gas station not found' }, { status: 404 });
         }
 
+        const stationId = `station-${id}`;
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
+
         const body = await request.json();
-        const { date: dateStr, type, meters, shiftId, userId } = body;
+        const { date: dateStr, type, meters, shiftId } = body;
+        const userId = auth.user.id;
         const date = new Date(dateStr + 'T00:00:00Z');
 
         // Get or create station with consistent ID
-        const stationId = `station-${id}`;
         const station = await prisma.station.upsert({
             where: { id: stationId },
             update: {},
@@ -39,11 +44,18 @@ export async function POST(
             // Verify shift exists
             const shift = await prisma.shift.findUnique({
                 where: { id: shiftId },
-                include: { meters: true }
+                include: {
+                    meters: true,
+                    dailyRecord: { select: { stationId: true } }
+                }
             });
 
             if (!shift) {
                 return NextResponse.json({ error: 'ไม่พบกะนี้' }, { status: 404 });
+            }
+
+            if (shift.dailyRecord.stationId !== stationId) {
+                return NextResponse.json({ error: 'ไม่พบกะนี้ในสถานีนี้' }, { status: 404 });
             }
 
             // Update shift's meter readings with auto-calculation

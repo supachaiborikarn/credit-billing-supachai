@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { v2 as cloudinary } from 'cloudinary';
+import { createHmac } from 'crypto';
 
 // Configure Cloudinary
 cloudinary.config({
@@ -15,9 +16,7 @@ const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || '';
 // Verify LINE signature (simplified check)
 function verifySignature(body: string, signature: string): boolean {
     if (!LINE_CHANNEL_SECRET) return false;
-    const crypto = require('crypto');
-    const hash = crypto
-        .createHmac('SHA256', LINE_CHANNEL_SECRET)
+    const hash = createHmac('SHA256', LINE_CHANNEL_SECRET)
         .update(body)
         .digest('base64');
     return hash === signature;
@@ -68,8 +67,11 @@ export async function POST(request: Request) {
         const body = await request.text();
         const signature = request.headers.get('x-line-signature') || '';
 
-        // Verify signature in production
-        if (LINE_CHANNEL_SECRET && !verifySignature(body, signature)) {
+        if (!LINE_CHANNEL_SECRET) {
+            return NextResponse.json({ error: 'LINE webhook is not configured' }, { status: 503 });
+        }
+
+        if (!verifySignature(body, signature)) {
             return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
         }
 

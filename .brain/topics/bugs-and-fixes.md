@@ -1,5 +1,5 @@
-<!-- SUMMARY: บันทึก bugs ที่เจอและแก้ไขแล้ว รวมถึง gotchas ที่ต้องระวัง
-     เช่น billing sort bug, login failure, shift filter, data transfer -->
+<!-- SUMMARY: บันทึก bugs/gotchas ที่เจอ รวมถึงประเด็น audit สำคัญ:
+     push-hardening 2026-04-18 ปิด `/admin`, high-risk API, และ legacy write API auth gap ตาม static scan แล้ว; audit เชิงลึกยังควรทำต่อ -->
 
 # Bugs & Fixes
 
@@ -40,6 +40,12 @@
 1. **String vs Numeric Sort**: ทุก sort ที่เกี่ยวกับตัวเลข (book, number) ต้องใช้ parseInt
 2. **Neon Data Transfer**: free tier จำกัด 5GB/month → ระวัง polling ถี่เกินไป
 3. **Context ที่ลืมเรื่อง**: เมื่อไหร่ที่เปลี่ยนการ sort, ต้องเปลี่ยนทั้ง frontend และ backend
+4. **API Auth Gap**: push-hardening รอบ 2026-04-18 เพิ่ม `/admin` server guard, `api-auth`, high-risk API guards, และ full legacy write API auth sweep แล้ว; quick scan ล่าสุดรายงาน `NO_UNGUARDED_WRITE_ROUTES`
+5. **Audit Log Atomicity**: transaction update/delete บาง route แก้ข้อมูลก่อน create audit log และใช้ fallback `userId = "system"` ซึ่งเสี่ยงข้อมูลถูกแก้แล้ว audit fail
+6. **Variance Sign Convention**: `shift-service` ใช้ `expected - received` แต่ `shift-reconciliation`/gas v2 ใช้ `received - expected`; ต้อง normalize ก่อนใช้ label OVER/SHORT
 
 ## Changelog
 - 2026-02-24: สร้างไฟล์ brain topic นี้จากประวัติ conversations
+- 2026-04-18: เพิ่ม audit gotchas เรื่อง API auth gap, audit atomicity, และ variance sign convention
+- 2026-04-18: implement push-hardening รอบแรก: `/admin` layout guard, `api-auth`, high-risk API guards, upload validation, LINE webhook fail-closed, และ atomic transaction audit
+- 2026-04-18: ทำ final legacy write API auth sweep: gas/simple station write routes, invoices/payments, owners/trucks, products/price-books, dispenser/nozzle config, และ gas admin data-entry มี session/admin/station guard แล้ว

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdminApi, requireApiSession } from '@/lib/api-auth';
 
 // GET /api/billing-collections/[id] — ดึงรายละเอียด
 export async function GET(
@@ -7,6 +8,9 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const auth = await requireApiSession();
+        if (auth.response) return auth.response;
+
         const { id } = await params;
         const collection = await prisma.billingCollection.findUnique({
             where: { id },
@@ -34,6 +38,9 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const { id } = await params;
         const body = await request.json();
         const { status, notes, dueDate, periodLabel } = body;
@@ -66,6 +73,9 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const { id } = await params;
 
         await prisma.billingCollection.delete({ where: { id } });

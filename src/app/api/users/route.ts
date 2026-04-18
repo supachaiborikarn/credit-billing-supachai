@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdminApi } from '@/lib/api-auth';
 import bcrypt from 'bcryptjs';
 
 async function hashPassword(password: string): Promise<string> {
@@ -8,6 +9,9 @@ async function hashPassword(password: string): Promise<string> {
 
 export async function GET() {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const users = await prisma.user.findMany({
             orderBy: { createdAt: 'desc' },
             select: {
@@ -37,6 +41,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const body = await request.json();
         const { username, password, fullName, role, stationId } = body;
 

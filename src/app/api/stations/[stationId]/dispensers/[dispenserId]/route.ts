@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdminApi, requireStationAccessApi } from '@/lib/api-auth';
 
 // PUT - Update dispenser
 export async function PUT(
@@ -7,9 +8,21 @@ export async function PUT(
     { params }: { params: Promise<{ stationId: string; dispenserId: string }> }
 ) {
     try {
-        const { dispenserId } = await params;
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
+        const { stationId, dispenserId } = await params;
         const body = await request.json();
         const { code, isActive } = body;
+
+        const existing = await prisma.dispenser.findFirst({
+            where: { id: dispenserId, stationId, deletedAt: null },
+            select: { id: true },
+        });
+
+        if (!existing) {
+            return NextResponse.json({ error: 'Dispenser not found' }, { status: 404 });
+        }
 
         const dispenser = await prisma.dispenser.update({
             where: { id: dispenserId },
@@ -40,7 +53,19 @@ export async function DELETE(
     { params }: { params: Promise<{ stationId: string; dispenserId: string }> }
 ) {
     try {
-        const { dispenserId } = await params;
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
+        const { stationId, dispenserId } = await params;
+
+        const existing = await prisma.dispenser.findFirst({
+            where: { id: dispenserId, stationId, deletedAt: null },
+            select: { id: true },
+        });
+
+        if (!existing) {
+            return NextResponse.json({ error: 'Dispenser not found' }, { status: 404 });
+        }
 
         // Soft delete dispenser and its nozzles
         await prisma.$transaction([
@@ -67,7 +92,9 @@ export async function GET(
     { params }: { params: Promise<{ stationId: string; dispenserId: string }> }
 ) {
     try {
-        const { dispenserId } = await params;
+        const { stationId, dispenserId } = await params;
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
 
         const dispenser = await prisma.dispenser.findUnique({
             where: { id: dispenserId },
@@ -82,7 +109,7 @@ export async function GET(
             }
         });
 
-        if (!dispenser) {
+        if (!dispenser || dispenser.stationId !== stationId) {
             return NextResponse.json({ error: 'Dispenser not found' }, { status: 404 });
         }
 

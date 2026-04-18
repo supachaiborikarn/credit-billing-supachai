@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdminApi } from '@/lib/api-auth';
 
 // PATCH - อัปเดต Owner (รวมถึง creditLimit)
 export async function PATCH(
@@ -7,6 +8,9 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const { id } = await params;
         const body = await request.json();
         const { creditLimit, name, phone } = body;

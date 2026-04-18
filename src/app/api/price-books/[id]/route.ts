@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdminApi } from '@/lib/api-auth';
 
 // GET - Get single price book
 export async function GET(
@@ -7,6 +8,9 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const { id } = await params;
 
         const priceBook = await prisma.priceBook.findUnique({
@@ -39,12 +43,15 @@ export async function PUT(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const { id } = await params;
         const body = await request.json();
         const { effectiveFrom, effectiveTo, status, lines } = body;
 
         // Update price book
-        const priceBook = await prisma.priceBook.update({
+        await prisma.priceBook.update({
             where: { id },
             data: {
                 ...(effectiveFrom && { effectiveFrom: new Date(effectiveFrom) }),
@@ -95,6 +102,9 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const { id } = await params;
 
         // Check if price book is DRAFT

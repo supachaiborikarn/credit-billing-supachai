@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireStationAccessApi } from '@/lib/api-auth';
 
 // POST /api/station/[id]/shift-meters - Save meter readings for current open shift
 export async function POST(
@@ -9,6 +10,9 @@ export async function POST(
     try {
         const { id } = await params;
         const stationId = `station-${id}`;
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
+
         const body = await request.json();
         const { type, meters, staffId } = body;
 
@@ -74,6 +78,9 @@ export async function GET(
     try {
         const { id } = await params;
         const stationId = `station-${id}`;
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
+
         const { searchParams } = new URL(request.url);
         const shiftId = searchParams.get('shiftId');
 
@@ -83,7 +90,8 @@ export async function GET(
                 where: { id: shiftId },
                 include: {
                     meters: { orderBy: { nozzleNumber: 'asc' } },
-                    staff: { select: { name: true } }
+                    staff: { select: { name: true } },
+                    dailyRecord: { select: { stationId: true } },
                 }
             });
         } else {
@@ -96,13 +104,18 @@ export async function GET(
                 orderBy: { createdAt: 'desc' },
                 include: {
                     meters: { orderBy: { nozzleNumber: 'asc' } },
-                    staff: { select: { name: true } }
+                    staff: { select: { name: true } },
+                    dailyRecord: { select: { stationId: true } },
                 }
             });
         }
 
         if (!shift) {
             return NextResponse.json({ error: 'ไม่พบกะ' }, { status: 404 });
+        }
+
+        if (shift.dailyRecord.stationId !== stationId) {
+            return NextResponse.json({ error: 'ไม่พบกะนี้ในสถานีนี้' }, { status: 404 });
         }
 
         return NextResponse.json({
