@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, use, useRef } from 'react';
-import { ArrowLeft, Trash2, Calendar, Edit, Printer, X, Image, Download, FileText, DollarSign, Droplets, BarChart3, Banknote, CreditCard, ArrowUpDown } from 'lucide-react';
+import { useState, useEffect, use, useRef, useCallback } from 'react';
+import { ArrowLeft, Trash2, Calendar, Edit, Printer, X, Image as ImageIcon, Download, FileText, DollarSign, Droplets, BarChart3, Eye } from 'lucide-react';
 import { STATIONS, PAYMENT_TYPES, FUEL_TYPES } from '@/constants';
 import Link from 'next/link';
 
@@ -14,9 +14,10 @@ interface Transaction {
     liters: number;
     pricePerLiter: number;
     amount: number;
-    bookNo: string;
+    billBookNo: string;
     billNo: string;
-    createdAt: string;
+    date: string;
+    transferProofUrl?: string | null;
 }
 
 export default function SimpleStationSummaryPage({ params }: { params: Promise<{ id: string }> }) {
@@ -49,25 +50,27 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
     const [uploadingImage, setUploadingImage] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    const fetchTransactions = useCallback(async () => {
+        setLoading(true);
+        try {
+            const res = await fetch(`/api/station/${id}/transactions?date=${selectedDate}`);
+            if (res.ok) {
+                const data = await res.json();
+                setTransactions(data || []);
+            }
+        } catch (error) {
+            console.error('Error fetching:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, [id, selectedDate]);
+
     // Fetch transactions
     useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            try {
-                const res = await fetch(`/api/station/${id}/transactions?date=${selectedDate}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    setTransactions(data || []);
-                }
-            } catch (error) {
-                console.error('Error fetching:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        if (station) fetchData();
-    }, [station, id, selectedDate]);
+        if (station) {
+            fetchTransactions();
+        }
+    }, [station, fetchTransactions]);
 
     // Delete transaction
     const handleDelete = async (txnId: string) => {
@@ -98,6 +101,9 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
     const formatCurrency = (num: number) =>
         new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2 }).format(num);
 
+    const canPrintReceipt = (paymentType: string) =>
+        paymentType === 'CREDIT' || paymentType === 'BOX_TRUCK' || paymentType === 'OIL_TRUCK_SUPACHAI';
+
     const formatTime = (dateStr: string) => {
         if (!dateStr) return '-';
         const d = new Date(dateStr);
@@ -123,7 +129,7 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
         setEditLiters(txn.liters?.toString() || '');
         setEditPricePerLiter(txn.pricePerLiter?.toString() || '');
         setEditPaymentType(txn.paymentType || 'CASH');
-        setEditBookNo(txn.bookNo || '');
+        setEditBookNo(txn.billBookNo || '');
         setEditBillNo(txn.billNo || '');
     };
 
@@ -142,18 +148,17 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                     pricePerLiter: parseFloat(editPricePerLiter) || 0,
                     amount: (parseFloat(editLiters) || 0) * (parseFloat(editPricePerLiter) || 0),
                     paymentType: editPaymentType,
-                    bookNo: editBookNo,
+                    billBookNo: editBookNo,
                     billNo: editBillNo,
                 }),
             });
             if (res.ok) {
-                const updated = await res.json();
-                setTransactions(prev => prev.map(t => t.id === editingTxn.id ? { ...t, ...updated } : t));
                 setEditingTxn(null);
+                await fetchTransactions();
             } else {
                 alert('บันทึกไม่สำเร็จ');
             }
-        } catch (e) {
+        } catch {
             alert('เกิดข้อผิดพลาด');
         } finally {
             setEditSaving(false);
@@ -169,21 +174,43 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
         try {
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('transactionId', imageUploadTxn.id);
 
-            const res = await fetch('/api/upload/slip', {
+            const uploadRes = await fetch('/api/upload/transfer-proof', {
                 method: 'POST',
                 body: formData,
             });
 
-            if (res.ok) {
-                alert('อัปโหลดสำเร็จ!');
-                setImageUploadTxn(null);
-            } else {
-                alert('อัปโหลดไม่สำเร็จ');
+            if (!uploadRes.ok) {
+                throw new Error('upload_failed');
             }
-        } catch (e) {
-            alert('เกิดข้อผิดพลาด');
+
+            const uploadData = await uploadRes.json();
+            const updateRes = await fetch(`/api/station/${id}/transactions/${imageUploadTxn.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    licensePlate: imageUploadTxn.licensePlate,
+                    ownerName: imageUploadTxn.ownerName,
+                    liters: Number(imageUploadTxn.liters),
+                    pricePerLiter: Number(imageUploadTxn.pricePerLiter),
+                    amount: Number(imageUploadTxn.amount),
+                    paymentType: imageUploadTxn.paymentType,
+                    billBookNo: imageUploadTxn.billBookNo,
+                    billNo: imageUploadTxn.billNo,
+                    transferProofUrl: uploadData.url,
+                }),
+            });
+
+            if (!updateRes.ok) {
+                throw new Error('update_failed');
+            }
+
+            alert('แนบสลิปสำเร็จ!');
+            setImageUploadTxn(null);
+            await fetchTransactions();
+        } catch (error) {
+            console.error('Slip upload error:', error);
+            alert('แนบสลิปไม่สำเร็จ');
         } finally {
             setUploadingImage(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
@@ -200,7 +227,7 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
         const headers = ['ลำดับ', 'เล่ม', 'เลขที่', 'ทะเบียน', 'ชื่อลูกค้า', 'ประเภทน้ำมัน', 'ลิตร', 'ราคา/ลิตร', 'ยอดเงิน', 'ชำระ'];
         const rows = filteredTransactions.map((t, i) => [
             i + 1,
-            t.bookNo || '-',
+            t.billBookNo || '-',
             t.billNo || '-',
             t.licensePlate || '-',
             t.ownerName || '-',
@@ -272,7 +299,7 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                         ${filteredTransactions.map((t, i) => `
                             <tr>
                                 <td>${i + 1}</td>
-                                <td>${t.bookNo || '-'}/${t.billNo || '-'}</td>
+                                <td>${t.billBookNo || '-'}/${t.billNo || '-'}</td>
                                 <td>${t.licensePlate || '-'}</td>
                                 <td>${t.ownerName || '-'}</td>
                                 <td>${getFuelLabel(t.fuelType)}</td>
@@ -377,7 +404,7 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                     >
                         ทั้งหมด ({transactions.length})
                     </button>
-                    {PAYMENT_TYPES.slice(0, 4).map(pt => {
+                    {PAYMENT_TYPES.map(pt => {
                         const count = transactions.filter(t => t.paymentType === pt.value).length;
                         return (
                             <button
@@ -420,14 +447,14 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                                         </div>
                                         <p className="text-sm text-gray-500">{txn.ownerName || '-'}</p>
                                         <p className="text-xs text-gray-400 mt-1">
-                                            {txn.bookNo || '-'}/{txn.billNo || '-'} • {txn.fuelType ? getFuelLabel(txn.fuelType) : <span className="text-red-400">ไม่ระบุสินค้า</span>} • {formatTime(txn.createdAt)}
+                                            {txn.billBookNo || '-'}/{txn.billNo || '-'} • {txn.fuelType ? getFuelLabel(txn.fuelType) : <span className="text-red-400">ไม่ระบุสินค้า</span>} • {formatTime(txn.date)}
                                         </p>
                                     </div>
                                     <div className="text-right">
                                         <p className="font-bold text-lg text-green-600">{formatCurrency(txn.amount)} ฿</p>
                                         <p className="text-sm text-gray-500">{txn.liters} ลิตร</p>
                                         <div className="flex items-center justify-end gap-1 mt-2">
-                                            {txn.paymentType === 'CREDIT' && (
+                                            {canPrintReceipt(txn.paymentType) && (
                                                 <Link
                                                     href={`/simple-station/${id}/new/receipt?txn=${txn.id}`}
                                                     className="p-2 text-purple-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
@@ -436,16 +463,32 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                                                     <Printer size={16} />
                                                 </Link>
                                             )}
-                                            <button
-                                                onClick={() => {
-                                                    setImageUploadTxn(txn);
-                                                    fileInputRef.current?.click();
-                                                }}
-                                                className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                title="แนบรูป"
-                                            >
-                                                <Image size={16} />
-                                            </button>
+                                            {txn.transferProofUrl && (
+                                                <button
+                                                    onClick={() => window.open(txn.transferProofUrl || '', '_blank', 'noopener,noreferrer')}
+                                                    className="p-2 text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                                    title="ดูสลิปโอนเงิน"
+                                                >
+                                                    <Eye size={16} />
+                                                </button>
+                                            )}
+                                            {txn.paymentType === 'TRANSFER' && (
+                                                <button
+                                                    onClick={() => {
+                                                        setImageUploadTxn(txn);
+                                                        fileInputRef.current?.click();
+                                                    }}
+                                                    disabled={uploadingImage && imageUploadTxn?.id === txn.id}
+                                                    className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+                                                    title={txn.transferProofUrl ? 'เปลี่ยนสลิปโอนเงิน' : 'แนบสลิปโอนเงิน'}
+                                                >
+                                                    {uploadingImage && imageUploadTxn?.id === txn.id ? (
+                                                        <div className="animate-spin h-4 w-4 border-2 border-blue-400 border-t-transparent rounded-full"></div>
+                                                    ) : (
+                                                        <ImageIcon size={16} />
+                                                    )}
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={() => openEditModal(txn)}
                                                 className="p-2 text-orange-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
@@ -525,7 +568,7 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                             <div>
                                 <label className="text-xs text-gray-500">ประเภทชำระ</label>
                                 <select value={editPaymentType} onChange={(e) => setEditPaymentType(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-gray-800">
-                                    {PAYMENT_TYPES.slice(0, 4).map(pt => (
+                                    {PAYMENT_TYPES.map(pt => (
                                         <option key={pt.value} value={pt.value}>{pt.label}</option>
                                     ))}
                                 </select>
@@ -560,7 +603,7 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                             <h3 className="font-bold text-xl">{station.name}</h3>
                             <p className="text-gray-500 text-sm">วันที่: {selectedDate}</p>
                             <div className="border-t border-b py-4 my-4 text-left space-y-2">
-                                <p><span className="text-gray-500">เล่ม/เลขที่:</span> {printingTxn.bookNo || '-'}/{printingTxn.billNo || '-'}</p>
+                                <p><span className="text-gray-500">เล่ม/เลขที่:</span> {printingTxn.billBookNo || '-'}/{printingTxn.billNo || '-'}</p>
                                 <p><span className="text-gray-500">ทะเบียน:</span> {printingTxn.licensePlate || '-'}</p>
                                 <p><span className="text-gray-500">ลูกค้า:</span> {printingTxn.ownerName || '-'}</p>
                                 <p><span className="text-gray-500">จำนวน:</span> {printingTxn.liters} ลิตร x {printingTxn.pricePerLiter} บาท</p>

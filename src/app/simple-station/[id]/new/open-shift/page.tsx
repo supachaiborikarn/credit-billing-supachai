@@ -3,22 +3,26 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { Play, Fuel, RefreshCw, Check } from 'lucide-react';
-import { STATIONS, FUEL_TYPES } from '@/constants';
+import { STATIONS } from '@/constants';
+import {
+    buildFullStationDailyPriceForm,
+    createEmptyFullStationDailyPriceForm,
+    hasAnyFullStationDailyPrice,
+    parseFullStationDailyPriceForm,
+} from '@/lib/full-station-price-utils';
 
 export default function OpenShiftPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const stationIndex = parseInt(id) - 1;
     const station = STATIONS[stationIndex];
-    const stationId = `station-${id}`;
     const router = useRouter();
 
     const [loading, setLoading] = useState(false);
-    const [fuelPrices, setFuelPrices] = useState<Record<string, string>>({});
+    const [priceForm, setPriceForm] = useState(createEmptyFullStationDailyPriceForm());
     const [staffName, setStaffName] = useState<string>('');
 
-    // Load user info and fuel prices
+    // Load user info and daily prices
     useEffect(() => {
-        // Get current user
         const loadUser = async () => {
             try {
                 const res = await fetch('/api/auth/me');
@@ -26,21 +30,17 @@ export default function OpenShiftPage({ params }: { params: Promise<{ id: string
                     const data = await res.json();
                     setStaffName(data.user?.name || data.user?.username || 'Staff');
                 }
-            } catch (e) { /* ignore */ }
+            } catch { /* ignore */ }
         };
         loadUser();
 
-        // Load fuel prices
         const loadPrices = async () => {
             try {
-                const res = await fetch(`/api/station/${id}/fuel-prices`);
+                const today = new Date().toISOString().split('T')[0];
+                const res = await fetch(`/api/station/${id}/daily?date=${today}`);
                 if (res.ok) {
                     const data = await res.json();
-                    const prices: Record<string, string> = {};
-                    (data.prices || []).forEach((p: { fuelType: string; price: number }) => {
-                        prices[p.fuelType] = p.price.toString();
-                    });
-                    setFuelPrices(prices);
+                    setPriceForm(buildFullStationDailyPriceForm(data.dailyRecord));
                 }
             } catch (error) {
                 console.error('Error loading prices:', error);
@@ -50,37 +50,31 @@ export default function OpenShiftPage({ params }: { params: Promise<{ id: string
     }, [id]);
 
     const handleOpenShift = async () => {
-        // Validate prices
-        const hasAnyPrice = Object.values(fuelPrices).some(p => p && parseFloat(p) > 0);
-        if (!hasAnyPrice) {
-            alert('กรุณาใส่ราคาน้ำมันอย่างน้อย 1 ประเภท');
+        if (!hasAnyFullStationDailyPrice(priceForm)) {
+            alert('กรุณาใส่ราคาน้ำมันประจำวันก่อนเปิดกะ');
             return;
         }
 
         setLoading(true);
         try {
-            // Save fuel prices
-            const pricesArray = Object.entries(fuelPrices)
-                .filter(([_, price]) => price && parseFloat(price) > 0)
-                .map(([fuelType, price]) => ({ fuelType, price: parseFloat(price) }));
+            const today = new Date().toISOString().split('T')[0];
+            const { retailPrice, wholesalePrice } = parseFullStationDailyPriceForm(priceForm);
 
-            await fetch(`/api/station/${id}/fuel-prices`, {
+            const savePriceRes = await fetch(`/api/station/${id}/daily`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prices: pricesArray }),
+                body: JSON.stringify({
+                    date: today,
+                    retailPrice,
+                    wholesalePrice,
+                }),
             });
 
-            // Also save to localStorage for sell page to access
-            const today = new Date().toISOString().split('T')[0];
-            const storageKey = `fuelPrices_station${id}_${today}`;
-            const pricesForStorage: Record<string, number> = {};
-            pricesArray.forEach(p => {
-                pricesForStorage[p.fuelType] = p.price;
-            });
-            localStorage.setItem(storageKey, JSON.stringify(pricesForStorage));
+            if (!savePriceRes.ok) {
+                const err = await savePriceRes.json();
+                throw new Error(err.error || 'บันทึกราคาน้ำมันไม่สำเร็จ');
+            }
 
-
-            // Open new shift
             const res = await fetch(`/api/station/${id}/shifts`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -98,7 +92,7 @@ export default function OpenShiftPage({ params }: { params: Promise<{ id: string
             }
         } catch (error) {
             console.error('Error opening shift:', error);
-            alert('เกิดข้อผิดพลาด');
+            alert(error instanceof Error ? error.message : 'เกิดข้อผิดพลาด');
         } finally {
             setLoading(false);
         }
@@ -136,25 +130,40 @@ export default function OpenShiftPage({ params }: { params: Promise<{ id: string
                     </div>
 
                     <div className="space-y-3">
-                        {FUEL_TYPES.slice(0, 6).map(fuel => (
-                            <div key={fuel.value} className="flex items-center gap-3">
-                                <span className="text-gray-300 w-28 text-sm">{fuel.label}</span>
-                                <div className="flex-1 relative">
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        placeholder="0.00"
-                                        value={fuelPrices[fuel.value] || ''}
-                                        onChange={(e) => setFuelPrices(prev => ({
-                                            ...prev,
-                                            [fuel.value]: e.target.value
-                                        }))}
-                                        className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-orange-400 text-right"
-                                    />
-                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">฿</span>
-                                </div>
+                        <div className="flex items-center gap-3">
+                            <span className="text-gray-300 w-28 text-sm">ขายปลีก / เชื่อ</span>
+                            <div className="flex-1 relative">
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    value={priceForm.retailPrice}
+                                    onChange={(e) => setPriceForm((prev) => ({
+                                        ...prev,
+                                        retailPrice: e.target.value,
+                                    }))}
+                                    className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-orange-400 text-right"
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">฿</span>
                             </div>
-                        ))}
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <span className="text-gray-300 w-28 text-sm">ขายส่ง / สด</span>
+                            <div className="flex-1 relative">
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    value={priceForm.wholesalePrice}
+                                    onChange={(e) => setPriceForm((prev) => ({
+                                        ...prev,
+                                        wholesalePrice: e.target.value,
+                                    }))}
+                                    className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-orange-400 text-right"
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">฿</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -178,7 +187,7 @@ export default function OpenShiftPage({ params }: { params: Promise<{ id: string
                 </button>
 
                 <p className="text-center text-gray-500 text-sm mt-4">
-                    กรุณาใส่ราคาน้ำมันก่อนเปิดกะ
+                    ราคานี้จะถูกบันทึกลงฐานข้อมูลเดียวกับหน้าเดิม
                 </p>
             </div>
         </div>

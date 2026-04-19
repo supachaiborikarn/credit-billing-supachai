@@ -72,3 +72,26 @@
   - ล็อก invoice/payment/product/price-book/dispenser/nozzle/admin data-entry ด้วย session/admin guard
   - เพิ่ม resource ownership checks สำหรับ shift/inventory/dispenser/nozzle
   - quick scan ล่าสุดรายงาน `NO_UNGUARDED_WRITE_ROUTES`
+- 🛢️ แก้ logic แท๊งลอยวัชรเกียรติ (`station-1`) ให้สอดคล้องระดับกะ
+  - ผูก transaction ของ FULL station เข้ากะที่เปิดอยู่ (`shiftId`) ทั้ง single และ bulk create
+  - เพิ่ม helper กลางสำหรับดึง transaction ระดับกะ และให้ reconciliation/anomaly ใช้ source เดียวกัน
+  - แก้หน้า/route `shift-end` ให้ใช้ transactions เฉพาะกะ, meters พร้อม `shiftId`, และรวมเงินเชื่ออัตโนมัติ
+  - เปลี่ยน anomaly preview ให้เช็กค่ามิเตอร์ที่พนักงานเพิ่งกรอก ไม่ใช่ข้อมูลเก่าใน DB
+  - เปลี่ยน flow หากะค้างของหน้าใหม่ให้ใช้ `shift-status` แทน admin endpoint และแก้ `shift history` ให้ normalize station/date/auth ถูกต้อง
+
+## 2026-04-19
+- 🖨️ เพิ่มการพิมพ์รายงานสรุปทั้งวันหลังปิดกะสำหรับแท๊งลอยวัชรเกียรติ
+  - เพิ่ม helper `src/lib/daily-report-print.ts` สำหรับพิมพ์ daily work report
+  - patch `src/app/api/station/[id]/daily/route.ts` ให้คืน `fuelType` เพื่อใช้ในรายงาน
+  - patch หน้า `simple-station/[id]/new/shift-end` และ `station/[id]/new/shift-end` ให้แสดง success modal หลังปิดกะ พร้อมปุ่ม `พิมพ์รายงานทั้งวัน`
+  - ใช้ station-wide `/api/station/[id]/daily?date=...` สำหรับแท๊งลอยเพื่อไม่ให้รายงานโดนกรองเหลือเฉพาะรายการของ staff คนเดียว
+- 🔗 แก้จุด disconnect ระหว่าง UI ใหม่กับ UI เก่าของแท๊งลอยเรื่องราคาน้ำมันประจำวัน
+  - เพิ่ม helper `src/lib/full-station-price-utils.ts`
+  - patch `simple-station/[id]/new/open-shift`, `home`, และ `sell` ให้ใช้ `/api/station/[id]/daily`
+  - เปลี่ยนฟอร์มราคาของหน้าใหม่ให้ตรงกับ model จริงของ FULL station: `retailPrice` / `wholesalePrice`
+  - ยกเลิกการพึ่ง `localStorage fuelPrices_*` และ route `/api/station/[id]/fuel-prices` ที่ไม่มีจริงใน flow หลักของแท๊งลอย
+- 🧾 แก้จุด disconnect ระหว่าง UI ใหม่กับ UI เก่าของแท๊งลอยเรื่อง transaction/receipt/slip flow
+  - patch `api/station/[id]/transactions` ให้ FULL station list เป็น station-wide, คืน alias `createdAt`/`bookNo`, และคืน `transferProofUrl`
+  - patch `api/station/[id]/transactions/[transactionId]` ให้ single GET/PUT รองรับ alias ของหน้าใหม่ (`bookNo`/`billBookNo`)
+  - patch `simple-station/[id]/new/summary` ให้แก้ไขรายการด้วย field ถูกชุด, แนบ/ดูสลิปผ่าน `/api/upload/transfer-proof`, และพิมพ์ receipt ได้กับ credit-like payment types
+  - patch `simple-station/[id]/new/sell` และ `summary` ให้แสดงทุก `PAYMENT_TYPES` แบบเดียวกับหน้าเก่า

@@ -9,6 +9,12 @@ import { useRouter } from 'next/navigation';
 import ShiftGuard from '../../components/ShiftGuard';
 import AutoLogout from '@/components/AutoLogout';
 import TimeBasedReminder from '@/components/TimeBasedReminder';
+import {
+    buildFullStationDailyPriceForm,
+    createEmptyFullStationDailyPriceForm,
+    hasAnyFullStationDailyPrice,
+    parseFullStationDailyPriceForm,
+} from '@/lib/full-station-price-utils';
 
 interface ShiftData {
     id: string;
@@ -51,14 +57,7 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
     // Fuel price setup modal
     const [showFuelPriceModal, setShowFuelPriceModal] = useState(false);
     const [pendingShiftNumber, setPendingShiftNumber] = useState<number | null>(null);
-    const [fuelPriceInputs, setFuelPriceInputs] = useState({
-        DIESEL: '',
-        POWER_DIESEL: '',
-        GASOHOL_91: '',
-        GASOHOL_95: '',
-        GASOLINE_95: '',
-        GASOHOL_E20: '',
-    });
+    const [priceForm, setPriceForm] = useState(createEmptyFullStationDailyPriceForm());
 
     // Stats
     const [stats, setStats] = useState({
@@ -78,7 +77,7 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                     const data = await res.json();
                     setIsAdmin(data.user?.role === 'ADMIN');
                 }
-            } catch (e) { /* ignore */ }
+            } catch { /* ignore */ }
         };
         checkUser();
     }, []);
@@ -116,6 +115,14 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                         txnCount: txns.length,
                     });
                 }
+
+                const dailyRes = await fetch(`/api/station/${id}/daily?date=${selectedDate}`);
+                if (dailyRes.ok) {
+                    const dailyData = await dailyRes.json();
+                    setPriceForm(buildFullStationDailyPriceForm(dailyData.dailyRecord));
+                } else {
+                    setPriceForm(createEmptyFullStationDailyPriceForm());
+                }
             } catch (error) {
                 console.error('Error fetching data:', error);
             } finally {
@@ -126,48 +133,55 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
         if (station) fetchData();
     }, [station, id, selectedDate]);
 
-    // Open shift - show fuel price modal first
-    const openShift = (shiftNumber: number) => {
-        setPendingShiftNumber(shiftNumber);
-        // Load existing prices if any
-        const storageKey = `fuelPrices_station${id}_${selectedDate}`;
-        const stored = localStorage.getItem(storageKey);
-        if (stored) {
-            const prices = JSON.parse(stored);
-            setFuelPriceInputs({
-                DIESEL: prices.DIESEL?.toString() || '',
-                POWER_DIESEL: prices.POWER_DIESEL?.toString() || '',
-                GASOHOL_91: prices.GASOHOL_91?.toString() || '',
-                GASOHOL_95: prices.GASOHOL_95?.toString() || '',
-                GASOLINE_95: prices.GASOLINE_95?.toString() || '',
-                GASOHOL_E20: prices.GASOHOL_E20?.toString() || '',
-            });
-        } else {
-            setFuelPriceInputs({ DIESEL: '', POWER_DIESEL: '', GASOHOL_91: '', GASOHOL_95: '', GASOLINE_95: '', GASOHOL_E20: '' });
+    const loadDailyPriceForm = async () => {
+        try {
+            const res = await fetch(`/api/station/${id}/daily?date=${selectedDate}`);
+            if (res.ok) {
+                const data = await res.json();
+                setPriceForm(buildFullStationDailyPriceForm(data.dailyRecord));
+                return;
+            }
+        } catch (error) {
+            console.error('Error loading daily prices:', error);
         }
+
+        setPriceForm(createEmptyFullStationDailyPriceForm());
+    };
+
+    // Open shift - show fuel price modal first
+    const openShift = async (shiftNumber: number) => {
+        setPendingShiftNumber(shiftNumber);
+        await loadDailyPriceForm();
         setShowFuelPriceModal(true);
     };
 
     // Confirm open shift after setting fuel prices
     const confirmOpenShift = async () => {
         if (!pendingShiftNumber) return;
+        if (!hasAnyFullStationDailyPrice(priceForm)) {
+            alert('กรุณาใส่ราคาน้ำมันประจำวันก่อนเปิดกะ');
+            return;
+        }
 
-        // Save fuel prices to localStorage
-        const prices: Record<string, number> = {};
-        if (fuelPriceInputs.DIESEL) prices.DIESEL = parseFloat(fuelPriceInputs.DIESEL);
-        if (fuelPriceInputs.POWER_DIESEL) prices.POWER_DIESEL = parseFloat(fuelPriceInputs.POWER_DIESEL);
-        if (fuelPriceInputs.GASOHOL_91) prices.GASOHOL_91 = parseFloat(fuelPriceInputs.GASOHOL_91);
-        if (fuelPriceInputs.GASOHOL_95) prices.GASOHOL_95 = parseFloat(fuelPriceInputs.GASOHOL_95);
-        if (fuelPriceInputs.GASOLINE_95) prices.GASOLINE_95 = parseFloat(fuelPriceInputs.GASOLINE_95);
-        if (fuelPriceInputs.GASOHOL_E20) prices.GASOHOL_E20 = parseFloat(fuelPriceInputs.GASOHOL_E20);
-
-        const storageKey = `fuelPrices_station${id}_${selectedDate}`;
-        localStorage.setItem(storageKey, JSON.stringify(prices));
-
-        setShowFuelPriceModal(false);
         setActionLoading(true);
 
         try {
+            const { retailPrice, wholesalePrice } = parseFullStationDailyPriceForm(priceForm);
+            const priceRes = await fetch(`/api/station/${id}/daily`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    date: selectedDate,
+                    retailPrice,
+                    wholesalePrice,
+                }),
+            });
+
+            if (!priceRes.ok) {
+                const err = await priceRes.json();
+                throw new Error(err.error || 'บันทึกราคาน้ำมันไม่สำเร็จ');
+            }
+
             const res = await fetch(`/api/station/${id}/shifts`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -177,6 +191,7 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                 const data = await res.json();
                 setCurrentShift(data.shift);
                 setAllShifts(prev => [...prev, data.shift]);
+                setShowFuelPriceModal(false);
             } else {
                 const err = await res.json();
                 // Check if there's an old unclosed shift that needs to be closed first
@@ -191,61 +206,30 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                 }
             }
         } catch (e) {
-            alert('เกิดข้อผิดพลาด');
+            alert(e instanceof Error ? e.message : 'เกิดข้อผิดพลาด');
         } finally {
             setActionLoading(false);
             setPendingShiftNumber(null);
         }
     };
 
-    // Close shift
-    const closeShift = async () => {
-        if (!currentShift) return;
-        setActionLoading(true);
-        try {
-            const res = await fetch(`/api/station/${id}/shifts`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'close', shiftId: currentShift.id }),
-            });
-            if (res.ok) {
-                setAllShifts(prev => prev.map(s => s.id === currentShift.id ? { ...s, status: 'CLOSED' } : s));
-                setCurrentShift(null);
-            } else {
-                const err = await res.json();
-                alert(err.error || 'ปิดกะไม่สำเร็จ');
-            }
-        } catch (e) {
-            alert('เกิดข้อผิดพลาด');
-        } finally {
-            setActionLoading(false);
-        }
-    };
-
     const formatCurrency = (num: number) =>
         new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
-
-    const formatTime = (dateStr: string) => {
-        if (!dateStr) return '-';
-        const d = new Date(dateStr);
-        if (isNaN(d.getTime())) return '-';
-        return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-    };
 
     const handleLogout = async () => {
         if (!confirm('ต้องการออกจากระบบหรือไม่?')) return;
         try {
             await fetch('/api/auth/logout', { method: 'POST' });
             router.push('/login');
-        } catch (e) {
+        } catch {
             alert('เกิดข้อผิดพลาด');
         }
     };
 
     if (!station) {
         return (
-            <div className="min-h-screen bg-[#f6f6f6] flex items-center justify-center">
-                <p className="text-neutral-500 font-semibold">ไม่พบสถานี</p>
+            <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+                <p className="text-slate-500 font-semibold">ไม่พบสถานี</p>
             </div>
         );
     }
@@ -253,7 +237,7 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
     return (
         <AutoLogout>
             <ShiftGuard stationId={stationId} urlId={id}>
-                <div className="min-h-screen bg-[#f6f6f6] text-neutral-900">
+                <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-rose-500/30">
                     {/* Time-based Reminder for Staff */}
                     <TimeBasedReminder
                         meterLink={`/simple-station/${id}/new/shift-end`}
@@ -264,38 +248,38 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                     />
 
                     {/* Header */}
-                    <header className="sticky top-0 z-50 bg-[#f6f6f6]/80 backdrop-blur border-b border-black/10">
+                    <header className="sticky top-0 z-50 bg-slate-900/80 backdrop-blur-md border-b border-white/10 shadow-sm">
                         <div className="px-4 py-4 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-orange-500 text-white font-black text-sm">
+                            <div className="flex items-center gap-3">
+                                <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-rose-600 text-white font-black text-sm shadow-[0_0_15px_rgba(225,29,72,0.4)] ring-2 ring-white/10">
                                     ⛽
                                 </span>
                                 <div>
-                                    <h1 className="font-extrabold tracking-tight text-lg">{station.name}</h1>
-                                    <p className="text-xs text-neutral-500 font-semibold">ปั๊มน้ำมัน</p>
+                                    <h1 className="font-extrabold tracking-tight text-lg text-white drop-shadow-sm">{station.name}</h1>
+                                    <p className="text-xs text-slate-400 font-medium tracking-wide border-l-2 border-rose-500 pl-1 ml-1 mt-0.5">Caltex Station</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
                                 {isAdmin && (
                                     <Link
                                         href={`/simple-station/${id}`}
-                                        className="px-3 py-1.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700 border border-purple-200 hover:bg-purple-200 transition-colors"
+                                        className="px-3 py-1.5 rounded-full text-xs font-bold bg-white/10 text-white border border-white/20 hover:bg-white/20 transition-colors"
                                     >
                                         ← UI เดิม
                                     </Link>
                                 )}
-                                <div className="flex items-center gap-2 rounded-full border border-black/15 bg-white px-3 py-1.5">
-                                    <Calendar size={14} className="text-orange-500" />
+                                <div className="flex items-center gap-2 rounded-full border border-white/15 bg-slate-800/80 px-3 py-1.5 shadow-inner">
+                                    <Calendar size={14} className="text-rose-400" />
                                     <input
                                         type="date"
                                         value={selectedDate}
                                         onChange={(e) => setSelectedDate(e.target.value)}
-                                        className="bg-transparent text-sm font-bold focus:outline-none w-[110px]"
+                                        className="bg-transparent text-sm font-bold focus:outline-none w-[110px] text-white [color-scheme:dark]"
                                     />
                                 </div>
                                 <button
                                     onClick={handleLogout}
-                                    className="p-2 rounded-full bg-red-50 text-red-500 border border-red-200 hover:bg-red-100 transition-colors"
+                                    className="p-2 rounded-full bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:text-red-300 transition-colors"
                                     title="ออกจากระบบ"
                                 >
                                     <LogOut size={16} />
@@ -306,54 +290,60 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
 
                     {loading ? (
                         <div className="flex items-center justify-center h-64">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-rose-500 drop-shadow-[0_0_10px_rgba(225,29,72,0.5)]"></div>
                         </div>
                     ) : (
-                        <main className="mx-auto max-w-6xl px-4 py-6 pb-24 space-y-5">
+                        <main className="mx-auto max-w-6xl px-4 py-6 pb-24 space-y-6">
                             {/* Hero Stats Card */}
-                            <div className="rounded-3xl border border-black/10 bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
+                            <div className="rounded-3xl border border-white/10 bg-slate-900/60 backdrop-blur-xl p-6 shadow-[0_8px_32px_rgba(0,0,0,0.3)] ring-1 ring-white/5">
                                 {/* Shift Status Badge */}
-                                <div className="flex flex-wrap gap-3 mb-4">
-                                    <div className="inline-flex items-center gap-2 rounded-full border border-black/15 bg-[#fafafa] px-3 py-1 text-xs font-bold">
-                                        <span className={`h-2 w-2 rounded-full ${currentShift ? 'bg-green-500 animate-pulse' : 'bg-neutral-400'}`}></span>
+                                <div className="flex flex-wrap gap-3 mb-5">
+                                    <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-slate-800/80 px-4 py-1.5 text-xs font-bold text-slate-200 shadow-inner">
+                                        <span className={`h-2.5 w-2.5 rounded-full shadow-[0_0_8px_currentColor] ${currentShift ? 'bg-emerald-400 text-emerald-400 animate-pulse' : 'bg-slate-500 text-slate-500'}`}></span>
                                         <span>{currentShift ? `${SHIFT_NAMES[currentShift.shiftNumber - 1]} เปิดอยู่` : 'ยังไม่เปิดกะ'}</span>
                                     </div>
                                     {currentShift?.staffName && (
-                                        <div className="inline-flex items-center gap-2 rounded-full border border-black/15 bg-[#fafafa] px-3 py-1 text-xs font-bold">
+                                        <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-slate-800/80 px-4 py-1.5 text-xs font-bold text-rose-300 shadow-inner">
                                             <span>👤 {currentShift.staffName}</span>
                                         </div>
                                     )}
                                 </div>
 
-                                {/* Stats Grid - Supachaigroup Style */}
-                                <div className="grid grid-cols-2 gap-3 mb-5">
-                                    <div className="rounded-2xl p-4 bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <DollarSign className="w-4 h-4 opacity-80" />
-                                            <span className="text-xs font-medium opacity-90">ยอดขายรวม</span>
+                                {/* Stats Grid - Caltex Premium Style */}
+                                <div className="grid grid-cols-2 gap-3 mb-6">
+                                    <div className="relative overflow-hidden rounded-2xl p-5 bg-gradient-to-br from-red-600 to-rose-700 text-white shadow-[0_8px_16px_rgba(225,29,72,0.25)] border border-red-400/30 group">
+                                        <div className="absolute -right-4 -top-4 bg-white/10 w-24 h-24 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+                                        <div className="relative z-10">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <DollarSign className="w-5 h-5 text-white/90 drop-shadow" />
+                                                <span className="text-sm font-semibold tracking-wide text-white/90">ยอดขายรวม</span>
+                                            </div>
+                                            <p className="text-3xl font-extrabold tracking-tight drop-shadow-sm">{formatCurrency(stats.totalAmount)} <span className="text-lg font-bold opacity-80">฿</span></p>
                                         </div>
-                                        <p className="text-2xl font-extrabold">{formatCurrency(stats.totalAmount)} ฿</p>
                                     </div>
-                                    <div className="rounded-2xl p-4 bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <BarChart3 className="w-4 h-4 opacity-80" />
-                                            <span className="text-xs font-medium opacity-90">รายการ</span>
+                                    <div className="relative overflow-hidden rounded-2xl p-5 bg-gradient-to-br from-[#003B5C] to-blue-600 text-white shadow-[0_8px_16px_rgba(37,99,235,0.25)] border border-blue-400/30 group">
+                                        <div className="absolute -right-4 -top-4 bg-white/10 w-24 h-24 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+                                        <div className="relative z-10">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <BarChart3 className="w-5 h-5 text-white/90 drop-shadow" />
+                                                <span className="text-sm font-semibold tracking-wide text-white/90">รายการบิล</span>
+                                            </div>
+                                            <p className="text-3xl font-extrabold tracking-tight drop-shadow-sm">{stats.txnCount} <span className="text-lg font-bold opacity-80">รายการ</span></p>
                                         </div>
-                                        <p className="text-2xl font-extrabold">{stats.txnCount}</p>
                                     </div>
-                                    <div className="rounded-2xl p-4 bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg">
+                                    <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-emerald-500 to-teal-700 text-white shadow-[0_4px_12px_rgba(16,185,129,0.2)] border border-emerald-400/30">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <Banknote className="w-4 h-4 opacity-80" />
-                                            <span className="text-xs font-medium opacity-90">เงินสด</span>
+                                            <Banknote className="w-4 h-4 text-emerald-100" />
+                                            <span className="text-xs font-semibold text-emerald-50 tracking-wide">เงินสด</span>
                                         </div>
-                                        <p className="text-xl font-bold">{formatCurrency(stats.cashTotal)} ฿</p>
+                                        <p className="text-xl font-bold tracking-tight drop-shadow-sm">{formatCurrency(stats.cashTotal)} ฿</p>
                                     </div>
-                                    <div className="rounded-2xl p-4 bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-lg">
+                                    <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-violet-600 to-fuchsia-700 text-white shadow-[0_4px_12px_rgba(139,92,246,0.2)] border border-violet-400/30">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <CreditCard className="w-4 h-4 opacity-80" />
-                                            <span className="text-xs font-medium opacity-90">เงินเชื่อ</span>
+                                            <CreditCard className="w-4 h-4 text-violet-100" />
+                                            <span className="text-xs font-semibold text-violet-50 tracking-wide">เงินเชื่อ</span>
                                         </div>
-                                        <p className="text-xl font-bold">{formatCurrency(stats.creditTotal)} ฿</p>
+                                        <p className="text-xl font-bold tracking-tight drop-shadow-sm">{formatCurrency(stats.creditTotal)} ฿</p>
                                     </div>
                                 </div>
 
@@ -388,65 +378,59 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                                     )}
                                 </div>
 
-                                {/* Quick Actions - Supachaigroup Style */}
-                                <div className="mt-4 grid grid-cols-3 gap-2">
+                                {/* Quick Actions - Caltex Premium Style */}
+                                <div className="mt-5 grid grid-cols-3 gap-3">
                                     <Link
                                         href={`/simple-station/${id}/new/sell`}
-                                        className="rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 p-4 text-center text-white shadow-md hover:shadow-lg transition-all hover:scale-[1.02]"
+                                        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-500 to-red-600 p-5 text-center text-white shadow-[0_0_20px_rgba(225,29,72,0.4)] hover:shadow-[0_0_25px_rgba(225,29,72,0.6)] transition-all hover:-translate-y-1 border border-white/20 group hover:ring-2 hover:ring-white/50"
                                     >
-                                        <FileText className="w-6 h-6 mx-auto mb-1" />
-                                        <p className="text-xs font-bold">ลงบิลใหม่</p>
+                                        <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                        <FileText className="w-7 h-7 mx-auto mb-2 drop-shadow-lg" />
+                                        <p className="text-sm font-extrabold tracking-wide drop-shadow-sm">ลงบิลใหม่</p>
                                     </Link>
                                     <Link
                                         href={`/simple-station/${id}/new/summary`}
-                                        className="rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 p-4 text-center text-white shadow-md hover:shadow-lg transition-all hover:scale-[1.02]"
+                                        className="relative overflow-hidden rounded-2xl bg-slate-800/80 p-5 text-center text-slate-200 border border-white/10 hover:bg-slate-700/80 hover:border-white/30 hover:text-white transition-all hover:-translate-y-1 shadow-lg group"
                                     >
-                                        <BarChart3 className="w-6 h-6 mx-auto mb-1" />
-                                        <p className="text-xs font-bold">สรุปรายวัน</p>
+                                        <div className="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                        <BarChart3 className="w-7 h-7 mx-auto mb-2 text-blue-400 group-hover:scale-110 transition-transform" />
+                                        <p className="text-sm font-bold tracking-wide">สรุปรายวัน</p>
                                     </Link>
                                     <button
                                         onClick={() => {
-                                            const storageKey = `fuelPrices_station${id}_${selectedDate}`;
-                                            const stored = localStorage.getItem(storageKey);
-                                            if (stored) {
-                                                const prices = JSON.parse(stored);
-                                                setFuelPriceInputs({
-                                                    DIESEL: prices.DIESEL?.toString() || '',
-                                                    POWER_DIESEL: prices.POWER_DIESEL?.toString() || '',
-                                                    GASOHOL_91: prices.GASOHOL_91?.toString() || '',
-                                                    GASOHOL_95: prices.GASOHOL_95?.toString() || '',
-                                                    GASOLINE_95: prices.GASOLINE_95?.toString() || '',
-                                                    GASOHOL_E20: prices.GASOHOL_E20?.toString() || '',
-                                                });
-                                            }
                                             setPendingShiftNumber(null);
+                                            loadDailyPriceForm();
                                             setShowFuelPriceModal(true);
                                         }}
-                                        className="rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500 p-4 text-center text-white shadow-md hover:shadow-lg transition-all hover:scale-[1.02]"
+                                        className="relative overflow-hidden rounded-2xl bg-slate-800/80 p-5 text-center text-slate-200 border border-white/10 hover:bg-slate-700/80 hover:border-white/30 hover:text-white transition-all hover:-translate-y-1 shadow-lg group"
                                     >
-                                        <Fuel className="w-6 h-6 mx-auto mb-1" />
-                                        <p className="text-xs font-bold">ตั้งราคา</p>
+                                        <div className="absolute inset-0 bg-amber-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                        <Fuel className="w-7 h-7 mx-auto mb-2 text-amber-500 group-hover:scale-110 transition-transform" />
+                                        <p className="text-sm font-bold tracking-wide">ตั้งราคา</p>
                                     </button>
                                     <Link
                                         href={`/simple-station/${id}/new/meter-summary`}
-                                        className="rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 p-4 text-center text-white shadow-md hover:shadow-lg transition-all hover:scale-[1.02]"
+                                        className="relative overflow-hidden rounded-2xl bg-slate-800/80 p-5 text-center text-slate-200 border border-white/10 hover:bg-slate-700/80 hover:border-white/30 hover:text-white transition-all hover:-translate-y-1 shadow-lg group"
                                     >
-                                        <Settings className="w-6 h-6 mx-auto mb-1" />
-                                        <p className="text-xs font-bold">มิเตอร์</p>
+                                        <div className="absolute inset-0 bg-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                        <Settings className="w-7 h-7 mx-auto mb-2 text-cyan-400 group-hover:scale-110 transition-transform" />
+                                        <p className="text-sm font-bold tracking-wide">มิเตอร์</p>
                                     </Link>
                                     <Link
                                         href={`/simple-station/${id}/new/shift-end`}
-                                        className="rounded-xl bg-gradient-to-br from-red-500 to-red-600 p-4 text-center text-white shadow-md hover:shadow-lg transition-all hover:scale-[1.02]"
+                                        className="relative overflow-hidden rounded-2xl bg-slate-800/80 p-5 text-center text-slate-200 border border-white/10 hover:bg-slate-700/80 hover:border-rose-500/50 hover:text-white transition-all hover:-translate-y-1 shadow-lg group"
                                     >
-                                        <LockKeyhole className="w-6 h-6 mx-auto mb-1" />
-                                        <p className="text-xs font-bold">ปิดกะ</p>
+                                        <div className="absolute inset-0 bg-rose-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                        <LockKeyhole className="w-7 h-7 mx-auto mb-2 text-rose-400 group-hover:scale-110 transition-transform" />
+                                        <p className="text-sm font-bold tracking-wide">ปิดกะ</p>
                                     </Link>
                                     <Link
                                         href={`/simple-station/${id}/new/shift-history`}
-                                        className="rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 p-4 text-center text-white shadow-md hover:shadow-lg transition-all hover:scale-[1.02]"
+                                        className="relative overflow-hidden rounded-2xl bg-slate-800/80 p-5 text-center text-slate-200 border border-white/10 hover:bg-slate-700/80 hover:border-white/30 hover:text-white transition-all hover:-translate-y-1 shadow-lg group"
                                     >
-                                        <History className="w-6 h-6 mx-auto mb-1" />
-                                        <p className="text-xs font-bold">ประวัติกะ</p>
+                                        <div className="absolute inset-0 bg-indigo-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                        <History className="w-7 h-7 mx-auto mb-2 text-indigo-400 group-hover:scale-110 transition-transform" />
+                                        <p className="text-sm font-bold tracking-wide">ประวัติกะ</p>
                                     </Link>
                                 </div>
                             </div>
@@ -455,27 +439,27 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                             <DailyCashEntry stationId={id} selectedDate={selectedDate} />
 
                             {/* Recent Transactions */}
-                            <div className="rounded-3xl border border-black/10 bg-white p-5">
+                            <div className="rounded-3xl border border-white/10 bg-slate-900/60 backdrop-blur-xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
                                 <div className="flex items-center justify-between mb-4">
-                                    <h2 className="font-extrabold text-lg">📋 รายการล่าสุด</h2>
-                                    <Link href={`/simple-station/${id}/new/summary`} className="text-orange-500 text-sm font-semibold">
+                                    <h2 className="font-extrabold text-lg text-white">📋 รายการล่าสุด</h2>
+                                    <Link href={`/simple-station/${id}/new/summary`} className="text-blue-400 hover:text-blue-300 text-sm font-semibold transition-colors">
                                         ดูทั้งหมด →
                                     </Link>
                                 </div>
 
                                 {transactions.length === 0 ? (
-                                    <p className="text-center text-neutral-400 py-6">ยังไม่มีรายการ</p>
+                                    <p className="text-center text-slate-500 py-6">ยังไม่มีรายการ</p>
                                 ) : (
-                                    <div className="space-y-2">
+                                    <div className="space-y-3">
                                         {transactions.slice(0, 5).map((txn) => (
-                                            <div key={txn.id} className="flex items-center justify-between p-3 rounded-xl bg-[#fafafa] border border-black/5">
+                                            <div key={txn.id} className="flex items-center justify-between p-4 rounded-xl bg-slate-800/80 border border-white/5 hover:border-white/10 transition-colors">
                                                 <div>
-                                                    <p className="font-bold text-sm">{txn.licensePlate || 'ไม่ระบุ'}</p>
-                                                    <p className="text-xs text-neutral-500">{txn.ownerName || '-'}</p>
+                                                    <p className="font-bold text-sm text-slate-200">{txn.licensePlate || 'ไม่ระบุ'}</p>
+                                                    <p className="text-xs text-slate-400 mt-0.5">{txn.ownerName || '-'}</p>
                                                 </div>
                                                 <div className="text-right">
-                                                    <p className="font-bold text-green-600">{formatCurrency(txn.amount)} ฿</p>
-                                                    <p className="text-xs text-neutral-500">{txn.liters} ลิตร</p>
+                                                    <p className="font-bold text-emerald-400 tracking-wide">{formatCurrency(txn.amount)} ฿</p>
+                                                    <p className="text-xs text-slate-400 mt-0.5">{txn.liters} ลิตร</p>
                                                 </div>
                                             </div>
                                         ))}
@@ -495,71 +479,30 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                                 </div>
                                 <div className="p-4 space-y-3">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">🛢️ ดีเซล (บาท/ลิตร)</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">ขายปลีก / เชื่อ (บาท/ลิตร)</label>
                                         <input
                                             type="number"
-                                            value={fuelPriceInputs.DIESEL}
-                                            onChange={(e) => setFuelPriceInputs(prev => ({ ...prev, DIESEL: e.target.value }))}
-                                            placeholder="เช่น 32.99"
+                                            value={priceForm.retailPrice}
+                                            onChange={(e) => setPriceForm(prev => ({ ...prev, retailPrice: e.target.value }))}
+                                            placeholder="เช่น 31.34"
                                             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800"
                                             inputMode="decimal"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">⚡ พาวเวอร์ดีเซล (บาท/ลิตร)</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">ขายส่ง / สด (บาท/ลิตร)</label>
                                         <input
                                             type="number"
-                                            value={fuelPriceInputs.POWER_DIESEL}
-                                            onChange={(e) => setFuelPriceInputs(prev => ({ ...prev, POWER_DIESEL: e.target.value }))}
-                                            placeholder="เช่น 35.99"
+                                            value={priceForm.wholesalePrice}
+                                            onChange={(e) => setPriceForm(prev => ({ ...prev, wholesalePrice: e.target.value }))}
+                                            placeholder="เช่น 30.50"
                                             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800"
                                             inputMode="decimal"
                                         />
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">⛽ แก๊สโซฮอล์ 91 (บาท/ลิตร)</label>
-                                        <input
-                                            type="number"
-                                            value={fuelPriceInputs.GASOHOL_91}
-                                            onChange={(e) => setFuelPriceInputs(prev => ({ ...prev, GASOHOL_91: e.target.value }))}
-                                            placeholder="เช่น 35.99"
-                                            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800"
-                                            inputMode="decimal"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">⛽ แก๊สโซฮอล์ 95 (บาท/ลิตร)</label>
-                                        <input
-                                            type="number"
-                                            value={fuelPriceInputs.GASOHOL_95}
-                                            onChange={(e) => setFuelPriceInputs(prev => ({ ...prev, GASOHOL_95: e.target.value }))}
-                                            placeholder="เช่น 42.99"
-                                            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800"
-                                            inputMode="decimal"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">🔴 เบนซิน 95 (บาท/ลิตร)</label>
-                                        <input
-                                            type="number"
-                                            value={fuelPriceInputs.GASOLINE_95}
-                                            onChange={(e) => setFuelPriceInputs(prev => ({ ...prev, GASOLINE_95: e.target.value }))}
-                                            placeholder="เช่น 45.99"
-                                            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800"
-                                            inputMode="decimal"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">🍃 E20 (บาท/ลิตร)</label>
-                                        <input
-                                            type="number"
-                                            value={fuelPriceInputs.GASOHOL_E20}
-                                            onChange={(e) => setFuelPriceInputs(prev => ({ ...prev, GASOHOL_E20: e.target.value }))}
-                                            placeholder="เช่น 33.99"
-                                            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800"
-                                            inputMode="decimal"
-                                        />
-                                    </div>
+                                    <p className="text-xs text-gray-500">
+                                        ราคาชุดนี้จะถูกบันทึกลงฐานข้อมูลเดียวกับหน้าเดิม และหน้าลงบิลใหม่จะดึงค่าจากที่นี่
+                                    </p>
                                 </div>
                                 <div className="p-4 border-t flex gap-2">
                                     <button
@@ -578,20 +521,34 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                                         </button>
                                     ) : (
                                         <button
-                                            onClick={() => {
-                                                // Just save prices without opening shift
-                                                const prices: Record<string, number> = {};
-                                                if (fuelPriceInputs.DIESEL) prices.DIESEL = parseFloat(fuelPriceInputs.DIESEL);
-                                                if (fuelPriceInputs.POWER_DIESEL) prices.POWER_DIESEL = parseFloat(fuelPriceInputs.POWER_DIESEL);
-                                                if (fuelPriceInputs.GASOHOL_91) prices.GASOHOL_91 = parseFloat(fuelPriceInputs.GASOHOL_91);
-                                                if (fuelPriceInputs.GASOHOL_95) prices.GASOHOL_95 = parseFloat(fuelPriceInputs.GASOHOL_95);
-                                                if (fuelPriceInputs.GASOLINE_95) prices.GASOLINE_95 = parseFloat(fuelPriceInputs.GASOLINE_95);
-                                                if (fuelPriceInputs.GASOHOL_E20) prices.GASOHOL_E20 = parseFloat(fuelPriceInputs.GASOHOL_E20);
+                                            onClick={async () => {
+                                                if (!hasAnyFullStationDailyPrice(priceForm)) {
+                                                    alert('กรุณาใส่ราคาน้ำมันอย่างน้อย 1 ค่า');
+                                                    return;
+                                                }
 
-                                                const storageKey = `fuelPrices_station${id}_${selectedDate}`;
-                                                localStorage.setItem(storageKey, JSON.stringify(prices));
-                                                setShowFuelPriceModal(false);
-                                                alert('✅ บันทึกราคาน้ำมันแล้ว');
+                                                try {
+                                                    const { retailPrice, wholesalePrice } = parseFullStationDailyPriceForm(priceForm);
+                                                    const res = await fetch(`/api/station/${id}/daily`, {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({
+                                                            date: selectedDate,
+                                                            retailPrice,
+                                                            wholesalePrice,
+                                                        }),
+                                                    });
+
+                                                    if (!res.ok) {
+                                                        const err = await res.json();
+                                                        throw new Error(err.error || 'บันทึกราคาน้ำมันไม่สำเร็จ');
+                                                    }
+
+                                                    setShowFuelPriceModal(false);
+                                                    alert('✅ บันทึกราคาน้ำมันแล้ว');
+                                                } catch (error) {
+                                                    alert(error instanceof Error ? error.message : 'เกิดข้อผิดพลาด');
+                                                }
                                             }}
                                             className="flex-1 py-3 rounded-xl bg-orange-500 text-white hover:bg-orange-600 font-bold"
                                         >

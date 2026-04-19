@@ -41,21 +41,27 @@ export async function GET(
         // Get transactions for the day (Bangkok timezone)
         const startOfDay = getStartOfDayBangkok(dateStr);
         const endOfDay = getEndOfDayBangkok(dateStr);
+        const station = await prisma.station.findUnique({
+            where: { id: stationId },
+            select: { type: true },
+        });
 
         const userId = auth.user.id;
         const userRole = auth.user.role;
+        const isFullStation = station?.type === 'FULL';
 
         // Build where clause - Staff sees only their own, Admin sees all
         const whereClause: Record<string, unknown> = {
             stationId,
             date: { gte: startOfDay, lte: endOfDay },
             deletedAt: null,
+            isVoided: false,
         };
 
         // Get optional staffId filter for admin
         const filterStaffId = searchParams.get('staffId');
 
-        if (userRole === 'STAFF' && userId) {
+        if (userRole === 'STAFF' && userId && !isFullStation) {
             whereClause.recordedById = userId;
         } else if (userRole === 'ADMIN' && filterStaffId) {
             const staffUser = await prisma.user.findFirst({
@@ -92,8 +98,11 @@ export async function GET(
                 liters: Number(t.liters),
                 pricePerLiter: Number(t.pricePerLiter),
                 amount: Number(t.amount),
+                createdAt: t.date.toISOString(),
                 billBookNo: t.billBookNo || '',
+                bookNo: t.billBookNo || '',
                 billNo: t.billNo || '',
+                transferProofUrl: t.transferProofUrl || null,
                 recordedByName: t.recordedBy?.name || '-',
             };
         });
@@ -146,6 +155,7 @@ export async function POST(
         const date = getStartOfDayBangkok(dateStr);
 
         let dailyRecordId = null;
+        let shiftId: string | null = null;
         const station = await prisma.station.findUnique({ where: { id: stationId } });
 
         if (station?.type === 'FULL') {
@@ -161,6 +171,20 @@ export async function POST(
                 }
             });
             dailyRecordId = dailyRecord.id;
+
+            const openShift = await prisma.shift.findFirst({
+                where: {
+                    dailyRecordId: dailyRecord.id,
+                    status: 'OPEN',
+                },
+                orderBy: { shiftNumber: 'desc' },
+            });
+
+            if (!openShift) {
+                return HttpErrors.badRequest('กรุณาเปิดกะก่อนบันทึกรายการของแท๊งลอย');
+            }
+
+            shiftId = openShift.id;
         }
 
         // Find owner - prioritize ownerId from frontend, fallback to name search
@@ -272,6 +296,7 @@ export async function POST(
                 productType: actualProductType,
                 transferProofUrl,
                 recordedById: userId,
+                shiftId,
             }
         });
 

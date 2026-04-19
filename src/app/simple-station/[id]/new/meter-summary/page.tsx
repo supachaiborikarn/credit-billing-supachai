@@ -56,7 +56,9 @@ export default function MeterSummaryPage({ params }: { params: Promise<{ id: str
                             // Get meter readings for this shift (from meterReadings in shift data)
                             const meters: MeterReading[] = data.fuelConfig?.map((fuel: { nozzle: number; name: string; price: number }) => {
                                 const carryOver = data.carryOverReadings?.[fuel.nozzle] || 0;
-                                const existing = data.meters?.find((m: { nozzleNumber: number }) => m.nozzleNumber === fuel.nozzle);
+                                const existing = data.meters?.find((m: { shiftId: string; nozzleNumber: number }) =>
+                                    m.shiftId === shift.id && m.nozzleNumber === fuel.nozzle
+                                );
                                 const startReading = existing?.startReading || carryOver || 0;
                                 const endReading = existing?.endReading || 0;
                                 const liters = endReading > startReading ? endReading - startReading : 0;
@@ -74,7 +76,7 @@ export default function MeterSummaryPage({ params }: { params: Promise<{ id: str
                             processedShifts.push({
                                 shiftId: shift.id,
                                 shiftNumber: shift.shiftNumber,
-                                staffName: shift.staffId || 'ไม่ระบุ',
+                                staffName: shift.staffName || 'ไม่ระบุ',
                                 date: data.date,
                                 openedAt: shift.createdAt,
                                 closedAt: shift.closedAt,

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { checkShiftModifiable } from '@/services/shift-service';
 import { requireApiSession } from '@/lib/api-auth';
 import { canAccessStation } from '@/lib/auth-utils';
 
@@ -30,7 +29,15 @@ export async function GET(
             return NextResponse.json({ error: 'ไม่มีสิทธิ์เข้าถึงรายการนี้' }, { status: 403 });
         }
 
-        return NextResponse.json(transaction);
+        return NextResponse.json({
+            ...transaction,
+            fuelType: transaction.productType || null,
+            createdAt: transaction.createdAt?.toISOString?.() || transaction.date.toISOString(),
+            date: transaction.date.toISOString(),
+            bookNo: transaction.billBookNo || '',
+            billBookNo: transaction.billBookNo || '',
+            recordedByName: transaction.recordedBy?.name || '-',
+        });
     } catch (error) {
         console.error('Transaction GET error:', error);
         return NextResponse.json({ error: 'Failed to fetch transaction' }, { status: 500 });
@@ -60,6 +67,7 @@ export async function PUT(
             pricePerLiter,
             amount,
             billBookNo,
+            bookNo,
             billNo,
             transferProofUrl,
         } = body;
@@ -123,7 +131,7 @@ export async function PUT(
                     liters,
                     pricePerLiter,
                     amount,
-                    billBookNo,
+                    billBookNo: billBookNo ?? bookNo,
                     billNo,
                     transferProofUrl,
                 }

@@ -129,6 +129,8 @@ export default function OilSellPage({ params }: { params: Promise<{ id: string }
             });
 
             if (res.ok) {
+                const data = await res.json();
+                
                 // Update local stock
                 setProducts(prev => prev.map(p =>
                     p.id === selectedProduct.id ? { ...p, quantity: p.quantity - sellQty } : p
@@ -143,6 +145,9 @@ export default function OilSellPage({ params }: { params: Promise<{ id: string }
 
                 setShowConfirmModal(false);
                 setSelectedProduct(null);
+                
+                // Redirect to receipt for auto-print
+                window.location.href = `/simple-station/${id}/new/receipt?txn=${data.transaction.id}&autoPrint=true`;
             } else {
                 const err = await res.json();
                 alert(err.error || 'บันทึกไม่สำเร็จ');

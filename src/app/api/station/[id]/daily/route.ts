@@ -127,6 +127,7 @@ export async function GET(
                     ownerName: t.owner?.name || t.ownerName || '',
                     ownerCode: t.truck?.code || findCodeByPlate(plate, truckCodeMap) || t.owner?.code || null,
                     paymentType: t.paymentType,
+                    fuelType: t.productType || null,
                     nozzleNumber: t.nozzleNumber,
                     liters: Number(t.liters),
                     pricePerLiter: Number(t.pricePerLiter),

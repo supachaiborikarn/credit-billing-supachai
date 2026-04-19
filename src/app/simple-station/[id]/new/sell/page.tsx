@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, use, useRef } from 'react';
-import { ArrowLeft, Search, User, Check, Plus, Minus, ShoppingCart, UserPlus, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, User, Check, Plus, Minus, UserPlus } from 'lucide-react';
 import { STATIONS, PAYMENT_TYPES, FUEL_TYPES } from '@/constants';
 import Link from 'next/link';
 import { AbnormalValueWarning } from '@/components/WizardStepper';
+import { getFullStationPriceForPaymentType } from '@/lib/full-station-price-utils';
 
 interface TruckResult {
     id: string;
@@ -55,8 +56,10 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
     const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
     const [showProductPicker, setShowProductPicker] = useState(false);
 
-    // Fuel prices from localStorage
-    const [fuelPrices, setFuelPrices] = useState<Record<string, number>>({});
+    const [dailyPrices, setDailyPrices] = useState({
+        retailPrice: 0,
+        wholesalePrice: 0,
+    });
 
     // Input mode: 'liters' or 'amount'
     const [inputMode, setInputMode] = useState<'liters' | 'amount'>('liters');
@@ -98,57 +101,36 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
         fetchProducts();
     }, [id]);
 
-    // Load fuel prices from localStorage or API
+    // Load daily prices from shared daily record
     useEffect(() => {
         const loadPrices = async () => {
-            const storageKey = `fuelPrices_station${id}_${selectedDate}`;
-            const stored = localStorage.getItem(storageKey);
-
-            if (stored) {
-                const prices = JSON.parse(stored);
-                setFuelPrices(prices);
-                // Auto-fill price for currently selected fuel type
-                if (prices[fuelType]) {
-                    const p = prices[fuelType];
-                    setPricePerLiter(p.toString());
-                    setPriceDisplay(Math.round(p * 100).toString());
+            try {
+                const res = await fetch(`/api/station/${id}/daily?date=${selectedDate}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setDailyPrices({
+                        retailPrice: Number(data.dailyRecord?.retailPrice) || 0,
+                        wholesalePrice: Number(data.dailyRecord?.wholesalePrice) || 0,
+                    });
                 }
-            } else {
-                // Fallback: fetch from API
-                try {
-                    const res = await fetch(`/api/station/${id}/fuel-prices`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        const prices: Record<string, number> = {};
-                        (data.prices || []).forEach((p: { fuelType: string; price: number }) => {
-                            prices[p.fuelType] = p.price;
-                        });
-                        setFuelPrices(prices);
-                        // Save to localStorage for future use
-                        localStorage.setItem(storageKey, JSON.stringify(prices));
-                        // Auto-fill price for currently selected fuel type
-                        if (prices[fuelType]) {
-                            const p = prices[fuelType];
-                            setPricePerLiter(p.toString());
-                            setPriceDisplay(Math.round(p * 100).toString());
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error loading prices from API:', error);
-                }
+            } catch (error) {
+                console.error('Error loading prices from daily record:', error);
             }
         };
         loadPrices();
     }, [id, selectedDate]);
 
-    // Auto-fill price when fuel type changes
+    // Auto-fill price from the same daily prices used in the legacy UI
     useEffect(() => {
-        if (fuelPrices[fuelType]) {
-            const p = fuelPrices[fuelType];
+        const p = getFullStationPriceForPaymentType(paymentType, dailyPrices);
+        if (p > 0) {
             setPricePerLiter(p.toString());
             setPriceDisplay(Math.round(p * 100).toString());
+        } else {
+            setPricePerLiter('');
+            setPriceDisplay('');
         }
-    }, [fuelType, fuelPrices]);
+    }, [paymentType, dailyPrices]);
 
     // Calculate based on input mode
     useEffect(() => {
@@ -235,7 +217,6 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
             });
 
             if (res.ok) {
-                const data = await res.json();
                 // Use the new truck
                 setLicensePlate(newTruckPlate.trim());
                 const selectedOwner = ownersList.find(o => o.id === selectedOwnerId);
@@ -405,6 +386,8 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
             });
 
             if (res.ok) {
+                const data = await res.json();
+                
                 // Full form reset for next entry
                 setLicensePlate('');
                 setOwnerName('');
@@ -421,14 +404,9 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                 setSelectedProducts([]);
                 setSearchResults([]);
                 setShowResults(false);
-                alert('✅ บันทึกเรียบร้อย!');
-
-                // Refresh products to update stock
-                const prodRes = await fetch(`/api/simple-station/${id}/products`);
-                if (prodRes.ok) {
-                    const data = await prodRes.json();
-                    setProducts(data.products || []);
-                }
+                
+                // Redirect to receipt for auto-print
+                window.location.href = `/simple-station/${id}/new/receipt?txn=${data.transaction.id}&autoPrint=true`;
             } else {
                 const err = await res.json();
                 alert(err.error || 'บันทึกไม่สำเร็จ');
@@ -528,7 +506,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                             className="mt-2 w-full px-4 py-3 flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 hover:bg-blue-100 transition"
                         >
                             <UserPlus size={18} />
-                            <span>เพิ่มทะเบียนใหม่ "{licensePlate}"</span>
+                            <span>เพิ่มทะเบียนใหม่ &quot;{licensePlate}&quot;</span>
                         </button>
                     )}
 
@@ -568,7 +546,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                         💳 ประเภทชำระ
                     </label>
                     <div className="grid grid-cols-2 gap-2">
-                        {PAYMENT_TYPES.slice(0, 4).map((type) => (
+                        {PAYMENT_TYPES.map((type) => (
                             <button
                                 key={type.value}
                                 onClick={() => setPaymentType(type.value)}
@@ -639,7 +617,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            💰 ราคาต่อลิตร {fuelPrices[fuelType] && <span className="text-green-600 text-xs">(ตั้งไว้แล้ว)</span>}
+                            💰 ราคาต่อลิตร {pricePerLiter && <span className="text-green-600 text-xs">(ดึงจากราคาประจำวัน)</span>}
                         </label>
                         <input
                             type="text"
@@ -649,6 +627,11 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-xl text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800"
                             inputMode="numeric"
                         />
+                        <p className="mt-2 text-xs text-gray-500">
+                            {paymentType === 'CASH' || paymentType === 'TRANSFER'
+                                ? `ใช้ราคาขายส่ง/สด ${formatCurrency(dailyPrices.wholesalePrice)} บาท`
+                                : `ใช้ราคาขายปลีก/เชื่อ ${formatCurrency(dailyPrices.retailPrice)} บาท`}
+                        </p>
                     </div>
                 </div>
 
@@ -699,7 +682,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                             </div>
                         </div>
                     ) : (
-                        <p className="text-sm text-gray-400 text-center py-3">ยังไม่มีสินค้า กดปุ่ม "เพิ่ม" เพื่อเลือก</p>
+                        <p className="text-sm text-gray-400 text-center py-3">ยังไม่มีสินค้า กดปุ่ม &quot;เพิ่ม&quot; เพื่อเลือก</p>
                     )}
                 </div>
 
@@ -875,4 +858,3 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
         </div>
     );
 }
-

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getEndOfDayBangkok, getStartOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
+import { requireStationAccessApi } from '@/lib/api-auth';
 
 // GET /api/station/[id]/shifts/history - Get shift history for a date
 export async function GET(
@@ -7,14 +9,15 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id: stationId } = await params;
-        const { searchParams } = new URL(request.url);
-        const dateStr = searchParams.get('date') || new Date().toISOString().split('T')[0];
+        const { id } = await params;
+        const stationId = id.startsWith('station-') ? id : `station-${id}`;
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
 
-        // Parse date and find dailyRecord
-        const [year, month, day] = dateStr.split('-').map(Number);
-        const startOfDay = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
-        const endOfDay = new Date(Date.UTC(year, month - 1, day, 23, 59, 59));
+        const { searchParams } = new URL(request.url);
+        const dateStr = searchParams.get('date') || getTodayBangkok();
+        const startOfDay = getStartOfDayBangkok(dateStr);
+        const endOfDay = getEndOfDayBangkok(dateStr);
 
         // Find daily record
         const dailyRecord = await prisma.dailyRecord.findFirst({

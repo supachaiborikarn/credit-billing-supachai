@@ -5,6 +5,7 @@ import {
     getWatcharaExternalDailySummary,
     shouldApplyWatcharaExternalToShift,
 } from '@/lib/operational-sales';
+import { listTransactionsForShift, summarizeShiftPayments } from '@/lib/shift-transaction-utils';
 
 /**
  * Calculate variance status based on absolute variance amount
@@ -114,40 +115,10 @@ export async function calculateForShift(shiftId: string): Promise<Reconciliation
     const expectedOtherAmount = 0; // TODO: Implement product sales calculation
 
     // 3. Get transactions for this shift's time period
-    const transactions = await prisma.transaction.findMany({
-        where: {
-            dailyRecordId: shift.dailyRecordId,
-            deletedAt: null,
-            isVoided: false,
-        },
-        select: {
-            amount: true,
-            paymentType: true
-        }
-    });
-
-    // Sum by payment type
-    let cashReceived = 0;
-    let creditReceived = 0;
-    let transferReceived = 0;
-
-    transactions.forEach(t => {
-        const amount = Number(t.amount);
-        switch (t.paymentType) {
-            case 'CASH':
-                cashReceived += amount;
-                break;
-            case 'CREDIT':
-            case 'BOX_TRUCK':
-            case 'OIL_TRUCK_SUPACHAI':
-                creditReceived += amount;
-                break;
-            case 'TRANSFER':
-            case 'CREDIT_CARD':
-                transferReceived += amount;
-                break;
-        }
-    });
+    const payments = summarizeShiftPayments(await listTransactionsForShift(shiftId));
+    let cashReceived = payments.cash;
+    let creditReceived = payments.credit;
+    let transferReceived = payments.transfer + payments.card;
 
     const dateKey = formatDateBangkok(shift.dailyRecord.date);
     const shouldApplyExternal = await shouldApplyWatcharaExternalToShift({

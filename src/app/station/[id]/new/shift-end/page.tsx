@@ -1,20 +1,21 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useCallback } from 'react';
 import {
     ArrowLeft,
     Fuel,
     Package,
     Wallet,
     CheckCircle,
-    Save,
     RefreshCw,
     AlertTriangle,
-    Lock
+    Lock,
+    Printer
 } from 'lucide-react';
 import Link from 'next/link';
 import { STATIONS } from '@/constants';
 import { ShiftAnomalyWarning, AnomalyData } from '@/components/ShiftAnomalyWarning';
+import { printDailyWorkReport } from '@/lib/daily-report-print';
 
 interface MeterData {
     nozzleNumber: number;
@@ -39,6 +40,9 @@ interface ProductData {
 
 interface CashData {
     cashExpected: number;
+    creditExpected: number;
+    cardExpected: number;
+    transferExpected: number;
     cashReceived: number;
     cardReceived: number;
     transferReceived: number;
@@ -72,6 +76,9 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [shift, setShift] = useState<ShiftInfo | null>(null);
+    const [reportDate, setReportDate] = useState('');
+    const [showCloseSuccess, setShowCloseSuccess] = useState(false);
+    const [printingDailyReport, setPrintingDailyReport] = useState(false);
 
     // Anomaly state
     const [showAnomalyModal, setShowAnomalyModal] = useState(false);
@@ -88,6 +95,9 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
     // Cash data
     const [cash, setCash] = useState<CashData>({
         cashExpected: 0,
+        creditExpected: 0,
+        cardExpected: 0,
+        transferExpected: 0,
         cashReceived: 0,
         cardReceived: 0,
         transferReceived: 0,
@@ -96,13 +106,9 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
         discounts: 0,
         discountNote: ''
     });
+    const isTankLoyStation = station?.id === 'station-1';
 
-    // Fetch station config and current shift data
-    useEffect(() => {
-        fetchShiftData();
-    }, [id]);
-
-    const fetchShiftData = async () => {
+    const fetchShiftData = useCallback(async () => {
         setLoading(true);
         try {
             // Fetch shift-end data (includes carry-over readings)
@@ -111,10 +117,12 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
 
             if (res.ok) {
                 const data = await res.json();
+                setReportDate(data.date || today);
+                const currentShift = data.shifts?.find((s: { status: string }) => s.status === 'OPEN') || data.shifts?.[data.shifts.length - 1];
+                const targetShiftId = currentShift?.id || null;
 
                 // Set shift info
-                if (data.shifts && data.shifts.length > 0) {
-                    const currentShift = data.shifts.find((s: { status: string }) => s.status === 'OPEN') || data.shifts[data.shifts.length - 1];
+                if (currentShift) {
                     setShift({
                         id: currentShift.id,
                         shiftNumber: currentShift.shiftNumber,
@@ -129,17 +137,21 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                 const carryOver = data.carryOverReadings || {};
 
                 setMeters(fuelConfig.map((fuel: { nozzle: number; name: string; price: number }) => {
-                    const existing = existingMeters.find((m: { nozzleNumber: number }) => m.nozzleNumber === fuel.nozzle);
+                    const existing = existingMeters.find((m: { shiftId: string; nozzleNumber: number }) =>
+                        m.shiftId === targetShiftId && m.nozzleNumber === fuel.nozzle
+                    );
                     // Use carry-over reading as startReading if no existing reading
                     const startReading = existing?.startReading || carryOver[fuel.nozzle] || 0;
+                    const endReading = Number(existing?.endReading || 0);
+                    const liters = endReading > Number(startReading) ? endReading - Number(startReading) : 0;
                     return {
                         nozzleNumber: fuel.nozzle,
                         fuelType: fuel.name,
                         price: fuel.price,
                         startReading: Number(startReading),
-                        endReading: existing?.endReading || 0,
-                        liters: 0,
-                        amount: 0
+                        endReading,
+                        liters,
+                        amount: liters * fuel.price
                     };
                 }));
 
@@ -160,15 +172,38 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                 // Calculate expected cash from transactions
                 const txns = data.transactions || [];
                 const cashTxns = txns.filter((t: { paymentType: string }) => t.paymentType === 'CASH');
-                const cashExpected = cashTxns.reduce((sum: number, t: { amount: number }) => sum + t.amount, 0);
-                setCash(prev => ({ ...prev, cashExpected }));
+                const cashExpected = cashTxns.reduce((sum: number, t: { amount: number }) => sum + Number(t.amount), 0);
+                const creditExpected = txns
+                    .filter((t: { paymentType: string }) => ['CREDIT', 'BOX_TRUCK', 'OIL_TRUCK_SUPACHAI'].includes(t.paymentType))
+                    .reduce((sum: number, t: { amount: number }) => sum + Number(t.amount), 0);
+                const cardExpected = txns
+                    .filter((t: { paymentType: string }) => t.paymentType === 'CREDIT_CARD')
+                    .reduce((sum: number, t: { amount: number }) => sum + Number(t.amount), 0);
+                const transferExpected = txns
+                    .filter((t: { paymentType: string }) => t.paymentType === 'TRANSFER')
+                    .reduce((sum: number, t: { amount: number }) => sum + Number(t.amount), 0);
+
+                setCash(prev => ({
+                    ...prev,
+                    cashExpected,
+                    creditExpected,
+                    cardExpected,
+                    transferExpected,
+                    cardReceived: cardExpected,
+                    transferReceived: transferExpected,
+                }));
             }
         } catch (error) {
             console.error('Error fetching shift data:', error);
         } finally {
             setLoading(false);
         }
-    };
+    }, [id]);
+
+    // Fetch station config and current shift data
+    useEffect(() => {
+        fetchShiftData();
+    }, [fetchShiftData]);
 
     // Update meter reading
     const updateMeter = (index: number, field: 'startReading' | 'endReading', value: number) => {
@@ -206,7 +241,13 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
     const totalMeterAmount = meters.reduce((sum, m) => sum + m.amount, 0);
     const totalProductAmount = products.reduce((sum, p) => sum + p.amount, 0);
     const totalExpected = totalMeterAmount + totalProductAmount;
-    const totalReceived = cash.cashReceived + cash.cardReceived + cash.transferReceived - cash.expenses - cash.discounts;
+    const totalReceived =
+        cash.cashReceived +
+        cash.creditExpected +
+        cash.cardReceived +
+        cash.transferReceived -
+        cash.expenses -
+        cash.discounts;
     const variance = totalExpected - totalReceived;
     const varianceStatus = Math.abs(variance) <= 200 ? 'GREEN' : Math.abs(variance) <= 500 ? 'YELLOW' : 'RED';
 
@@ -216,6 +257,49 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
 
     const formatNumber = (num: number) =>
         new Intl.NumberFormat('th-TH').format(num);
+
+    const formatReportDate = (dateStr: string) =>
+        new Date(`${dateStr}T00:00:00+07:00`).toLocaleDateString('th-TH', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+        });
+
+    const handleGoHome = () => {
+        window.location.href = `/station/${id}`;
+    };
+
+    const handlePrintDailyReport = async () => {
+        if (!reportDate || !station) {
+            alert('ไม่พบวันที่หรือข้อมูลสถานีสำหรับพิมพ์รายงาน');
+            return;
+        }
+
+        setPrintingDailyReport(true);
+        try {
+            const res = await fetch(`/api/station/${id}/daily?date=${reportDate}`);
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'ไม่สามารถดึงข้อมูลรายงานทั้งวันได้');
+            }
+
+            const opened = printDailyWorkReport({
+                stationName: station.name,
+                reportDate,
+                transactions: data.transactions || [],
+            });
+
+            if (!opened) {
+                alert('กรุณาอนุญาตให้เปิด popup เพื่อพิมพ์รายงาน');
+            }
+        } catch (error) {
+            console.error('Daily report print error:', error);
+            alert(error instanceof Error ? error.message : 'ไม่สามารถพิมพ์รายงานทั้งวันได้');
+        } finally {
+            setPrintingDailyReport(false);
+        }
+    };
 
     // Save shift end
     const handleSubmit = async () => {
@@ -232,7 +316,16 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
         // Check anomalies first (if not already checked)
         if (!showAnomalyModal && anomalies.length === 0) {
             try {
-                const anomalyRes = await fetch(`/api/gas-station/${id}/shifts/${shift.id}/anomalies`);
+                const anomalyRes = await fetch(`/api/gas-station/${id}/shifts/${shift.id}/anomalies`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        meters: meters.map((meter) => ({
+                            nozzleNumber: meter.nozzleNumber,
+                            soldQty: meter.liters,
+                        })),
+                    }),
+                });
                 if (anomalyRes.ok) {
                     const anomalyData = await anomalyRes.json();
                     if (anomalyData.hasAnomalies && anomalyData.anomalies?.length > 0) {
@@ -273,8 +366,13 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
             });
 
             if (res.ok) {
+                if (isTankLoyStation) {
+                    setShowCloseSuccess(true);
+                    return;
+                }
+
                 alert('✅ ปิดกะเรียบร้อย');
-                window.location.href = `/station/${id}`;
+                handleGoHome();
             } else {
                 const err = await res.json();
                 alert(err.error || 'เกิดข้อผิดพลาด');
@@ -312,6 +410,50 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+            {showCloseSuccess && isTankLoyStation && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-md rounded-2xl border border-emerald-500/30 bg-slate-900 p-6 shadow-2xl">
+                        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15">
+                            <CheckCircle className="text-emerald-400" size={28} />
+                        </div>
+                        <h2 className="text-center text-xl font-bold text-white">ปิดกะเรียบร้อย</h2>
+                        <p className="mt-2 text-center text-sm text-gray-300">
+                            กะ {shift?.shiftNumber || '-'} ของวันที่ {reportDate ? formatReportDate(reportDate) : '-'}
+                        </p>
+                        <p className="mt-2 text-center text-sm text-gray-400">
+                            สามารถพิมพ์รายงานสรุปการทำงานทั้งวันก่อนกลับหน้าหลักได้ทันที
+                        </p>
+
+                        <div className="mt-5 space-y-3">
+                            <button
+                                onClick={handlePrintDailyReport}
+                                disabled={printingDailyReport || !reportDate}
+                                className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {printingDailyReport ? (
+                                    <>
+                                        <RefreshCw size={18} className="animate-spin" />
+                                        กำลังเตรียมรายงาน...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Printer size={18} />
+                                        พิมพ์รายงานทั้งวัน
+                                    </>
+                                )}
+                            </button>
+
+                            <button
+                                onClick={handleGoHome}
+                                className="w-full rounded-xl border border-white/15 px-4 py-3 font-medium text-white transition hover:bg-white/10"
+                            >
+                                กลับหน้าหลัก
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Anomaly Warning Modal */}
             {showAnomalyModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -529,6 +671,14 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                                 </div>
                             </div>
 
+                            <div className="card-glass p-4 rounded-xl bg-violet-500/10">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-gray-300">เงินเชื่อตามระบบ</span>
+                                    <span className="text-violet-300 font-bold">{formatCurrency(cash.creditExpected)} ฿</span>
+                                </div>
+                                <p className="text-xs text-gray-400 mt-2">ระบบจะรวมเงินเชื่อเข้ายอดรับจริงให้อัตโนมัติ</p>
+                            </div>
+
                             {/* Cash Received */}
                             <div className="card-glass p-4 rounded-xl">
                                 <label className="text-sm text-gray-400 block mb-2">💵 เงินสดรับจริง</label>
@@ -551,6 +701,7 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-right text-lg font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     placeholder="0.00"
                                 />
+                                <p className="text-xs text-gray-500 mt-2">ตามระบบ {formatCurrency(cash.cardExpected)} ฿</p>
                             </div>
 
                             {/* Transfer */}
@@ -563,6 +714,7 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-right text-lg font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500"
                                     placeholder="0.00"
                                 />
+                                <p className="text-xs text-gray-500 mt-2">ตามระบบ {formatCurrency(cash.transferExpected)} ฿</p>
                             </div>
 
                             {/* Expenses */}
@@ -644,6 +796,10 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                                     <div className="flex justify-between">
                                         <span className="text-gray-400">เงินสด</span>
                                         <span className="text-white">{formatCurrency(cash.cashReceived)} ฿</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-400">เงินเชื่อ</span>
+                                        <span className="text-white">{formatCurrency(cash.creditExpected)} ฿</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-400">บัตรเครดิต</span>

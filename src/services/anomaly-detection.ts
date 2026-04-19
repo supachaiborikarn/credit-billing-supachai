@@ -23,6 +23,11 @@ export interface AnomalyCheckResult {
     requiresNote: boolean;
 }
 
+export interface SubmittedShiftMeter {
+    nozzleNumber: number;
+    soldQty: number;
+}
+
 const WARNING_THRESHOLD = 50;  // 50% ต่างจากค่าเฉลี่ย = WARNING
 const CRITICAL_THRESHOLD = 100; // 100% ต่างจากค่าเฉลี่ย = CRITICAL
 
@@ -81,6 +86,60 @@ export async function checkShiftAnomalies(shiftId: string): Promise<AnomalyCheck
     const anomalies: AnomalyCheckResult['anomalies'] = [];
 
     for (const meter of shift.meters) {
+        const soldQty = Number(meter.soldQty || 0);
+        if (soldQty <= 0) continue;
+
+        const averageQty = await getAverageSoldQty(
+            shift.dailyRecord.stationId,
+            meter.nozzleNumber,
+            7
+        );
+
+        if (averageQty === 0) continue;
+
+        const result = detectMeterAnomaly(soldQty, averageQty, WARNING_THRESHOLD);
+
+        if (result.isAnomaly && result.percentDiff !== undefined) {
+            const severity = Math.abs(result.percentDiff) >= CRITICAL_THRESHOLD
+                ? 'CRITICAL'
+                : 'WARNING';
+
+            anomalies.push({
+                nozzleNumber: meter.nozzleNumber,
+                soldQty,
+                averageQty,
+                percentDiff: result.percentDiff,
+                severity,
+                message: result.message || `ยอดผิดปกติ ${result.percentDiff.toFixed(0)}%`
+            });
+        }
+    }
+
+    return {
+        hasAnomalies: anomalies.length > 0,
+        anomalies,
+        requiresNote: anomalies.some(a => a.severity === 'CRITICAL')
+    };
+}
+
+export async function checkShiftAnomaliesFromMeters(
+    shiftId: string,
+    meters: SubmittedShiftMeter[]
+): Promise<AnomalyCheckResult> {
+    const shift = await prisma.shift.findUnique({
+        where: { id: shiftId },
+        include: {
+            dailyRecord: { select: { stationId: true } }
+        }
+    });
+
+    if (!shift) {
+        return { hasAnomalies: false, anomalies: [], requiresNote: false };
+    }
+
+    const anomalies: AnomalyCheckResult['anomalies'] = [];
+
+    for (const meter of meters) {
         const soldQty = Number(meter.soldQty || 0);
         if (soldQty <= 0) continue;
 

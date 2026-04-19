@@ -62,6 +62,7 @@ export async function POST(
         // Get or create daily record for FULL station
         const date = getStartOfDayBangkok(dateStr);
         let dailyRecordId: string | null = null;
+        let shiftId: string | null = null;
 
         const station = await prisma.station.findUnique({ where: { id: stationId } });
 
@@ -78,6 +79,23 @@ export async function POST(
                 }
             });
             dailyRecordId = dailyRecord.id;
+
+            const openShift = await prisma.shift.findFirst({
+                where: {
+                    dailyRecordId: dailyRecord.id,
+                    status: 'OPEN',
+                },
+                orderBy: { shiftNumber: 'desc' },
+            });
+
+            if (!openShift) {
+                return NextResponse.json(
+                    { error: 'กรุณาเปิดกะก่อนบันทึกรายการของแท๊งลอย' },
+                    { status: 400 }
+                );
+            }
+
+            shiftId = openShift.id;
         }
 
         // Find owner if provided
@@ -207,6 +225,7 @@ export async function POST(
                         productType: line.fuelType,
                         transferProofUrl: transferProofUrl || null,
                         recordedById: userId,
+                        shiftId,
                     }
                 });
                 results.push(transaction);

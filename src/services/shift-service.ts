@@ -14,6 +14,7 @@ import {
     getWatcharaExternalDailySummary,
     shouldApplyWatcharaExternalToShift,
 } from '@/lib/operational-sales';
+import { listTransactionsForShift, summarizeShiftPayments } from '@/lib/shift-transaction-utils';
 
 export type ShiftStatus = 'OPEN' | 'CLOSED' | 'LOCKED';
 export type VarianceStatus = 'GREEN' | 'YELLOW' | 'RED';
@@ -129,13 +130,10 @@ export async function calculateReconciliation(shiftId: string): Promise<Reconcil
         include: {
             meters: true,
             dailyRecord: {
-                include: {
-                    transactions: {
-                        where: {
-                            isVoided: false,
-                            deletedAt: null
-                        }
-                    }
+                select: {
+                    date: true,
+                    stationId: true,
+                    gasPrice: true,
                 }
             }
         }
@@ -156,19 +154,11 @@ export async function calculateReconciliation(shiftId: string): Promise<Reconcil
     const expectedOtherAmount = await calculateProductSales(shiftId);
 
     // คำนวณยอดรับจริงจาก transactions
-    const transactions = shift.dailyRecord?.transactions || [];
+    const payments = summarizeShiftPayments(await listTransactionsForShift(shiftId));
 
-    let cashReceived = transactions
-        .filter(t => t.paymentType === 'CASH')
-        .reduce((sum, t) => sum + Number(t.amount), 0);
-
-    let creditReceived = transactions
-        .filter(t => ['CREDIT', 'BOX_TRUCK', 'OIL_TRUCK_SUPACHAI'].includes(t.paymentType))
-        .reduce((sum, t) => sum + Number(t.amount), 0);
-
-    let transferReceived = transactions
-        .filter(t => ['TRANSFER', 'CREDIT_CARD'].includes(t.paymentType))
-        .reduce((sum, t) => sum + Number(t.amount), 0);
+    let cashReceived = payments.cash;
+    let creditReceived = payments.credit;
+    let transferReceived = payments.transfer + payments.card;
 
     const dateKey = shift.dailyRecord ? formatDateBangkok(shift.dailyRecord.date) : null;
     if (shift.dailyRecord && dateKey) {

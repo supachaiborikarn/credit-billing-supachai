@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { STATIONS, STATION_STAFF } from '@/constants';
-import { getStartOfDayBangkok, getEndOfDayBangkok } from '@/lib/date-utils';
+import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
 import { closeShift as closeShiftService, lockShift, validateCloseShift, calculateReconciliation } from '@/services/shift-service';
 import { auditShift } from '@/services/audit-service';
-import { getSessionUser } from '@/lib/auth-utils';
+import { requireStationAccessApi } from '@/lib/api-auth';
 
 export async function GET(
     request: Request,
@@ -12,6 +12,7 @@ export async function GET(
 ) {
     try {
         const { id } = await params;
+        const stationId = `station-${id}`;
         const stationIndex = parseInt(id) - 1;
         const stationConfig = STATIONS[stationIndex];
 
@@ -19,13 +20,14 @@ export async function GET(
             return NextResponse.json({ error: 'Station not found' }, { status: 404 });
         }
 
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
+
         const { searchParams } = new URL(request.url);
-        const dateParam = searchParams.get('date') || new Date().toISOString().split('T')[0];
+        const dateParam = searchParams.get('date') || getTodayBangkok();
 
         const startOfDay = getStartOfDayBangkok(dateParam);
         const endOfDay = getEndOfDayBangkok(dateParam);
-
-        const stationId = `station-${id}`;
 
         // Get daily record with shifts
         const dailyRecord = await prisma.dailyRecord.findFirst({
@@ -68,6 +70,7 @@ export async function POST(
 ) {
     try {
         const { id } = await params;
+        const stationId = `station-${id}`;
         const stationIndex = parseInt(id) - 1;
         const stationConfig = STATIONS[stationIndex];
 
@@ -75,17 +78,16 @@ export async function POST(
             return NextResponse.json({ error: 'Station not found' }, { status: 404 });
         }
 
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
+
         const body = await request.json();
         const { action, shiftId } = body;
-
-        const stationId = `station-${id}`;
-        const today = new Date().toISOString().split('T')[0];
+        const today = getTodayBangkok();
         const startOfDay = getStartOfDayBangkok(today);
         const endOfDay = getEndOfDayBangkok(today);
 
-        // Get user from session for staff tracking (using shared auth helper)
-        const sessionUser = await getSessionUser();
-        const userId = sessionUser?.id || null;
+        const userId = auth.user.id;
 
         // Get or create station
         await prisma.station.upsert({
@@ -174,7 +176,10 @@ export async function POST(
                     shiftNumber,
                     staffId: userId,
                     status: 'OPEN'
-                }
+                },
+                include: {
+                    staff: { select: { name: true } }
+                },
             });
 
             return NextResponse.json({
@@ -183,7 +188,7 @@ export async function POST(
                     id: newShift.id,
                     shiftNumber: newShift.shiftNumber,
                     status: newShift.status,
-                    staffName: newShift.staffId,
+                    staffName: newShift.staff?.name || null,
                     createdAt: newShift.createdAt
                 }
             });
@@ -194,9 +199,18 @@ export async function POST(
                 return NextResponse.json({ error: 'Shift ID required' }, { status: 400 });
             }
 
-            // Get user from session (using shared auth helper)
-            const sessionUser = await getSessionUser();
-            const userId = sessionUser?.id || 'system';
+            const targetShift = await prisma.shift.findUnique({
+                where: { id: shiftId },
+                include: {
+                    dailyRecord: {
+                        select: { stationId: true }
+                    }
+                }
+            });
+
+            if (!targetShift || targetShift.dailyRecord.stationId !== stationId) {
+                return NextResponse.json({ error: 'ไม่พบกะนี้ในสถานีนี้' }, { status: 404 });
+            }
 
             // Validate before closing
             const validation = await validateCloseShift(shiftId);
@@ -252,9 +266,18 @@ export async function POST(
                 return NextResponse.json({ error: 'Shift ID required' }, { status: 400 });
             }
 
-            // Get user from session (using shared auth helper)
-            const sessionUser = await getSessionUser();
-            const userId = sessionUser?.id || 'system';
+            const targetShift = await prisma.shift.findUnique({
+                where: { id: shiftId },
+                include: {
+                    dailyRecord: {
+                        select: { stationId: true }
+                    }
+                }
+            });
+
+            if (!targetShift || targetShift.dailyRecord.stationId !== stationId) {
+                return NextResponse.json({ error: 'ไม่พบกะนี้ในสถานีนี้' }, { status: 404 });
+            }
 
             const result = await lockShift(shiftId, userId);
 
