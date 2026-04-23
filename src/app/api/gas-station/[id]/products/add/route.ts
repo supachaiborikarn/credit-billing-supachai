@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireStationAccessApi } from '@/lib/api-auth';
+import { requireGasProductsEnabled, requireGasStationAccess } from '@/lib/gas/api-guards';
 
 // POST - Add product to inventory (receive stock)
 export async function POST(
@@ -9,9 +9,11 @@ export async function POST(
 ) {
     try {
         const { id } = await params;
-        const stationId = `station-${id}`;
-        const auth = await requireStationAccessApi(stationId);
+        const auth = await requireGasStationAccess(id);
         if (auth.response) return auth.response;
+        const productsDisabled = requireGasProductsEnabled(auth.station);
+        if (productsDisabled) return productsDisabled;
+        const stationId = auth.station.dbId;
 
         const body = await request.json();
         const { inventoryId, quantity, note, supplier, invoiceNo, costPrice } = body;

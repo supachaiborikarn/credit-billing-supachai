@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { STATIONS } from '@/constants';
-import { requireStationAccessApi } from '@/lib/api-auth';
+import { requireGasProductsEnabled, requireGasStationAccess } from '@/lib/gas/api-guards';
+import { normalizeGasPaymentType } from '@/lib/gas/payment-utils';
 
 export async function GET(
     request: Request,
@@ -9,24 +9,18 @@ export async function GET(
 ) {
     try {
         const { id } = await params;
-        const stationIndex = parseInt(id) - 1;
-        const stationConfig = STATIONS[stationIndex];
-
-        if (!stationConfig || stationConfig.type !== 'GAS') {
-            return NextResponse.json({ error: 'Gas station not found' }, { status: 404 });
-        }
-
-        // Get or create station with consistent ID
-        const stationId = `station-${id}`;
-        const auth = await requireStationAccessApi(stationId);
+        const auth = await requireGasStationAccess(id);
         if (auth.response) return auth.response;
+        const productsDisabled = requireGasProductsEnabled(auth.station);
+        if (productsDisabled) return productsDisabled;
+        const stationId = auth.station.dbId;
 
         const station = await prisma.station.upsert({
             where: { id: stationId },
-            update: {},
+            update: { hasProducts: true },
             create: {
                 id: stationId,
-                name: stationConfig.name,
+                name: auth.station.name,
                 type: 'GAS',
                 hasProducts: true,
                 gasPrice: 15.50,
@@ -66,27 +60,26 @@ export async function POST(
 ) {
     try {
         const { id } = await params;
-        const stationIndex = parseInt(id) - 1;
-        const stationConfig = STATIONS[stationIndex];
-
-        if (!stationConfig || stationConfig.type !== 'GAS') {
-            return NextResponse.json({ error: 'Gas station not found' }, { status: 404 });
-        }
-
-        const stationId = `station-${id}`;
-        const auth = await requireStationAccessApi(stationId);
+        const auth = await requireGasStationAccess(id);
         if (auth.response) return auth.response;
+        const productsDisabled = requireGasProductsEnabled(auth.station);
+        if (productsDisabled) return productsDisabled;
+        const stationId = auth.station.dbId;
 
         const body = await request.json();
         const { action, productId, quantity, alertLevel, paymentType } = body;
+        const normalizedPaymentType = normalizeGasPaymentType(paymentType || 'CASH');
+        if (!normalizedPaymentType) {
+            return NextResponse.json({ error: 'Invalid payment type' }, { status: 400 });
+        }
 
         // Get or create station with consistent ID
         const station = await prisma.station.upsert({
             where: { id: stationId },
-            update: {},
+            update: { hasProducts: true },
             create: {
                 id: stationId,
-                name: stationConfig.name,
+                name: auth.station.name,
                 type: 'GAS',
                 hasProducts: true,
                 gasPrice: 15.50,
@@ -186,7 +179,7 @@ export async function POST(
                     stationId: station.id,
                     quantity,
                     salePrice: inventory.product.salePrice,
-                    paymentType: paymentType || 'CASH',
+                    paymentType: normalizedPaymentType,
                 }
             });
 

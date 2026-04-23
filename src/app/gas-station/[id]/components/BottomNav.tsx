@@ -6,6 +6,7 @@ import { Home, Fuel, Package, Gauge, BarChart3 } from 'lucide-react';
 
 interface BottomNavProps {
     stationId: string;
+    hasProducts?: boolean;
 }
 
 const navItems = [
@@ -16,14 +17,17 @@ const navItems = [
     { href: 'summary', label: 'สรุป', icon: BarChart3 },
 ];
 
-export default function BottomNav({ stationId }: BottomNavProps) {
+export default function BottomNav({ stationId, hasProducts = false }: BottomNavProps) {
     const pathname = usePathname();
     const basePath = `/gas-station/${stationId}/new`;
+    const visibleNavItems = hasProducts
+        ? navItems
+        : navItems.filter((item) => item.href !== 'products');
 
     return (
         <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
             <div className="flex justify-around items-center h-16 max-w-lg mx-auto">
-                {navItems.map((item) => {
+                {visibleNavItems.map((item) => {
                     const href = `${basePath}/${item.href}`;
                     const isActive = pathname === href || pathname.startsWith(href + '/');
                     const Icon = item.icon;

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { cookies } from 'next/headers';
-import { resolveGasStation, getNonGasStationError } from '@/lib/gas/station-resolver';
+import { requireGasStationAccess, shiftBelongsToStation } from '@/lib/gas/api-guards';
 
 /**
  * POST /api/v2/gas/[stationId]/meters
@@ -14,23 +13,8 @@ export async function POST(
     try {
         const { stationId } = await params;
 
-        // Validate GAS station
-        const station = await resolveGasStation(stationId);
-        if (!station) {
-            return NextResponse.json(getNonGasStationError(), { status: 403 });
-        }
-
-        // Get user from session
-        const cookieStore = await cookies();
-        const sessionId = cookieStore.get('session')?.value;
-        let userId: string | null = null;
-
-        if (sessionId) {
-            const session = await prisma.session.findUnique({
-                where: { id: sessionId }
-            });
-            userId = session?.userId || null;
-        }
+        const auth = await requireGasStationAccess(stationId);
+        if (auth.response) return auth.response;
 
         const body = await request.json();
         const { shiftId, type, readings } = body;
@@ -55,6 +39,9 @@ export async function POST(
 
         if (!shift) {
             return NextResponse.json({ error: 'Shift not found' }, { status: 404 });
+        }
+        if (!shiftBelongsToStation(shift, auth.station)) {
+            return NextResponse.json({ error: 'Shift does not belong to this station' }, { status: 403 });
         }
 
         // Process each reading
@@ -107,7 +94,7 @@ export async function POST(
                         dailyRecordId: shift.dailyRecordId,
                         shiftId: shiftId,
                         nozzleNumber: nozzleNumber,
-                        capturedById: userId
+                        capturedById: auth.user.id
                     };
 
                     if (type === 'start') {
@@ -149,17 +136,26 @@ export async function GET(
     try {
         const { stationId } = await params;
 
-        // Validate GAS station
-        const station = await resolveGasStation(stationId);
-        if (!station) {
-            return NextResponse.json(getNonGasStationError(), { status: 403 });
-        }
+        const auth = await requireGasStationAccess(stationId);
+        if (auth.response) return auth.response;
 
         const { searchParams } = new URL(request.url);
         const shiftId = searchParams.get('shiftId');
 
         if (!shiftId) {
             return NextResponse.json({ error: 'shiftId required' }, { status: 400 });
+        }
+
+        const shift = await prisma.shift.findUnique({
+            where: { id: shiftId },
+            include: { dailyRecord: { select: { stationId: true } } }
+        });
+
+        if (!shift) {
+            return NextResponse.json({ error: 'Shift not found' }, { status: 404 });
+        }
+        if (!shiftBelongsToStation(shift, auth.station)) {
+            return NextResponse.json({ error: 'Shift does not belong to this station' }, { status: 403 });
         }
 
         const meters = await prisma.meterReading.findMany({

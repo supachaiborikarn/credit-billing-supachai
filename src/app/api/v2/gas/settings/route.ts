@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { cookies } from 'next/headers';
+import { requireAdminApi, requireApiSession } from '@/lib/api-auth';
 
 // Default settings
 const DEFAULT_SETTINGS: Record<string, string> = {
@@ -17,6 +17,9 @@ const DEFAULT_SETTINGS: Record<string, string> = {
  */
 export async function GET(request: NextRequest) {
     try {
+        const auth = await requireApiSession();
+        if (auth.response) return auth.response;
+
         const { searchParams } = new URL(request.url);
         const key = searchParams.get('key');
 
@@ -78,22 +81,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
     try {
-        // Verify admin session
-        const cookieStore = await cookies();
-        const sessionId = cookieStore.get('session')?.value;
-
-        if (!sessionId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        const session = await prisma.session.findUnique({
-            where: { id: sessionId },
-            include: { user: { select: { role: true } } }
-        });
-
-        if (!session || session.user.role !== 'ADMIN') {
-            return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-        }
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
 
         const body = await request.json();
         const { key, value } = body;

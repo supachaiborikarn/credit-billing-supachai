@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getTodayBangkok, getStartOfDayBangkokUTC, getEndOfDayBangkokUTC } from '@/lib/gas';
-import { resolveGasStation, getNonGasStationError } from '@/lib/gas/station-resolver';
-import { requireStationAccessApi } from '@/lib/api-auth';
+import { requireGasStationAccess } from '@/lib/gas/api-guards';
+import { addToGasPaymentSummary, normalizeGasPaymentType } from '@/lib/gas/payment-utils';
 
 /**
  * POST /api/v2/gas/[stationId]/sell
@@ -15,13 +15,9 @@ export async function POST(
     try {
         const { stationId } = await params;
 
-        // Validate GAS station
-        const station = await resolveGasStation(stationId);
-        if (!station) {
-            return NextResponse.json(getNonGasStationError(), { status: 403 });
-        }
-        const auth = await requireStationAccessApi(station.dbId);
+        const auth = await requireGasStationAccess(stationId);
         if (auth.response) return auth.response;
+        const { station } = auth;
 
         const body = await request.json();
         const {
@@ -32,7 +28,9 @@ export async function POST(
             ownerId,
             truckId,
             licensePlate,
-            billNo
+            billNo,
+            bookNo,
+            notes
         } = body;
 
         const userId = auth.user.id;
@@ -42,12 +40,13 @@ export async function POST(
             return NextResponse.json({ error: 'paymentType, liters, and amount are required' }, { status: 400 });
         }
 
-        if (!['CASH', 'CREDIT'].includes(paymentType)) {
+        const normalizedPaymentType = normalizeGasPaymentType(paymentType);
+        if (!normalizedPaymentType) {
             return NextResponse.json({ error: 'Invalid payment type' }, { status: 400 });
         }
 
         // For credit, require owner
-        if (paymentType === 'CREDIT' && !ownerId) {
+        if (normalizedPaymentType === 'CREDIT' && !ownerId) {
             return NextResponse.json({ error: 'ownerId is required for credit sales' }, { status: 400 });
         }
 
@@ -67,6 +66,7 @@ export async function POST(
             include: {
                 shifts: {
                     where: { status: 'OPEN' },
+                    orderBy: { createdAt: 'desc' },
                     take: 1
                 }
             }
@@ -86,15 +86,19 @@ export async function POST(
             data: {
                 stationId: station.dbId,
                 dailyRecordId: dailyRecord.id,
-                ownerId: paymentType === 'CREDIT' ? ownerId : null,
-                truckId: paymentType === 'CREDIT' ? truckId : null,
+                shiftId: currentShift.id,
+                ownerId: normalizedPaymentType === 'CREDIT' ? ownerId : null,
+                truckId: normalizedPaymentType === 'CREDIT' ? truckId : null,
                 licensePlate: licensePlate || null,
                 date: new Date(),
                 liters,
                 pricePerLiter: pricePerLiter || Number(dailyRecord.gasPrice) || 16.09,
                 amount,
-                paymentType,
+                paymentType: normalizedPaymentType,
+                productType: 'LPG',
+                billBookNo: bookNo || null,
                 billNo,
+                notes: notes || null,
                 recordedById: userId
             }
         });
@@ -121,13 +125,9 @@ export async function GET(
     try {
         const { stationId } = await params;
 
-        // Validate GAS station
-        const station = await resolveGasStation(stationId);
-        if (!station) {
-            return NextResponse.json(getNonGasStationError(), { status: 403 });
-        }
-        const auth = await requireStationAccessApi(station.dbId);
+        const auth = await requireGasStationAccess(stationId);
         if (auth.response) return auth.response;
+        const { station } = auth;
 
         const today = getTodayBangkok();
         const startOfDay = getStartOfDayBangkokUTC(today);
@@ -136,7 +136,7 @@ export async function GET(
         const transactions = await prisma.transaction.findMany({
             where: {
                 stationId: station.dbId,
-                createdAt: {
+                date: {
                     gte: startOfDay,
                     lte: endOfDay
                 }
@@ -164,11 +164,7 @@ export async function GET(
             summary.liters += Number(t.liters);
             summary.count++;
 
-            if (t.paymentType === 'CASH') {
-                summary.cash += amt;
-            } else if (t.paymentType === 'CREDIT') {
-                summary.credit += amt;
-            }
+            addToGasPaymentSummary(summary, t.paymentType, amt);
         }
 
         return NextResponse.json({
@@ -179,7 +175,11 @@ export async function GET(
                 amount: Number(t.amount),
                 ownerName: t.owner?.name || null,
                 licensePlate: t.licensePlate || null,
+                shiftId: t.shiftId,
+                bookNo: t.billBookNo,
+                billBookNo: t.billBookNo,
                 billNo: t.billNo,
+                notes: t.notes,
                 createdAt: t.createdAt
             })),
             summary

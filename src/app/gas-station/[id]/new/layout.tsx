@@ -32,7 +32,7 @@ export default function GasStationLayout({ children, params }: GasStationLayoutP
             </main>
 
             {/* Fixed bottom navigation */}
-            <BottomNav stationId={id} />
+            <BottomNav stationId={id} hasProducts={'hasProducts' in station && station.hasProducts === true} />
         </div>
     );
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveGasStation, getNonGasStationError } from '@/lib/gas/station-resolver';
+import { requireGasStationAccess } from '@/lib/gas/api-guards';
 
 /**
  * GET /api/v2/gas/[stationId]/info
@@ -12,11 +12,9 @@ export async function GET(
     try {
         const { stationId } = await params;
 
-        // Validate GAS station
-        const station = await resolveGasStation(stationId);
-        if (!station) {
-            return NextResponse.json(getNonGasStationError(), { status: 403 });
-        }
+        const auth = await requireGasStationAccess(stationId);
+        if (auth.response) return auth.response;
+        const { station } = auth;
 
         return NextResponse.json({
             station: {
@@ -31,4 +29,3 @@ export async function GET(
         return NextResponse.json({ error: 'Failed to fetch station' }, { status: 500 });
     }
 }
-

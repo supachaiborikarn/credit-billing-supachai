@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { HttpErrors, getErrorMessage } from '@/lib/api-error';
+import { requireGasStationAccess } from '@/lib/gas/api-guards';
 
 /**
  * GET /api/gas-station/[id]/shifts/[shiftId]/snapshot
@@ -19,7 +20,9 @@ export async function GET(
 ) {
     try {
         const { id, shiftId } = await params;
-        const stationId = `station-${id}`;
+        const auth = await requireGasStationAccess(id);
+        if (auth.response) return auth.response;
+        const stationId = auth.station.dbId;
 
         // Get shift with meters
         const shift = await prisma.shift.findUnique({
@@ -108,12 +111,12 @@ export async function GET(
             .filter(g => g.endPercentage !== null)
             .reduce((sum, g) => sum + (g.endPercentage || 0) * LITERS_PER_PERCENT, 0);
 
-        // Get transactions for this shift (filter by dailyRecordId since Transaction doesn't have shiftNumber)
-        // For now, get all transactions for the daily record
+        // Get transactions for this shift only.
         const transactions = await prisma.transaction.findMany({
             where: {
                 stationId,
                 dailyRecordId: shift.dailyRecordId,
+                shiftId: shift.id,
                 deletedAt: null,
             },
             include: {

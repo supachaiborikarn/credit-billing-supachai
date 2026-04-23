@@ -4,7 +4,7 @@
  * Functions for payment processing and shift reconciliation
  */
 
-export const PAYMENT_TYPES = ['CASH', 'CREDIT', 'CARD', 'TRANSFER'] as const;
+export const PAYMENT_TYPES = ['CASH', 'CREDIT', 'CREDIT_CARD', 'TRANSFER'] as const;
 export type PaymentType = typeof PAYMENT_TYPES[number];
 
 export interface PaymentTypeInfo {
@@ -27,8 +27,8 @@ export const PAYMENT_TYPE_INFO: Record<PaymentType, PaymentTypeInfo> = {
         icon: '📝',
         color: 'text-purple-400'
     },
-    CARD: {
-        type: 'CARD',
+    CREDIT_CARD: {
+        type: 'CREDIT_CARD',
         name: 'บัตรเครดิต',
         icon: '💳',
         color: 'text-blue-400'
@@ -40,6 +40,39 @@ export const PAYMENT_TYPE_INFO: Record<PaymentType, PaymentTypeInfo> = {
         color: 'text-cyan-400'
     }
 };
+
+export const LEGACY_CARD_PAYMENT_TYPE = 'CARD';
+
+export function normalizeGasPaymentType(value: unknown): PaymentType | null {
+    if (value === LEGACY_CARD_PAYMENT_TYPE) return 'CREDIT_CARD';
+    if (PAYMENT_TYPES.includes(value as PaymentType)) {
+        return value as PaymentType;
+    }
+    return null;
+}
+
+export function addToGasPaymentSummary(
+    summary: { cash: number; credit: number; card: number; transfer: number },
+    paymentType: unknown,
+    amount: number
+) {
+    const normalized = normalizeGasPaymentType(paymentType);
+
+    switch (normalized) {
+        case 'CASH':
+            summary.cash += amount;
+            break;
+        case 'CREDIT':
+            summary.credit += amount;
+            break;
+        case 'CREDIT_CARD':
+            summary.card += amount;
+            break;
+        case 'TRANSFER':
+            summary.transfer += amount;
+            break;
+    }
+}
 
 export interface ReconciliationData {
     cashReceived: number;

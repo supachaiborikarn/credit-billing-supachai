@@ -95,3 +95,26 @@
   - patch `api/station/[id]/transactions/[transactionId]` ให้ single GET/PUT รองรับ alias ของหน้าใหม่ (`bookNo`/`billBookNo`)
   - patch `simple-station/[id]/new/summary` ให้แก้ไขรายการด้วย field ถูกชุด, แนบ/ดูสลิปผ่าน `/api/upload/transfer-proof`, และพิมพ์ receipt ได้กับ credit-like payment types
   - patch `simple-station/[id]/new/sell` และ `summary` ให้แสดงทุก `PAYMENT_TYPES` แบบเดียวกับหน้าเก่า
+
+## 2026-04-21
+- 🔎 บันทึกผล audit เรื่องการรวมบิลกับระบบภายนอก
+  - อัปเดต `billing-system.md` ว่าใบวางบิลรวมและ invoice ยึด `ownerId` เป็นหลัก ไม่ได้ยึด `ownerName`
+  - บันทึกว่า legacy write routes บางตัว resolve ลูกค้าจาก `ownerName` แบบ `contains`, ขณะที่ GAS v2 route ใหม่บังคับ `ownerId`
+  - บันทึกผล live DB audit: CREDIT/BOX_TRUCK ที่มี `ownerName` แต่ไม่มี `ownerId` จำนวน `35/7066` รายการ, active owner name ซ้ำ exact `241` กลุ่ม, active owner code ซ้ำ exact `237` กลุ่ม, และ `venderCode` ของ active owner ยังว่างทั้งหมด
+  - สรุปว่าถ้าจะเชื่อม FuelStation หรือ external billing source ต้องมี stable customer mapping/key ใหม่ก่อน ไม่ควรรวมบิลจากชื่อ display หรือ customer code ปัจจุบันอย่างเดียว
+
+## 2026-04-23
+- 🔎 บันทึกผล audit ปั๊มแก๊สทั้ง 2 สาขา
+  - พบ UI/API ซ้อนกันระหว่าง `/gas-station/[id]/new` + legacy API กับ `/gas/[stationId]` + `/api/v2/gas`
+  - พบ `/gas/[stationId]/gauge` เรียก `/api/v2/gas/[stationId]/gauge` แต่ไม่มี route ทำให้บันทึกเกจปิดกะไม่ได้
+  - พบ GAS v2/legacy gaps: meters route ไม่มี station guard, close shift ไม่ verify station ownership, v2 sell ไม่ผูก `shiftId`, payment type `CARD` ไม่ตรง enum `CREDIT_CARD`, และ read/admin gas routes หลายตัวไม่มี auth guard
+  - ตรวจ DB จริงแบบ read-only: `station-5` มีกะ `OPEN` ค้าง 57 กะ, `station-6` ค้าง 13 กะ, และ station-5 config `hasProducts` ไม่ตรงกับ DB (`false`)
+- 🛠️ Implement GAS hardening ตาม audit
+  - เพิ่ม `/api/v2/gas/[stationId]/gauge`, helper guard กลาง `requireGasStationAccess`, station ownership checks ใน v2 meters/current/summary/close และ legacy shift/transaction/snapshot routes
+  - แก้ v2 sell/summary ให้ผูก `shiftId`, normalize `CARD -> CREDIT_CARD`, รองรับ `TRANSFER`, เก็บ `billBookNo`/`billNo`/`notes`, และ aggregate ครบทุก payment bucket
+  - เพิ่ม auth ให้ GAS v2 admin reports/settings และ legacy read routes ที่ audit เจอ
+  - จำกัดสินค้าเสริมเฉพาะ `station-5`, sync DB แล้วให้ `station-5.hasProducts=true` และ `station-6.hasProducts=false`
+  - เพิ่ม `/api/admin/gas/stale-shifts` สำหรับ preview/close กะค้างแบบมี confirmation + audit log และเพิ่ม tests สำหรับ payment/stale shift rules
+- ✅ ปิดกะ GAS ค้างใน DB จริงเพื่อเริ่มใหม่วันนี้
+  - ปิด `OPEN` shifts ครบ 70 กะ (`station-5` 57, `station-6` 13) และตรวจซ้ำแล้ว `remainingOpen=0`
+  - เติม end meter ที่ว่าง 16 จุดเป็นค่า start เดิม, ปิด daily records ที่ไม่มี open shift เหลือ 67 records, และสร้าง audit log ครบ 70 รายการ

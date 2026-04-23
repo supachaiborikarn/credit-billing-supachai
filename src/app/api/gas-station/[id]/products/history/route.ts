@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireGasProductsEnabled, requireGasStationAccess } from '@/lib/gas/api-guards';
 
 // GET - Get product transaction history (sales + receipts)
 export async function GET(
@@ -8,7 +9,11 @@ export async function GET(
 ) {
     try {
         const { id } = await params;
-        const stationId = `station-${id}`;
+        const auth = await requireGasStationAccess(id);
+        if (auth.response) return auth.response;
+        const productsDisabled = requireGasProductsEnabled(auth.station);
+        if (productsDisabled) return productsDisabled;
+        const stationId = auth.station.dbId;
 
         // Get sales
         const sales = await prisma.productSale.findMany({

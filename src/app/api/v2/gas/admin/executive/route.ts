@@ -1,11 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { STATIONS } from '@/constants';
 import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
+import { requireAdminApi } from '@/lib/api-auth';
 
 // GET: Executive Dashboard data
-export async function GET(request: NextRequest) {
+export async function GET() {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const gasStations = STATIONS.filter(s => s.type === 'GAS');
         const stationIds = gasStations.map(s => s.id);
 

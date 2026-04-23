@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { STATIONS } from '@/constants';
 import { HttpErrors, getErrorMessage } from '@/lib/api-error';
-import { getSessionWithError } from '@/lib/auth-utils';
 import { PaymentType } from '@prisma/client';
+import { requireGasStationAccess } from '@/lib/gas/api-guards';
 
 interface TransactionInput {
     date: string;
@@ -26,19 +25,8 @@ export async function POST(
 ) {
     try {
         const { id } = await params;
-        const stationIndex = parseInt(id) - 1;
-        const stationConfig = STATIONS[stationIndex];
-
-        if (!stationConfig || stationConfig.type !== 'GAS') {
-            return HttpErrors.notFound('Gas station not found');
-        }
-
-        // Get user from session (using shared auth helper)
-        const { user: sessionUser, error: authError } = await getSessionWithError();
-
-        if (!sessionUser || authError) {
-            return HttpErrors.unauthorized(authError || 'กรุณาเข้าสู่ระบบ');
-        }
+        const auth = await requireGasStationAccess(id);
+        if (auth.response) return auth.response;
 
         const body: TransactionInput = await request.json();
         const {
@@ -72,13 +60,13 @@ export async function POST(
         }
 
         // Get or create station with consistent ID
-        const stationId = `station-${id}`;
+        const stationId = auth.station.dbId;
         const station = await prisma.station.upsert({
             where: { id: stationId },
             update: {},
             create: {
                 id: stationId,
-                name: stationConfig.name,
+                name: auth.station.name,
                 type: 'GAS',
                 gasPrice: pricePerLiter || 15.50,
                 gasStockAlert: 1000,
@@ -107,6 +95,25 @@ export async function POST(
             });
         }
 
+        if (shiftId) {
+            const shift = await prisma.shift.findUnique({
+                where: { id: shiftId },
+                include: { dailyRecord: { select: { stationId: true } } }
+            });
+
+            if (!shift || shift.dailyRecord.stationId !== station.id) {
+                return NextResponse.json({ error: 'กะไม่ตรงกับสถานีนี้' }, { status: 403 });
+            }
+
+            if (shift.dailyRecordId !== dailyRecord.id) {
+                return HttpErrors.badRequest('กะไม่ตรงกับวันที่บันทึกรายการ');
+            }
+
+            if (shift.status !== 'OPEN') {
+                return HttpErrors.badRequest('ไม่สามารถเพิ่มรายการในกะที่ปิดแล้ว');
+            }
+        }
+
         // Find truck if license plate provided
         let truckId = null;
         if (licensePlate) {
@@ -131,7 +138,7 @@ export async function POST(
 
         // ===== CREDIT LIMIT CHECK =====
         if (resolvedOwnerId && ['CREDIT', 'BOX_TRUCK'].includes(paymentType)) {
-            const { checkCreditLimit, updateOwnerCredit } = await import('@/services/credit-service');
+            const { checkCreditLimit } = await import('@/services/credit-service');
             const creditCheck = await checkCreditLimit(resolvedOwnerId, amount);
 
             if (!creditCheck.allowed) {
@@ -178,7 +185,7 @@ export async function POST(
                 pricePerLiter: pricePerLiter ?? 0,
                 amount,
                 productType: productType || (paymentType === 'EXPENSE' ? 'EXPENSE' : 'LPG'),
-                recordedById: sessionUser.id,
+                recordedById: auth.user.id,
                 notes: notes || null,
                 shiftId: shiftId || null,  // NEW: link to shift
             }

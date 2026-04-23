@@ -106,12 +106,12 @@ export default function GasSummaryPage() {
 
     const getPaymentBadge = (type: string) => {
         const badges: Record<string, { bg: string; text: string; label: string }> = {
-            cash: { bg: 'bg-green-500/20', text: 'text-green-400', label: 'เงินสด' },
-            credit: { bg: 'bg-purple-500/20', text: 'text-purple-400', label: 'เชื่อ' },
-            card: { bg: 'bg-blue-500/20', text: 'text-blue-400', label: 'บัตร' },
-            transfer: { bg: 'bg-cyan-500/20', text: 'text-cyan-400', label: 'โอน' },
+            CASH: { bg: 'bg-green-500/20', text: 'text-green-400', label: 'เงินสด' },
+            CREDIT: { bg: 'bg-purple-500/20', text: 'text-purple-400', label: 'เชื่อ' },
+            CREDIT_CARD: { bg: 'bg-blue-500/20', text: 'text-blue-400', label: 'บัตร' },
+            TRANSFER: { bg: 'bg-cyan-500/20', text: 'text-cyan-400', label: 'โอน' },
         };
-        return badges[type] || badges.cash;
+        return badges[type] || badges.CASH;
     };
 
     if (loading) {
@@ -319,7 +319,7 @@ export default function GasSummaryPage() {
                                             {badge.label}
                                         </span>
                                         <div>
-                                            {tx.paymentType === 'credit' && tx.ownerName && (
+                                            {tx.paymentType === 'CREDIT' && tx.ownerName && (
                                                 <div className="text-sm font-medium">{tx.ownerName}</div>
                                             )}
                                             {tx.truckPlate && (

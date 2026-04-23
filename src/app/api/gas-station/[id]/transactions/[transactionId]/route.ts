@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { HttpErrors, getErrorMessage } from '@/lib/api-error';
-import { cookies } from 'next/headers';
+import { requireGasStationAccess } from '@/lib/gas/api-guards';
 
 export async function DELETE(
     request: NextRequest,
@@ -9,24 +9,9 @@ export async function DELETE(
 ) {
     try {
         const { id, transactionId } = await params;
-        const stationId = `station-${id}`;
-
-        // Get user from session with role
-        const cookieStore = await cookies();
-        const sessionId = cookieStore.get('session')?.value;
-
-        let userId = 'system';
-        let userRole = 'STAFF';
-        if (sessionId) {
-            const session = await prisma.session.findUnique({
-                where: { id: sessionId },
-                include: { user: { select: { id: true, role: true } } }
-            });
-            if (session) {
-                userId = session.userId;
-                userRole = session.user.role;
-            }
-        }
+        const auth = await requireGasStationAccess(id);
+        if (auth.response) return auth.response;
+        const stationId = auth.station.dbId;
 
         // Find the transaction with dailyRecord and shifts for Anti-Fraud check
         const transaction = await prisma.transaction.findFirst({
@@ -49,7 +34,7 @@ export async function DELETE(
         }
 
         // Anti-Fraud: Check if locked (Admin can bypass)
-        if (userRole !== 'ADMIN') {
+        if (auth.user.role !== 'ADMIN') {
             const closedShifts = transaction.dailyRecord?.shifts || [];
             if (closedShifts.length > 0) {
                 const lockedShift = closedShifts.find(s => s.status === 'LOCKED');
@@ -81,14 +66,14 @@ export async function DELETE(
                 deletedAt: new Date(),
                 isVoided: true,
                 voidedAt: new Date(),
-                voidedById: userId,
+                voidedById: auth.user.id,
             }
         });
 
         // Audit log
         await prisma.auditLog.create({
             data: {
-                userId,
+                userId: auth.user.id,
                 action: 'DELETE',
                 model: 'Transaction',
                 recordId: transactionId,

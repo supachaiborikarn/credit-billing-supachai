@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getStartOfDayBangkok, getEndOfDayBangkok } from '@/lib/date-utils';
+import { requireGasStationAccess } from '@/lib/gas/api-guards';
 
 export async function GET(
     request: Request,
@@ -8,7 +9,9 @@ export async function GET(
 ) {
     try {
         const { id } = await params;
-        const stationId = `station-${id}`;
+        const auth = await requireGasStationAccess(id);
+        if (auth.response) return auth.response;
+        const stationId = auth.station.dbId;
         const { searchParams } = new URL(request.url);
 
         // Get month and year (default to current month)

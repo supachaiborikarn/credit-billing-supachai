@@ -2,7 +2,9 @@
      push-hardening 2026-04-18 ปิด `/admin`, high-risk API, และ legacy write API auth gap ตาม static scan แล้ว;
      รอบเดียวกันยังแก้แท๊งลอยให้ใช้ shift-scoped transactions, anomaly preview จากค่าปัจจุบัน, flow ปิดกะเก่าที่ไม่ต้องพึ่ง admin route,
      เพิ่ม post-close daily report printing ที่ต้องอิง station-wide `/daily` แทน `/transactions`,
-     และ fix หน้าใหม่ของแท๊งลอยให้เชื่อมทั้ง daily price, transaction contract, receipt/slip flow กับ backend/source ชุดเดียวกับหน้าเก่า -->
+     และ fix หน้าใหม่ของแท๊งลอยให้เชื่อมทั้ง daily price, transaction contract, receipt/slip flow กับ backend/source ชุดเดียวกับหน้าเก่า;
+     audit ปั๊มแก๊ส 2026-04-23 พบ route/API ซ้อนกันและกะ GAS ค้างจำนวนมาก; hardening รอบเดียวกันเติม v2 gauge route,
+     auth/ownership guard, shift-scoped v2 sell/summary, payment type `CREDIT_CARD`, product guard เฉพาะ station-5, และ admin stale-shift cleanup tool -->
 
 # Bugs & Fixes
 
@@ -57,6 +59,33 @@
 - **ไฟล์ที่แก้**: `api/station/[id]/transactions`, `api/station/[id]/transactions/[transactionId]`, `simple-station/[id]/new/summary`, `simple-station/[id]/new/receipt`, `simple-station/[id]/new/sell`
 - **สถานะ**: ✅ แก้แล้ว
 
+## 🔎 Current Findings
+
+### Gas Station Audit (Apr 23, 2026)
+- **ปัญหา**: ระบบ GAS มี UI/API ซ้อนกัน 2 ชุด (`/gas-station/[id]/new/*` + legacy `/api/gas-station/[id]/*` และ `/gas/[stationId]/*` + `/api/v2/gas/*`) แต่ยังไม่เทียบ contract ให้จบ ทำให้ admin dashboard ลิงก์เข้า `/gas/[stationId]` ซึ่งมี flow บางส่วนยังใช้งานไม่ได้จริง
+- **จุดเสี่ยงหลัก**:
+  - `/gas/[stationId]/gauge` เรียก `/api/v2/gas/[stationId]/gauge` แต่ไม่มี route นี้ ทำให้บันทึกเกจปิดกะไม่ได้ และ `/api/v2/gas/[stationId]/shift/close` จะปิดกะไม่ผ่านเพราะหา end gauge ไม่ครบ
+  - `/api/v2/gas/[stationId]/meters` มี write route ที่ไม่เรียก `requireStationAccessApi` และไม่ verify ว่า `shiftId` อยู่ใน station ที่ request มา
+  - `/api/v2/gas/[stationId]/sell` ไม่ set `shiftId` ตอนสร้าง transaction, ไม่รองรับ `TRANSFER`/`CREDIT_CARD` ทั้งที่ UI แสดง 4 ประเภท, และใช้ payment type `CARD` ที่ไม่ตรงกับ Prisma enum `CREDIT_CARD`
+  - `/api/v2/gas/[stationId]/shift/close` รับ `shiftId` แล้วไม่ verify ว่า shift อยู่ใน `station.dbId`; เสี่ยงปิดกะข้ามสาขา
+  - route read/admin หลายตัวใน GAS ยังไม่มี auth guard เช่น v2 `info`/`summary`/`shift/current`, v2 admin dashboard/reports/gauge, legacy shift snapshot/monthly-balance/products history
+  - legacy `/api/gas-station/[id]/shifts` ยังไม่มี station access guard ใน GET/POST และ action `close` ไม่ใช้ `shiftId` จาก body ทำให้ปิดกะตาม date default แทนกะที่ผู้ใช้เลือก
+  - station-5 config ระบุ `hasProducts: true` แต่ DB จริงเป็น `hasProducts=false`; route product บางจุด upsert ด้วย `hasProducts:true` เฉพาะตอน create ไม่ sync row ที่มีอยู่
+- **ผล DB audit แบบ read-only**:
+  - `station-5` มีกะ `OPEN` ค้าง 57 กะ, เก่าสุดเปิด 2026-01-07, ล่าสุดเปิด 2026-04-23
+  - `station-6` มีกะ `OPEN` ค้าง 13 กะ, เก่าสุดเปิด 2026-01-11, ล่าสุดเปิด 2026-02-07
+  - 30 วันล่าสุด query หลักไม่พบ transaction/gauge ของทั้ง 2 สาขา ขณะที่มี daily/open shift บางส่วน แปลว่า reporting ปัจจุบันอาจไม่สะท้อนงานหน้าปั๊มจริง
+- **แก้ไขรอบ hardening**:
+  - เพิ่ม helper `requireGasStationAccess` สำหรับ resolver + station access guard และใช้กับ GAS v2/legacy route ที่ audit เจอ
+  - เติม `/api/v2/gas/[stationId]/gauge` สำหรับ GET/POST start/end gauge และผูกกับ `dailyRecordId`/`shiftNumber`
+  - ทำ v2 `sell` ให้ normalize `CARD` legacy เป็น `CREDIT_CARD`, รองรับ `TRANSFER`, บันทึก `shiftId`, `billBookNo`, `billNo`, `notes`, และให้ summary/sell aggregate ครบ cash/credit/card/transfer
+  - ทำ `meters`, `summary`, `shift/current`, `shift/close` เช็ค station ownership ของ `shiftId`; close shift ตรวจ end gauge จาก `dailyRecordId` แทน today-only
+  - เพิ่ม admin auth ให้ v2 GAS admin dashboard/reports/settings และ legacy read routes เช่น snapshot/monthly-balance/products history
+  - จำกัดสินค้าเสริมเฉพาะ station-5, sync DB แล้วให้ `station-5.hasProducts=true` และ `station-6.hasProducts=false`, และซ่อนเมนู products ของ station-6
+  - เพิ่ม `/api/admin/gas/stale-shifts` สำหรับ preview/force close กะ GAS ค้างแบบ admin-only, ต้อง confirm string, และสร้าง audit log ต่อ shift
+  - เพิ่ม tests `gas-station-hardening.test.ts` สำหรับ payment normalization และ stale-shift selection
+- **สถานะ**: ✅ hardening หลักแล้ว; 2026-04-23 ปิด GAS `OPEN` shifts ค้างจริงครบ 70 กะ (`station-5` 57, `station-6` 13) ผ่าน Prisma batch พร้อม audit log 70 รายการ เหลือ `remainingOpen=0`
+
 ## ⚠️ Known Gotchas
 1. **String vs Numeric Sort**: ทุก sort ที่เกี่ยวกับตัวเลข (book, number) ต้องใช้ parseInt
 2. **Neon Data Transfer**: free tier จำกัด 5GB/month → ระวัง polling ถี่เกินไป
@@ -68,6 +97,8 @@
 8. **Tank Loy Daily Print Path**: ถ้าต้องการ “รายงานทั้งวัน” ของแท๊งลอยหลังปิดกะ ให้ดึงจาก `/api/station/[id]/daily?date=...` หรือ source ที่เป็น station-wide daily data; ห้ามใช้ `/api/station/[id]/transactions` ตรงๆ เพราะ STAFF route นั้นกรอง `recordedById`
 9. **Tank Loy Daily Price Source**: ราคาน้ำมันประจำวันของหน้าใหม่ต้องใช้ `dailyRecord.retailPrice/wholesalePrice` ผ่าน `/api/station/[id]/daily` เท่านั้น; ห้ามเพิ่ม source แยกใน `localStorage` หรือ route เฉพาะอย่าง `/fuel-prices`
 10. **Tank Loy Transaction UI Contract**: ถ้าหน้าใหม่ของแท๊งลอยใช้ transaction data จาก station API ให้ preserve alias/shape ที่ UI ใช้ (`billBookNo` + `bookNo`, `date` + `createdAt`, `transferProofUrl`) และการแนบสลิปต้องวิ่งผ่าน `/api/upload/transfer-proof`; ห้ามอ้าง `/api/upload/slip` เพราะไม่มี route จริง
+11. **GAS Route Consolidation**: `/gas` v2 มี gauge/auth/shift/payment hardening แล้ว แต่ยังเป็น route stack แยกจาก `/gas-station/[id]/new`; งานต่อไปควรเลือก source of truth ระยะยาวก่อนเพิ่ม feature ใหญ่
+12. **GAS Stale Open Shifts**: กะ GAS ค้างเก่าถูกปิดจริงแล้วเมื่อ 2026-04-23 พร้อม audit log; งานต่อไปถ้าเจอกะค้างใหม่ให้ใช้ `/api/admin/gas/stale-shifts` เพื่อ preview/close แบบมี confirmation และ audit log
 
 ## Changelog
 - 2026-02-24: สร้างไฟล์ brain topic นี้จากประวัติ conversations
@@ -78,3 +109,6 @@
 - 2026-04-19: เพิ่ม flow หลังปิดกะแท๊งลอยให้พิมพ์รายงานสรุปทั้งวันได้ทันทีผ่าน success modal และ station-wide daily print helper
 - 2026-04-19: แก้หน้าใหม่ของแท๊งลอยให้ราคาน้ำมันประจำวันเชื่อมกับหน้าเก่าผ่าน `dailyRecord` ชุดเดียวกัน และเลิกพึ่ง `localStorage`/route `fuel-prices` ที่ไม่มีจริง
 - 2026-04-19: แก้ contract ของ transaction/slip flow ในหน้าใหม่แท๊งลอยให้ตรงกับ route เดิม, เพิ่ม `transferProofUrl` ใน list API, เปลี่ยนแนบสลิปให้ใช้ `/api/upload/transfer-proof`, และเปิด payment types/receipt flow ให้ครบแบบหน้าเก่า
+- 2026-04-23: audit ปั๊มแก๊สทั้ง 2 สาขา พบ route/API ซ้อนกัน, `/api/v2/gas/[stationId]/gauge` ขาด, auth/ownership gaps ใน GAS v2/legacy routes, payment type drift, transaction ไม่ผูก `shiftId` ใน v2 sell, station-5 `hasProducts` config/DB ไม่ตรง, และ DB จริงมีกะ GAS ค้างจำนวนมาก
+- 2026-04-23: implement GAS hardening ตาม audit: เพิ่ม v2 gauge route, helper guard กลาง, station ownership checks, v2 sell/summary shift scope, payment normalize `CREDIT_CARD`/`TRANSFER`, product guard เฉพาะ station-5 พร้อม sync DB, admin stale-shift cleanup endpoint, eslint ignore สำหรับ ad hoc scripts, และ tests เฉพาะ GAS
+- 2026-04-23: ปิด GAS `OPEN` shifts ค้างใน DB จริงครบ 70 กะ (`station-5` 57, `station-6` 13), เติม end meter ที่ว่าง 16 จุดด้วยค่า start เดิม, ปิด daily records ที่ไม่มี open shift เหลือ 67 records, และสร้าง audit log ครบ 70 รายการ

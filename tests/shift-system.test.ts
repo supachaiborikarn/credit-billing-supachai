@@ -12,7 +12,7 @@ interface MockTransaction {
     licensePlate: string | null;
     amount: number;
     liters: number;
-    paymentType: 'CASH' | 'CREDIT' | 'TRANSFER';
+    paymentType: 'CASH' | 'CREDIT' | 'TRANSFER' | 'CREDIT_CARD';
     date: Date;
 }
 
@@ -202,5 +202,10 @@ describe('Payment Type Handling', () => {
     it('should handle TRANSFER payment', () => {
         const tx = getMockTransaction({ paymentType: 'TRANSFER' });
         expect(tx.paymentType).toBe('TRANSFER');
+    });
+
+    it('should handle CREDIT_CARD payment', () => {
+        const tx = getMockTransaction({ paymentType: 'CREDIT_CARD' });
+        expect(tx.paymentType).toBe('CREDIT_CARD');
     });
 });

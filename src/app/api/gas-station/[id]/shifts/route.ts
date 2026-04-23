@@ -1,19 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { cookies } from 'next/headers';
 import { getStartOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
 import { HttpErrors, getErrorMessage } from '@/lib/api-error';
-import { resolveGasStation } from '@/lib/gas/station-resolver';
+import { requireAdminApi } from '@/lib/api-auth';
+import { requireGasStationAccess } from '@/lib/gas/api-guards';
 
 interface MeterInput {
     nozzleNumber: number;
     startReading: number;
-}
-
-interface ShiftInput {
-    shiftNumber: number;
-    meters?: MeterInput[];
-    dateStr?: string;
 }
 
 // GET shifts for a gas station by date
@@ -24,12 +18,9 @@ export async function GET(
     try {
         const { id } = await params;
 
-        // Use resolveGasStation for consistent station lookup
-        const resolvedStation = await resolveGasStation(id);
-        if (!resolvedStation) {
-            return HttpErrors.badRequest('Gas station not found');
-        }
-        const stationId = resolvedStation.dbId;
+        const auth = await requireGasStationAccess(id);
+        if (auth.response) return auth.response;
+        const stationId = auth.station.dbId;
 
         const { searchParams } = new URL(request.url);
         const dateStr = searchParams.get('date') || getTodayBangkok();
@@ -87,15 +78,12 @@ export async function POST(
     try {
         const { id } = await params;
 
-        // Use resolveGasStation for consistent station lookup
-        const resolvedStation = await resolveGasStation(id);
-        if (!resolvedStation) {
-            return HttpErrors.badRequest('Gas station not found');
-        }
-        const stationId = resolvedStation.dbId;
+        const auth = await requireGasStationAccess(id);
+        if (auth.response) return auth.response;
+        const stationId = auth.station.dbId;
 
         const body = await request.json();
-        const { shiftNumber: providedShiftNumber, meters, dateStr, action, staffName } = body;
+        const { shiftNumber: providedShiftNumber, meters, dateStr, action, shiftId } = body;
 
         // Handle action-based requests (from simplified UI)
         let shiftNumber = providedShiftNumber;
@@ -123,60 +111,66 @@ export async function POST(
         if (action === 'close') {
             // Handle close action
             const date = getStartOfDayBangkok(dateStr || getTodayBangkok());
-            const openShift = await prisma.shift.findFirst({
-                where: {
-                    dailyRecord: { stationId, date },
-                    status: 'OPEN'
-                },
-                include: {
-                    meters: true  // Include meters to update endReading
-                }
-            });
+            const openShift = shiftId
+                ? await prisma.shift.findUnique({
+                    where: { id: shiftId },
+                    include: {
+                        dailyRecord: { select: { stationId: true } },
+                        meters: true,
+                    }
+                })
+                : await prisma.shift.findFirst({
+                    where: {
+                        dailyRecord: { stationId, date },
+                        status: 'OPEN'
+                    },
+                    include: {
+                        dailyRecord: { select: { stationId: true } },
+                        meters: true
+                    }
+                });
+
+            if (openShift && openShift.dailyRecord.stationId !== stationId) {
+                return NextResponse.json({ error: 'กะไม่ตรงกับสถานีนี้' }, { status: 403 });
+            }
+
+            if (openShift && openShift.status !== 'OPEN') {
+                return HttpErrors.badRequest('กะนี้ไม่ได้เปิดอยู่');
+            }
 
             if (!openShift) {
                 return HttpErrors.badRequest('ไม่มีกะที่เปิดอยู่');
             }
 
-            // Update meter readings with endReading (if not already set)
-            // Set endReading = startReading if no sales were recorded on this nozzle
-            for (const meter of openShift.meters) {
-                if (meter.endReading === null) {
-                    await prisma.meterReading.update({
-                        where: { id: meter.id },
-                        data: {
-                            endReading: meter.startReading,  // Default to start (no sales)
-                            // soldQty will be 0 if no actual end reading was entered
-                        }
-                    });
+            const closedShift = await prisma.$transaction(async (tx) => {
+                for (const meter of openShift.meters) {
+                    if (meter.endReading === null) {
+                        await tx.meterReading.update({
+                            where: { id: meter.id },
+                            data: {
+                                endReading: meter.startReading,
+                                soldQty: 0,
+                            }
+                        });
+                    }
                 }
-            }
 
-            const closedShift = await prisma.shift.update({
-                where: { id: openShift.id },
-                data: { status: 'CLOSED', closedAt: new Date() }
-            });
-
-            // Get user for audit
-            const cookieStore = await cookies();
-            const sessionId = cookieStore.get('session')?.value;
-            let userId = 'system';
-            if (sessionId) {
-                const session = await prisma.session.findUnique({
-                    where: { id: sessionId },
-                    select: { userId: true }
+                const updatedShift = await tx.shift.update({
+                    where: { id: openShift.id },
+                    data: { status: 'CLOSED', closedAt: new Date(), closedById: auth.user.id }
                 });
-                if (session) userId = session.userId;
-            }
 
-            // Audit log
-            await prisma.auditLog.create({
-                data: {
-                    userId,
-                    action: 'CLOSE',
-                    model: 'Shift',
-                    recordId: closedShift.id,
-                    newData: { closedAt: new Date().toISOString() }
-                }
+                await tx.auditLog.create({
+                    data: {
+                        userId: auth.user.id,
+                        action: 'CLOSE',
+                        model: 'Shift',
+                        recordId: updatedShift.id,
+                        newData: { closedAt: new Date().toISOString(), source: 'gas-station-shifts' }
+                    }
+                });
+
+                return updatedShift;
             });
 
             return NextResponse.json({
@@ -190,49 +184,57 @@ export async function POST(
         }
 
         if (action === 'lock') {
+            const adminAuth = await requireAdminApi();
+            if (adminAuth.response) return adminAuth.response;
+
             // Handle lock action (Admin only - ล็อกกะถาวร)
             const date = getStartOfDayBangkok(dateStr || getTodayBangkok());
-            const closedShift = await prisma.shift.findFirst({
-                where: {
-                    dailyRecord: { stationId, date },
-                    status: 'CLOSED'
-                }
-            });
+            const closedShift = shiftId
+                ? await prisma.shift.findUnique({
+                    where: { id: shiftId },
+                    include: { dailyRecord: { select: { stationId: true } } }
+                })
+                : await prisma.shift.findFirst({
+                    where: {
+                        dailyRecord: { stationId, date },
+                        status: 'CLOSED'
+                    },
+                    include: { dailyRecord: { select: { stationId: true } } }
+                });
 
             if (!closedShift) {
                 return HttpErrors.badRequest('ไม่มีกะที่ปิดแล้ว');
             }
 
-            // Get user for audit
-            const cookieStore = await cookies();
-            const sessionId = cookieStore.get('session')?.value;
-            let userId = 'system';
-            if (sessionId) {
-                const session = await prisma.session.findUnique({
-                    where: { id: sessionId },
-                    select: { userId: true }
-                });
-                if (session) userId = session.userId;
+            if (closedShift.dailyRecord.stationId !== stationId) {
+                return NextResponse.json({ error: 'กะไม่ตรงกับสถานีนี้' }, { status: 403 });
             }
 
-            const lockedShift = await prisma.shift.update({
-                where: { id: closedShift.id },
-                data: {
-                    status: 'LOCKED',
-                    lockedAt: new Date(),
-                    lockedById: userId
-                }
-            });
+            if (closedShift.status !== 'CLOSED') {
+                return HttpErrors.badRequest('กะนี้ยังไม่ได้ปิด');
+            }
 
-            // Audit log
-            await prisma.auditLog.create({
-                data: {
-                    userId,
-                    action: 'LOCK',
-                    model: 'Shift',
-                    recordId: lockedShift.id,
-                    newData: { lockedAt: new Date().toISOString() }
-                }
+            const lockedShift = await prisma.$transaction(async (tx) => {
+                const updatedShift = await tx.shift.update({
+                    where: { id: closedShift.id },
+                    data: {
+                        status: 'LOCKED',
+                        lockedAt: new Date(),
+                        lockedById: adminAuth.user.id
+                    }
+                });
+
+                await tx.auditLog.create({
+                    data: {
+                        userId: adminAuth.user.id,
+                        action: 'LOCK',
+                        model: 'Shift',
+                        recordId: updatedShift.id,
+                        newData: { lockedAt: new Date().toISOString(), source: 'gas-station-shifts' }
+                    }
+                });
+
+                return updatedShift;
             });
 
             return NextResponse.json({
@@ -248,19 +250,6 @@ export async function POST(
 
         if (!shiftNumber || ![1, 2].includes(shiftNumber)) {
             return HttpErrors.badRequest('กรุณาระบุกะ (1 = กะเช้า, 2 = กะบ่าย)');
-        }
-
-        // Get user from session
-        const cookieStore = await cookies();
-        const sessionId = cookieStore.get('session')?.value;
-        let staffId: string | null = null;
-
-        if (sessionId) {
-            const session = await prisma.session.findUnique({
-                where: { id: sessionId },
-                select: { userId: true }
-            });
-            if (session) staffId = session.userId;
         }
 
         const date = getStartOfDayBangkok(dateStr || getTodayBangkok());
@@ -292,7 +281,7 @@ export async function POST(
             data: {
                 dailyRecordId: dailyRecord.id,
                 shiftNumber,
-                staffId,
+                staffId: auth.user.id,
                 status: 'OPEN',
                 meters: {
                     create: (meters || []).map((m: MeterInput) => ({

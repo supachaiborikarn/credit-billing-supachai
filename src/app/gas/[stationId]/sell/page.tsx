@@ -13,9 +13,8 @@ import {
     AlertCircle,
     ArrowLeft
 } from 'lucide-react';
-import { PAYMENT_TYPE_INFO, formatCurrency, parseCurrency } from '@/lib/gas';
+import { PAYMENT_TYPES, PAYMENT_TYPE_INFO, formatCurrency, type PaymentType } from '@/lib/gas';
 
-type PaymentType = 'CASH' | 'CREDIT' | 'CARD' | 'TRANSFER';
 
 interface Owner {
     id: string;
@@ -243,7 +242,7 @@ export default function SellPage() {
             <div className="bg-[#1a1a24] rounded-xl p-4 mb-4 border border-white/10">
                 <label className="block text-sm text-gray-400 mb-3">ประเภทการชำระ</label>
                 <div className="grid grid-cols-4 gap-2">
-                    {(['CASH', 'CREDIT', 'CARD', 'TRANSFER'] as PaymentType[]).map((type) => {
+                    {PAYMENT_TYPES.map((type) => {
                         const info = PAYMENT_TYPE_INFO[type];
                         const isSelected = paymentType === type;
                         return (
@@ -257,7 +256,7 @@ export default function SellPage() {
                             >
                                 {type === 'CASH' && <Banknote size={20} />}
                                 {type === 'CREDIT' && <FuelIcon size={20} />}
-                                {type === 'CARD' && <CreditCard size={20} />}
+                                {type === 'CREDIT_CARD' && <CreditCard size={20} />}
                                 {type === 'TRANSFER' && <Smartphone size={20} />}
                                 <span className="text-xs">{info.name}</span>
                             </button>

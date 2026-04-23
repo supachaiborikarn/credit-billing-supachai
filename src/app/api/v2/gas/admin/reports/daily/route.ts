@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { STATIONS } from '@/constants';
+import { requireAdminApi } from '@/lib/api-auth';
 
 /**
  * GET /api/v2/gas/admin/reports/daily
@@ -8,6 +9,9 @@ import { STATIONS } from '@/constants';
  */
 export async function GET(request: NextRequest) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const { searchParams } = new URL(request.url);
         const from = searchParams.get('from');
         const to = searchParams.get('to');

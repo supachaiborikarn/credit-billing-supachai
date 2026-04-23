@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { STATIONS } from '@/constants';
+import { requireAdminApi } from '@/lib/api-auth';
 
 /**
  * GET /api/v2/gas/admin/reports/shift
@@ -8,6 +9,9 @@ import { STATIONS } from '@/constants';
  */
 export async function GET(request: NextRequest) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const { searchParams } = new URL(request.url);
         const from = searchParams.get('from');
         const to = searchParams.get('to');
@@ -19,13 +23,9 @@ export async function GET(request: NextRequest) {
         const toDate = to ? new Date(to + 'T23:59:59+07:00') : new Date();
 
         // Get GAS station IDs only
-        const gasStationIds: string[] = [];
-        for (const station of STATIONS) {
-            if (station.type === 'GAS' && 'aliases' in station) {
-                const aliases = station.aliases as readonly string[];
-                if (aliases[0]) gasStationIds.push(aliases[0]);
-            }
-        }
+        const gasStationIds = STATIONS
+            .filter((station) => station.type === 'GAS')
+            .map((station) => station.id);
 
         // Filter by stationId if provided
         const stationIds = stationIdFilter && stationIdFilter !== 'all'

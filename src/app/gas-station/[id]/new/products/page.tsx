@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { ArrowLeft, Plus, Minus, Package, History, Search, ShoppingCart, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowLeft, Plus, Package, History, Search, ShoppingCart, TrendingUp, TrendingDown } from 'lucide-react';
 import { STATIONS } from '@/constants';
 import Link from 'next/link';
 
@@ -60,7 +60,7 @@ export default function GasStationProductsPage({ params }: { params: Promise<{ i
             const res = await fetch(`/api/gas-station/${id}/products`);
             if (res.ok) {
                 const data = await res.json();
-                setInventory(data.inventory || []);
+                setInventory(data.inventory || data || []);
             }
         } catch (error) {
             console.error('Error fetching inventory:', error);
@@ -179,6 +179,27 @@ export default function GasStationProductsPage({ params }: { params: Promise<{ i
 
     if (!station) {
         return <div className="p-4 text-gray-500">ไม่พบสถานี</div>;
+    }
+
+    if (!('hasProducts' in station) || station.hasProducts !== true) {
+        return (
+            <div className="min-h-screen bg-gray-100">
+                <header className="bg-white shadow-sm sticky top-0 z-40">
+                    <div className="px-4 py-3 flex items-center gap-3">
+                        <Link href={`/gas-station/${id}/new/home`} className="p-1">
+                            <ArrowLeft size={24} className="text-gray-700" />
+                        </Link>
+                        <h1 className="font-bold text-gray-800 text-lg">สินค้า/สต็อก</h1>
+                    </div>
+                </header>
+                <div className="p-4">
+                    <div className="bg-white rounded-2xl p-8 text-center">
+                        <Package size={48} className="mx-auto text-gray-300 mb-3" />
+                        <p className="text-gray-500">สาขานี้ไม่ได้เปิดใช้งานสินค้าเสริม</p>
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     return (

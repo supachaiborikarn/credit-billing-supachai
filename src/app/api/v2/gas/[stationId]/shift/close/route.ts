@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getTodayBangkok, getStartOfDayBangkokUTC, getEndOfDayBangkokUTC } from '@/lib/gas';
 import { resolveGasStation, getNonGasStationError } from '@/lib/gas/station-resolver';
 import { requireStationAccessApi } from '@/lib/api-auth';
+import { shiftBelongsToStation } from '@/lib/gas/api-guards';
 
 /**
  * POST /api/v2/gas/[stationId]/shift/close
@@ -43,6 +43,9 @@ export async function POST(
         if (!shift) {
             return NextResponse.json({ error: 'Shift not found' }, { status: 404 });
         }
+        if (!shiftBelongsToStation(shift, station)) {
+            return NextResponse.json({ error: 'Shift does not belong to this station' }, { status: 403 });
+        }
 
         if (shift.status !== 'OPEN') {
             return NextResponse.json({ error: 'Shift is not open' }, { status: 400 });
@@ -57,19 +60,12 @@ export async function POST(
         }
 
         // Check gauge end readings exist
-        const today = getTodayBangkok();
-        const startOfDay = getStartOfDayBangkokUTC(today);
-        const endOfDay = getEndOfDayBangkokUTC(today);
-
         const endGaugeCount = await prisma.gaugeReading.count({
             where: {
                 stationId: station.dbId,
+                dailyRecordId: shift.dailyRecordId,
                 shiftNumber: shift.shiftNumber,
-                notes: 'end',
-                date: {
-                    gte: startOfDay,
-                    lte: endOfDay
-                }
+                notes: 'end'
             }
         });
 
@@ -90,9 +86,13 @@ export async function POST(
 
         // Create or update reconciliation
         const { cashReceived, creditReceived, cardReceived, transferReceived, expectedOtherAmount = 0, varianceNote } = reconciliation || {};
+        const combinedTransferReceived = (transferReceived || 0) + (cardReceived || 0);
+        const normalizedVarianceNote = cardReceived
+            ? [varianceNote, `cardReceived=${cardReceived}`].filter(Boolean).join(' | ')
+            : varianceNote;
 
         const totalExpected = expectedFuelAmount + (expectedOtherAmount || 0);
-        const totalReceived = (cashReceived || 0) + (creditReceived || 0) + (cardReceived || 0) + (transferReceived || 0);
+        const totalReceived = (cashReceived || 0) + (creditReceived || 0) + combinedTransferReceived;
         const variance = totalReceived - totalExpected;
 
         // Determine variance status
@@ -111,7 +111,7 @@ export async function POST(
                 totalExpected,
                 cashReceived: cashReceived || 0,
                 creditReceived: creditReceived || 0,
-                transferReceived: transferReceived || 0,
+                transferReceived: combinedTransferReceived,
                 totalReceived,
                 variance,
                 varianceStatus
@@ -123,7 +123,7 @@ export async function POST(
                 totalExpected,
                 cashReceived: cashReceived || 0,
                 creditReceived: creditReceived || 0,
-                transferReceived: transferReceived || 0,
+                transferReceived: combinedTransferReceived,
                 totalReceived,
                 variance,
                 varianceStatus
@@ -137,7 +137,7 @@ export async function POST(
                 status: 'CLOSED',
                 closedAt: new Date(),
                 closedById: userId,
-                varianceNote: varianceNote || null
+                varianceNote: normalizedVarianceNote || null
             }
         });
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getTodayBangkok, getStartOfDayBangkokUTC, getEndOfDayBangkokUTC } from '@/lib/gas';
-import { resolveGasStation, getNonGasStationError } from '@/lib/gas/station-resolver';
+import { requireGasStationAccess } from '@/lib/gas/api-guards';
 
 /**
  * GET /api/v2/gas/[stationId]/shift/current
@@ -14,11 +14,9 @@ export async function GET(
     try {
         const { stationId } = await params;
 
-        // Validate GAS station
-        const station = await resolveGasStation(stationId);
-        if (!station) {
-            return NextResponse.json(getNonGasStationError(), { status: 403 });
-        }
+        const auth = await requireGasStationAccess(stationId);
+        if (auth.response) return auth.response;
+        const { station } = auth;
 
         const today = getTodayBangkok();
         const startOfDay = getStartOfDayBangkokUTC(today);

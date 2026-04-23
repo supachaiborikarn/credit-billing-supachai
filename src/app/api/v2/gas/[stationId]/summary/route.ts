@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getTodayBangkok, getStartOfDayBangkokUTC, getEndOfDayBangkokUTC } from '@/lib/gas';
-import { resolveGasStation, getNonGasStationError } from '@/lib/gas/station-resolver';
+import { requireGasStationAccess } from '@/lib/gas/api-guards';
+import { addToGasPaymentSummary } from '@/lib/gas/payment-utils';
 
 /**
  * GET /api/v2/gas/[stationId]/summary
@@ -14,11 +15,9 @@ export async function GET(
     try {
         const { stationId } = await params;
 
-        // Validate GAS station
-        const station = await resolveGasStation(stationId);
-        if (!station) {
-            return NextResponse.json(getNonGasStationError(), { status: 403 });
-        }
+        const auth = await requireGasStationAccess(stationId);
+        if (auth.response) return auth.response;
+        const { station } = auth;
 
         const { searchParams } = new URL(request.url);
         const detailed = searchParams.get('detailed') === 'true';
@@ -44,7 +43,8 @@ export async function GET(
                         staff: { select: { name: true } },
                         meters: true,
                         reconciliation: true
-                    }
+                    },
+                    where: { status: 'OPEN' }
                 }
             }
         });
@@ -54,21 +54,30 @@ export async function GET(
                 shift: null,
                 sales: { cash: 0, credit: 0, card: 0, transfer: 0, total: 0, transactionCount: 0, liters: 0 },
                 gauge: { tank1: null, tank2: null, tank3: null, average: 0 },
+                meters: [],
+                transactions: [],
                 alerts: []
             });
         }
 
         const shift = dailyRecord.shifts[0];
 
-        // Get today's transactions
+        // Get current-shift transactions when a shift is open; fall back to the day for empty state.
         const transactions = await prisma.transaction.findMany({
             where: {
                 stationId: station.dbId,
-                createdAt: {
+                ...(shift ? { shiftId: shift.id } : {}),
+                date: {
                     gte: startOfDay,
                     lte: endOfDay
-                }
-            }
+                },
+                deletedAt: null,
+                isVoided: false
+            },
+            include: {
+                owner: { select: { name: true } }
+            },
+            orderBy: { date: 'desc' }
         });
 
         // Aggregate sales
@@ -87,11 +96,7 @@ export async function GET(
             sales.total += amt;
             sales.liters += Number(t.liters);
 
-            if (t.paymentType === 'CASH') {
-                sales.cash += amt;
-            } else if (t.paymentType === 'CREDIT') {
-                sales.credit += amt;
-            }
+            addToGasPaymentSummary(sales, t.paymentType, amt);
         }
 
         // Get latest gauge readings
@@ -168,9 +173,35 @@ export async function GET(
             }
 
             response.shift = shiftData;
+            response.meters = shift.meters.map(m => {
+                const soldQty = m.soldQty
+                    ? Number(m.soldQty)
+                    : (m.startReading && m.endReading ? Number(m.endReading) - Number(m.startReading) : 0);
+
+                return {
+                    nozzle: m.nozzleNumber,
+                    nozzleNumber: m.nozzleNumber,
+                    startReading: m.startReading ? Number(m.startReading) : null,
+                    endReading: m.endReading ? Number(m.endReading) : null,
+                    liters: soldQty,
+                    amount: soldQty * Number(dailyRecord.gasPrice || 16.09)
+                };
+            });
         } else {
             response.shift = null;
+            response.meters = [];
         }
+
+        response.transactions = transactions.map(t => ({
+            id: t.id,
+            paymentType: t.paymentType,
+            amount: Number(t.amount),
+            liters: Number(t.liters),
+            ownerName: t.owner?.name || t.ownerName || null,
+            truckPlate: t.licensePlate || null,
+            licensePlate: t.licensePlate || null,
+            createdAt: t.createdAt
+        }));
 
         return NextResponse.json(response);
     } catch (error) {
