@@ -129,3 +129,13 @@
   - patch `api/v2/gas/[stationId]/shift/open` ให้ใช้ `prisma.$transaction`, seed `dailyRecord.gasPrice` จากค่า default จริงของ station/settings, และ validate meter/gauge ให้ครบทุกหัวจ่าย/ทุกถัง
   - patch `api/v2/gas/[stationId]/meters`, `gauge`, และ `shift/current` ให้บล็อก start baseline edit หลังมี sale/end/reconciliation แล้ว พร้อมทำให้หน้า `/gas/[stationId]/meters` และ `/gauge` แสดงสถานะล็อกตรงกับ backend
   - เพิ่ม tests `tests/gas-v2-routes.test.ts` และขยาย `gas-station-hardening.test.ts` เพื่อครอบ price source, atomic open, payload validation, และ baseline immutability
+- 📊 ขยาย GAS admin analytics/reporting ให้ใช้ source เดียวกัน
+  - เพิ่ม `src/lib/gas/admin-analytics.ts` สำหรับรวม shift/day facts, map transaction เข้ากะ, normalize station aliases, และ parse/build `cardReceived` ใน `varianceNote`
+  - patch `api/v2/gas/admin/reports/daily`, `reports/shift`, `reconciliation`, `executive` ให้ใช้ fact layer เดียวกันแทนการคำนวณแยก route ต่อ route
+  - เพิ่ม `PUT /api/v2/gas/admin/reconciliation/[shiftId]` ให้หน้า shift report แก้ยอด received ได้จริง พร้อมเก็บ `cardReceived` อย่างสอดคล้องกับ schema ปัจจุบัน
+  - อัปเดตหน้า admin daily/shift/reconciliation/executive ให้โชว์ payment mix, received vs sales, avg ticket, liters variance, และ station/day breakdown เพิ่มขึ้น
+- 📈 ต่อยอด GAS admin analytics ให้ actionable มากขึ้น
+  - เพิ่ม rollup `staff` และ `nozzle` ใน fact layer เพื่อใช้ดู top performer และ throughput ต่อหัวจ่าย
+  - ขยาย executive dashboard ให้แสดง inventory runout (`litersRemaining`, `daysToEmpty`), top staff/nozzle, และ action alerts เช่น low stock, repeated variance, sales drop, และ liters drift
+  - patch `api/v2/gas/admin/reports/meters` และหน้า meters report ให้ใช้ fact layer เดียวกัน พร้อมแสดง transaction liters, liters variance, actual sales, และ transaction count
+  - เพิ่ม tests ใน `tests/gas-admin-analytics.test.ts` เพื่อกัน regression ของ staff/nozzle rollups

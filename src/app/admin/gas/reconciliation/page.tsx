@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2, Scale, Search, Download, Check, AlertTriangle, Minus } from 'lucide-react';
+import { Loader2, Scale, Search, Download, Check, AlertTriangle } from 'lucide-react';
 import { formatCurrency, getTodayBangkok } from '@/lib/gas';
 
 interface ReconciliationRecord {
@@ -13,14 +13,59 @@ interface ReconciliationRecord {
     shiftNumber: number;
     staffName: string | null;
     meterSales: number;
+    meterLiters: number;
+    transactionLiters: number;
+    litersVariance: number;
+    transactionCount: number;
     cashExpected: number;
     cashReceived: number;
     creditExpected: number;
     creditReceived: number;
+    cardExpected: number;
+    cardReceived: number;
+    transferExpected: number;
+    transferReceived: number;
     totalExpected: number;
     totalReceived: number;
     variance: number;
     varianceStatus: 'OVER' | 'SHORT' | 'BALANCED';
+    varianceNote?: string | null;
+}
+
+async function loadReconciliationRecords({
+    fromDate,
+    toDate,
+    stationId,
+    statusFilter,
+    setLoading,
+    setRecords,
+}: {
+    fromDate: string;
+    toDate: string;
+    stationId: string;
+    statusFilter: string;
+    setLoading: (value: boolean) => void;
+    setRecords: (value: ReconciliationRecord[]) => void;
+}) {
+    setLoading(true);
+    try {
+        const params = new URLSearchParams({
+            from: fromDate,
+            to: toDate,
+            ...(stationId !== 'all' && { stationId }),
+            ...(statusFilter !== 'all' && { status: statusFilter }),
+        });
+
+        const res = await fetch(`/api/v2/gas/admin/reconciliation?${params}`);
+        if (res.ok) {
+            const data = await res.json();
+            setRecords(data.records || []);
+        }
+    } catch (error) {
+        console.error('Error fetching reconciliation:', error);
+    } finally {
+        setLoading(false);
+    }
 }
 
 export default function ReconciliationPage() {
@@ -47,30 +92,15 @@ export default function ReconciliationPage() {
             .catch(console.error);
     }, []);
 
-    const fetchRecords = async () => {
-        setLoading(true);
-        try {
-            const params = new URLSearchParams({
-                from: fromDate,
-                to: toDate,
-                ...(stationId !== 'all' && { stationId }),
-                ...(statusFilter !== 'all' && { status: statusFilter })
-            });
-
-            const res = await fetch(`/api/v2/gas/admin/reconciliation?${params}`);
-            if (res.ok) {
-                const data = await res.json();
-                setRecords(data.records || []);
-            }
-        } catch (error) {
-            console.error('Error fetching reconciliation:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     useEffect(() => {
-        fetchRecords();
+        void loadReconciliationRecords({
+            fromDate,
+            toDate,
+            stationId,
+            statusFilter,
+            setLoading,
+            setRecords,
+        });
     }, [fromDate, toDate, stationId, statusFilter]);
 
     const getVarianceIcon = (status: string) => {
@@ -88,6 +118,7 @@ export default function ReconciliationPage() {
     const totalExpected = records.reduce((sum, r) => sum + r.totalExpected, 0);
     const totalReceived = records.reduce((sum, r) => sum + r.totalReceived, 0);
     const totalVariance = records.reduce((sum, r) => sum + r.variance, 0);
+    const offBalanceCount = records.filter((record) => record.varianceStatus !== 'BALANCED').length;
 
     return (
         <div className="space-y-6">
@@ -108,7 +139,7 @@ export default function ReconciliationPage() {
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="bg-[#1a1a24] rounded-xl p-4 border border-white/10">
                     <div className="text-sm text-gray-400">ยอดคาดหวังรวม</div>
                     <div className="text-2xl font-bold text-cyan-400">฿{formatCurrency(totalExpected)}</div>
@@ -122,6 +153,13 @@ export default function ReconciliationPage() {
                     <div className={`text-2xl font-bold ${totalVariance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {totalVariance >= 0 ? '+' : ''}฿{formatCurrency(totalVariance)}
                     </div>
+                </div>
+                <div className="bg-[#1a1a24] rounded-xl p-4 border border-white/10">
+                    <div className="text-sm text-gray-400">กะที่ต้องตรวจ</div>
+                    <div className={`text-2xl font-bold ${offBalanceCount > 0 ? 'text-yellow-400' : 'text-green-400'}`}>
+                        {offBalanceCount}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">กะที่ยอดไม่ตรง</div>
                 </div>
             </div>
 
@@ -177,7 +215,16 @@ export default function ReconciliationPage() {
                     </div>
 
                     <button
-                        onClick={fetchRecords}
+                        onClick={() => {
+                            void loadReconciliationRecords({
+                                fromDate,
+                                toDate,
+                                stationId,
+                                statusFilter,
+                                setLoading,
+                                setRecords,
+                            });
+                        }}
                         className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg"
                     >
                         <Search size={18} />
@@ -205,6 +252,7 @@ export default function ReconciliationPage() {
                                     <th className="text-left px-4 py-3 font-medium text-gray-400">สถานี</th>
                                     <th className="text-center px-4 py-3 font-medium text-gray-400">กะ</th>
                                     <th className="text-left px-4 py-3 font-medium text-gray-400">พนักงาน</th>
+                                    <th className="text-right px-4 py-3 font-medium text-gray-400">ลิตรต่าง</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">คาดหวัง</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">รับจริง</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">ส่วนต่าง</th>
@@ -222,6 +270,9 @@ export default function ReconciliationPage() {
                                             </span>
                                         </td>
                                         <td className="px-4 py-3">{r.staffName || '-'}</td>
+                                        <td className={`px-4 py-3 text-right font-mono ${r.litersVariance >= 0 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                            {r.litersVariance >= 0 ? '+' : ''}{r.litersVariance.toLocaleString()} L
+                                        </td>
                                         <td className="px-4 py-3 text-right font-mono text-gray-400">
                                             ฿{formatCurrency(r.totalExpected)}
                                         </td>

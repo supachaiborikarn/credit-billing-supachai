@@ -4,7 +4,8 @@
      เพิ่ม post-close daily report printing ที่ต้องอิง station-wide `/daily` แทน `/transactions`,
      และ fix หน้าใหม่ของแท๊งลอยให้เชื่อมทั้ง daily price, transaction contract, receipt/slip flow กับ backend/source ชุดเดียวกับหน้าเก่า;
      audit ปั๊มแก๊ส 2026-04-23 พบ route/API ซ้อนกันและกะ GAS ค้างจำนวนมาก; hardening รอบเดียวกันเติม v2 gauge route,
-     auth/ownership guard, shift-scoped v2 sell/summary, payment type `CREDIT_CARD`, product guard เฉพาะ station-5, และ admin stale-shift cleanup tool -->
+     auth/ownership guard, shift-scoped v2 sell/summary, payment type `CREDIT_CARD`, product guard เฉพาะ station-5, admin stale-shift cleanup tool,
+     และ follow-up analytics/reporting ให้ GAS admin ใช้ shared shift/day facts ชุดเดียวกันพร้อมเติม payment mix/reconciliation edit flow -->
 
 # Bugs & Fixes
 
@@ -100,6 +101,16 @@
   - เพิ่ม route-level tests สำหรับ v2 `shift/open`, `sell`, `meters`, และ `gauge` เพื่อกัน regression ของ price source, atomic open, และ baseline immutability
 - **สถานะ**: ✅ follow-up หลักของ GAS v2 core flow ถูก patch แล้ว; งานใหญ่ที่ยังเหลือคือ route consolidation ระหว่าง `/gas` กับ `/gas-station/[id]/new`
 
+### Gas Admin Analytics Follow-ups (Apr 23, 2026)
+- **ปัญหา**: report/admin dashboard ของ GAS ยังใช้ logic แยกกันหลายจุด ทำให้ daily/shift/reconciliation/executive มีสิทธิ์ตัวเลขไม่ตรงกัน, payment mix ยังไม่ครบจริง, หน้า shift report เรียก `PUT /api/v2/gas/admin/reconciliation/[shiftId]` ทั้งที่ไม่มี route, และ date grouping บางจุดยังอิง `toISOString()` เสี่ยงเลื่อนวันเพราะ Bangkok midnight
+- **แก้ไขรอบ analytics**:
+  - เพิ่ม helper กลาง `src/lib/gas/admin-analytics.ts` สำหรับ map transaction เข้า shift แบบใช้ `shiftId` ก่อนและ fallback ตาม dailyRecord/time window, aggregate facts ต่อกะ/ต่อวัน, normalize station alias, และ parse/build `cardReceived` ที่ถูก encode ใน `varianceNote`
+  - เปลี่ยน `api/v2/gas/admin/reports/daily`, `reports/shift`, `reconciliation`, และ `executive` ให้ใช้ facts ชุดเดียวกัน ทำให้ payment mix, transaction count, liters variance, และ expected/received reconciliation มาจาก source เดียว
+  - เพิ่ม route `PUT /api/v2/gas/admin/reconciliation/[shiftId]` ให้หน้า shift report แก้ received amounts ได้จริง โดยยังเก็บ `cardReceived` ผ่าน `varianceNote` และ sync `transferReceived` ใน `shift_reconciliations`
+  - อัปเดตหน้า admin daily/shift/reconciliation/executive ให้โชว์ analytics เพิ่ม เช่น payment mix, avg ticket, liters variance, station/day breakdown, received-vs-sales comparison, inventory runout estimate, top staff/nozzle performance, และ action alerts
+  - เปลี่ยน `api/v2/gas/admin/reports/meters` กับหน้ารายงานมิเตอร์ให้ใช้ fact layer เดียวกัน ทำให้ยอดมิเตอร์/ยอดขายจริง/ลิตรต่างไม่ drift จาก report ตัวอื่น
+- **สถานะ**: ✅ analytics/reporting หลักของ GAS admin ถูกผูกกับ service กลางแล้ว; งานต่อไปถ้าจะเพิ่ม inventory intelligence หรือ alerts เพิ่มเติมให้ต่อบน fact layer นี้เท่านั้น
+
 ## ⚠️ Known Gotchas
 1. **String vs Numeric Sort**: ทุก sort ที่เกี่ยวกับตัวเลข (book, number) ต้องใช้ parseInt
 2. **Neon Data Transfer**: free tier จำกัด 5GB/month → ระวัง polling ถี่เกินไป
@@ -117,6 +128,9 @@
 14. **GAS Shift Open Atomicity**: route เปิดกะ GAS ถูกห่อ transaction แล้ว; งานต่อไปห้ามดึงการสร้าง dailyRecord/shift/meters/gauges ออกมานอก transaction เดียว
 15. **GAS Start Reading Immutability**: start meter/start gauge ของ GAS v2 ถูกล็อกหลังกะเริ่มถูกใช้งาน (มี sale/end/reconciliation) แล้ว; ถ้าจำเป็นต้องแก้ย้อนหลังควรเปิดเป็น admin flow ที่มี audit ชัดเจนเท่านั้น
 16. **GAS Route-Level Tests**: งานที่แตะ price source/open shift/baseline guard ของ GAS v2 ต้องอัปเดต route-level tests ควบคู่กับ helper tests ไม่พึ่ง mock-only assertions อย่างเดียว
+17. **GAS Admin Analytics Source of Truth**: daily/shift/reconciliation/executive ของ GAS ควรอ่านผ่าน `src/lib/gas/admin-analytics.ts` เท่านั้น; ถ้าจะเพิ่ม metric ใหม่ให้เพิ่มใน fact layer ก่อน ไม่คำนวณซ้ำใน route/page แต่ละตัว
+18. **GAS Card Received Storage**: ตอนนี้ `cardReceived` ของ reconciliation ยังเก็บแฝงใน `shift.varianceNote` และรวมอยู่ใน `shift_reconciliations.transferReceived`; ทุก flow read/write ต้อง parse/build ผ่าน helper กลาง ห้ามแยก encode/decode เอง
+19. **GAS Meter Reports**: `api/v2/gas/admin/reports/meters` ต้องอิง shift facts ชุดเดียวกับ daily/shift/reconciliation เพื่อให้ยอดมิเตอร์, transaction liters, และ liters variance ตรงกันทุกหน้า
 
 ## Changelog
 - 2026-02-24: สร้างไฟล์ brain topic นี้จากประวัติ conversations
@@ -132,3 +146,4 @@
 - 2026-04-23: ปิด GAS `OPEN` shifts ค้างใน DB จริงครบ 70 กะ (`station-5` 57, `station-6` 13), เติม end meter ที่ว่าง 16 จุดด้วยค่า start เดิม, ปิด daily records ที่ไม่มี open shift เหลือ 67 records, และสร้าง audit log ครบ 70 รายการ
 - 2026-04-23: post-hardening review พบ follow-up สำคัญของ GAS v2: price source ยังแยกกันระหว่าง settings กับ `dailyRecord.gasPrice`, route เปิดกะยังไม่ atomic และ validate ไม่พอ, start meter/gauge ยังแก้ย้อนหลังได้, และ tests ยังไม่ครอบ route-level regressions
 - 2026-04-23: patch follow-up ของ GAS v2 core flow: รวม price source ให้ยึด `dailyRecord.gasPrice`, ทำ `shift/open` เป็น transaction เดียวพร้อม exact payload validation, ล็อก start meter/gauge หลังกะเริ่มถูกใช้งาน, ปรับ `/gas` UI ให้ไม่เปิดทางแก้ baseline ที่ backend บล็อก, และเพิ่ม route-level tests สำหรับ `open`/`sell`/`meters`/`gauge`
+- 2026-04-23: patch GAS admin analytics/reporting: เพิ่ม shared fact layer `src/lib/gas/admin-analytics.ts`, ย้าย daily/shift/reconciliation/executive ให้ใช้ source เดียวกัน, เติม route `PUT /api/v2/gas/admin/reconciliation/[shiftId]`, อัปเดต admin pages ให้เห็น payment mix / avg ticket / liters variance / day breakdown ชัดขึ้น, และต่อยอด inventory runout, top staff/nozzle performance, action alerts, กับ meter report ให้ใช้ fact layer เดียวกัน

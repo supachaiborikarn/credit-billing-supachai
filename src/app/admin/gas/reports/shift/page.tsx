@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Loader2, Clock, Download, Search, Eye, Edit2, Check, X } from 'lucide-react';
-import { formatCurrency, formatThaiDate, formatThaiTime, getTodayBangkok, getShiftName, getVarianceColorClass, getVarianceText } from '@/lib/gas';
+import { formatCurrency, formatThaiTime, getTodayBangkok, getVarianceColorClass, getVarianceText } from '@/lib/gas';
 
 interface ShiftReport {
     id: string;
@@ -15,6 +15,8 @@ interface ShiftReport {
     status: string;
     meters: {
         total: number;
+        transactionLiters: number;
+        litersVariance: number;
         nozzles: { nozzleNumber: number; startReading: number; endReading: number; soldQty: number }[];
     };
     sales: {
@@ -25,13 +27,60 @@ interface ShiftReport {
         credit: number;
         card: number;
         transfer: number;
+        averageTicket: number;
     };
     reconciliation: {
         expected: number;
         received: number;
         variance: number;
         varianceStatus: 'OVER' | 'SHORT' | 'BALANCED';
+        varianceSeverity: 'GREEN' | 'YELLOW' | 'RED';
+        cashExpected: number;
+        cashReceived: number;
+        creditExpected: number;
+        creditReceived: number;
+        cardExpected: number;
+        cardReceived: number;
+        transferExpected: number;
+        transferReceived: number;
+        varianceNote: string | null;
     } | null;
+}
+
+async function loadShiftReports({
+    fromDate,
+    toDate,
+    stationId,
+    shiftFilter,
+    setLoading,
+    setReports,
+}: {
+    fromDate: string;
+    toDate: string;
+    stationId: string;
+    shiftFilter: string;
+    setLoading: (value: boolean) => void;
+    setReports: (value: ShiftReport[]) => void;
+}) {
+    setLoading(true);
+    try {
+        const params = new URLSearchParams({
+            from: fromDate,
+            to: toDate,
+            ...(stationId !== 'all' && { stationId }),
+            ...(shiftFilter !== 'all' && { shift: shiftFilter }),
+        });
+
+        const res = await fetch(`/api/v2/gas/admin/reports/shift?${params}`);
+        if (res.ok) {
+            const data = await res.json();
+            setReports(data.shifts || []);
+        }
+    } catch (error) {
+        console.error('Error fetching reports:', error);
+    } finally {
+        setLoading(false);
+    }
 }
 
 export default function ShiftReportPage() {
@@ -70,40 +119,25 @@ export default function ShiftReportPage() {
     }, []);
 
     // Fetch reports
-    const fetchReports = async () => {
-        setLoading(true);
-        try {
-            const params = new URLSearchParams({
-                from: fromDate,
-                to: toDate,
-                ...(stationId !== 'all' && { stationId }),
-                ...(shiftFilter !== 'all' && { shift: shiftFilter })
-            });
-
-            const res = await fetch(`/api/v2/gas/admin/reports/shift?${params}`);
-            if (res.ok) {
-                const data = await res.json();
-                setReports(data.shifts || []);
-            }
-        } catch (error) {
-            console.error('Error fetching reports:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     useEffect(() => {
-        fetchReports();
+        void loadShiftReports({
+            fromDate,
+            toDate,
+            stationId,
+            shiftFilter,
+            setLoading,
+            setReports,
+        });
     }, [fromDate, toDate, stationId, shiftFilter]);
 
     const handleEdit = (shift: ShiftReport) => {
         setSelectedShift(shift);
         setEditing(true);
         setEditForm({
-            cashReceived: String(shift.reconciliation?.received || shift.sales.cash),
-            creditReceived: String(shift.sales.credit),
-            cardReceived: String(shift.sales.card),
-            transferReceived: String(shift.sales.transfer)
+            cashReceived: String(shift.reconciliation?.cashReceived ?? shift.sales.cash),
+            creditReceived: String(shift.reconciliation?.creditReceived ?? shift.sales.credit),
+            cardReceived: String(shift.reconciliation?.cardReceived ?? shift.sales.card),
+            transferReceived: String(shift.reconciliation?.transferReceived ?? shift.sales.transfer)
         });
     };
 
@@ -125,7 +159,14 @@ export default function ShiftReportPage() {
             if (res.ok) {
                 setEditing(false);
                 setSelectedShift(null);
-                fetchReports();
+                void loadShiftReports({
+                    fromDate,
+                    toDate,
+                    stationId,
+                    shiftFilter,
+                    setLoading,
+                    setReports,
+                });
             }
         } catch (error) {
             console.error('Error saving:', error);
@@ -213,7 +254,16 @@ export default function ShiftReportPage() {
                     </div>
 
                     <button
-                        onClick={fetchReports}
+                        onClick={() => {
+                            void loadShiftReports({
+                                fromDate,
+                                toDate,
+                                stationId,
+                                shiftFilter,
+                                setLoading,
+                                setReports,
+                            });
+                        }}
                         className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg"
                     >
                         <Search size={18} />
@@ -345,6 +395,24 @@ export default function ShiftReportPage() {
                             {/* Sales Breakdown */}
                             <div>
                                 <h4 className="font-medium text-gray-400 mb-2">ยอดขาย</h4>
+                                <div className="grid grid-cols-3 gap-3 mb-4">
+                                    <div className="bg-gray-800 rounded-lg p-3 border border-white/10">
+                                        <div className="text-xs text-gray-400">รายการขาย</div>
+                                        <div className="text-lg font-bold">{selectedShift.sales.transactions}</div>
+                                    </div>
+                                    <div className="bg-gray-800 rounded-lg p-3 border border-white/10">
+                                        <div className="text-xs text-gray-400">ลิตรจากรายการขาย</div>
+                                        <div className="text-lg font-bold text-cyan-400">{selectedShift.sales.liters.toLocaleString()} L</div>
+                                        <div className="text-xs text-gray-500 mt-1">
+                                            มิเตอร์ {selectedShift.meters.total.toLocaleString()} L
+                                        </div>
+                                    </div>
+                                    <div className="bg-gray-800 rounded-lg p-3 border border-white/10">
+                                        <div className="text-xs text-gray-400">ค่าเฉลี่ยต่อบิล</div>
+                                        <div className="text-lg font-bold text-purple-400">฿{formatCurrency(selectedShift.sales.averageTicket)}</div>
+                                    </div>
+                                </div>
+
                                 {editing && editForm ? (
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
@@ -408,13 +476,50 @@ export default function ShiftReportPage() {
 
                             {/* Reconciliation */}
                             {selectedShift.reconciliation && !editing && (
-                                <div className="bg-gray-800 rounded-lg p-4">
+                                <div className="bg-gray-800 rounded-lg p-4 space-y-4">
                                     <div className="flex justify-between items-center">
                                         <span className="text-gray-400">กระทบยอด</span>
                                         <span className={`font-bold ${getVarianceColorClass(selectedShift.reconciliation.varianceStatus)}`}>
                                             {getVarianceText(selectedShift.reconciliation.varianceStatus)}
                                             {' '}฿{formatCurrency(Math.abs(selectedShift.reconciliation.variance))}
                                         </span>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3 text-sm">
+                                        <div className="rounded-lg border border-white/10 p-3">
+                                            <div className="text-gray-400 mb-2">ยอดคาดหวัง</div>
+                                            <div className="space-y-1">
+                                                <div className="flex justify-between"><span>เงินสด</span><span className="font-mono">฿{formatCurrency(selectedShift.reconciliation.cashExpected)}</span></div>
+                                                <div className="flex justify-between"><span>เงินเชื่อ</span><span className="font-mono">฿{formatCurrency(selectedShift.reconciliation.creditExpected)}</span></div>
+                                                <div className="flex justify-between"><span>บัตร</span><span className="font-mono">฿{formatCurrency(selectedShift.reconciliation.cardExpected)}</span></div>
+                                                <div className="flex justify-between"><span>โอน</span><span className="font-mono">฿{formatCurrency(selectedShift.reconciliation.transferExpected)}</span></div>
+                                            </div>
+                                        </div>
+                                        <div className="rounded-lg border border-white/10 p-3">
+                                            <div className="text-gray-400 mb-2">ยอดรับจริง</div>
+                                            <div className="space-y-1">
+                                                <div className="flex justify-between"><span>เงินสด</span><span className="font-mono">฿{formatCurrency(selectedShift.reconciliation.cashReceived)}</span></div>
+                                                <div className="flex justify-between"><span>เงินเชื่อ</span><span className="font-mono">฿{formatCurrency(selectedShift.reconciliation.creditReceived)}</span></div>
+                                                <div className="flex justify-between"><span>บัตร</span><span className="font-mono">฿{formatCurrency(selectedShift.reconciliation.cardReceived)}</span></div>
+                                                <div className="flex justify-between"><span>โอน</span><span className="font-mono">฿{formatCurrency(selectedShift.reconciliation.transferReceived)}</span></div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3 text-sm">
+                                        <div className="rounded-lg border border-white/10 p-3">
+                                            <div className="text-gray-400">ลิตรต่าง (ขาย - มิเตอร์)</div>
+                                            <div className={`text-lg font-bold ${selectedShift.meters.litersVariance >= 0 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                                {selectedShift.meters.litersVariance >= 0 ? '+' : ''}
+                                                {selectedShift.meters.litersVariance.toLocaleString()} L
+                                            </div>
+                                        </div>
+                                        <div className="rounded-lg border border-white/10 p-3">
+                                            <div className="text-gray-400">หมายเหตุ</div>
+                                            <div className="text-sm mt-1 text-gray-200">
+                                                {selectedShift.reconciliation.varianceNote || '-'}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             )}

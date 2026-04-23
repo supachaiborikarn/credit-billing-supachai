@@ -5,6 +5,7 @@ import { Loader2, Calculator, Download, Search } from 'lucide-react';
 import { formatCurrency, getTodayBangkok } from '@/lib/gas';
 
 interface MeterReport {
+    id: string;
     date: string;
     displayDate: string;
     stationId: string;
@@ -17,8 +18,46 @@ interface MeterReport {
         soldQty: number;
     }[];
     totalLiters: number;
+    transactionLiters: number;
+    litersVariance: number;
     gasPrice: number;
     expectedSales: number;
+    actualSales: number;
+    transactionCount: number;
+    averagePerNozzle: number;
+}
+
+async function loadMeterReports({
+    fromDate,
+    toDate,
+    stationId,
+    setLoading,
+    setReports,
+}: {
+    fromDate: string;
+    toDate: string;
+    stationId: string;
+    setLoading: (value: boolean) => void;
+    setReports: (value: MeterReport[]) => void;
+}) {
+    setLoading(true);
+    try {
+        const params = new URLSearchParams({
+            from: fromDate,
+            to: toDate,
+            ...(stationId !== 'all' && { stationId }),
+        });
+
+        const res = await fetch(`/api/v2/gas/admin/reports/meters?${params}`);
+        if (res.ok) {
+            const data = await res.json();
+            setReports(data.meters || []);
+        }
+    } catch (error) {
+        console.error('Error fetching reports:', error);
+    } finally {
+        setLoading(false);
+    }
 }
 
 export default function MeterReportPage() {
@@ -44,29 +83,14 @@ export default function MeterReportPage() {
             .catch(console.error);
     }, []);
 
-    const fetchReports = async () => {
-        setLoading(true);
-        try {
-            const params = new URLSearchParams({
-                from: fromDate,
-                to: toDate,
-                ...(stationId !== 'all' && { stationId })
-            });
-
-            const res = await fetch(`/api/v2/gas/admin/reports/meters?${params}`);
-            if (res.ok) {
-                const data = await res.json();
-                setReports(data.meters || []);
-            }
-        } catch (error) {
-            console.error('Error fetching reports:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     useEffect(() => {
-        fetchReports();
+        void loadMeterReports({
+            fromDate,
+            toDate,
+            stationId,
+            setLoading,
+            setReports,
+        });
     }, [fromDate, toDate, stationId]);
 
     const handleExportCSV = async () => {
@@ -78,6 +102,20 @@ export default function MeterReportPage() {
         });
         window.open(`/api/export/csv?${params}`, '_blank');
     };
+
+    const totals = reports.reduce((sum, report) => ({
+        meterLiters: sum.meterLiters + report.totalLiters,
+        transactionLiters: sum.transactionLiters + report.transactionLiters,
+        actualSales: sum.actualSales + report.actualSales,
+        expectedSales: sum.expectedSales + report.expectedSales,
+        transactions: sum.transactions + report.transactionCount,
+    }), {
+        meterLiters: 0,
+        transactionLiters: 0,
+        actualSales: 0,
+        expectedSales: 0,
+        transactions: 0,
+    });
 
     return (
         <div className="space-y-6">
@@ -96,6 +134,28 @@ export default function MeterReportPage() {
                     <Download size={18} />
                     Export CSV
                 </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-[#1a1a24] rounded-xl p-4 border border-white/10">
+                    <div className="text-sm text-gray-400">ลิตรมิเตอร์รวม</div>
+                    <div className="text-2xl font-bold text-green-400">{totals.meterLiters.toLocaleString()} L</div>
+                </div>
+                <div className="bg-[#1a1a24] rounded-xl p-4 border border-white/10">
+                    <div className="text-sm text-gray-400">ลิตรจากรายการขาย</div>
+                    <div className="text-2xl font-bold text-cyan-400">{totals.transactionLiters.toLocaleString()} L</div>
+                </div>
+                <div className="bg-[#1a1a24] rounded-xl p-4 border border-white/10">
+                    <div className="text-sm text-gray-400">ยอดขายจริง</div>
+                    <div className="text-2xl font-bold text-blue-400">฿{formatCurrency(totals.actualSales)}</div>
+                </div>
+                <div className="bg-[#1a1a24] rounded-xl p-4 border border-white/10">
+                    <div className="text-sm text-gray-400">ส่วนต่างลิตรรวม</div>
+                    <div className={`text-2xl font-bold ${totals.transactionLiters - totals.meterLiters >= 0 ? 'text-yellow-400' : 'text-red-400'}`}>
+                        {totals.transactionLiters - totals.meterLiters >= 0 ? '+' : ''}
+                        {(totals.transactionLiters - totals.meterLiters).toLocaleString()} L
+                    </div>
+                </div>
             </div>
 
             {/* Filters */}
@@ -136,7 +196,15 @@ export default function MeterReportPage() {
                     </div>
 
                     <button
-                        onClick={fetchReports}
+                        onClick={() => {
+                            void loadMeterReports({
+                                fromDate,
+                                toDate,
+                                stationId,
+                                setLoading,
+                                setReports,
+                            });
+                        }}
                         className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg"
                     >
                         <Search size={18} />
@@ -168,12 +236,16 @@ export default function MeterReportPage() {
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">หัว 3</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">หัว 4</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">รวม (L)</th>
+                                    <th className="text-right px-4 py-3 font-medium text-gray-400">ขายจริง (L)</th>
+                                    <th className="text-right px-4 py-3 font-medium text-gray-400">ส่วนต่าง</th>
+                                    <th className="text-right px-4 py-3 font-medium text-gray-400">รายการ</th>
+                                    <th className="text-right px-4 py-3 font-medium text-gray-400">ยอดขายจริง</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">ยอดคาดหวัง</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5">
-                                {reports.map((r, idx) => (
-                                    <tr key={idx} className="hover:bg-white/5">
+                                {reports.map((r) => (
+                                    <tr key={r.id} className="hover:bg-white/5">
                                         <td className="px-4 py-3">{r.displayDate}</td>
                                         <td className="px-4 py-3">{r.stationName}</td>
                                         <td className="px-4 py-3 text-center">
@@ -202,6 +274,18 @@ export default function MeterReportPage() {
                                         })}
                                         <td className="px-4 py-3 text-right font-mono text-green-400 font-bold">
                                             {r.totalLiters.toLocaleString()}
+                                        </td>
+                                        <td className="px-4 py-3 text-right font-mono text-cyan-400">
+                                            {r.transactionLiters.toLocaleString()}
+                                        </td>
+                                        <td className={`px-4 py-3 text-right font-mono ${r.litersVariance >= 0 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                            {r.litersVariance >= 0 ? '+' : ''}{r.litersVariance.toLocaleString()}
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            {r.transactionCount}
+                                        </td>
+                                        <td className="px-4 py-3 text-right font-mono text-blue-400">
+                                            ฿{formatCurrency(r.actualSales)}
                                         </td>
                                         <td className="px-4 py-3 text-right font-mono text-cyan-400">
                                             ฿{formatCurrency(r.expectedSales)}

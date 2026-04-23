@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { STATIONS } from '@/constants';
 import { requireAdminApi } from '@/lib/api-auth';
+import { getGasShiftAnalyticsData } from '@/lib/gas/admin-analytics';
+import {
+    getEndOfDayBangkokUTC,
+    getStartOfDayBangkokUTC,
+    getTodayBangkok,
+} from '@/lib/gas/date-utils';
 
 /**
  * GET /api/v2/gas/admin/reports/meters
@@ -17,66 +21,32 @@ export async function GET(request: NextRequest) {
         const to = searchParams.get('to');
         const stationIdFilter = searchParams.get('stationId');
 
-        const fromDate = from ? new Date(from + 'T00:00:00+07:00') : new Date();
-        const toDate = to ? new Date(to + 'T23:59:59+07:00') : new Date();
-
-        // Get GAS station IDs
-        const gasStationIds = STATIONS
-            .filter(s => s.type === 'GAS')
-            .map(s => s.id);
-
-        const stationIds = stationIdFilter && stationIdFilter !== 'all'
-            ? [stationIdFilter]
-            : gasStationIds;
-
-        // Get shifts with meter readings
-        const shifts = await prisma.shift.findMany({
-            where: {
-                dailyRecord: {
-                    stationId: { in: stationIds },
-                    date: {
-                        gte: fromDate,
-                        lte: toDate
-                    }
-                }
-            },
-            include: {
-                dailyRecord: {
-                    include: { station: true }
-                },
-                meters: {
-                    orderBy: { nozzleNumber: 'asc' }
-                }
-            },
-            orderBy: { createdAt: 'desc' }
+        const todayKey = getTodayBangkok();
+        const shifts = await getGasShiftAnalyticsData({
+            fromDate: getStartOfDayBangkokUTC(from || todayKey),
+            toDate: getEndOfDayBangkokUTC(to || todayKey),
+            stationId: stationIdFilter,
         });
 
-        const meters = shifts.map(shift => {
-            const nozzles = shift.meters.map(m => ({
-                nozzleNumber: m.nozzleNumber,
-                startReading: Number(m.startReading || 0),
-                endReading: Number(m.endReading || 0),
-                soldQty: Number(m.soldQty || 0)
-            }));
-            const totalLiters = nozzles.reduce((sum, n) => sum + n.soldQty, 0);
-            const gasPrice = Number(shift.dailyRecord.gasPrice || 16.09);
-
-            return {
-                date: shift.dailyRecord.date.toISOString().split('T')[0],
-                displayDate: shift.dailyRecord.date.toLocaleDateString('th-TH', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric'
-                }),
-                stationId: shift.dailyRecord.stationId,
-                stationName: shift.dailyRecord.station?.name || 'Unknown',
-                shiftNumber: shift.shiftNumber,
-                nozzles,
-                totalLiters,
-                gasPrice,
-                expectedSales: totalLiters * gasPrice
-            };
-        });
+        const meters = shifts.map((shift) => ({
+            id: shift.id,
+            date: shift.dateKey,
+            displayDate: shift.displayDate,
+            stationId: shift.stationId,
+            stationName: shift.stationName,
+            shiftNumber: shift.shiftNumber,
+            nozzles: shift.meters.nozzles,
+            totalLiters: shift.meters.total,
+            transactionLiters: shift.meters.transactionLiters,
+            litersVariance: shift.meters.litersVariance,
+            gasPrice: shift.gasPrice,
+            expectedSales: Number((shift.meters.total * shift.gasPrice).toFixed(2)),
+            actualSales: shift.sales.total,
+            transactionCount: shift.sales.transactions,
+            averagePerNozzle: shift.meters.nozzles.length > 0
+                ? Number((shift.meters.total / shift.meters.nozzles.length).toFixed(2))
+                : 0,
+        }));
 
         return NextResponse.json({ meters });
     } catch (error) {

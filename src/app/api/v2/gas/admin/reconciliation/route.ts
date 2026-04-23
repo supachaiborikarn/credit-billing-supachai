@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { STATIONS } from '@/constants';
 import { requireAdminApi } from '@/lib/api-auth';
+import { getGasShiftAnalyticsData } from '@/lib/gas/admin-analytics';
+import {
+    getEndOfDayBangkokUTC,
+    getStartOfDayBangkokUTC,
+    getTodayBangkok,
+} from '@/lib/gas/date-utils';
 
 /**
  * GET /api/v2/gas/admin/reconciliation
@@ -18,83 +22,48 @@ export async function GET(request: NextRequest) {
         const stationIdFilter = searchParams.get('stationId');
         const statusFilter = searchParams.get('status');
 
-        const fromDate = from ? new Date(from + 'T00:00:00+07:00') : new Date();
-        const toDate = to ? new Date(to + 'T23:59:59+07:00') : new Date();
-
-        // Get GAS station IDs
-        const gasStationIds = STATIONS
-            .filter(s => s.type === 'GAS')
-            .map(s => s.id);
-
-        const stationIds = stationIdFilter && stationIdFilter !== 'all'
-            ? [stationIdFilter]
-            : gasStationIds;
-
-        // Get shifts with reconciliation data
-        const shifts = await prisma.shift.findMany({
-            where: {
-                dailyRecord: {
-                    stationId: { in: stationIds },
-                    date: {
-                        gte: fromDate,
-                        lte: toDate
-                    }
-                },
-                reconciliation: {
-                    isNot: null
-                }
-            },
-            include: {
-                dailyRecord: {
-                    include: { station: true }
-                },
-                staff: {
-                    select: { name: true }
-                },
-                meters: true,
-                reconciliation: true
-            },
-            orderBy: { createdAt: 'desc' }
+        const todayKey = getTodayBangkok();
+        const shifts = await getGasShiftAnalyticsData({
+            fromDate: getStartOfDayBangkokUTC(from || todayKey),
+            toDate: getEndOfDayBangkokUTC(to || todayKey),
+            stationId: stationIdFilter,
+            reconciledOnly: true,
         });
 
-        // Format and filter by status
-        let records = shifts.map(shift => {
-            const totalLiters = shift.meters.reduce((sum, m) => sum + Number(m.soldQty || 0), 0);
-            const gasPrice = Number(shift.dailyRecord.gasPrice || 16.09);
-            const meterSales = totalLiters * gasPrice;
-
-            const rec = shift.reconciliation!;
-            const variance = Number(rec.variance);
-            const varianceStatus = variance > 1 ? 'OVER' as const :
-                variance < -1 ? 'SHORT' as const : 'BALANCED' as const;
-
-            return {
+        let records = shifts
+            .filter((shift) => shift.reconciliation?.hasRecord)
+            .map((shift) => ({
                 id: shift.id,
-                date: shift.dailyRecord.date.toISOString().split('T')[0],
-                displayDate: shift.dailyRecord.date.toLocaleDateString('th-TH', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric'
-                }),
-                stationId: shift.dailyRecord.stationId,
-                stationName: shift.dailyRecord.station?.name || 'Unknown',
+                date: shift.dateKey,
+                displayDate: shift.displayDate,
+                stationId: shift.stationId,
+                stationName: shift.stationName,
                 shiftNumber: shift.shiftNumber,
-                staffName: shift.staff?.name || null,
-                meterSales,
-                cashExpected: meterSales,
-                cashReceived: Number(rec.cashReceived),
-                creditExpected: 0,
-                creditReceived: Number(rec.creditReceived),
-                totalExpected: Number(rec.totalExpected),
-                totalReceived: Number(rec.totalReceived),
-                variance,
-                varianceStatus
-            };
-        });
+                staffName: shift.staffName,
+                meterSales: shift.meters.total * shift.gasPrice,
+                meterLiters: shift.meters.total,
+                transactionLiters: shift.meters.transactionLiters,
+                litersVariance: shift.meters.litersVariance,
+                transactionCount: shift.transactionCount,
+                cashExpected: shift.reconciliation!.cashExpected,
+                cashReceived: shift.reconciliation!.cashReceived,
+                creditExpected: shift.reconciliation!.creditExpected,
+                creditReceived: shift.reconciliation!.creditReceived,
+                cardExpected: shift.reconciliation!.cardExpected,
+                cardReceived: shift.reconciliation!.cardReceived,
+                transferExpected: shift.reconciliation!.transferExpected,
+                transferReceived: shift.reconciliation!.transferReceived,
+                totalExpected: shift.reconciliation!.expected,
+                totalReceived: shift.reconciliation!.received,
+                variance: shift.reconciliation!.variance,
+                varianceStatus: shift.reconciliation!.varianceStatus,
+                varianceSeverity: shift.reconciliation!.varianceSeverity,
+                varianceNote: shift.reconciliation!.varianceNote,
+            }));
 
         // Filter by status if specified
         if (statusFilter && statusFilter !== 'all') {
-            records = records.filter(r => r.varianceStatus === statusFilter);
+            records = records.filter((record) => record.varianceStatus === statusFilter);
         }
 
         return NextResponse.json({ records });

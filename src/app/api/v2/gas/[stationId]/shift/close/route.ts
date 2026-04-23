@@ -4,6 +4,7 @@ import { resolveGasStation, getNonGasStationError } from '@/lib/gas/station-reso
 import { requireStationAccessApi } from '@/lib/api-auth';
 import { shiftBelongsToStation } from '@/lib/gas/api-guards';
 import { resolveDailyGasPrice } from '@/lib/gas/v2-workflow';
+import { buildGasVarianceNote } from '@/lib/gas/admin-analytics';
 
 /**
  * POST /api/v2/gas/[stationId]/shift/close
@@ -88,9 +89,10 @@ export async function POST(
         // Create or update reconciliation
         const { cashReceived, creditReceived, cardReceived, transferReceived, expectedOtherAmount = 0, varianceNote } = reconciliation || {};
         const combinedTransferReceived = (transferReceived || 0) + (cardReceived || 0);
-        const normalizedVarianceNote = cardReceived
-            ? [varianceNote, `cardReceived=${cardReceived}`].filter(Boolean).join(' | ')
-            : varianceNote;
+        const normalizedVarianceNote = buildGasVarianceNote(
+            varianceNote,
+            Number(cardReceived || 0)
+        );
 
         const totalExpected = expectedFuelAmount + (expectedOtherAmount || 0);
         const totalReceived = (cashReceived || 0) + (creditReceived || 0) + combinedTransferReceived;
