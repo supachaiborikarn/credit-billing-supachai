@@ -46,3 +46,4 @@
 ## Changelog
 - 2026-02-24: สร้างไฟล์ brain topic นี้
 - 2026-01: แยกมิเตอร์ตามกะ, แก้ shift filter, fuel price sync
+- 2026-04-23: Modernized GAS UI (Linear-inspired, card-based layout) for /gas-station/[id]

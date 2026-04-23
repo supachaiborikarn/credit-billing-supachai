@@ -22,7 +22,8 @@ import {
     DollarSign,
     Banknote,
     Receipt,
-    LogOut
+    LogOut,
+    TrendingUp,
 } from 'lucide-react';
 import { GAS_PAYMENT_TYPES, STATIONS, DEFAULT_GAS_PRICE, STATION_STAFF, GAS_TANK_CAPACITY_LITERS, KG_TO_LITERS_CONVERSION, DEFAULT_STOCK_ALERT, NOZZLE_COUNT, TANK_COUNT } from '@/constants';
 import type { ShiftDataResponse, Shift, GaugeReading as GaugeReadingType } from '@/types/gas-station';
@@ -1058,207 +1059,145 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
         );
     }
 
-    return (
+        return (
         <Sidebar>
-            <div className="max-w-6xl mx-auto relative">
-                {/* Breadcrumb */}
-                <Breadcrumb items={[{ label: 'ปั๊มแก๊ส' }, { label: station.name }]} className="mb-4" />
-
+            <div className="max-w-7xl mx-auto relative p-4 sm:p-6 lg:p-8 font-sans">
                 {/* Background orbs */}
-                <div className="fixed top-20 right-20 w-[400px] h-[400px] rounded-full opacity-20 blur-3xl pointer-events-none"
-                    style={{ background: 'radial-gradient(circle, rgba(6, 182, 212, 0.3) 0%, transparent 70%)' }} />
+                <div className="fixed top-0 left-0 w-full h-[500px] bg-gradient-to-b from-[#1C1C1F] to-transparent -z-10"></div>
+                <div className="fixed top-20 right-20 w-[400px] h-[400px] rounded-full opacity-10 blur-3xl pointer-events-none"
+                    style={{ background: 'radial-gradient(circle, rgba(6, 182, 212, 0.4) 0%, transparent 70%)' }} />
 
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
-                            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-2xl blur-lg opacity-50" />
-                            <div className="relative p-4 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500">
-                                <Fuel className="text-white" size={36} />
+                {/* Breadcrumb */}
+                <Breadcrumb items={[{ label: 'ปั๊มแก๊ส' }, { label: station.name }]} className="mb-6 opacity-70 hover:opacity-100 transition-opacity" />
+
+                {/* Header Section */}
+                <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6 mb-10 pb-6 border-b border-white/5">
+                    {/* Title & Station Info */}
+                    <div className="flex items-center gap-5">
+                        <div className="relative shrink-0">
+                            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-2xl blur-xl opacity-30" />
+                            <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center shadow-inner border border-white/10">
+                                <Fuel className="text-white drop-shadow-md" size={32} />
                             </div>
                         </div>
                         <div>
-                            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-white via-cyan-200 to-white bg-clip-text text-transparent">
-                                {station.name}
-                            </h1>
-                            <p className="text-gray-400 flex items-center gap-2">
-                                <Sparkles size={14} className="text-cyan-400" />
-                                ⛽ ปั๊มแก๊ส LPG
-                                {currentShift && (
-                                    <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${currentShift === 1
-                                        ? 'bg-orange-500/20 text-orange-400'
-                                        : 'bg-indigo-500/20 text-indigo-400'
+                            <div className="flex items-center gap-3 mb-1">
+                                <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white">
+                                    {station.name}
+                                </h1>
+                                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 uppercase tracking-wider">
+                                    LPG
+                                </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 text-sm text-gray-400">
+                                <div className="flex items-center gap-1.5">
+                                    <Sparkles size={14} className="text-cyan-500" />
+                                    <span>Gas Station Dashboard</span>
+                                </div>
+                                <span className="text-gray-600">•</span>
+                                {currentShift !== null && (
+                                    <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${currentShift === 1
+                                        ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
+                                        : currentShift === 2 ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                                        : 'bg-white/5 text-gray-300 border border-white/10'
                                         }`}>
                                         {currentShift === 0 ? '📅 กะทั้งวัน' : currentShift === 1 ? '🌅 กะเช้า' : '🌙 กะบ่าย'}
                                     </span>
                                 )}
-                                <a
-                                    href={`/gas-station/${id}/new/home`}
-                                    className="ml-2 px-3 py-1 rounded-full text-xs font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors flex items-center gap-1"
-                                >
-                                    📱 ใช้ UI ใหม่
-                                </a>
-                                <a
-                                    href={`/gas/${(() => {
-                                        const s = STATIONS[stationIndex];
-                                        return ('aliases' in s && s.aliases) ? (s.aliases as readonly string[])[0] : id;
-                                    })()}`}
-                                    className="ml-1 px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:opacity-90 transition-colors flex items-center gap-1"
-                                >
-                                    ✨ V2 (Beta)
-                                </a>
-                                <button
-                                    onClick={async () => {
-                                        await fetch('/api/auth/logout', { method: 'POST' });
-                                        window.location.href = '/login';
-                                    }}
-                                    className="ml-2 px-3 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors flex items-center gap-1"
-                                >
-                                    <LogOut size={12} />
-                                    ออกจากระบบ
-                                </button>
-                            </p>
+                                <span className="text-gray-600">•</span>
+                                <a href={`/gas-station/${id}/new/home`} className="text-xs text-orange-400 hover:text-orange-300 transition-colors flex items-center gap-1">📱 UI เก่า</a>
+                                <span className="text-gray-600">•</span>
+                                <a href={`/gas/${(() => { const s = STATIONS[stationIndex]; return ('aliases' in s && s.aliases) ? (s.aliases as readonly string[])[0] : id; })()}`} className="text-xs text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1">✨ V2 (Beta)</a>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Shift Controls */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                        {/* Shift Selector Dropdown */}
-                        <div className="flex items-center gap-2">
-                            <span className="text-gray-400 text-sm">กะ:</span>
-                            <select
-                                value={currentShift || ''}
-                                onChange={(e) => {
-                                    const val = e.target.value ? parseInt(e.target.value) : null;
-                                    setCurrentShift(val);
-                                    if (val !== null) {
-                                        localStorage.setItem('selectedShift', val.toString());
-                                    }
-                                    // Reset ALL data when switching shifts (avoid data spillover)
-                                    // Reset meters
-                                    setMeters([
-                                        { nozzle: 1, start: 0, end: 0 },
-                                        { nozzle: 2, start: 0, end: 0 },
-                                        { nozzle: 3, start: 0, end: 0 },
-                                        { nozzle: 4, start: 0, end: 0 },
-                                    ]);
-                                    // Reset gauge inputs
-                                    setNewGaugeValues({});
-                                    // Clear gauge readings
-                                    setGaugeReadings([]);
-                                    // Wait for state update then fetch
-                                    setTimeout(() => {
-                                        fetchDailyData();
-                                        fetchGaugeReadings();
-                                        fetchShiftData();
-                                    }, 100);
-                                }}
-                                className="bg-white/10 border border-white/20 rounded-xl px-4 py-2.5 text-white font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500 min-w-[160px]"
-                            >
-                                <option value="" className="bg-gray-800">-- เลือกกะ --</option>
-                                <option value="0" className="bg-gray-800">📅 กะทั้งวัน</option>
-                                <option value="1" className="bg-gray-800">🌅 กะเช้า (กะ 1)</option>
-                                <option value="2" className="bg-gray-800">🌙 กะบ่าย (กะ 2)</option>
-                            </select>
-
-                            {/* Show shift status */}
-                            {shiftData?.shifts && shiftData.shifts.length > 0 && (
-                                <div className="flex gap-1">
-                                    {shiftData.shifts.map((s: any) => (
-                                        <span
-                                            key={s.id}
-                                            className={`px-2 py-0.5 text-xs rounded-full ${s.status === 'OPEN'
-                                                ? 'bg-green-500/20 text-green-400'
-                                                : 'bg-gray-500/20 text-gray-400'
-                                                }`}
-                                        >
-                                            กะ{s.shiftNumber}: {s.status === 'OPEN' ? 'เปิด' : 'ปิด'}
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
+                    {/* Controls & Actions */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                        {/* Date & Shift Selectors */}
+                        <div className="flex bg-[#141417] p-1 rounded-xl border border-white/5">
+                            <div className="flex items-center px-3 gap-2 border-r border-white/5">
+                                <Calendar size={16} className="text-gray-500" />
+                                <input
+                                    type="date"
+                                    value={selectedDate}
+                                    onChange={(e) => setSelectedDate(e.target.value)}
+                                    className="bg-transparent text-sm font-medium text-gray-200 focus:outline-none w-[120px]"
+                                />
+                            </div>
+                            <div className="flex items-center px-2">
+                                <select
+                                    value={currentShift || ''}
+                                    onChange={(e) => {
+                                        const val = e.target.value ? parseInt(e.target.value) : null;
+                                        setCurrentShift(val);
+                                        if (val !== null) localStorage.setItem('selectedShift', val.toString());
+                                        setMeters([{ nozzle: 1, start: 0, end: 0 }, { nozzle: 2, start: 0, end: 0 }, { nozzle: 3, start: 0, end: 0 }, { nozzle: 4, start: 0, end: 0 }]);
+                                        setNewGaugeValues({});
+                                        setGaugeReadings([]);
+                                        setTimeout(() => { fetchDailyData(); fetchGaugeReadings(); fetchShiftData(); }, 100);
+                                    }}
+                                    className="bg-transparent text-sm font-medium text-gray-200 focus:outline-none px-2 py-1.5 appearance-none cursor-pointer"
+                                >
+                                    <option value="" className="bg-gray-900">เลือกระยะเวลา</option>
+                                    <option value="0" className="bg-gray-900">📅 กะทั้งวัน</option>
+                                    <option value="1" className="bg-gray-900">🌅 กะเช้า (กะ 1)</option>
+                                    <option value="2" className="bg-gray-900">🌙 กะบ่าย (กะ 2)</option>
+                                </select>
+                            </div>
                         </div>
 
+                        {/* Status indicators */}
+                        {shiftData?.shifts && shiftData.shifts.length > 0 && (
+                            <div className="flex gap-1 items-center px-2">
+                                {shiftData.shifts.map((s: any) => (
+                                    <div key={s.id} className={`w-2.5 h-2.5 rounded-full ${s.status === 'OPEN' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-gray-600'}`} title={`กะ ${s.shiftNumber}: ${s.status}`} />
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="w-px h-8 bg-white/10 hidden sm:block mx-1"></div>
+
+                        {/* Action Buttons */}
                         {currentShift && (
-                            <>
-
-                                {/* Admin: Save All Button */}
-                                {isAdmin && (
-                                    <button
-                                        onClick={saveAllData}
-                                        disabled={savingAll}
-                                        className="px-5 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold hover:opacity-90 transition-all flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-purple-500/20"
-                                        title="บันทึกมิเตอร์และเกจทั้งหมด"
-                                    >
-                                        {savingAll ? (
-                                            <span className="animate-spin text-xl">⏳</span>
-                                        ) : (
-                                            <Save size={20} />
-                                        )}
-                                        💾 บันทึกทั้งหมด
-                                    </button>
-                                )}
-
-                                {isAdmin && (
-                                    <button
-                                        onClick={() => setShowRevenueSummary(true)}
-                                        className="px-5 py-3 rounded-xl bg-yellow-500/20 text-yellow-400 border-2 border-yellow-500/40 hover:bg-yellow-500/30 transition-all flex items-center gap-2 font-semibold shadow-lg shadow-yellow-500/10"
-                                        title="ดูสรุปยอดขาย"
-                                    >
-                                        <span className="text-xl">💰</span> สรุปยอด
-                                    </button>
-                                )}
-
+                            <div className="flex items-center gap-2">
                                 {shiftData?.shifts?.find((s: any) => s.shiftNumber === currentShift && s.status === 'OPEN') ? (
-                                    <button
-                                        onClick={() => setShowCloseShiftModal(true)}
-                                        className="px-5 py-3 rounded-xl bg-red-500/20 text-red-400 border-2 border-red-500/40 hover:bg-red-500/30 transition-all flex items-center gap-2 font-semibold shadow-lg shadow-red-500/10"
-                                    >
-                                        <Clock size={20} />
+                                    <button onClick={() => setShowCloseShiftModal(true)} className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 transition-all flex items-center gap-2">
                                         ปิดกะ
                                     </button>
                                 ) : (
-                                    <button
-                                        onClick={() => setShowOpenShiftModal(true)}
-                                        className="px-5 py-3 rounded-xl bg-green-500/20 text-green-400 border-2 border-green-500/40 hover:bg-green-500/30 transition-all flex items-center gap-2 font-semibold shadow-lg shadow-green-500/10"
-                                    >
-                                        <Clock size={20} />
+                                    <button onClick={() => setShowOpenShiftModal(true)} className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-green-500/10 text-green-400 hover:bg-green-500/20 border border-green-500/20 transition-all flex items-center gap-2">
                                         เปิดกะ
                                     </button>
                                 )}
-                            </>
+                                
+                                {isAdmin && (
+                                    <button onClick={() => setShowRevenueSummary(true)} className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 border border-yellow-500/20 transition-all flex items-center gap-2" title="ดูสรุปยอดขาย">
+                                        <Banknote size={16} /> สรุปยอด
+                                    </button>
+                                )}
+
+                                {isAdmin && (
+                                    <button onClick={saveAllData} disabled={savingAll} className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-white text-black hover:bg-gray-200 transition-all flex items-center gap-2 shadow-lg disabled:opacity-50">
+                                        {savingAll ? <span className="animate-spin">⏳</span> : <Save size={16} />} บันทึกทั้งหมด
+                                    </button>
+                                )}
+                            </div>
                         )}
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => setShowDailySummary(true)}
-                            className="relative group px-6 py-3 rounded-xl font-bold text-white overflow-hidden"
-                        >
-                            <div className="absolute inset-0 bg-gradient-to-r from-cyan-600 to-blue-600" />
-                            <div className="absolute inset-0 bg-gradient-to-r from-cyan-600 to-blue-600 blur-xl opacity-50 group-hover:opacity-70 transition-opacity" />
-                            <span className="relative flex items-center gap-2">
-                                <FileText size={22} />
-                                สรุปงานประจำวัน
-                            </span>
+
+                        <button onClick={() => setShowDailySummary(true)} className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-[#1C1C1F] text-gray-300 hover:bg-white/5 border border-white/10 transition-all flex items-center gap-2">
+                            <FileText size={16} /> สรุปงาน
                         </button>
-                        <div className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white/10 border-2 border-white/20">
-                            <Calendar size={22} className="text-cyan-400" />
-                            <input
-                                type="date"
-                                value={selectedDate}
-                                onChange={(e) => setSelectedDate(e.target.value)}
-                                className="bg-transparent text-white font-medium focus:outline-none w-[150px]"
-                            />
-                        </div>
                     </div>
                 </div>
 
                 {loading ? (
                     <div className="flex items-center justify-center h-64">
-                        <div className="spinner" />
+                        <div className="w-8 h-8 border-4 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin"></div>
                     </div>
                 ) : (
                     <>
+
                         {/* Stock Alert */}
                         {currentStock < stockAlert && (
                             <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-4 mb-6 flex items-center gap-3">
@@ -1270,109 +1209,123 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                             </div>
                         )}
 
-                        {/* Gas Price & Stock Summary - HOME TAB */}
-                        <div className="grid md:grid-cols-3 gap-6 mb-6">
+                                                {/* Gas Price & Stock Summary - HOME TAB */}
+                        <div className="grid md:grid-cols-3 gap-6 mb-8">
                             {/* Gas Price */}
-                            <div className="glass-card p-6">
-                                <h2 className="text-lg font-bold text-white mb-4">💰 ราคาแก๊ส LPG</h2>
-                                <div className="flex items-center gap-3">
+                            <div className="bg-[#1C1C1F] border border-white/10 rounded-2xl p-6 shadow-lg">
+                                <h2 className="text-sm font-semibold text-gray-400 mb-4 flex items-center gap-2">
+                                    <DollarSign size={16} className="text-green-400" /> ราคาแก๊ส LPG
+                                </h2>
+                                <div className="flex items-end gap-3 mb-6">
                                     <input
                                         type="number"
                                         step="0.01"
                                         value={gasPrice}
                                         onChange={(e) => setGasPrice(parseFloat(e.target.value))}
-                                        className="input-glow text-center text-2xl font-mono flex-1"
+                                        className="bg-transparent text-3xl font-bold font-mono text-white w-32 border-b border-white/10 focus:border-cyan-500 focus:outline-none pb-1 transition-colors"
                                     />
-                                    <span className="text-gray-400">บาท/ลิตร</span>
+                                    <span className="text-gray-500 text-sm pb-2">บาท/ลิตร</span>
                                 </div>
-                                <button onClick={saveGasPrice} className="btn btn-primary w-full mt-4">
-                                    <Save size={18} />
+                                <button onClick={saveGasPrice} className="w-full py-2.5 rounded-xl text-sm font-medium bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-colors flex justify-center items-center gap-2">
+                                    <Save size={16} />
                                     บันทึกราคา
                                 </button>
                             </div>
 
-                            {/* Current Stock - RECEIVE TAB */}
-                            <div className="glass-card p-6">
-                                <h2 className="text-lg font-bold text-white mb-4">⛽ สต็อกแก๊สคงเหลือ</h2>
+                            {/* Current Stock */}
+                            <div className="bg-[#1C1C1F] border border-white/10 rounded-2xl p-6 shadow-lg relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+                                <h2 className="text-sm font-semibold text-gray-400 mb-4 flex items-center gap-2 relative z-10">
+                                    <Fuel size={16} className="text-cyan-400" /> สต็อกแก๊สคงเหลือ
+                                </h2>
 
                                 {/* Calculated Stock */}
-                                <div className="mb-4">
-                                    <p className="text-sm text-gray-400 mb-1">จากการคำนวณ (รับ-ขาย):</p>
-                                    <p className={`text-3xl font-bold font-mono ${currentStock < stockAlert ? 'text-red-400' : 'text-cyan-400'}`}>
-                                        {formatNumber(currentStock)} <span className="text-sm text-gray-400">ลิตร</span>
-                                    </p>
+                                <div className="mb-4 relative z-10 flex justify-between items-end">
+                                    <div>
+                                        <div className="flex items-end gap-1">
+                                            <p className={`text-3xl font-bold font-mono tracking-tight ${currentStock < stockAlert ? 'text-red-400' : 'text-cyan-400'}`}>
+                                                {formatNumber(currentStock)}
+                                            </p>
+                                            <span className="text-gray-500 text-[10px] pb-1 uppercase">ลิตร</span>
+                                        </div>
+                                        <p className="text-[10px] text-gray-500 mt-0.5 uppercase tracking-wider">จากการคำนวณ (รับ-ขาย)</p>
+                                    </div>
                                 </div>
 
                                 {/* Gauge-based Estimation */}
-                                <div className="bg-yellow-900/20 rounded-lg p-3 mb-4">
-                                    <p className="text-sm text-gray-400 mb-1">จากเกจ 3 ถัง (ถัง×98):</p>
+                                <div className="bg-[#141417] rounded-xl p-3 mb-4 border border-white/5 relative z-10">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="text-[10px] text-gray-500 uppercase tracking-wider">ประเมินจากเกจ</span>
+                                    </div>
                                     {(() => {
                                         const totalPercentage = gaugeReadings.reduce((sum, g) => sum + (g.endPercentage || 0), 0);
                                         const gaugeEstimate = totalPercentage * GAS_TANK_CAPACITY_LITERS;
                                         const difference = gaugeEstimate - currentStock;
                                         return (
-                                            <>
-                                                <p className="text-xl font-bold font-mono text-yellow-400">
-                                                    ({gaugeReadings.map(g => g.endPercentage || 0).join('% + ')}%) × 98
-                                                </p>
-                                                <p className="text-2xl font-bold font-mono text-yellow-400">
-                                                    = {formatNumber(gaugeEstimate)} <span className="text-sm">ลิตร</span>
-                                                </p>
-                                                {Math.abs(difference) > 10 && (
-                                                    <p className={`text-xs mt-1 ${difference > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                        ต่าง {difference > 0 ? '+' : ''}{formatNumber(difference)} ลิตร
+                                            <div className="flex justify-between items-end">
+                                                <div>
+                                                    <p className="text-lg font-bold font-mono text-yellow-400">
+                                                        {formatNumber(gaugeEstimate)} <span className="text-[10px] text-gray-500">L</span>
                                                     </p>
+                                                </div>
+                                                {Math.abs(difference) > 10 && (
+                                                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${difference > 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                                                        {difference > 0 ? '+' : ''}{formatNumber(difference)} L
+                                                    </span>
                                                 )}
-                                            </>
+                                            </div>
                                         );
                                     })()}
                                 </div>
 
                                 <button
                                     onClick={() => setShowSupplyForm(true)}
-                                    className="btn btn-success w-full"
+                                    className="w-full py-2.5 rounded-xl text-sm font-medium bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 transition-colors flex justify-center items-center gap-2 relative z-10"
                                 >
-                                    <Plus size={18} />
-                                    + รับแก๊สเข้า (KG)
+                                    <Plus size={16} />
+                                    รับแก๊สเข้า (KG)
                                 </button>
                             </div>
 
                             {/* Today Summary */}
-                            <div className="glass-card p-6">
-                                <h2 className="text-lg font-bold text-white mb-4">📊 สรุปวันนี้</h2>
-                                <div className="space-y-2">
-                                    <div className="flex justify-between">
-                                        <span className="text-gray-400">ยอดขาย:</span>
-                                        <span className="font-mono text-cyan-400">{formatNumber(transactionsTotal)} ลิตร</span>
+                            <div className="bg-[#1C1C1F] border border-white/10 rounded-2xl p-6 shadow-lg">
+                                <h2 className="text-sm font-semibold text-gray-400 mb-5 flex items-center gap-2">
+                                    <FileText size={16} className="text-purple-400" /> สรุปวันนี้
+                                </h2>
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-end border-b border-white/5 pb-3">
+                                        <span className="text-sm text-gray-500">ยอดขาย</span>
+                                        <span className="font-mono text-lg font-bold text-cyan-400">{formatNumber(transactionsTotal)} <span className="text-[10px] text-gray-500">L</span></span>
                                     </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-gray-400">รายได้:</span>
-                                        <span className="font-mono text-green-400">{formatCurrency(transactions.reduce((s, t) => s + Number(t.amount), 0))} บาท</span>
+                                    <div className="flex justify-between items-end border-b border-white/5 pb-3">
+                                        <span className="text-sm text-gray-500">รายได้</span>
+                                        <span className="font-mono text-lg font-bold text-green-400">{formatCurrency(transactions.reduce((s, t) => s + Number(t.amount), 0))} <span className="text-[10px] text-gray-500">฿</span></span>
                                     </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-gray-400">รายการ:</span>
-                                        <span className="font-mono">{transactions.length} รายการ</span>
+                                    <div className="flex justify-between items-end">
+                                        <span className="text-sm text-gray-500">รายการ</span>
+                                        <span className="font-mono text-lg font-bold text-white">{transactions.length}</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Gauge Readings (3 Tanks) - METERS TAB */}
-                        <div className="glass-card p-6 mb-6">
+
+                                                {/* Gauge Readings (3 Tanks) - METERS TAB */}
+                        <div className="mb-8">
                             <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                <h2 className="text-xl font-bold text-white flex items-center gap-2">
                                     <Gauge className="text-yellow-400" />
-                                    📊 เกจถังแก๊ส (3 ถัง) - เปรียบเทียบกับมิเตอร์
+                                    📊 ถังเก็บแก๊ส (3 ถัง)
                                 </h2>
                                 <button
                                     onClick={copyGaugeFromPreviousDay}
-                                    className="btn btn-info btn-sm"
+                                    className="btn btn-info btn-sm flex items-center gap-1 bg-[#1C1C1F] border border-white/10 hover:bg-white/5 text-gray-300 transition-colors"
                                     title="คัดลอกเกจสิ้นสุดจากวันก่อน"
                                 >
-                                    📋 ดึงเกจวันก่อน
+                                    ดึงเกจวันก่อน
                                 </button>
                             </div>
-                            <div className="grid md:grid-cols-3 gap-4">
+                            <div className="grid md:grid-cols-3 gap-6">
                                 {[1, 2, 3].map(tankNum => {
                                     const reading = gaugeReadings.find(g => g.tankNumber === tankNum);
                                     // Calculate supplies per tank (divide total by 3)
@@ -1387,92 +1340,104 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                         ? (startLiters + supplyPerTank) - endLiters
                                         : null;
                                     return (
-                                        <div key={tankNum} className="bg-white/5 rounded-xl p-4">
-                                            <h3 className="font-bold text-yellow-400 mb-3">ถังที่ {tankNum}</h3>
+                                        <div key={tankNum} className="bg-[#1C1C1F] border border-white/10 rounded-2xl p-6 shadow-lg relative overflow-hidden">
+                                            <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/5 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+                                            
+                                            <h3 className="font-bold text-lg text-yellow-400 mb-5 relative z-10 flex items-center justify-between">
+                                                ถังที่ {tankNum}
+                                                <div className="h-2 flex-1 mx-3 bg-white/5 rounded-full overflow-hidden">
+                                                    <div 
+                                                        className={`h-full ${(reading?.endPercentage ?? 100) < 20 ? 'bg-red-500' : 'bg-yellow-400'}`} 
+                                                        style={{ width: `${reading?.endPercentage || 0}%` }}
+                                                    ></div>
+                                                </div>
+                                            </h3>
 
-                                            {/* Start Gauge */}
-                                            <div className="mb-3">
-                                                <div className="flex justify-between text-sm mb-1">
-                                                    <span className="text-gray-400">🌅 เริ่มต้น:</span>
-                                                    <span className="text-cyan-400 font-mono">
-                                                        {reading?.startPercentage !== null ? `${reading?.startPercentage}%` : '-'}
-                                                    </span>
+                                            <div className="space-y-4 relative z-10">
+                                                {/* Start Gauge */}
+                                                <div>
+                                                    <div className="flex justify-between text-xs text-gray-400 mb-1.5">
+                                                        <span>เกจเริ่มต้น:</span>
+                                                        <span className="text-cyan-400 font-mono font-medium">
+                                                            {reading?.startPercentage !== null ? `${reading?.startPercentage}%` : '-'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <input
+                                                            id={`gauge-start-${tankNum}`}
+                                                            type="number"
+                                                            min="0"
+                                                            max="100"
+                                                            step="1"
+                                                            value={newGaugeValues[`${tankNum}-start`] || ''}
+                                                            onChange={(e) => setNewGaugeValues(prev => ({
+                                                                ...prev,
+                                                                [`${tankNum}-start`]: e.target.value
+                                                            }))}
+                                                            onKeyDown={(e) => handleInputKeyDown(e, `gauge-start-${tankNum}`)}
+                                                            placeholder="0-100%"
+                                                            className="w-full bg-[#141417] border border-white/5 rounded-xl px-3 py-2 text-center font-mono text-sm text-gray-200 focus:outline-none focus:border-cyan-500/50 transition-colors"
+                                                        />
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center gap-2">
-                                                    <input
-                                                        id={`gauge-start-${tankNum}`}
-                                                        type="number"
-                                                        min="0"
-                                                        max="100"
-                                                        step="1"
-                                                        value={newGaugeValues[`${tankNum}-start`] || ''}
-                                                        onChange={(e) => setNewGaugeValues(prev => ({
-                                                            ...prev,
-                                                            [`${tankNum}-start`]: e.target.value
-                                                        }))}
-                                                        onKeyDown={(e) => handleInputKeyDown(e, `gauge-start-${tankNum}`)}
-                                                        placeholder="0-100%"
-                                                        className="input-glow flex-1 text-center text-sm"
-                                                    />
+
+                                                {/* End Gauge */}
+                                                <div>
+                                                    <div className="flex justify-between text-xs text-gray-400 mb-1.5">
+                                                        <span>เกจสิ้นสุด:</span>
+                                                        <span className={`font-mono font-medium ${reading?.endPercentage !== null && (reading?.endPercentage ?? 100) < 20 ? 'text-red-400' : 'text-green-400'}`}>
+                                                            {reading?.endPercentage !== null ? `${reading?.endPercentage}%` : '-'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <input
+                                                            id={`gauge-end-${tankNum}`}
+                                                            type="number"
+                                                            min="0"
+                                                            max="100"
+                                                            step="1"
+                                                            value={newGaugeValues[`${tankNum}-end`] || ''}
+                                                            onChange={(e) => setNewGaugeValues(prev => ({
+                                                                ...prev,
+                                                                [`${tankNum}-end`]: e.target.value
+                                                            }))}
+                                                            onKeyDown={(e) => handleInputKeyDown(e, `gauge-end-${tankNum}`)}
+                                                            placeholder="0-100%"
+                                                            className="w-full bg-[#141417] border border-yellow-500/20 rounded-xl px-3 py-2 text-center font-mono text-sm text-white focus:outline-none focus:border-yellow-500 transition-colors"
+                                                        />
+                                                    </div>
                                                 </div>
+
+                                                {/* Used liters from this tank */}
+                                                {usedLiters !== null && (
+                                                    <div className="pt-4 mt-2 border-t border-white/5 flex justify-between items-center">
+                                                        <span className="text-xs font-medium text-gray-400">ใช้ไป (คำนวณ):</span>
+                                                        <span className="font-mono font-bold text-yellow-400 text-lg">
+                                                            {formatNumber(usedLiters)} <span className="text-[10px] text-gray-500">L</span>
+                                                        </span>
+                                                    </div>
+                                                )}
                                             </div>
-
-                                            {/* End Gauge */}
-                                            <div className="mb-3">
-                                                <div className="flex justify-between text-sm mb-1">
-                                                    <span className="text-gray-400">🌙 สิ้นสุด:</span>
-                                                    <span className={`font-mono ${reading?.endPercentage !== null && (reading?.endPercentage ?? 100) < 20 ? 'text-red-400' : 'text-green-400'}`}>
-                                                        {reading?.endPercentage !== null ? `${reading?.endPercentage}%` : '-'}
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <input
-                                                        id={`gauge-end-${tankNum}`}
-                                                        type="number"
-                                                        min="0"
-                                                        max="100"
-                                                        step="1"
-                                                        value={newGaugeValues[`${tankNum}-end`] || ''}
-                                                        onChange={(e) => setNewGaugeValues(prev => ({
-                                                            ...prev,
-                                                            [`${tankNum}-end`]: e.target.value
-                                                        }))}
-                                                        onKeyDown={(e) => handleInputKeyDown(e, `gauge-end-${tankNum}`)}
-                                                        placeholder="0-100%"
-                                                        className="input-glow flex-1 text-center text-sm"
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            {/* Used liters from this tank */}
-                                            {usedLiters !== null && (
-                                                <div className="bg-purple-500/10 rounded-lg p-2 text-center">
-                                                    <span className="text-xs text-gray-400">ใช้ไป: </span>
-                                                    <span className="font-mono text-purple-400 font-bold">
-                                                        {formatNumber(usedLiters)} ลิตร
-                                                    </span>
-                                                </div>
-                                            )}
                                         </div>
                                     );
                                 })}
                             </div>
 
                             {/* Save Gauge Buttons */}
-                            <div className="flex gap-3 mt-4">
+                            <div className="flex gap-4 mt-6">
                                 <button
                                     onClick={() => saveAllGaugesByType('start')}
-                                    className="btn btn-info flex-1"
+                                    className="flex-1 py-3 text-sm font-semibold rounded-xl text-gray-300 bg-[#1C1C1F] border border-white/10 hover:bg-white/5 transition-all flex items-center justify-center gap-2"
                                 >
                                     <Save size={16} />
-                                    บันทึกเกจเริ่มต้น (3 ถัง)
+                                    บันทึกเกจเริ่มต้น
                                 </button>
                                 <button
                                     onClick={() => saveAllGaugesByType('end')}
-                                    className="btn btn-success flex-1"
+                                    className="flex-1 py-3 text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-yellow-600 to-orange-600 hover:opacity-90 transition-all shadow-lg shadow-yellow-500/20 flex items-center justify-center gap-2"
                                 >
                                     <Save size={16} />
-                                    บันทึกเกจสิ้นสุด (3 ถัง)
+                                    บันทึกเกจสิ้นสุด
                                 </button>
                             </div>
 
@@ -1489,27 +1454,30 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
 
                                 if (totalStartLiters > 0 && totalEndLiters > 0) {
                                     return (
-                                        <div className="mt-4 bg-white/5 rounded-xl p-4">
-                                            <h4 className="font-bold text-white mb-3">📈 เปรียบเทียบ (รวมทั้งวัน)</h4>
-                                            <div className="grid grid-cols-3 gap-4 text-center">
+                                        <div className="mt-6 bg-[#1C1C1F] border border-white/10 rounded-2xl p-6 shadow-lg">
+                                            <h4 className="font-bold text-white mb-4 text-sm flex items-center gap-2">
+                                                <TrendingUp size={16} className="text-blue-400" />
+                                                เปรียบเทียบ (รวมทั้งวัน)
+                                            </h4>
+                                            <div className="grid grid-cols-3 gap-6 text-center">
                                                 <div>
-                                                    <div className="text-gray-400 text-sm">จากเกจ (ใช้ไป)</div>
-                                                    <div className="text-xl font-bold font-mono text-yellow-400">{formatNumber(totalGaugeUsed)} ลิตร</div>
+                                                    <div className="text-gray-500 text-xs mb-1">จากเกจ (ใช้ไป)</div>
+                                                    <div className="text-2xl font-bold font-mono text-yellow-400">{formatNumber(totalGaugeUsed)}</div>
                                                 </div>
                                                 <div>
-                                                    <div className="text-gray-400 text-sm">จากมิเตอร์ (ขาย)</div>
-                                                    <div className="text-xl font-bold font-mono text-cyan-400">{formatNumber(allDayMeterTotal)} ลิตร</div>
+                                                    <div className="text-gray-500 text-xs mb-1">จากมิเตอร์ (ขาย)</div>
+                                                    <div className="text-2xl font-bold font-mono text-cyan-400">{formatNumber(allDayMeterTotal)}</div>
                                                 </div>
-                                                <div>
-                                                    <div className="text-gray-400 text-sm">ผลต่าง</div>
+                                                <div className={`rounded-xl p-2 ${Math.abs(difference) < 10 ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+                                                    <div className="text-gray-500 text-xs mb-1">ผลต่าง</div>
                                                     <div className={`text-xl font-bold font-mono ${Math.abs(difference) < 10 ? 'text-green-400' : 'text-red-400'}`}>
-                                                        {difference > 0 ? '+' : ''}{formatNumber(difference)} ลิตร
+                                                        {difference > 0 ? '+' : ''}{formatNumber(difference)} L
                                                     </div>
                                                 </div>
                                             </div>
                                             {Math.abs(difference) >= 10 && (
-                                                <div className="mt-2 text-center text-red-400 text-sm">
-                                                    ⚠️ ผลต่างมากกว่า 10 ลิตร - ตรวจสอบข้อมูล
+                                                <div className="mt-4 text-center text-red-400 text-xs bg-red-500/10 py-2 rounded-lg flex justify-center items-center gap-2">
+                                                    <AlertTriangle size={14} /> ผลต่างมากกว่า 10 ลิตร - ตรวจสอบข้อมูล
                                                 </div>
                                             )}
                                         </div>
@@ -1518,6 +1486,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                 return null;
                             })()}
                         </div>
+
 
                         {/* Gas Supply Form (Modal) */}
                         {showSupplyForm && (
@@ -1586,120 +1555,111 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                             </div>
                         )}
 
-                        {/* Meter Readings - METERS TAB */}
-                        <div className="grid md:grid-cols-2 gap-6 mb-6">
-                            {/* Start Meters */}
-                            <div className="glass-card p-6">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="font-bold text-white">📟 มิเตอร์เริ่มต้น (4 หัวจ่าย)</h3>
+                                                {/* Meter Readings - METERS TAB */}
+                        <div className="mb-8">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                    <Fuel className="text-cyan-400" />
+                                    📟 หัวจ่ายแก๊ส (4 หัว)
+                                </h2>
+                                <div className="flex gap-2">
                                     {hasCarryOver && (
-                                        <span className="px-2 py-1 rounded-full text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                                            📋 จากกะก่อน
+                                        <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center gap-1">
+                                            📋 มีข้อมูลยกยอดจากกะก่อน
                                         </span>
                                     )}
-                                </div>
-                                <div className="space-y-3">
-                                    {meters.map((m, i) => (
-                                        <div key={i} className="flex items-center gap-2">
-                                            <span className="text-cyan-400 w-16 text-sm">หัว {m.nozzle}</span>
-                                            <input
-                                                id={`meter-start-${m.nozzle}`}
-                                                type="number"
-                                                value={m.start}
-                                                onChange={(e) => {
-                                                    const newMeters = [...meters];
-                                                    newMeters[i].start = parseFloat(e.target.value) || 0;
-                                                    setMeters(newMeters);
-                                                }}
-                                                onKeyDown={(e) => handleInputKeyDown(e, `meter-start-${m.nozzle}`)}
-                                                className="input-glow text-center font-mono flex-1"
-                                            />
-                                            <label className={`cursor-pointer p-2 rounded-lg transition-all ${m.startPhoto ? 'bg-green-600 text-white' : 'bg-white/10 text-gray-400 hover:bg-white/20'
-                                                }`}>
-                                                <input
-                                                    type="file"
-                                                    accept="image/*"
-                                                    capture="environment"
-                                                    className="hidden"
-                                                    onChange={(e) => {
-                                                        const file = e.target.files?.[0];
-                                                        if (file) handleMeterPhotoUpload(m.nozzle, 'start', file);
-                                                    }}
-                                                />
-                                                {uploadingPhoto === `${m.nozzle}-start` ? (
-                                                    <span className="animate-spin">⏳</span>
-                                                ) : m.startPhoto ? (
-                                                    <CheckCircle size={18} />
-                                                ) : (
-                                                    <Camera size={18} />
-                                                )}
-                                            </label>
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="flex gap-2 mt-4">
                                     <button
                                         onClick={copyFromPreviousShift}
-                                        className="btn btn-info flex-1"
+                                        className="btn btn-info btn-sm flex items-center gap-1 bg-[#1C1C1F] border border-white/10 hover:bg-white/5 text-gray-300 transition-colors"
                                         title="คัดลอกมิเตอร์สิ้นสุดของกะก่อนหน้า"
                                     >
-                                        📋 ดึงจากกะก่อน
-                                    </button>
-                                    <button onClick={() => saveMeters('start')} className="btn btn-success flex-1">
-                                        <Save size={18} />
-                                        บันทึก
+                                        ดึงจากกะก่อน
                                     </button>
                                 </div>
                             </div>
-
-                            {/* End Meters */}
-                            <div className="glass-card p-6">
-                                <h3 className="font-bold text-white mb-4">📟 มิเตอร์สิ้นสุด (4 หัวจ่าย)</h3>
-                                <div className="space-y-3">
-                                    {meters.map((m, i) => (
-                                        <div key={i} className="flex items-center gap-2">
-                                            <span className="text-cyan-400 w-16 text-sm">หัว {m.nozzle}</span>
-                                            <input
-                                                id={`meter-end-${m.nozzle}`}
-                                                type="number"
-                                                value={m.end}
-                                                onChange={(e) => {
-                                                    const newMeters = [...meters];
-                                                    newMeters[i].end = parseFloat(e.target.value) || 0;
-                                                    setMeters(newMeters);
-                                                }}
-                                                onKeyDown={(e) => handleInputKeyDown(e, `meter-end-${m.nozzle}`)}
-                                                className="input-glow text-center font-mono flex-1"
-                                            />
-                                            <label className={`cursor-pointer p-2 rounded-lg transition-all ${m.endPhoto ? 'bg-green-600 text-white' : 'bg-white/10 text-gray-400 hover:bg-white/20'
-                                                }`}>
-                                                <input
-                                                    type="file"
-                                                    accept="image/*"
-                                                    capture="environment"
-                                                    className="hidden"
-                                                    onChange={(e) => {
-                                                        const file = e.target.files?.[0];
-                                                        if (file) handleMeterPhotoUpload(m.nozzle, 'end', file);
-                                                    }}
-                                                />
-                                                {uploadingPhoto === `${m.nozzle}-end` ? (
-                                                    <span className="animate-spin">⏳</span>
-                                                ) : m.endPhoto ? (
-                                                    <CheckCircle size={18} />
-                                                ) : (
-                                                    <Camera size={18} />
-                                                )}
-                                            </label>
+                            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                {meters.map((m, i) => (
+                                    <div key={i} className="bg-[#1C1C1F] border border-white/10 rounded-2xl p-5 relative overflow-hidden group shadow-lg">
+                                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 to-blue-500 opacity-70"></div>
+                                        
+                                        <div className="flex items-center justify-between mb-5">
+                                            <h3 className="font-bold text-lg text-white">หัวจ่ายที่ {m.nozzle}</h3>
+                                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-green-500/10 text-green-400 border border-green-500/20">
+                                                ACTIVE
+                                            </span>
                                         </div>
-                                    ))}
-                                </div>
-                                <button onClick={() => saveMeters('end')} className="btn btn-success w-full mt-4">
-                                    <Save size={18} />
-                                    บันทึกมิเตอร์สิ้นสุด
+
+                                        <div className="space-y-4">
+                                            <div>
+                                                <div className="flex justify-between text-xs text-gray-400 mb-1.5">
+                                                    <span>มิเตอร์เริ่มต้น:</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        id={`meter-start-${m.nozzle}`}
+                                                        type="number"
+                                                        value={m.start || ''}
+                                                        onChange={(e) => {
+                                                            const newMeters = [...meters];
+                                                            newMeters[i].start = parseFloat(e.target.value) || 0;
+                                                            setMeters(newMeters);
+                                                        }}
+                                                        onKeyDown={(e) => handleInputKeyDown(e, `meter-start-${m.nozzle}`)}
+                                                        className="w-full bg-[#141417] border border-white/5 rounded-xl px-3 py-2 text-center font-mono text-sm text-gray-200 focus:outline-none focus:border-cyan-500/50 transition-colors"
+                                                        placeholder="0.00"
+                                                    />
+                                                    <label className={`cursor-pointer p-2.5 rounded-xl transition-all ${m.startPhoto ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-[#141417] text-gray-400 border border-white/5 hover:bg-white/5'}`}>
+                                                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleMeterPhotoUpload(m.nozzle, 'start', file); }} />
+                                                        {uploadingPhoto === `${m.nozzle}-start` ? <span className="animate-spin text-xs inline-block">⏳</span> : m.startPhoto ? <CheckCircle size={14} /> : <Camera size={14} />}
+                                                    </label>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <div className="flex justify-between text-xs text-gray-400 mb-1.5">
+                                                    <span>มิเตอร์สิ้นสุด:</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        id={`meter-end-${m.nozzle}`}
+                                                        type="number"
+                                                        value={m.end || ''}
+                                                        onChange={(e) => {
+                                                            const newMeters = [...meters];
+                                                            newMeters[i].end = parseFloat(e.target.value) || 0;
+                                                            setMeters(newMeters);
+                                                        }}
+                                                        onKeyDown={(e) => handleInputKeyDown(e, `meter-end-${m.nozzle}`)}
+                                                        className="w-full bg-[#141417] border border-cyan-500/20 rounded-xl px-3 py-2 text-center font-mono text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                                                        placeholder="0.00"
+                                                    />
+                                                    <label className={`cursor-pointer p-2.5 rounded-xl transition-all ${m.endPhoto ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-[#141417] text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/10'}`}>
+                                                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleMeterPhotoUpload(m.nozzle, 'end', file); }} />
+                                                        {uploadingPhoto === `${m.nozzle}-end` ? <span className="animate-spin text-xs inline-block">⏳</span> : m.endPhoto ? <CheckCircle size={14} /> : <Camera size={14} />}
+                                                    </label>
+                                                </div>
+                                            </div>
+
+                                            <div className="pt-4 mt-2 border-t border-white/5 flex justify-between items-center">
+                                                <span className="text-xs font-medium text-gray-400">ขายได้:</span>
+                                                <span className="font-mono font-bold text-cyan-400 text-lg">
+                                                    {formatNumber(Math.max(0, m.end - m.start))} <span className="text-[10px] text-gray-500">L</span>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex gap-4 mt-6">
+                                <button onClick={() => saveMeters('start')} className="flex-1 py-3 text-sm font-semibold rounded-xl text-gray-300 bg-[#1C1C1F] border border-white/10 hover:bg-white/5 transition-all flex items-center justify-center gap-2">
+                                    <Save size={16} /> บันทึกเริ่ม
+                                </button>
+                                <button onClick={() => saveMeters('end')} className="flex-1 py-3 text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-cyan-600 to-blue-600 hover:opacity-90 transition-all shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2">
+                                    <Save size={16} /> บันทึกสิ้นสุด
                                 </button>
                             </div>
                         </div>
+
 
                         {/* Meter Verification */}
                         <div className="glass-card p-6 mb-6">
