@@ -1,32 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireGasStationAccess, shiftBelongsToStation } from '@/lib/gas/api-guards';
-
-type GaugeInput = {
-    tankNumber: number;
-    percentage: number;
-    photoUrl?: string | null;
-};
-
-function validateGaugeReadings(readings: unknown): readings is GaugeInput[] {
-    return Array.isArray(readings)
-        && readings.length >= 3
-        && readings.every((reading) => {
-            const item = reading as Partial<GaugeInput>;
-            return Number.isInteger(item.tankNumber)
-                && item.tankNumber! >= 1
-                && item.tankNumber! <= 3
-                && typeof item.percentage === 'number'
-                && item.percentage >= 0
-                && item.percentage <= 100;
-        });
-}
+import {
+    getGasStartBaselineLock,
+    validateGasGaugePayload,
+} from '@/lib/gas/v2-workflow';
 
 async function getShiftForStation(shiftId: string, stationDbId: string) {
     const shift = await prisma.shift.findUnique({
         where: { id: shiftId },
         include: {
-            dailyRecord: { select: { stationId: true } }
+            dailyRecord: { select: { stationId: true } },
+            meters: {
+                select: {
+                    endReading: true,
+                },
+            },
+            reconciliation: {
+                select: {
+                    id: true,
+                },
+            },
         }
     });
 
@@ -113,17 +107,58 @@ export async function POST(
             return NextResponse.json({ error: 'shiftId and type are required' }, { status: 400 });
         }
 
-        if (!validateGaugeReadings(readings)) {
-            return NextResponse.json({ error: 'Gauge readings for 3 tanks are required (0-100%)' }, { status: 400 });
+        const validation = validateGasGaugePayload(readings);
+        if (!validation.ok) {
+            return NextResponse.json({
+                error: validation.errors[0] || 'Invalid gauge readings',
+                errors: validation.errors,
+            }, { status: 400 });
         }
 
         const shift = await getShiftForStation(shiftId, auth.station.dbId);
         if (!shift) {
             return NextResponse.json({ error: 'Shift not found for this station' }, { status: 404 });
         }
+        if (shift.status !== 'OPEN') {
+            return NextResponse.json({ error: 'Shift is not open' }, { status: 409 });
+        }
+
+        if (type === 'start') {
+            const [transactionCount, endGaugeCount] = await Promise.all([
+                prisma.transaction.count({
+                    where: {
+                        shiftId,
+                        deletedAt: null,
+                        isVoided: false,
+                    },
+                }),
+                prisma.gaugeReading.count({
+                    where: {
+                        stationId: auth.station.dbId,
+                        dailyRecordId: shift.dailyRecordId,
+                        shiftNumber: shift.shiftNumber,
+                        notes: 'end',
+                    },
+                }),
+            ]);
+
+            const startBaselineLock = getGasStartBaselineLock({
+                shiftStatus: shift.status,
+                transactionCount,
+                hasEndMeters: shift.meters.some((meter) => meter.endReading !== null),
+                hasEndGauges: endGaugeCount > 0,
+                hasReconciliation: Boolean(shift.reconciliation),
+            });
+
+            if (startBaselineLock.locked) {
+                return NextResponse.json({
+                    error: startBaselineLock.reason || 'Start gauge readings are locked',
+                }, { status: 409 });
+            }
+        }
 
         const saved = await Promise.all(
-            readings.map(async (reading) => {
+            validation.value.map(async (reading) => {
                 const existing = await prisma.gaugeReading.findFirst({
                     where: {
                         stationId: auth.station.dbId,

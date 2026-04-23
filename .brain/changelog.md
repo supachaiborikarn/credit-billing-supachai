@@ -118,3 +118,14 @@
 - ✅ ปิดกะ GAS ค้างใน DB จริงเพื่อเริ่มใหม่วันนี้
   - ปิด `OPEN` shifts ครบ 70 กะ (`station-5` 57, `station-6` 13) และตรวจซ้ำแล้ว `remainingOpen=0`
   - เติม end meter ที่ว่าง 16 จุดเป็นค่า start เดิม, ปิด daily records ที่ไม่มี open shift เหลือ 67 records, และสร้าง audit log ครบ 70 รายการ
+- 🧾 บันทึก post-hardening review ของ GAS v2
+  - พบว่า `/gas/[stationId]/sell` ยังใช้ global gas settings เป็นราคาขาย ขณะที่ summary/reconciliation ยึด `dailyRecord.gasPrice` และ route เปิดกะ seed วันใหม่ด้วย `16.09` แบบ hard-coded
+  - ระบุว่า `/api/v2/gas/[stationId]/shift/open` ยังไม่ atomic: create dailyRecord/shift/meters/gauges แยกหลาย query และ validate ค่า meter/gauge ฝั่ง server ยังไม่พอ
+  - ระบุว่า v2 meters/gauge ยังแก้ start baseline ย้อนหลังได้ ซึ่งเสี่ยงทำให้ expected liters และ reconciliation เปลี่ยนย้อนหลัง
+  - บันทึกว่า tests ปัจจุบันยังครอบเฉพาะ helper/mocks และควรเพิ่ม route-level coverage ก่อนขยาย feature GAS v2 รอบถัดไป
+- ✅ ปิด follow-up หลักของ GAS v2 core flow
+  - เพิ่ม helper กลาง `src/lib/gas/v2-workflow.ts` สำหรับ price fallback, exact payload validation ของ meter/gauge, และ baseline lock rules
+  - patch `api/v2/gas/[stationId]/sell` ให้คำนวณ `pricePerLiter`/`amount` จาก `dailyRecord.gasPrice` ฝั่ง server, patch `summary` และ `shift/close` ให้ใช้ fallback เดียวกัน, และให้หน้า `/gas/[stationId]/sell` อ่านราคาจาก summary แทน global settings
+  - patch `api/v2/gas/[stationId]/shift/open` ให้ใช้ `prisma.$transaction`, seed `dailyRecord.gasPrice` จากค่า default จริงของ station/settings, และ validate meter/gauge ให้ครบทุกหัวจ่าย/ทุกถัง
+  - patch `api/v2/gas/[stationId]/meters`, `gauge`, และ `shift/current` ให้บล็อก start baseline edit หลังมี sale/end/reconciliation แล้ว พร้อมทำให้หน้า `/gas/[stationId]/meters` และ `/gauge` แสดงสถานะล็อกตรงกับ backend
+  - เพิ่ม tests `tests/gas-v2-routes.test.ts` และขยาย `gas-station-hardening.test.ts` เพื่อครอบ price source, atomic open, payload validation, และ baseline immutability

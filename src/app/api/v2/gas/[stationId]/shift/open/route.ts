@@ -3,6 +3,11 @@ import { prisma } from '@/lib/prisma';
 import { bangkokDateToUTC } from '@/lib/gas';
 import { resolveGasStation, getNonGasStationError } from '@/lib/gas/station-resolver';
 import { requireStationAccessApi } from '@/lib/api-auth';
+import {
+    getDefaultGasPriceForStation,
+    validateGasGaugePayload,
+    validateGasMeterPayload,
+} from '@/lib/gas/v2-workflow';
 
 /**
  * POST /api/v2/gas/[stationId]/shift/open
@@ -28,96 +33,115 @@ export async function POST(
         const userId = auth.user.id;
 
         // Validate inputs
-        if (!dateKey || !shiftNumber) {
+        if (!dateKey || !Number.isInteger(shiftNumber) || shiftNumber < 1 || shiftNumber > 2) {
             return NextResponse.json({ error: 'dateKey and shiftNumber are required' }, { status: 400 });
         }
 
-        if (!meters || meters.length < 4) {
-            return NextResponse.json({ error: 'Meter readings for 4 nozzles are required' }, { status: 400 });
+        const meterValidation = validateGasMeterPayload(meters);
+        if (!meterValidation.ok) {
+            return NextResponse.json({
+                error: meterValidation.errors[0] || 'Invalid meter readings',
+                errors: meterValidation.errors,
+            }, { status: 400 });
         }
 
-        if (!gauges || gauges.length < 3) {
-            return NextResponse.json({ error: 'Gauge readings for 3 tanks are required' }, { status: 400 });
+        const gaugeValidation = validateGasGaugePayload(gauges);
+        if (!gaugeValidation.ok) {
+            return NextResponse.json({
+                error: gaugeValidation.errors[0] || 'Invalid gauge readings',
+                errors: gaugeValidation.errors,
+            }, { status: 400 });
         }
 
-        // Get or create DailyRecord (use station.dbId)
         const dateUTC = bangkokDateToUTC(dateKey);
-        let dailyRecord = await prisma.dailyRecord.findFirst({
-            where: {
-                stationId: station.dbId,
-                date: dateUTC
+        return await prisma.$transaction(async (tx) => {
+            const existingOpenShift = await tx.shift.findFirst({
+                where: {
+                    status: 'OPEN',
+                    dailyRecord: {
+                        stationId: station.dbId,
+                    },
+                },
+            });
+
+            if (existingOpenShift) {
+                return NextResponse.json({ error: 'มีกะที่เปิดอยู่แล้ว' }, { status: 400 });
             }
-        });
 
-        if (!dailyRecord) {
-            // Default gas price (ideally would come from settings)
-            const gasPrice = 16.09;
-
-            dailyRecord = await prisma.dailyRecord.create({
-                data: {
+            let dailyRecord = await tx.dailyRecord.findFirst({
+                where: {
                     stationId: station.dbId,
                     date: dateUTC,
-                    gasPrice,
-                    retailPrice: gasPrice,
-                    wholesalePrice: gasPrice
-                }
+                },
             });
-        }
 
-        // Check no open shift exists
-        const existingOpenShift = await prisma.shift.findFirst({
-            where: {
-                dailyRecordId: dailyRecord.id,
-                status: 'OPEN'
+            const dailyGasPrice = await getDefaultGasPriceForStation(tx, station.dbId);
+
+            if (!dailyRecord) {
+                dailyRecord = await tx.dailyRecord.create({
+                    data: {
+                        stationId: station.dbId,
+                        date: dateUTC,
+                        gasPrice: dailyGasPrice,
+                        retailPrice: dailyGasPrice,
+                        wholesalePrice: dailyGasPrice,
+                    },
+                });
+            } else if (!dailyRecord.gasPrice || Number(dailyRecord.gasPrice) <= 0) {
+                dailyRecord = await tx.dailyRecord.update({
+                    where: { id: dailyRecord.id },
+                    data: {
+                        gasPrice: dailyGasPrice,
+                        retailPrice: dailyGasPrice,
+                        wholesalePrice: dailyGasPrice,
+                    },
+                });
             }
-        });
 
-        if (existingOpenShift) {
-            return NextResponse.json({ error: 'มีกะที่เปิดอยู่แล้ว' }, { status: 400 });
-        }
-
-        // Create shift
-        const shift = await prisma.shift.create({
-            data: {
-                dailyRecordId: dailyRecord.id,
-                shiftNumber,
-                staffId: userId,
-                status: 'OPEN'
-            }
-        });
-
-        // Create meter readings
-        for (const meter of meters) {
-            await prisma.meterReading.create({
+            const shift = await tx.shift.create({
                 data: {
-                    shiftId: shift.id,
                     dailyRecordId: dailyRecord.id,
-                    nozzleNumber: meter.nozzleNumber,
-                    startReading: meter.reading,
-                    startPhoto: meter.photoUrl || null
-                }
-            });
-        }
-
-        // Create gauge readings
-        for (const gauge of gauges) {
-            await prisma.gaugeReading.create({
-                data: {
-                    stationId: station.dbId,
-                    dailyRecordId: dailyRecord.id,
-                    date: new Date(),
-                    tankNumber: gauge.tankNumber,
-                    percentage: gauge.percentage,
                     shiftNumber,
-                    notes: 'start'
-                }
+                    staffId: userId,
+                    status: 'OPEN',
+                },
             });
-        }
 
-        return NextResponse.json({
-            success: true,
-            shiftId: shift.id,
-            message: 'เปิดกะสำเร็จ'
+            await Promise.all(
+                meterValidation.value.map((meter) => tx.meterReading.create({
+                    data: {
+                        shiftId: shift.id,
+                        dailyRecordId: dailyRecord.id,
+                        nozzleNumber: meter.nozzleNumber,
+                        startReading: meter.reading,
+                        startPhoto: meter.photoUrl || null,
+                        capturedById: userId,
+                    },
+                }))
+            );
+
+            await Promise.all(
+                gaugeValidation.value.map((gauge) => tx.gaugeReading.create({
+                    data: {
+                        stationId: station.dbId,
+                        dailyRecordId: dailyRecord.id,
+                        date: dailyRecord.date,
+                        tankNumber: gauge.tankNumber,
+                        percentage: gauge.percentage,
+                        photoUrl: gauge.photoUrl || null,
+                        recordedById: userId,
+                        shiftNumber,
+                        notes: 'start',
+                    },
+                }))
+            );
+
+            return NextResponse.json({
+                success: true,
+                shiftId: shift.id,
+                gasPrice: Number(dailyRecord.gasPrice || dailyGasPrice),
+                message: 'เปิดกะสำเร็จ',
+            });
         });
     } catch (error) {
         console.error('[Shift Open]:', error);

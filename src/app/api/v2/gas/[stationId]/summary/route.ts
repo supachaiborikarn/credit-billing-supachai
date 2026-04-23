@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getTodayBangkok, getStartOfDayBangkokUTC, getEndOfDayBangkokUTC } from '@/lib/gas';
 import { requireGasStationAccess } from '@/lib/gas/api-guards';
 import { addToGasPaymentSummary } from '@/lib/gas/payment-utils';
+import { getDefaultGasPriceForStation, resolveDailyGasPrice } from '@/lib/gas/v2-workflow';
 
 /**
  * GET /api/v2/gas/[stationId]/summary
@@ -50,7 +51,9 @@ export async function GET(
         });
 
         if (!dailyRecord) {
+            const defaultGasPrice = await getDefaultGasPriceForStation(prisma, station.dbId);
             return NextResponse.json({
+                gasPrice: defaultGasPrice,
                 shift: null,
                 sales: { cash: 0, credit: 0, card: 0, transfer: 0, total: 0, transactionCount: 0, liters: 0 },
                 gauge: { tank1: null, tank2: null, tank3: null, average: 0 },
@@ -61,6 +64,7 @@ export async function GET(
         }
 
         const shift = dailyRecord.shifts[0];
+        const dailyGasPrice = await resolveDailyGasPrice(prisma, station.dbId, dailyRecord.gasPrice);
 
         // Get current-shift transactions when a shift is open; fall back to the day for empty state.
         const transactions = await prisma.transaction.findMany({
@@ -131,6 +135,7 @@ export async function GET(
 
         // Build response
         const response: Record<string, unknown> = {
+            gasPrice: dailyGasPrice,
             sales,
             gauge,
             alerts
@@ -150,7 +155,7 @@ export async function GET(
                     endReading: m.endReading ? Number(m.endReading) : null,
                     soldQty: m.soldQty ? Number(m.soldQty) : null
                 })),
-                gasPrice: Number(dailyRecord.gasPrice)
+                gasPrice: dailyGasPrice
             };
 
             if (detailed) {
@@ -184,7 +189,7 @@ export async function GET(
                     startReading: m.startReading ? Number(m.startReading) : null,
                     endReading: m.endReading ? Number(m.endReading) : null,
                     liters: soldQty,
-                    amount: soldQty * Number(dailyRecord.gasPrice || 16.09)
+                    amount: soldQty * dailyGasPrice
                 };
             });
         } else {

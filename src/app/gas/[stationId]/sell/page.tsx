@@ -7,7 +7,6 @@ import {
     Banknote,
     CreditCard,
     Smartphone,
-    Search,
     CheckCircle,
     Loader2,
     AlertCircle,
@@ -30,6 +29,7 @@ export default function SellPage() {
     const [loading, setLoading] = useState(false);
     const [gasPrice, setGasPrice] = useState<number>(16.09);
     const [success, setSuccess] = useState(false);
+    const [successAmount, setSuccessAmount] = useState<number>(0);
 
     // Form state
     const [paymentType, setPaymentType] = useState<PaymentType>('CASH');
@@ -54,17 +54,19 @@ export default function SellPage() {
     useEffect(() => {
         const fetchGasPrice = async () => {
             try {
-                const res = await fetch('/api/v2/gas/settings?key=gasPrice');
+                const res = await fetch(`/api/v2/gas/${stationId}/summary`);
                 if (res.ok) {
                     const data = await res.json();
-                    setGasPrice(parseFloat(data.value));
+                    if (typeof data.gasPrice === 'number' && Number.isFinite(data.gasPrice)) {
+                        setGasPrice(data.gasPrice);
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching gas price:', error);
             }
         };
         fetchGasPrice();
-    }, []);
+    }, [stationId]);
 
     // Auto-calculate amount when liters change
     useEffect(() => {
@@ -156,8 +158,6 @@ export default function SellPage() {
                 body: JSON.stringify({
                     paymentType,
                     liters: parseFloat(liters),
-                    pricePerLiter: gasPrice,
-                    amount: parseFloat(amount),
                     ownerId: selectedOwner?.id,
                     truckId: selectedTruck?.id,
                     licensePlate: selectedTruck?.licensePlate,
@@ -168,6 +168,8 @@ export default function SellPage() {
             });
 
             if (res.ok) {
+                const data = await res.json();
+                setSuccessAmount(typeof data.amount === 'number' ? data.amount : parseFloat(amount));
                 setSuccess(true);
                 setTimeout(() => {
                     // Reset form
@@ -180,6 +182,7 @@ export default function SellPage() {
                     setSelectedOwner(null);
                     setSelectedTruck(null);
                     setSearchQuery('');
+                    setSuccessAmount(0);
                     setSuccess(false);
                 }, 2000);
             } else {
@@ -203,7 +206,7 @@ export default function SellPage() {
                     <p className="text-gray-400 mb-2">
                         {PAYMENT_TYPE_INFO[paymentType].icon} {PAYMENT_TYPE_INFO[paymentType].name}
                     </p>
-                    <p className="text-3xl font-bold text-green-400">฿{formatCurrency(parseFloat(amount))}</p>
+                    <p className="text-3xl font-bold text-green-400">฿{formatCurrency(successAmount)}</p>
                 </div>
             </div>
         );

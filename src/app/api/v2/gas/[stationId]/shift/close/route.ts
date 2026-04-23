@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { resolveGasStation, getNonGasStationError } from '@/lib/gas/station-resolver';
 import { requireStationAccessApi } from '@/lib/api-auth';
 import { shiftBelongsToStation } from '@/lib/gas/api-guards';
+import { resolveDailyGasPrice } from '@/lib/gas/v2-workflow';
 
 /**
  * POST /api/v2/gas/[stationId]/shift/close
@@ -74,7 +75,7 @@ export async function POST(
         }
 
         // Calculate expected amount from meters
-        const gasPrice = shift.dailyRecord.gasPrice ? Number(shift.dailyRecord.gasPrice) : 16.09;
+        const gasPrice = await resolveDailyGasPrice(prisma, station.dbId, shift.dailyRecord.gasPrice);
         const totalLiters = shift.meters.reduce((sum, m) => {
             if (m.soldQty) return sum + Number(m.soldQty);
             if (m.startReading && m.endReading) {

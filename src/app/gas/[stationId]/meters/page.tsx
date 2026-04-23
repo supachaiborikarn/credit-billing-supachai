@@ -20,6 +20,14 @@ interface MeterReading {
     soldQty: number | null;
 }
 
+interface CurrentShift {
+    id: string;
+    status: string;
+    meters: MeterReading[];
+    startBaselineLocked?: boolean;
+    startBaselineLockReason?: string | null;
+}
+
 export default function MetersPage() {
     const params = useParams();
     const router = useRouter();
@@ -33,6 +41,8 @@ export default function MetersPage() {
     // Current shift data
     const [shiftId, setShiftId] = useState<string | null>(null);
     const [existingReadings, setExistingReadings] = useState<MeterReading[]>([]);
+    const [startBaselineLocked, setStartBaselineLocked] = useState(false);
+    const [startBaselineLockReason, setStartBaselineLockReason] = useState<string | null>(null);
 
     // Form inputs
     const [readings, setReadings] = useState<{ nozzle: number; value: string; photo: File | null }[]>(
@@ -49,18 +59,25 @@ export default function MetersPage() {
                 const res = await fetch(`/api/v2/gas/${stationId}/shift/current`);
                 if (res.ok) {
                     const data = await res.json();
-                    if (data.shift) {
-                        setShiftId(data.shift.id);
-                        setExistingReadings(data.shift.meters || []);
+                    const shift = data.shift as CurrentShift | null;
+                    if (shift && shift.status === 'OPEN') {
+                        setShiftId(shift.id);
+                        setExistingReadings(shift.meters || []);
+                        setStartBaselineLocked(Boolean(shift.startBaselineLocked));
+                        setStartBaselineLockReason(shift.startBaselineLockReason || null);
 
                         // Check if start readings exist
-                        const hasStart = data.shift.meters?.some((m: MeterReading) => m.startReading !== null);
+                        const hasStart = shift.meters?.some((m: MeterReading) => m.startReading !== null);
                         if (hasStart) {
                             setRecordType('end');
-                            // Pre-fill start readings for reference
                         } else {
                             setRecordType('start');
                         }
+                    } else {
+                        setShiftId(null);
+                        setExistingReadings([]);
+                        setStartBaselineLocked(false);
+                        setStartBaselineLockReason(null);
                     }
                 }
             } catch (error) {
@@ -90,6 +107,11 @@ export default function MetersPage() {
         for (const r of readings) {
             if (!r.value || parseFloat(r.value) < 0) {
                 newErrors.push(`หัวจ่าย ${r.nozzle}: ต้องกรอกตัวเลข`);
+            }
+
+            if (recordType === 'start' && startBaselineLocked) {
+                newErrors.push(startBaselineLockReason || 'ค่าเริ่มกะถูกล็อกแล้ว');
+                break;
             }
 
             if (recordType === 'end') {
@@ -223,7 +245,10 @@ export default function MetersPage() {
             {/* Record Type Toggle */}
             <div className="flex gap-2 mb-6">
                 <button
-                    onClick={() => setRecordType('start')}
+                    onClick={() => {
+                        if (!startBaselineLocked) setRecordType('start');
+                    }}
+                    disabled={startBaselineLocked}
                     className={`flex-1 py-3 rounded-xl font-medium transition-all ${recordType === 'start'
                         ? 'bg-orange-600 text-white'
                         : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
@@ -241,6 +266,12 @@ export default function MetersPage() {
                     ปิดกะ
                 </button>
             </div>
+
+            {startBaselineLocked && startBaselineLockReason && (
+                <div className="bg-amber-900/20 border border-amber-500/30 rounded-xl px-4 py-3 mb-6 text-sm text-amber-200">
+                    ค่าเริ่มกะถูกล็อกแล้ว: {startBaselineLockReason}
+                </div>
+            )}
 
             {/* Errors */}
             {errors.length > 0 && (

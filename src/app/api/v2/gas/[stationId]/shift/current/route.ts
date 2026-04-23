@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getTodayBangkok, getStartOfDayBangkokUTC, getEndOfDayBangkokUTC } from '@/lib/gas';
 import { requireGasStationAccess } from '@/lib/gas/api-guards';
+import { getGasStartBaselineLock } from '@/lib/gas/v2-workflow';
 
 /**
  * GET /api/v2/gas/[stationId]/shift/current
@@ -68,6 +69,20 @@ export async function GET(
         // Separate start and end gauge readings
         const startGauge = gaugeReadings.filter(g => g.notes === 'start');
         const endGauge = gaugeReadings.filter(g => g.notes === 'end');
+        const transactionCount = await prisma.transaction.count({
+            where: {
+                shiftId: shift.id,
+                deletedAt: null,
+                isVoided: false,
+            },
+        });
+        const startBaselineLock = getGasStartBaselineLock({
+            shiftStatus: shift.status,
+            transactionCount,
+            hasEndMeters: shift.meters.some((meter) => meter.endReading !== null),
+            hasEndGauges: endGauge.length > 0,
+            hasReconciliation: Boolean(shift.reconciliation),
+        });
 
         return NextResponse.json({
             shift: {
@@ -97,7 +112,10 @@ export async function GET(
                     expected: Number(shift.reconciliation.totalExpected),
                     received: Number(shift.reconciliation.totalReceived),
                     variance: Number(shift.reconciliation.variance)
-                } : null
+                } : null,
+                transactionCount,
+                startBaselineLocked: startBaselineLock.locked,
+                startBaselineLockReason: startBaselineLock.reason,
             }
         });
     } catch (error) {

@@ -3,6 +3,11 @@ import { prisma } from '@/lib/prisma';
 import { getTodayBangkok, getStartOfDayBangkokUTC, getEndOfDayBangkokUTC } from '@/lib/gas';
 import { requireGasStationAccess } from '@/lib/gas/api-guards';
 import { addToGasPaymentSummary, normalizeGasPaymentType } from '@/lib/gas/payment-utils';
+import {
+    normalizeGasSaleLiters,
+    resolveDailyGasPrice,
+    roundGasCurrency,
+} from '@/lib/gas/v2-workflow';
 
 /**
  * POST /api/v2/gas/[stationId]/sell
@@ -23,8 +28,6 @@ export async function POST(
         const {
             paymentType,
             liters,
-            pricePerLiter,
-            amount,
             ownerId,
             truckId,
             licensePlate,
@@ -36,13 +39,18 @@ export async function POST(
         const userId = auth.user.id;
 
         // Validate required fields
-        if (!paymentType || !liters || !amount) {
-            return NextResponse.json({ error: 'paymentType, liters, and amount are required' }, { status: 400 });
+        if (!paymentType || liters === undefined || liters === null) {
+            return NextResponse.json({ error: 'paymentType and liters are required' }, { status: 400 });
         }
 
         const normalizedPaymentType = normalizeGasPaymentType(paymentType);
         if (!normalizedPaymentType) {
             return NextResponse.json({ error: 'Invalid payment type' }, { status: 400 });
+        }
+
+        const normalizedLiters = normalizeGasSaleLiters(liters);
+        if (normalizedLiters === null) {
+            return NextResponse.json({ error: 'liters must be a positive number' }, { status: 400 });
         }
 
         // For credit, require owner
@@ -81,6 +89,9 @@ export async function POST(
             return NextResponse.json({ error: 'No open shift. Please open a shift first.' }, { status: 400 });
         }
 
+        const resolvedGasPrice = await resolveDailyGasPrice(prisma, station.dbId, dailyRecord.gasPrice);
+        const resolvedAmount = roundGasCurrency(normalizedLiters * resolvedGasPrice);
+
         // Create transaction
         const transaction = await prisma.transaction.create({
             data: {
@@ -91,9 +102,9 @@ export async function POST(
                 truckId: normalizedPaymentType === 'CREDIT' ? truckId : null,
                 licensePlate: licensePlate || null,
                 date: new Date(),
-                liters,
-                pricePerLiter: pricePerLiter || Number(dailyRecord.gasPrice) || 16.09,
-                amount,
+                liters: normalizedLiters,
+                pricePerLiter: resolvedGasPrice,
+                amount: resolvedAmount,
                 paymentType: normalizedPaymentType,
                 productType: 'LPG',
                 billBookNo: bookNo || null,
@@ -106,6 +117,8 @@ export async function POST(
         return NextResponse.json({
             success: true,
             transactionId: transaction.id,
+            gasPrice: resolvedGasPrice,
+            amount: resolvedAmount,
             message: 'บันทึกสำเร็จ'
         });
     } catch (error) {
@@ -139,7 +152,9 @@ export async function GET(
                 date: {
                     gte: startOfDay,
                     lte: endOfDay
-                }
+                },
+                deletedAt: null,
+                isVoided: false,
             },
             include: {
                 owner: { select: { name: true } }

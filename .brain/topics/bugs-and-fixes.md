@@ -86,6 +86,20 @@
   - เพิ่ม tests `gas-station-hardening.test.ts` สำหรับ payment normalization และ stale-shift selection
 - **สถานะ**: ✅ hardening หลักแล้ว; 2026-04-23 ปิด GAS `OPEN` shifts ค้างจริงครบ 70 กะ (`station-5` 57, `station-6` 13) ผ่าน Prisma batch พร้อม audit log 70 รายการ เหลือ `remainingOpen=0`
 
+### Gas Station Post-Hardening Follow-ups (Apr 23, 2026)
+- **ปัญหา**: หลัง hardening หลัก ยังมี follow-up เชิงความถูกต้อง/ความทนทานของ GAS v2 ที่ไม่ถูกครอบด้วย tests ตอนนี้
+- **จุดเสี่ยงหลัก**:
+  - หน้า `/gas/[stationId]/sell` ยังอ่านราคาแก๊สจาก global `/api/v2/gas/settings?key=gasPrice` ขณะที่ summary/reconciliation ใช้ `dailyRecord.gasPrice` และ `shift/open` ยัง seed วันใหม่ด้วยค่า hard-coded `16.09`; ถ้าราคาวันจริงไม่เท่าค่า settings จะเกิด price drift ระหว่างยอดขายกับยอดคาดจากมิเตอร์
+  - `/api/v2/gas/[stationId]/shift/open` ยัง create `dailyRecord` → `shift` → `meterReadings` → `gaugeReadings` แบบหลาย query แยก ไม่มี transaction กลาง และ validate แค่จำนวน array; ถ้าพังกลางทางจะทิ้งกะเปิดบางส่วนไว้ใน DB
+  - `/api/v2/gas/[stationId]/meters` และ `/api/v2/gas/[stationId]/gauge` ยังยอม update start readings/gauges ของกะเดิมได้ แม้เริ่มใช้งานกะไปแล้ว; ถ้ามีคนแก้ baseline หลังมีรายการขาย จะทำให้ reconciliation และ expected liters เปลี่ยนย้อนหลัง
+  - tests ปัจจุบันของ GAS ยังครอบแค่ payment helper/stale-shift selection กับ mock expectations; ยังไม่มี route-level/integration tests สำหรับ price source, atomic open shift, หรือ immutability ของ start readings
+- **แก้ไขรอบ follow-up**:
+  - รวม source of truth ของราคาแก๊สใน GAS v2 ให้ยึด `dailyRecord.gasPrice` เป็นหลัก: หน้า `/gas/[stationId]/sell` อ่านราคาจาก summary ของ station/day, route `sell` คำนวณ `pricePerLiter`/`amount` ฝั่ง server ใหม่จาก `dailyRecord` แทนการเชื่อ client, และ route `summary`/`shift/close` ใช้ fallback เดียวกัน
+  - ทำ `shift/open` ให้เป็น atomic ด้วย `prisma.$transaction`, validate meter/gauge ให้ครบและไม่ซ้ำทุกหัวจ่าย/ทุกถัง, และ seed `dailyRecord.gasPrice` จาก station/global default แค่ตอนสร้างวันใหม่หรือเติม record ที่ยังไม่มีราคา
+  - ล็อก start meter/gauge ของ GAS v2 เมื่อกะมี transaction แล้ว, มี end data แล้ว, หรือเริ่ม reconciliation แล้ว; route `meters`/`gauge` ยังบังคับเพิ่มว่าแก้ได้เฉพาะกะ `OPEN`
+  - เพิ่ม route-level tests สำหรับ v2 `shift/open`, `sell`, `meters`, และ `gauge` เพื่อกัน regression ของ price source, atomic open, และ baseline immutability
+- **สถานะ**: ✅ follow-up หลักของ GAS v2 core flow ถูก patch แล้ว; งานใหญ่ที่ยังเหลือคือ route consolidation ระหว่าง `/gas` กับ `/gas-station/[id]/new`
+
 ## ⚠️ Known Gotchas
 1. **String vs Numeric Sort**: ทุก sort ที่เกี่ยวกับตัวเลข (book, number) ต้องใช้ parseInt
 2. **Neon Data Transfer**: free tier จำกัด 5GB/month → ระวัง polling ถี่เกินไป
@@ -99,6 +113,10 @@
 10. **Tank Loy Transaction UI Contract**: ถ้าหน้าใหม่ของแท๊งลอยใช้ transaction data จาก station API ให้ preserve alias/shape ที่ UI ใช้ (`billBookNo` + `bookNo`, `date` + `createdAt`, `transferProofUrl`) และการแนบสลิปต้องวิ่งผ่าน `/api/upload/transfer-proof`; ห้ามอ้าง `/api/upload/slip` เพราะไม่มี route จริง
 11. **GAS Route Consolidation**: `/gas` v2 มี gauge/auth/shift/payment hardening แล้ว แต่ยังเป็น route stack แยกจาก `/gas-station/[id]/new`; งานต่อไปควรเลือก source of truth ระยะยาวก่อนเพิ่ม feature ใหญ่
 12. **GAS Stale Open Shifts**: กะ GAS ค้างเก่าถูกปิดจริงแล้วเมื่อ 2026-04-23 พร้อม audit log; งานต่อไปถ้าเจอกะค้างใหม่ให้ใช้ `/api/admin/gas/stale-shifts` เพื่อ preview/close แบบมี confirmation และ audit log
+13. **GAS Price Source**: flow หลักของ GAS v2 (`open`/`sell`/`summary`/`close`) ต้องยึด `dailyRecord.gasPrice` เป็น source เดียวต่อ station/day; global settings ใช้ได้แค่เป็น default ตอนสร้างวันใหม่หรือเติม record ที่ยังไม่มีราคา
+14. **GAS Shift Open Atomicity**: route เปิดกะ GAS ถูกห่อ transaction แล้ว; งานต่อไปห้ามดึงการสร้าง dailyRecord/shift/meters/gauges ออกมานอก transaction เดียว
+15. **GAS Start Reading Immutability**: start meter/start gauge ของ GAS v2 ถูกล็อกหลังกะเริ่มถูกใช้งาน (มี sale/end/reconciliation) แล้ว; ถ้าจำเป็นต้องแก้ย้อนหลังควรเปิดเป็น admin flow ที่มี audit ชัดเจนเท่านั้น
+16. **GAS Route-Level Tests**: งานที่แตะ price source/open shift/baseline guard ของ GAS v2 ต้องอัปเดต route-level tests ควบคู่กับ helper tests ไม่พึ่ง mock-only assertions อย่างเดียว
 
 ## Changelog
 - 2026-02-24: สร้างไฟล์ brain topic นี้จากประวัติ conversations
@@ -112,3 +130,5 @@
 - 2026-04-23: audit ปั๊มแก๊สทั้ง 2 สาขา พบ route/API ซ้อนกัน, `/api/v2/gas/[stationId]/gauge` ขาด, auth/ownership gaps ใน GAS v2/legacy routes, payment type drift, transaction ไม่ผูก `shiftId` ใน v2 sell, station-5 `hasProducts` config/DB ไม่ตรง, และ DB จริงมีกะ GAS ค้างจำนวนมาก
 - 2026-04-23: implement GAS hardening ตาม audit: เพิ่ม v2 gauge route, helper guard กลาง, station ownership checks, v2 sell/summary shift scope, payment normalize `CREDIT_CARD`/`TRANSFER`, product guard เฉพาะ station-5 พร้อม sync DB, admin stale-shift cleanup endpoint, eslint ignore สำหรับ ad hoc scripts, และ tests เฉพาะ GAS
 - 2026-04-23: ปิด GAS `OPEN` shifts ค้างใน DB จริงครบ 70 กะ (`station-5` 57, `station-6` 13), เติม end meter ที่ว่าง 16 จุดด้วยค่า start เดิม, ปิด daily records ที่ไม่มี open shift เหลือ 67 records, และสร้าง audit log ครบ 70 รายการ
+- 2026-04-23: post-hardening review พบ follow-up สำคัญของ GAS v2: price source ยังแยกกันระหว่าง settings กับ `dailyRecord.gasPrice`, route เปิดกะยังไม่ atomic และ validate ไม่พอ, start meter/gauge ยังแก้ย้อนหลังได้, และ tests ยังไม่ครอบ route-level regressions
+- 2026-04-23: patch follow-up ของ GAS v2 core flow: รวม price source ให้ยึด `dailyRecord.gasPrice`, ทำ `shift/open` เป็น transaction เดียวพร้อม exact payload validation, ล็อก start meter/gauge หลังกะเริ่มถูกใช้งาน, ปรับ `/gas` UI ให้ไม่เปิดทางแก้ baseline ที่ backend บล็อก, และเพิ่ม route-level tests สำหรับ `open`/`sell`/`meters`/`gauge`

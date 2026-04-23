@@ -16,6 +16,13 @@ interface GaugeReading {
     percentage: number | null;
 }
 
+interface CurrentShift {
+    id: string;
+    status: string;
+    startBaselineLocked?: boolean;
+    startBaselineLockReason?: string | null;
+}
+
 export default function GaugePage() {
     const params = useParams();
     const router = useRouter();
@@ -29,6 +36,8 @@ export default function GaugePage() {
     // Current shift data
     const [shiftId, setShiftId] = useState<string | null>(null);
     const [existingGauge, setExistingGauge] = useState<GaugeReading[]>([]);
+    const [startBaselineLocked, setStartBaselineLocked] = useState(false);
+    const [startBaselineLockReason, setStartBaselineLockReason] = useState<string | null>(null);
 
     // Form inputs
     const [gauges, setGauges] = useState<{ tank: number; value: string }[]>(
@@ -44,11 +53,14 @@ export default function GaugePage() {
                 const res = await fetch(`/api/v2/gas/${stationId}/shift/current`);
                 if (res.ok) {
                     const data = await res.json();
-                    if (data.shift) {
-                        setShiftId(data.shift.id);
+                    const shift = data.shift as CurrentShift | null;
+                    if (shift && shift.status === 'OPEN') {
+                        setShiftId(shift.id);
+                        setStartBaselineLocked(Boolean(shift.startBaselineLocked));
+                        setStartBaselineLockReason(shift.startBaselineLockReason || null);
 
                         // Fetch gauge readings
-                        const gaugeRes = await fetch(`/api/v2/gas/${stationId}/gauge?shiftId=${data.shift.id}`);
+                        const gaugeRes = await fetch(`/api/v2/gas/${stationId}/gauge?shiftId=${shift.id}`);
                         if (gaugeRes.ok) {
                             const gaugeData = await gaugeRes.json();
                             setExistingGauge(gaugeData.readings?.start || []);
@@ -57,6 +69,11 @@ export default function GaugePage() {
                             const hasStart = gaugeData.readings?.start?.length > 0;
                             setRecordType(hasStart ? 'end' : 'start');
                         }
+                    } else {
+                        setShiftId(null);
+                        setExistingGauge([]);
+                        setStartBaselineLocked(false);
+                        setStartBaselineLockReason(null);
                     }
                 }
             } catch (error) {
@@ -82,6 +99,10 @@ export default function GaugePage() {
             if (!g.value || isNaN(pct) || pct < 0 || pct > 100) {
                 newErrors.push(`ถัง ${g.tank}: ต้องกรอกเปอร์เซ็นต์ (0-100)`);
             }
+        }
+
+        if (recordType === 'start' && startBaselineLocked) {
+            newErrors.push(startBaselineLockReason || 'ค่าเริ่มกะถูกล็อกแล้ว');
         }
 
         setErrors(newErrors);
@@ -192,7 +213,10 @@ export default function GaugePage() {
             {/* Record Type Toggle */}
             <div className="flex gap-2 mb-6">
                 <button
-                    onClick={() => setRecordType('start')}
+                    onClick={() => {
+                        if (!startBaselineLocked) setRecordType('start');
+                    }}
+                    disabled={startBaselineLocked}
                     className={`flex-1 py-3 rounded-xl font-medium transition-all ${recordType === 'start'
                         ? 'bg-orange-600 text-white'
                         : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
@@ -210,6 +234,12 @@ export default function GaugePage() {
                     ปิดกะ
                 </button>
             </div>
+
+            {startBaselineLocked && startBaselineLockReason && (
+                <div className="bg-amber-900/20 border border-amber-500/30 rounded-xl px-4 py-3 mb-6 text-sm text-amber-200">
+                    ค่าเริ่มกะถูกล็อกแล้ว: {startBaselineLockReason}
+                </div>
+            )}
 
             {/* Errors */}
             {errors.length > 0 && (
