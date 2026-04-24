@@ -1,20 +1,21 @@
 'use client';
 
+import Link from 'next/link';
 import { ShiftData } from '../hooks/useGasStation';
 
 interface ShiftControlsProps {
+    stationId: string;
     currentShift: ShiftData | null;
     allShifts: { shiftNumber: number; status: string }[];
     actionLoading: boolean;
-    onOpenShift: (shiftNumber: number) => void;
     onCloseShift: () => void;
 }
 
 export default function ShiftControls({
+    stationId,
     currentShift,
     allShifts,
     actionLoading,
-    onOpenShift,
     onCloseShift,
 }: ShiftControlsProps) {
     if (currentShift) {
@@ -46,26 +47,27 @@ export default function ShiftControls({
     }
 
     return (
-        <div className="space-y-2">
-            <p className="text-sm font-semibold text-neutral-600">เลือกกะที่ต้องการเปิด:</p>
-            <div className="grid grid-cols-2 gap-2">
-                {[1, 2].map((shiftNum) => {
-                    const shift = allShifts.find(s => s.shiftNumber === shiftNum);
-                    const isClosed = shift?.status === 'CLOSED';
-                    return (
-                        <button
-                            key={shiftNum}
-                            onClick={() => onOpenShift(shiftNum)}
-                            disabled={actionLoading || isClosed}
-                            className={`rounded-full px-6 py-3 text-sm font-extrabold transition disabled:opacity-50 ${isClosed
-                                ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
-                                : 'bg-orange-500 text-black hover:bg-orange-400'
-                                }`}
-                        >
-                            {isClosed ? `✓ กะ${shiftNum === 1 ? 'เช้า' : 'บ่าย'} (ปิดแล้ว)` : `🚀 กะ${shiftNum === 1 ? 'เช้า' : 'บ่าย'}`}
-                        </button>
-                    );
-                })}
+        <div className="space-y-3">
+            <p className="text-sm font-semibold text-neutral-600">
+                เปิดกะใหม่ต้องกรอกราคาขาย มิเตอร์ 4 หัวจ่าย และเกจ 3 ถังก่อนบันทึก
+            </p>
+            <Link
+                href={`/gas/${stationId}/shift/open`}
+                className="block w-full rounded-full bg-orange-500 px-6 py-3 text-center text-sm font-extrabold text-black transition hover:bg-orange-400"
+            >
+                🚀 เปิดกะใหม่
+            </Link>
+            {allShifts.length > 0 && (
+                <div className="flex flex-wrap gap-2 text-xs font-semibold text-neutral-500">
+                    {allShifts.map((shift) => (
+                        <span key={shift.shiftNumber} className="rounded-full bg-neutral-100 px-3 py-1">
+                            กะ{shift.shiftNumber === 1 ? 'เช้า' : 'บ่าย'}: {shift.status}
+                        </span>
+                    ))}
+                </div>
+            )}
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">
+                ปุ่มเปิดกะแบบเร็วถูกปิดไว้ เพื่อป้องกันกะว่างที่ไม่มีข้อมูลมิเตอร์/เกจ
             </div>
         </div>
     );

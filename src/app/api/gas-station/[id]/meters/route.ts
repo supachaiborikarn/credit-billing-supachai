@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { STATIONS } from '@/constants';
+import { getEndOfDayBangkokUTC, getStartOfDayBangkokUTC, getTodayBangkok } from '@/lib/gas/date-utils';
 import { prepareMeterSaveData } from '@/services';
 import { requireStationAccessApi } from '@/lib/api-auth';
 
@@ -24,7 +25,9 @@ export async function POST(
         const body = await request.json();
         const { date: dateStr, type, meters, shiftId } = body;
         const userId = auth.user.id;
-        const date = new Date(dateStr + 'T00:00:00Z');
+        const dateKey = dateStr || getTodayBangkok();
+        const date = getStartOfDayBangkokUTC(dateKey);
+        const endOfDay = getEndOfDayBangkokUTC(dateKey);
 
         // Get or create station with consistent ID
         const station = await prisma.station.upsert({
@@ -87,6 +90,7 @@ export async function POST(
 
                     await prisma.meterReading.create({
                         data: {
+                            dailyRecordId: shift.dailyRecordId,
                             shiftId: shiftId,
                             nozzleNumber: meter.nozzleNumber,
                             ...createData,
@@ -107,8 +111,12 @@ export async function POST(
         let dailyRecord = await prisma.dailyRecord.findFirst({
             where: {
                 stationId: station.id,
-                date: date,
-            }
+                date: {
+                    gte: date,
+                    lte: endOfDay,
+                },
+            },
+            orderBy: { date: 'asc' },
         });
 
         if (!dailyRecord) {

@@ -5,7 +5,8 @@
      และ fix หน้าใหม่ของแท๊งลอยให้เชื่อมทั้ง daily price, transaction contract, receipt/slip flow กับ backend/source ชุดเดียวกับหน้าเก่า;
      audit ปั๊มแก๊ส 2026-04-23 พบ route/API ซ้อนกันและกะ GAS ค้างจำนวนมาก; hardening รอบเดียวกันเติม v2 gauge route,
      auth/ownership guard, shift-scoped v2 sell/summary, payment type `CREDIT_CARD`, product guard เฉพาะ station-5, admin stale-shift cleanup tool,
-     และ follow-up analytics/reporting ให้ GAS admin ใช้ shared shift/day facts ชุดเดียวกันพร้อมเติม payment mix/reconciliation edit flow -->
+     follow-up analytics/reporting ให้ GAS admin ใช้ shared shift/day facts ชุดเดียวกันพร้อมเติม payment mix/reconciliation edit flow,
+     และ 2026-04-24 พบ live incident จาก `/gas-station/[id]/new/home` ที่เรียก legacy open shift โดยไม่ส่ง meter/gauge ทำให้เกิดกะว่าง -->
 
 # Bugs & Fixes
 
@@ -111,6 +112,15 @@
   - เปลี่ยน `api/v2/gas/admin/reports/meters` กับหน้ารายงานมิเตอร์ให้ใช้ fact layer เดียวกัน ทำให้ยอดมิเตอร์/ยอดขายจริง/ลิตรต่างไม่ drift จาก report ตัวอื่น
 - **สถานะ**: ✅ analytics/reporting หลักของ GAS admin ถูกผูกกับ service กลางแล้ว; งานต่อไปถ้าจะเพิ่ม inventory intelligence หรือ alerts เพิ่มเติมให้ต่อบน fact layer นี้เท่านั้น
 
+### GAS Legacy New Home Empty Shift Incident (Apr 24, 2026)
+- **อาการจาก DB จริง**: วันที่ 2026-04-24 เวลา Bangkok ตรวจพบ `station-6` มี `DailyRecord` 1 แถวและ `Shift` 2 แถวจากพนักงาน `เหน่ง` (`06:17` กะ 1, `06:52` กะ 2) แต่ `meterReadings=0`, `gaugeReadings=0`, `transactions=0`, `auditLogs=0`, และ `dailyRecord.gasPrice=null`
+- **สาเหตุที่ตรงกับ code**: หน้า `/gas-station/[id]/new/home` ใช้ `useGasStation.openShift()` ซึ่ง POST ไป legacy `/api/gas-station/[id]/shifts` ด้วย `{ action: 'open', shiftNumber }` โดยไม่ส่ง `meters`/`gauges`; route legacy ยังยอม `meters: { create: (meters || []).map(...) }` จึงสร้างกะ OPEN ที่ไม่มีมิเตอร์ได้ ต่างจาก `/api/v2/gas/[stationId]/shift/open` ที่บังคับ 4 meter + 3 gauge และ seed `gasPrice`
+- **ผลกระทบ**: พนักงานเหมือนเปิดกะสำเร็จ แต่ข้อมูลสำคัญไม่ได้ถูกบันทึกและ v2 open flow จะถูกบล็อกเพราะเจอ OPEN shift ค้างอยู่แล้ว; ค่า meter/gauge ที่พนักงานพยายามกรอกไม่สามารถกู้จาก DB ได้ถ้า request ไม่ถูกส่งเข้ามา
+- **พบซ้ำกับ station-5/เล็ก**: เวลา `14:56` legacy home สร้างกะ 2 ว่าง และเวลา `14:57` legacy meters save ไปสร้าง `DailyRecord` ซ้ำที่ date `2026-04-24T00:00:00Z` พร้อม meter 4 หัวแทนที่จะผูกกับ shift จริง ทำให้เปิดกลับมาไม่เห็นข้อมูล
+- **แก้ไข**: ปิดปุ่มเปิดกะแบบเร็วใน `/gas-station/[id]/new/home` ให้พาไป `/gas/[stationId]/shift/open`, legacy shift route reject `action=open` ที่ไม่มี meters, legacy meters/daily/gauge POST ใช้ Bangkok date range และ legacy meters page ส่ง `shiftId`/ใช้ v2 gauge route, v2 open page เพิ่มช่องราคาขายและส่ง `gasPrice` ให้ route เปิดกะ, v2 summary/current/sell เลือก daily record canonical ด้วย `orderBy date asc`
+- **ซ่อมข้อมูลจริง**: 2026-04-24 ย้าย meter start 4 หัวของ `station-5` จาก duplicate daily record เข้า shift `1e81a215-3a35-44d7-8d7c-370413f5bd6a` ของ `เล็ก`, ตั้ง `gasPrice=16.09`, สร้าง audit log `REPAIR_GAS_METER_LINK`, และลบ duplicate daily record ที่ว่างแล้ว
+- **สถานะ**: ✅ patch code + repair station-5 แล้ว; station-6 ยังมีกะว่างจาก incident เช้าและต้องตัดสินใจว่าจะปิด/ลบทิ้งหรือให้พนักงานกรอกใหม่
+
 ## ⚠️ Known Gotchas
 1. **String vs Numeric Sort**: ทุก sort ที่เกี่ยวกับตัวเลข (book, number) ต้องใช้ parseInt
 2. **Neon Data Transfer**: free tier จำกัด 5GB/month → ระวัง polling ถี่เกินไป
@@ -131,6 +141,7 @@
 17. **GAS Admin Analytics Source of Truth**: daily/shift/reconciliation/executive ของ GAS ควรอ่านผ่าน `src/lib/gas/admin-analytics.ts` เท่านั้น; ถ้าจะเพิ่ม metric ใหม่ให้เพิ่มใน fact layer ก่อน ไม่คำนวณซ้ำใน route/page แต่ละตัว
 18. **GAS Card Received Storage**: ตอนนี้ `cardReceived` ของ reconciliation ยังเก็บแฝงใน `shift.varianceNote` และรวมอยู่ใน `shift_reconciliations.transferReceived`; ทุก flow read/write ต้อง parse/build ผ่าน helper กลาง ห้ามแยก encode/decode เอง
 19. **GAS Meter Reports**: `api/v2/gas/admin/reports/meters` ต้องอิง shift facts ชุดเดียวกับ daily/shift/reconciliation เพื่อให้ยอดมิเตอร์, transaction liters, และ liters variance ตรงกันทุกหน้า
+20. **GAS Legacy Empty Open Shift**: ห้ามให้ `/gas-station/[id]/new/home` หรือ legacy `/api/gas-station/[id]/shifts` เปิดกะ GAS โดยไม่มี meter/gauge; ถ้าเจอ `OPEN` shift ที่ `meterRows=0` ให้ถือเป็น partial/corrupt row และ repair ผ่าน admin-confirmed flow ก่อนใช้งานต่อ
 
 ## Changelog
 - 2026-02-24: สร้างไฟล์ brain topic นี้จากประวัติ conversations
@@ -147,3 +158,5 @@
 - 2026-04-23: post-hardening review พบ follow-up สำคัญของ GAS v2: price source ยังแยกกันระหว่าง settings กับ `dailyRecord.gasPrice`, route เปิดกะยังไม่ atomic และ validate ไม่พอ, start meter/gauge ยังแก้ย้อนหลังได้, และ tests ยังไม่ครอบ route-level regressions
 - 2026-04-23: patch follow-up ของ GAS v2 core flow: รวม price source ให้ยึด `dailyRecord.gasPrice`, ทำ `shift/open` เป็น transaction เดียวพร้อม exact payload validation, ล็อก start meter/gauge หลังกะเริ่มถูกใช้งาน, ปรับ `/gas` UI ให้ไม่เปิดทางแก้ baseline ที่ backend บล็อก, และเพิ่ม route-level tests สำหรับ `open`/`sell`/`meters`/`gauge`
 - 2026-04-23: patch GAS admin analytics/reporting: เพิ่ม shared fact layer `src/lib/gas/admin-analytics.ts`, ย้าย daily/shift/reconciliation/executive ให้ใช้ source เดียวกัน, เติม route `PUT /api/v2/gas/admin/reconciliation/[shiftId]`, อัปเดต admin pages ให้เห็น payment mix / avg ticket / liters variance / day breakdown ชัดขึ้น, และต่อยอด inventory runout, top staff/nozzle performance, action alerts, กับ meter report ให้ใช้ fact layer เดียวกัน
+- 2026-04-24: บันทึก live incident ที่ `station-6` เปิดกะผ่าน `/gas-station/[id]/new/home` แล้วเกิด `OPEN` shifts 2 แถวแบบไม่มี meter/gauge/transaction เพราะ legacy open route ยอมสร้างกะว่าง
+- 2026-04-24: patch GAS legacy/v2 bridge หลังเจอ `station-5` บันทึกมิเตอร์แล้วหาย: ปิด quick open เก่า, ให้ legacy meters ผูก shift/date ถูกต้อง, เพิ่มช่องราคาขายใน v2 open, และซ่อม live meter rows ของ `เล็ก` กลับเข้า shift จริง

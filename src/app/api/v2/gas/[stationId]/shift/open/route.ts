@@ -29,12 +29,18 @@ export async function POST(
         if (auth.response) return auth.response;
 
         const body = await request.json();
-        const { dateKey, shiftNumber, meters, gauges } = body;
+        const { dateKey, shiftNumber, meters, gauges, gasPrice } = body;
         const userId = auth.user.id;
 
         // Validate inputs
         if (!dateKey || !Number.isInteger(shiftNumber) || shiftNumber < 1 || shiftNumber > 2) {
             return NextResponse.json({ error: 'dateKey and shiftNumber are required' }, { status: 400 });
+        }
+
+        const hasSubmittedGasPrice = gasPrice !== undefined && gasPrice !== null && String(gasPrice).trim() !== '';
+        const submittedGasPrice = hasSubmittedGasPrice ? Number(gasPrice) : null;
+        if (hasSubmittedGasPrice && (submittedGasPrice === null || !Number.isFinite(submittedGasPrice) || submittedGasPrice <= 0)) {
+            return NextResponse.json({ error: 'ราคาขายต้องเป็นตัวเลขมากกว่า 0' }, { status: 400 });
         }
 
         const meterValidation = validateGasMeterPayload(meters);
@@ -75,7 +81,7 @@ export async function POST(
                 },
             });
 
-            const dailyGasPrice = await getDefaultGasPriceForStation(tx, station.dbId);
+            const dailyGasPrice = submittedGasPrice ?? await getDefaultGasPriceForStation(tx, station.dbId);
 
             if (!dailyRecord) {
                 dailyRecord = await tx.dailyRecord.create({
@@ -87,7 +93,7 @@ export async function POST(
                         wholesalePrice: dailyGasPrice,
                     },
                 });
-            } else if (!dailyRecord.gasPrice || Number(dailyRecord.gasPrice) <= 0) {
+            } else if (submittedGasPrice !== null || !dailyRecord.gasPrice || Number(dailyRecord.gasPrice) <= 0) {
                 dailyRecord = await tx.dailyRecord.update({
                     where: { id: dailyRecord.id },
                     data: {

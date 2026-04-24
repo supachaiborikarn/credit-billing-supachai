@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { STATIONS } from '@/constants';
+import { getEndOfDayBangkokUTC, getStartOfDayBangkokUTC, getTodayBangkok } from '@/lib/gas/date-utils';
 import { requireStationAccessApi } from '@/lib/api-auth';
 
 // GET - fetch gauge readings for a date
@@ -39,11 +40,9 @@ export async function GET(
             }
         });
 
-        const date = dateStr ? new Date(dateStr + 'T00:00:00Z') : new Date();
-        const startOfDay = new Date(date);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(date);
-        endOfDay.setHours(23, 59, 59, 999);
+        const dateKey = dateStr || getTodayBangkok();
+        const startOfDay = getStartOfDayBangkokUTC(dateKey);
+        const endOfDay = getEndOfDayBangkokUTC(dateKey);
 
         // Get all readings for the day (and shift if specified)
         let whereClause: Record<string, unknown> = {
@@ -153,14 +152,20 @@ export async function POST(
             }
         });
 
-        const date = new Date(dateStr + 'T00:00:00Z');
+        const dateKey = dateStr || getTodayBangkok();
+        const date = getStartOfDayBangkokUTC(dateKey);
+        const endOfDay = getEndOfDayBangkokUTC(dateKey);
 
         // Get or create daily record
         let dailyRecord = await prisma.dailyRecord.findFirst({
             where: {
                 stationId: station.id,
-                date: date
-            }
+                date: {
+                    gte: date,
+                    lte: endOfDay,
+                },
+            },
+            orderBy: { date: 'asc' },
         });
 
         if (!dailyRecord) {

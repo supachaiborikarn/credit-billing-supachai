@@ -71,6 +71,7 @@ export async function POST(
                     lte: endOfDay
                 }
             },
+            orderBy: { date: 'asc' },
             include: {
                 shifts: {
                     where: { status: 'OPEN' },

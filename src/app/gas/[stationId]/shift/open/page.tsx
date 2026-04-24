@@ -8,7 +8,8 @@ import {
     Gauge,
     AlertCircle,
     Loader2,
-    CheckCircle
+    CheckCircle,
+    Banknote
 } from 'lucide-react';
 import { getTodayBangkok, getCurrentShiftNumber, getShiftName, NOZZLE_COUNT, TANK_COUNT } from '@/lib/gas';
 
@@ -31,6 +32,7 @@ export default function ShiftOpenPage() {
     const [checkingShift, setCheckingShift] = useState(true);
     const [existingShift, setExistingShift] = useState<{ id: string } | null>(null);
     const [step, setStep] = useState<'meters' | 'gauge' | 'confirm'>('meters');
+    const [gasPrice, setGasPrice] = useState('16.09');
 
     // Meter readings
     const [meters, setMeters] = useState<MeterInput[]>(
@@ -49,11 +51,20 @@ export default function ShiftOpenPage() {
     useEffect(() => {
         const checkShift = async () => {
             try {
-                const res = await fetch(`/api/v2/gas/${stationId}/shift/current`);
+                const [res, summaryRes] = await Promise.all([
+                    fetch(`/api/v2/gas/${stationId}/shift/current`),
+                    fetch(`/api/v2/gas/${stationId}/summary`),
+                ]);
                 if (res.ok) {
                     const data = await res.json();
                     if (data.shift && data.shift.status === 'OPEN') {
                         setExistingShift(data.shift);
+                    }
+                }
+                if (summaryRes.ok) {
+                    const data = await summaryRes.json();
+                    if (typeof data.gasPrice === 'number' && Number.isFinite(data.gasPrice)) {
+                        setGasPrice(String(data.gasPrice));
                     }
                 }
             } catch (error) {
@@ -115,8 +126,14 @@ export default function ShiftOpenPage() {
     };
 
     const handleOpenShift = async () => {
-        setLoading(true);
         setErrors([]);
+        const parsedGasPrice = Number(gasPrice);
+        if (!gasPrice || !Number.isFinite(parsedGasPrice) || parsedGasPrice <= 0) {
+            setErrors(['ราคาขายวันนี้ต้องเป็นตัวเลขมากกว่า 0']);
+            return;
+        }
+
+        setLoading(true);
 
         try {
             const res = await fetch(`/api/v2/gas/${stationId}/shift/open`, {
@@ -125,6 +142,7 @@ export default function ShiftOpenPage() {
                 body: JSON.stringify({
                     dateKey: getTodayBangkok(),
                     shiftNumber: getCurrentShiftNumber(),
+                    gasPrice: parsedGasPrice,
                     meters: meters.map(m => ({
                         nozzleNumber: m.nozzleNumber,
                         reading: parseFloat(m.reading)
@@ -201,6 +219,26 @@ export default function ShiftOpenPage() {
                 </h1>
                 <p className="text-gray-400">
                     {getTodayBangkok()} | {getShiftName(getCurrentShiftNumber())}
+                </p>
+            </div>
+
+            {/* Daily Price */}
+            <div className="bg-[#1a1a24] rounded-2xl p-5 border border-white/10 mb-6">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
+                    <Banknote className="text-green-400" size={18} />
+                    ราคาขายวันนี้ (บาท/ลิตร)
+                </label>
+                <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={gasPrice}
+                    onChange={(e) => setGasPrice(e.target.value)}
+                    placeholder="16.09"
+                    className="w-full bg-gray-800 border border-white/10 rounded-lg px-4 py-3 text-white font-mono text-xl focus:border-orange-500 focus:outline-none"
+                />
+                <p className="mt-2 text-xs text-gray-500">
+                    ราคานี้จะถูกบันทึกเป็นราคาประจำวันและใช้คำนวณยอดขายของกะนี้
                 </p>
             </div>
 
@@ -342,6 +380,13 @@ export default function ShiftOpenPage() {
                                     <div className="font-mono text-orange-400">{g.percentage}%</div>
                                 </div>
                             ))}
+                        </div>
+                    </div>
+
+                    <div className="mb-6 rounded-xl border border-green-500/20 bg-green-900/20 p-3">
+                        <div className="text-sm text-gray-400">ราคาขายวันนี้</div>
+                        <div className="text-xl font-mono font-bold text-green-400">
+                            ฿{Number(gasPrice || 0).toFixed(2)} / ลิตร
                         </div>
                     </div>
 

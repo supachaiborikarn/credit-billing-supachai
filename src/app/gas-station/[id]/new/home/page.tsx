@@ -28,7 +28,6 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
         gaugeReadings,
         actionLoading,
         deletingId,
-        openShift,
         closeShift,
         handleDelete,
     } = useGasStation(id, selectedDate);
@@ -103,10 +102,10 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
                         {/* Shift Actions */}
                         <div className="mt-5">
                             <ShiftControls
+                                stationId={id}
                                 currentShift={currentShift}
                                 allShifts={allShifts}
                                 actionLoading={actionLoading}
-                                onOpenShift={openShift}
                                 onCloseShift={closeShift}
                             />
                         </div>

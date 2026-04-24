@@ -139,3 +139,15 @@
   - ขยาย executive dashboard ให้แสดง inventory runout (`litersRemaining`, `daysToEmpty`), top staff/nozzle, และ action alerts เช่น low stock, repeated variance, sales drop, และ liters drift
   - patch `api/v2/gas/admin/reports/meters` และหน้า meters report ให้ใช้ fact layer เดียวกัน พร้อมแสดง transaction liters, liters variance, actual sales, และ transaction count
   - เพิ่ม tests ใน `tests/gas-admin-analytics.test.ts` เพื่อกัน regression ของ staff/nozzle rollups
+
+## 2026-04-24
+- 🔎 ตรวจ live incident ปั๊มแก๊สที่พนักงานพยายามลงข้อมูลแต่ยอดไม่อัปเดต
+  - DB จริงมี session ของ `เหน่ง` ที่ `station-6` เวลา 06:16 Bangkok และมี `DailyRecord` วันนี้ 1 แถวกับ `Shift` 2 แถวเวลา 06:17/06:52
+  - แต่ยังไม่มี `meterReadings`, `gaugeReadings`, `transactions`, หรือ `auditLogs`; `dailyRecord.gasPrice` เป็น `null`
+  - ระบุสาเหตุที่ตรงกับ code: `/gas-station/[id]/new/home` เรียก legacy `/api/gas-station/[id]/shifts` ด้วย `{ action: 'open', shiftNumber }` โดยไม่ส่ง meter/gauge ทำให้ legacy route สร้างกะว่างได้
+  - บันทึก follow-up ว่าต้อง repair live rows ของวันนี้และปิดทาง legacy empty open shift ก่อนให้พนักงานใช้งานต่อ
+- 🛠️ แก้ GAS legacy/v2 bridge หลังทดสอบบัญชี `เล็ก`
+  - พบว่า `station-5` บันทึกมิเตอร์ได้จริงแต่ไปอยู่ duplicate `DailyRecord` ที่ date `2026-04-24T00:00:00Z` และไม่ผูก shift จึงเปิดกลับมาไม่เห็น
+  - patch หน้าเก่าให้ปุ่มเปิดกะพาไป v2 open flow, legacy shift route ปฏิเสธ open แบบไม่มี meter, legacy daily/meter/gauge ใช้ Bangkok date range, และ legacy meters save ผูก `shiftId`
+  - เพิ่มช่อง “ราคาขายวันนี้” ใน `/gas/[stationId]/shift/open` และให้ v2 open route รับ `gasPrice` เพื่อ seed/update `dailyRecord.gasPrice`
+  - ซ่อม DB จริง: ย้าย meter start 4 หัวของ `เล็ก` เข้า shift กะ 2 ที่เปิดอยู่, ตั้ง `gasPrice=16.09`, audit repair, และลบ duplicate daily record ที่ว่างหลังย้ายแล้ว

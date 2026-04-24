@@ -252,6 +252,10 @@ export async function POST(
             return HttpErrors.badRequest('กรุณาระบุกะ (1 = กะเช้า, 2 = กะบ่าย)');
         }
 
+        if (action === 'open' && (!Array.isArray(meters) || meters.length === 0)) {
+            return HttpErrors.badRequest('กรุณาเปิดกะผ่านหน้าเปิดกะใหม่ เพื่อกรอกราคาขาย มิเตอร์ และเกจให้ครบก่อนบันทึก');
+        }
+
         const date = getStartOfDayBangkok(dateStr || getTodayBangkok());
 
         // Get or create daily record

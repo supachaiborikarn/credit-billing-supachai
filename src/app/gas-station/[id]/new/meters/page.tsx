@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { ArrowLeft, Camera, Copy, Save, Gauge, Lock } from 'lucide-react';
+import { ArrowLeft, Camera, Copy, Save, Lock } from 'lucide-react';
 import { STATIONS, GAS_TANK_CAPACITY_LITERS, TANK_COUNT, NOZZLE_COUNT } from '@/constants';
 import Link from 'next/link';
 
@@ -15,7 +15,8 @@ interface MeterReading {
 
 interface GaugeReading {
     tankNumber: number;
-    type: 'start' | 'end';
+    type?: 'start' | 'end';
+    notes?: 'start' | 'end' | string | null;
     percentage: number;
 }
 
@@ -30,6 +31,7 @@ export default function GasStationMetersPage({ params }: { params: Promise<{ id:
     const [saving, setSaving] = useState(false);
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [activeTab, setActiveTab] = useState<TabType>('start');
+    const [currentShiftId, setCurrentShiftId] = useState<string | null>(null);
 
     // Meter readings
     const [meters, setMeters] = useState<MeterReading[]>(
@@ -45,68 +47,70 @@ export default function GasStationMetersPage({ params }: { params: Promise<{ id:
     const [endGauges, setEndGauges] = useState<number[]>(Array(TANK_COUNT).fill(0));
 
     useEffect(() => {
-        fetchData();
-    }, [selectedDate]);
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const res = await fetch(`/api/gas-station/${id}/daily?date=${selectedDate}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setCurrentShiftId(data.currentShift?.id || null);
 
-    const fetchData = async () => {
-        setLoading(true);
-        try {
-            const res = await fetch(`/api/gas-station/${id}/daily?date=${selectedDate}`);
-            if (res.ok) {
-                const data = await res.json();
+                    // Get meters from current shift or latest shift (shift meters are where data is saved)
+                    let metersData = null;
 
-                // Get meters from current shift or latest shift (shift meters are where data is saved)
-                let metersData = null;
-
-                // Priority: currentShift > first shift with data > dailyRecord.meters
-                if (data.currentShift?.meters && data.currentShift.meters.length > 0) {
-                    metersData = data.currentShift.meters;
-                } else if (data.dailyRecord?.shifts && data.dailyRecord.shifts.length > 0) {
-                    // Find shift with meters data
-                    const shiftWithMeters = data.dailyRecord.shifts.find(
-                        (s: { meters?: MeterReading[] }) => s.meters && s.meters.length > 0
-                    );
-                    if (shiftWithMeters) {
-                        metersData = shiftWithMeters.meters;
-                    }
-                } else if (data.dailyRecord?.meters) {
-                    // Fallback to dailyRecord.meters
-                    metersData = data.dailyRecord.meters;
-                }
-
-                if (metersData && metersData.length > 0) {
-                    setMeters(metersData.map((m: MeterReading) => ({
-                        nozzleNumber: m.nozzleNumber,
-                        startReading: Number(m.startReading) || 0,
-                        endReading: m.endReading ? Number(m.endReading) : null,
-                        startImageUrl: m.startImageUrl,
-                        endImageUrl: m.endImageUrl,
-                    })));
-                }
-
-                // Set gauges
-                if (data.gaugeReadings) {
-                    const starts = Array(TANK_COUNT).fill(0);
-                    const ends = Array(TANK_COUNT).fill(0);
-
-                    data.gaugeReadings.forEach((g: GaugeReading) => {
-                        if (g.type === 'start') {
-                            starts[g.tankNumber - 1] = g.percentage;
-                        } else {
-                            ends[g.tankNumber - 1] = g.percentage;
+                    // Priority: currentShift > first shift with data > dailyRecord.meters
+                    if (data.currentShift?.meters && data.currentShift.meters.length > 0) {
+                        metersData = data.currentShift.meters;
+                    } else if (data.dailyRecord?.shifts && data.dailyRecord.shifts.length > 0) {
+                        // Find shift with meters data
+                        const shiftWithMeters = data.dailyRecord.shifts.find(
+                            (s: { meters?: MeterReading[] }) => s.meters && s.meters.length > 0
+                        );
+                        if (shiftWithMeters) {
+                            metersData = shiftWithMeters.meters;
                         }
-                    });
+                    } else if (data.dailyRecord?.meters) {
+                        // Fallback to dailyRecord.meters
+                        metersData = data.dailyRecord.meters;
+                    }
 
-                    setStartGauges(starts);
-                    setEndGauges(ends);
+                    if (metersData && metersData.length > 0) {
+                        setMeters(metersData.map((m: MeterReading) => ({
+                            nozzleNumber: m.nozzleNumber,
+                            startReading: Number(m.startReading) || 0,
+                            endReading: m.endReading ? Number(m.endReading) : null,
+                            startImageUrl: m.startImageUrl,
+                            endImageUrl: m.endImageUrl,
+                        })));
+                    }
+
+                    // Set gauges
+                    if (data.gaugeReadings) {
+                        const starts = Array(TANK_COUNT).fill(0);
+                        const ends = Array(TANK_COUNT).fill(0);
+
+                        data.gaugeReadings.forEach((g: GaugeReading) => {
+                            const type = g.type || g.notes;
+                            if (type === 'start') {
+                                starts[g.tankNumber - 1] = g.percentage;
+                            } else if (type === 'end') {
+                                ends[g.tankNumber - 1] = g.percentage;
+                            }
+                        });
+
+                        setStartGauges(starts);
+                        setEndGauges(ends);
+                    }
                 }
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            } finally {
+                setLoading(false);
             }
-        } catch (error) {
-            console.error('Error fetching data:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+        };
+
+        fetchData();
+    }, [id, selectedDate]);
 
     const copyFromPreviousShift = async () => {
         try {
@@ -144,6 +148,7 @@ export default function GasStationMetersPage({ params }: { params: Promise<{ id:
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     date: selectedDate,
+                    shiftId: currentShiftId || undefined,
                     type: endpoint,
                     meters: metersData,
                 }),
@@ -164,19 +169,24 @@ export default function GasStationMetersPage({ params }: { params: Promise<{ id:
     };
 
     const saveGauges = async () => {
+        if (!currentShiftId) {
+            alert('กรุณาเปิดกะก่อนบันทึกระดับถัง');
+            return;
+        }
+
         setSaving(true);
         try {
             const gaugeData = (activeTab === 'gauge' ? startGauges : endGauges).map((p, i) => ({
                 tankNumber: i + 1,
                 percentage: p,
-                type: 'start', // Always save as current state
             }));
 
-            const res = await fetch(`/api/gas-station/${id}/gauge`, {
+            const res = await fetch(`/api/v2/gas/${id}/gauge`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    date: selectedDate,
+                    shiftId: currentShiftId,
+                    type: 'start',
                     readings: gaugeData,
                 }),
             });

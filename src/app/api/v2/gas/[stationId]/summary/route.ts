@@ -36,6 +36,7 @@ export async function GET(
                     lte: endOfDay
                 }
             },
+            orderBy: { date: 'asc' },
             include: {
                 shifts: {
                     orderBy: { shiftNumber: 'desc' },
@@ -151,9 +152,9 @@ export async function GET(
                 closedAt: shift.closedAt,
                 meters: shift.meters.map(m => ({
                     nozzleNumber: m.nozzleNumber,
-                    startReading: m.startReading ? Number(m.startReading) : null,
-                    endReading: m.endReading ? Number(m.endReading) : null,
-                    soldQty: m.soldQty ? Number(m.soldQty) : null
+                    startReading: m.startReading !== null ? Number(m.startReading) : null,
+                    endReading: m.endReading !== null ? Number(m.endReading) : null,
+                    soldQty: m.soldQty !== null ? Number(m.soldQty) : null
                 })),
                 gasPrice: dailyGasPrice
             };
@@ -181,13 +182,13 @@ export async function GET(
             response.meters = shift.meters.map(m => {
                 const soldQty = m.soldQty
                     ? Number(m.soldQty)
-                    : (m.startReading && m.endReading ? Number(m.endReading) - Number(m.startReading) : 0);
+                    : (m.startReading !== null && m.endReading !== null ? Number(m.endReading) - Number(m.startReading) : 0);
 
                 return {
                     nozzle: m.nozzleNumber,
                     nozzleNumber: m.nozzleNumber,
-                    startReading: m.startReading ? Number(m.startReading) : null,
-                    endReading: m.endReading ? Number(m.endReading) : null,
+                    startReading: m.startReading !== null ? Number(m.startReading) : null,
+                    endReading: m.endReading !== null ? Number(m.endReading) : null,
                     liters: soldQty,
                     amount: soldQty * dailyGasPrice
                 };

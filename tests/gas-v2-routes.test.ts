@@ -183,6 +183,55 @@ describe('gas v2 route guards', () => {
         expect(txMock.gaugeReading.create).toHaveBeenCalledTimes(3);
     });
 
+    it('uses the submitted daily gas price when opening a shift', async () => {
+        txMock.shift.findFirst.mockResolvedValue(null);
+        txMock.dailyRecord.findFirst.mockResolvedValue(null);
+        txMock.dailyRecord.create.mockResolvedValue({
+            id: 'daily-1',
+            date: new Date('2026-04-22T17:00:00.000Z'),
+            gasPrice: 18.75,
+        });
+        txMock.shift.create.mockResolvedValue({ id: 'shift-1' });
+        txMock.meterReading.create.mockResolvedValue({});
+        txMock.gaugeReading.create.mockResolvedValue({});
+
+        const { POST } = await import('../src/app/api/v2/gas/[stationId]/shift/open/route');
+        const response = await POST(buildJsonRequest({
+            dateKey: '2026-04-23',
+            shiftNumber: 1,
+            gasPrice: 18.75,
+            meters: [
+                { nozzleNumber: 1, reading: 1000 },
+                { nozzleNumber: 2, reading: 1001 },
+                { nozzleNumber: 3, reading: 1002 },
+                { nozzleNumber: 4, reading: 1003 },
+            ],
+            gauges: [
+                { tankNumber: 1, percentage: 40 },
+                { tankNumber: 2, percentage: 50 },
+                { tankNumber: 3, percentage: 60 },
+            ],
+        }) as never, {
+            params: Promise.resolve({ stationId: 'station-5' }),
+        });
+
+        expect(response.status).toBe(200);
+        await expect(response.json()).resolves.toMatchObject({
+            success: true,
+            shiftId: 'shift-1',
+            gasPrice: 18.75,
+        });
+        expect(txMock.station.findUnique).not.toHaveBeenCalled();
+        expect(txMock.gasSettings.findUnique).not.toHaveBeenCalled();
+        expect(txMock.dailyRecord.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({
+                gasPrice: 18.75,
+                retailPrice: 18.75,
+                wholesalePrice: 18.75,
+            }),
+        }));
+    });
+
     it('rejects invalid shift-open payloads before any database transaction starts', async () => {
         const { POST } = await import('../src/app/api/v2/gas/[stationId]/shift/open/route');
         const response = await POST(buildJsonRequest({

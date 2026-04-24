@@ -32,6 +32,7 @@ export async function GET(
                     lte: endOfDay
                 }
             },
+            orderBy: { date: 'asc' },
             include: {
                 shifts: {
                     orderBy: { shiftNumber: 'desc' },
@@ -94,9 +95,9 @@ export async function GET(
                 closedAt: shift.closedAt,
                 meters: shift.meters.map(m => ({
                     nozzleNumber: m.nozzleNumber,
-                    startReading: m.startReading ? Number(m.startReading) : null,
-                    endReading: m.endReading ? Number(m.endReading) : null,
-                    soldQty: m.soldQty ? Number(m.soldQty) : null
+                    startReading: m.startReading !== null ? Number(m.startReading) : null,
+                    endReading: m.endReading !== null ? Number(m.endReading) : null,
+                    soldQty: m.soldQty !== null ? Number(m.soldQty) : null
                 })),
                 gauge: {
                     start: startGauge.map(g => ({

@@ -54,6 +54,7 @@ export async function GET(
                     lte: endOfDay
                 }
             },
+            orderBy: { date: 'asc' },
             include: {
                 meters: true,
                 shifts: {
@@ -141,9 +142,16 @@ export async function GET(
         }
 
         // Get shift-specific data if shift > 0 is specified
-        const currentShiftData = shiftNumber !== null && shiftNumber > 0 && dailyRecord?.shifts
-            ? dailyRecord.shifts.find(s => s.shiftNumber === shiftNumber)
-            : null;
+        const currentShiftData = (() => {
+            if (!dailyRecord?.shifts) return null;
+            if (shiftNumber !== null && shiftNumber > 0) {
+                return dailyRecord.shifts.find(s => s.shiftNumber === shiftNumber) || null;
+            }
+
+            const openShifts = dailyRecord.shifts.filter(s => s.status === 'OPEN');
+            if (openShifts.length > 0) return openShifts[openShifts.length - 1];
+            return dailyRecord.shifts[dailyRecord.shifts.length - 1] || null;
+        })();
 
         return NextResponse.json({
             station,
@@ -204,7 +212,9 @@ export async function POST(
 
         const body = await request.json();
         const { date: dateStr, gasPrice } = body;
-        const date = new Date(dateStr + 'T00:00:00Z');
+        const dateKey = dateStr || getTodayBangkok();
+        const date = getStartOfDayBangkokUTC(dateKey);
+        const endOfDay = getEndOfDayBangkokUTC(dateKey);
 
         // Get or create station with consistent ID
         const station = await prisma.station.upsert({
@@ -223,8 +233,12 @@ export async function POST(
         const existingRecord = await prisma.dailyRecord.findFirst({
             where: {
                 stationId: station.id,
-                date: date,
-            }
+                date: {
+                    gte: date,
+                    lte: endOfDay,
+                },
+            },
+            orderBy: { date: 'asc' },
         });
 
         let dailyRecord;
