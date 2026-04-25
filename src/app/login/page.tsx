@@ -4,6 +4,20 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LogIn, Eye, EyeOff, Fuel, Sparkles, Loader2 } from 'lucide-react';
 
+function normalizeGasRedirectPath(path: string) {
+    const match = path.match(/^\/gas-station\/(\d+)(?:\/new(?:\/([^/?#]+))?)?/);
+    if (!match) return path;
+
+    const stationNum = match[1];
+    const legacyPage = match[2] || '';
+
+    if (legacyPage === 'sell') return `/gas/${stationNum}/sell`;
+    if (legacyPage === 'meters') return `/gas/${stationNum}/meters`;
+    if (legacyPage === 'summary' || legacyPage === 'shift-summary') return `/gas/${stationNum}/summary`;
+
+    return `/gas/${stationNum}`;
+}
+
 function LoginContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -121,7 +135,7 @@ function LoginContent() {
 
                 // Redirect based on role or redirect param
                 if (redirectTo && !redirectTo.startsWith('/login')) {
-                    router.push(redirectTo);
+                    router.push(normalizeGasRedirectPath(redirectTo));
                 } else if (data.user?.role === 'STAFF' && data.user?.stationId) {
                     const stationId = data.user.stationId;
                     const stationType = data.user.stationType;
