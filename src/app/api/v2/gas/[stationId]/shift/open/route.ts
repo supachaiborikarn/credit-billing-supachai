@@ -66,6 +66,7 @@ export async function POST(
                     status: 'OPEN',
                     dailyRecord: {
                         stationId: station.dbId,
+                        date: dateUTC,
                     },
                 },
             });

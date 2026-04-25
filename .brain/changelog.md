@@ -162,3 +162,8 @@
   - patch `POST /api/v2/gas/[stationId]/sell` ให้เงินเชื่อต้องมี owner/truck/เล่มที่/เลขที่บิล และ verify truck อยู่ใต้ owner ก่อนบันทึก
   - patch หน้า sell ให้ validate เล่มที่/เลขที่บิลตาม label required จริง
   - patch close-shift route/page ให้ยอดเงินสดรับ เงินเชื่อ บัตร และโอนต้องเป็นตัวเลขไม่ติดลบ
+- ✅ Smoke test flow ปั๊มแก๊สโดยรวมและแก้ stale shift blocker
+  - พบ DB จริงมีกะ `OPEN` ค้างจาก 2026-04-24 ทำให้ route เปิดกะวันนี้โดนบล็อก ทั้งที่หน้า staff summary/current ของ 2026-04-25 ไม่มีกะเปิด
+  - patch `POST /api/v2/gas/[stationId]/shift/open` ให้เช็ก existing open shift เฉพาะ station/day ตาม `dateKey`
+  - เพิ่ม route-level test กัน regression และรัน `npm run test` ผ่าน 54 tests
+  - smoke ผ่านทั้งหน้า manager/staff และ API หลัก รวมถึง manager reconciliation edit จริงพร้อม cleanup/restore ข้อมูลกลับ
