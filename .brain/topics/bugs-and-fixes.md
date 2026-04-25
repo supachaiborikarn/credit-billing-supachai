@@ -10,7 +10,8 @@
      2026-04-25 เพิ่ม staff daily GAS price edit ให้แก้ `dailyRecord.gasPrice` ผ่าน v2 route พร้อม audit;
      ปิด gap เงินเชื่อ GAS ที่ไม่บังคับเลขบิล/รถ พร้อม validate ยอดรับจริงตอนปิดกะไม่ให้ติดลบ;
      patch stale open shift date guard หลัง smoke test พบกะค้างวันก่อนบล็อกการเปิดกะวันนี้;
-     และ patch orphan GAS transactions ให้รายงาน admin แสดงรายการไม่ผูกกะ พร้อมกัน legacy sell ไม่ให้บันทึกขายถ้าไม่มีกะเปิด -->
+     patch orphan GAS transactions ให้รายงาน admin แสดงรายการไม่ผูกกะ พร้อมกัน legacy sell ไม่ให้บันทึกขายถ้าไม่มีกะเปิด;
+     และปรับ GAS sale entry 2026-04-25 ให้กรอกยอดเงินเป็นหลัก โดย server คำนวณลิตรจาก `dailyRecord.gasPrice` พร้อมแยก orphan rows ใน meter report ไม่ให้ดูเป็นกะ 0/ส่วนต่างมิเตอร์จริง -->
 
 # Bugs & Fixes
 
@@ -148,6 +149,12 @@
 - **Verification**: read-only query หลัง patch แสดง `orphan:station-5:2026-04-25` ยอด `฿21,540.78`, `1,306.29 L`, 5 รายการ และ `buildGasDailyAnalytics` คืนแถววันที่ 2026-04-25 แล้ว; เพิ่ม test `keeps unassigned gas transactions visible in manager daily analytics`
 - **สถานะ**: ✅ patch code + tests แล้ว; ถ้าต้องการให้ปิดกะ/reconciliation ย้อนหลังกับข้อมูลนี้ ต้องทำ admin-confirmed data repair เพื่อสร้าง/ผูก shift จริงต่างหาก
 
+### GAS Amount-Based Sale Entry and Meter Report Clarity (Apr 25, 2026)
+- **ปัญหา**: พนักงานคุ้นกับการรับเงินเป็นยอดบาท แต่หน้า `/gas/[stationId]/sell`, legacy `/gas-station/[id]/new/sell`, และหน้า legacy หลักยังให้กรอก “จำนวนลิตร” ก่อน ทำให้กรอกผิดง่ายและยอดอาจ drift จากราคาประจำวัน; พร้อมกันนั้นหน้า meter report แสดง orphan bucket เป็น “กะ 0” และนับ transaction liters เป็น “ส่วนต่างลิตรรวม” ทำให้ผู้จัดการเข้าใจว่าเป็น variance มิเตอร์จริง ทั้งที่ยังไม่มี shift/meter ประกบ
+- **แก้ไข**: เพิ่ม helper `normalizeGasSaleAmount`/`roundGasQuantity`, ให้ `POST /api/v2/gas/[stationId]/sell` ใช้ `amount` เป็น source หลักและคำนวณ `liters = amount / dailyRecord.gasPrice` ฝั่ง server แต่ยัง fallback รับ `liters` สำหรับ client เก่า; legacy transaction route derive liters จาก amount+price ได้; เปลี่ยน sale UIs ให้กรอกยอดเงินแล้วแสดงลิตรที่คำนวณได้; meter report API ส่ง `status`/`isSyntheticOrphan` และหน้า report แสดง “ไม่ผูกกะ”/“รอผูกกะ” พร้อมแยก comparable variance ออกจากยอดขายที่ยังไม่ผูกกะ
+- **Verification**: `npm run test` ผ่าน 55 tests; targeted eslint ไฟล์ที่แตะผ่าน (เหลือ warning เดิมใน legacy page); `npm run build` compile source หลักผ่านแต่หยุดที่ untracked `scratch/new_gauges.tsx` ที่ไม่อยู่ใน commit/deploy
+- **สถานะ**: ✅ patch code + tests แล้ว
+
 ## ⚠️ Known Gotchas
 1. **String vs Numeric Sort**: ทุก sort ที่เกี่ยวกับตัวเลข (book, number) ต้องใช้ parseInt
 2. **Neon Data Transfer**: free tier จำกัด 5GB/month → ระวัง polling ถี่เกินไป
@@ -174,6 +181,7 @@
 23. **GAS Received Amount Validation**: ยอด `cashReceived`/`creditReceived`/`cardReceived`/`transferReceived` ตอนปิดกะต้องเป็นเลขไม่ติดลบทุกครั้ง; schema ยังไม่มี field `cardReceived` แยก จึงต้อง parse/build ผ่าน `buildGasVarianceNote`/fact layer กลางเท่านั้น
 24. **GAS Open Shift Date Scope**: guard เปิดกะต้องเช็ก `OPEN` shift เฉพาะ station/day เดียวกับ `dateKey`; ห้ามให้กะค้างวันก่อนบล็อกการเปิดกะวันใหม่ ให้ใช้ `/api/admin/gas/stale-shifts` สำหรับ cleanup แบบมี audit
 25. **GAS Orphan Transactions**: admin analytics ต้องไม่ทิ้ง transaction ที่ `shiftId=null` หรือ match shift window ไม่ได้; ให้แสดงเป็น `UNASSIGNED`/“ไม่ผูกกะ” เพื่อให้ผู้จัดการเห็นยอดจริง และ legacy sell route ต้อง block/auto-link ก่อนสร้างรายการใหม่
+26. **GAS Amount-Based Sales**: หน้า GAS sell ต้องให้พนักงานกรอกยอดเงินเป็นหลัก และ backend ต้องคำนวณลิตรจาก `dailyRecord.gasPrice`; ห้ามเชื่อ `liters`/`pricePerLiter` จาก client เมื่อมี `amount` ส่งมา เพื่อไม่ให้ยอดขายกับราคาประจำวัน drift กัน
 
 ## Changelog
 - 2026-02-24: สร้างไฟล์ brain topic นี้จากประวัติ conversations
@@ -196,3 +204,4 @@
 - 2026-04-25: ตรวจ flow ลงขาย GAS พบเงินเชื่อไม่บังคับเลขบิลจริงใน DB; patch client/server ให้ require owner/truck/book/bill, verify truck-owner, และ validate ยอดรับจริงตอนปิดกะไม่ให้ติดลบ
 - 2026-04-25: smoke test GAS manager/staff flow พบ stale `OPEN` shift จากวันก่อนบล็อกเปิดกะวันนี้; patch `shift/open` ให้ scope existing open shift ตาม `dailyRecord.date` ของ `dateKey`, เพิ่ม test, และยืนยัน browser/API smoke ผ่าน
 - 2026-04-25: ตรวจ live DB พบรายการขาย GAS วันนี้ 5 รายการผูก `DailyRecord` แต่ไม่ผูก `Shift`; patch admin analytics ให้แสดงเป็น “ไม่ผูกกะ” และ block legacy sell ไม่ให้สร้าง orphan transactions เพิ่ม
+- 2026-04-25: เปลี่ยน GAS sale entry ให้กรอกยอดเงินเป็นหลัก, backend คำนวณลิตรจากราคาประจำวัน, และปรับ meter report ให้ orphan rows แสดง “ไม่ผูกกะ/รอผูกกะ” โดยไม่ปนเป็นส่วนต่างมิเตอร์ที่เทียบได้จริง

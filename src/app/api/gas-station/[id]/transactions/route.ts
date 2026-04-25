@@ -43,15 +43,18 @@ export async function POST(
             notes,
             shiftId  // Changed from shiftNumber to shiftId
         } = body;
+        const amountNumber = Number(amount);
+        const requestedPricePerLiter = Number(pricePerLiter) || 0;
+        const providedLiters = Number(liters) || 0;
+        const isExpense = paymentType === 'EXPENSE';
 
-        // Validate required fields - EXPENSE and CASH summary don't require liters
-        if (!paymentType || !amount) {
+        // Validate required fields - EXPENSE can be negative, sales must be positive.
+        if (
+            !paymentType
+            || !Number.isFinite(amountNumber)
+            || (isExpense ? amountNumber === 0 : amountNumber <= 0)
+        ) {
             return HttpErrors.badRequest('ข้อมูลไม่ครบถ้วน: ต้องระบุประเภทการชำระเงินและจำนวนเงิน');
-        }
-
-        // For regular sales, require liters > 0 (skip for EXPENSE)
-        if (!['EXPENSE', 'CASH'].includes(paymentType) && (!liters || liters <= 0)) {
-            return HttpErrors.badRequest('ข้อมูลไม่ครบถ้วน: ต้องระบุจำนวนลิตร');
         }
 
         // CREDIT transactions require owner name
@@ -68,7 +71,7 @@ export async function POST(
                 id: stationId,
                 name: auth.station.name,
                 type: 'GAS',
-                gasPrice: pricePerLiter || 15.50,
+                gasPrice: requestedPricePerLiter || 15.50,
                 gasStockAlert: 1000,
             }
         });
@@ -88,11 +91,25 @@ export async function POST(
                 data: {
                     stationId: station.id,
                     date: date,
-                    gasPrice: pricePerLiter,
+                    gasPrice: requestedPricePerLiter || Number(station.gasPrice) || 15.50,
                     retailPrice: 0,
                     wholesalePrice: 0,
                 }
             });
+        }
+
+        const effectivePricePerLiter = requestedPricePerLiter
+            || Number(dailyRecord.gasPrice)
+            || Number(station.gasPrice)
+            || 0;
+        const effectiveLiters = providedLiters > 0
+            ? Number(providedLiters.toFixed(5))
+            : (!isExpense && effectivePricePerLiter > 0
+                ? Number((amountNumber / effectivePricePerLiter).toFixed(5))
+                : 0);
+
+        if (!isExpense && effectiveLiters <= 0) {
+            return HttpErrors.badRequest('ไม่สามารถคำนวณลิตรได้ กรุณาตั้งราคาขายประจำวันก่อนบันทึกขาย');
         }
 
         let effectiveShiftId = shiftId || null;
@@ -155,7 +172,7 @@ export async function POST(
         // ===== CREDIT LIMIT CHECK =====
         if (resolvedOwnerId && ['CREDIT', 'BOX_TRUCK'].includes(paymentType)) {
             const { checkCreditLimit } = await import('@/services/credit-service');
-            const creditCheck = await checkCreditLimit(resolvedOwnerId, amount);
+            const creditCheck = await checkCreditLimit(resolvedOwnerId, amountNumber);
 
             if (!creditCheck.allowed) {
                 return NextResponse.json({
@@ -175,7 +192,7 @@ export async function POST(
                 stationId: station.id,
                 licensePlate: licensePlate?.toUpperCase() || null,
                 ownerName: ownerName || null,
-                amount: amount,
+                amount: amountNumber,
                 createdAt: { gte: twoMinutesAgo },
                 deletedAt: null,
             }
@@ -197,9 +214,9 @@ export async function POST(
                 ownerName: ownerName || null,
                 paymentType: paymentType as PaymentType,
                 nozzleNumber: nozzleNumber ?? 0,
-                liters: liters ?? 0,
-                pricePerLiter: pricePerLiter ?? 0,
-                amount,
+                liters: effectiveLiters,
+                pricePerLiter: effectivePricePerLiter,
+                amount: amountNumber,
                 productType: productType || (paymentType === 'EXPENSE' ? 'EXPENSE' : 'LPG'),
                 recordedById: auth.user.id,
                 notes: notes || null,

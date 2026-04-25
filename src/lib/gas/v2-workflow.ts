@@ -190,8 +190,17 @@ export function normalizeGasSaleLiters(value: unknown): number | null {
     return toPositiveNumber(value);
 }
 
+export function normalizeGasSaleAmount(value: unknown): number | null {
+    const parsed = toPositiveNumber(value);
+    return parsed === null ? null : roundGasCurrency(parsed);
+}
+
 export function roundGasCurrency(value: number): number {
     return Number(value.toFixed(2));
+}
+
+export function roundGasQuantity(value: number): number {
+    return Number(value.toFixed(5));
 }
 
 export async function getDefaultGasPriceForStation(

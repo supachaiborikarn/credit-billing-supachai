@@ -4,9 +4,11 @@ import { getTodayBangkok, getStartOfDayBangkokUTC, getEndOfDayBangkokUTC } from 
 import { requireGasStationAccess } from '@/lib/gas/api-guards';
 import { addToGasPaymentSummary, normalizeGasPaymentType } from '@/lib/gas/payment-utils';
 import {
+    normalizeGasSaleAmount,
     normalizeGasSaleLiters,
     resolveDailyGasPrice,
     roundGasCurrency,
+    roundGasQuantity,
 } from '@/lib/gas/v2-workflow';
 
 function normalizeOptionalText(value: unknown): string | null {
@@ -37,6 +39,7 @@ export async function POST(
         const {
             paymentType,
             liters,
+            amount,
             ownerId,
             truckId,
             licensePlate,
@@ -53,9 +56,13 @@ export async function POST(
         const normalizedLicensePlate = normalizeOptionalText(licensePlate);
         const normalizedNotes = normalizeOptionalText(notes);
 
+        const hasAmountInput = amount !== undefined
+            && amount !== null
+            && !(typeof amount === 'string' && amount.trim() === '');
+
         // Validate required fields
-        if (!paymentType || liters === undefined || liters === null) {
-            return NextResponse.json({ error: 'paymentType and liters are required' }, { status: 400 });
+        if (!paymentType) {
+            return NextResponse.json({ error: 'paymentType is required' }, { status: 400 });
         }
 
         const normalizedPaymentType = normalizeGasPaymentType(paymentType);
@@ -63,9 +70,14 @@ export async function POST(
             return NextResponse.json({ error: 'Invalid payment type' }, { status: 400 });
         }
 
-        const normalizedLiters = normalizeGasSaleLiters(liters);
-        if (normalizedLiters === null) {
-            return NextResponse.json({ error: 'liters must be a positive number' }, { status: 400 });
+        const inputAmount = hasAmountInput ? normalizeGasSaleAmount(amount) : null;
+        if (hasAmountInput && inputAmount === null) {
+            return NextResponse.json({ error: 'ยอดเงินขายต้องมากกว่า 0' }, { status: 400 });
+        }
+
+        const inputLiters = normalizeGasSaleLiters(liters);
+        if (!hasAmountInput && inputLiters === null) {
+            return NextResponse.json({ error: 'กรุณากรอกยอดเงินขาย' }, { status: 400 });
         }
 
         // For credit, require owner
@@ -114,7 +126,10 @@ export async function POST(
         }
 
         const resolvedGasPrice = await resolveDailyGasPrice(prisma, station.dbId, dailyRecord.gasPrice);
-        const resolvedAmount = roundGasCurrency(normalizedLiters * resolvedGasPrice);
+        const resolvedAmount = inputAmount ?? roundGasCurrency(inputLiters! * resolvedGasPrice);
+        const normalizedLiters = inputAmount !== null
+            ? roundGasQuantity(resolvedAmount / resolvedGasPrice)
+            : inputLiters!;
         let creditTruck: { licensePlate: string } | null = null;
 
         if (normalizedPaymentType === 'CREDIT') {
@@ -174,6 +189,7 @@ export async function POST(
             success: true,
             transactionId: transaction.id,
             gasPrice: resolvedGasPrice,
+            liters: normalizedLiters,
             amount: resolvedAmount,
             message: 'บันทึกสำเร็จ'
         });

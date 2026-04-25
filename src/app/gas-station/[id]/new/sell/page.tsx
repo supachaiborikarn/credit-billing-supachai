@@ -36,8 +36,7 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
     const [ownerId, setOwnerId] = useState<string | null>(null);
     const [paymentType, setPaymentType] = useState('CASH');
     const [nozzleNumber, setNozzleNumber] = useState(1);
-    const [liters, setLiters] = useState('');
-    const [amount, setAmount] = useState(0);
+    const [saleAmountInput, setSaleAmountInput] = useState('');
 
     // Search
     const [searchResults, setSearchResults] = useState<TruckResult[]>([]);
@@ -59,12 +58,6 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
     const [newTruckOwnerSearch, setNewTruckOwnerSearch] = useState('');
     const [showNewTruckOwnerDropdown, setShowNewTruckOwnerDropdown] = useState(false);
     const [savingNewTruck, setSavingNewTruck] = useState(false);
-
-    // Calculate amount when liters or price changes
-    useEffect(() => {
-        const l = parseFloat(liters) || 0;
-        setAmount(l * gasPrice);
-    }, [liters, gasPrice]);
 
     // Fetch gas price and current shift
     useEffect(() => {
@@ -209,6 +202,11 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
         setShowNewTruckOwnerDropdown(false);
     };
 
+    const saleAmount = Number.parseFloat(saleAmountInput) || 0;
+    const calculatedLiters = saleAmount > 0 && gasPrice > 0
+        ? saleAmount / gasPrice
+        : 0;
+
     // Handle add new truck
     const handleAddNewTruck = async () => {
         if (!newTruckPlate.trim() || !selectedOwnerId) {
@@ -251,8 +249,8 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
     };
 
     const handleSubmit = async () => {
-        if (!liters || parseFloat(liters) <= 0) {
-            alert('กรุณาใส่จำนวนลิตร');
+        if (saleAmount <= 0) {
+            alert('กรุณาใส่ยอดเงินขาย');
             return;
         }
 
@@ -279,9 +277,9 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
                     ownerId: ownerId || null,
                     paymentType,
                     nozzleNumber,
-                    liters: parseFloat(liters),
+                    liters: calculatedLiters,
                     pricePerLiter: gasPrice,
-                    amount,
+                    amount: saleAmount,
                     shiftId: currentShiftId,  // NEW: link to current shift
                 }),
             });
@@ -292,7 +290,7 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
                 setOwnerName('');
                 setOwnerId(null);
                 setOwnerSearch('');
-                setLiters('');
+                setSaleAmountInput('');
                 setNozzleNumber(1);
                 setPaymentType('CASH');
                 alert('✅ บันทึกเรียบร้อย!');
@@ -494,31 +492,41 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
                     </div>
                 </div>
 
-                {/* Liters Input */}
+                {/* Amount Input */}
                 <div className="bg-white rounded-2xl shadow-sm p-4">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                        🔢 จำนวนลิตร
+                        💰 ยอดเงินที่ขาย
                     </label>
                     <input
                         type="number"
-                        value={liters}
-                        onChange={(e) => setLiters(e.target.value)}
+                        value={saleAmountInput}
+                        onChange={(e) => setSaleAmountInput(e.target.value)}
                         placeholder="0.00"
                         className="w-full px-4 py-4 border border-gray-200 rounded-xl text-3xl text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-500"
                         inputMode="decimal"
+                        step="0.01"
+                        min="0"
                     />
                 </div>
 
-                {/* Total Amount */}
+                {/* Calculated Liters */}
                 <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl p-4 text-center">
-                    <p className="text-orange-100 text-sm mb-1">รวมทั้งสิ้น</p>
-                    <p className="text-white text-4xl font-bold">฿{formatCurrency(amount)}</p>
+                    <p className="text-orange-100 text-sm mb-1">ลิตรที่ระบบคำนวณให้</p>
+                    <p className="text-white text-4xl font-bold">
+                        {calculatedLiters.toLocaleString('th-TH', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 5,
+                        })} L
+                    </p>
+                    <p className="mt-1 text-xs text-orange-100">
+                        ฿{formatCurrency(saleAmount)} ÷ ฿{Number(gasPrice).toFixed(2)}/ลิตร
+                    </p>
                 </div>
 
                 {/* Submit Button */}
                 <button
                     onClick={handleSubmit}
-                    disabled={loading || !currentShiftId || !liters || parseFloat(liters) <= 0}
+                    disabled={loading || !currentShiftId || saleAmount <= 0}
                     className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white text-lg font-bold rounded-2xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                 >
                     {loading ? 'กำลังบันทึก...' : '✅ บันทึกขาย'}

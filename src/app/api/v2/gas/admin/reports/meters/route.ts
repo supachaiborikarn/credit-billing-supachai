@@ -35,6 +35,8 @@ export async function GET(request: NextRequest) {
             stationId: shift.stationId,
             stationName: shift.stationName,
             shiftNumber: shift.shiftNumber,
+            status: shift.status,
+            isSyntheticOrphan: shift.isSyntheticOrphan === true,
             nozzles: shift.meters.nozzles,
             totalLiters: shift.meters.total,
             transactionLiters: shift.meters.transactionLiters,

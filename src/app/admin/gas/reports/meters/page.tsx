@@ -11,6 +11,8 @@ interface MeterReport {
     stationId: string;
     stationName: string;
     shiftNumber: number;
+    status: string;
+    isSyntheticOrphan?: boolean;
     nozzles: {
         nozzleNumber: number;
         startReading: number;
@@ -109,12 +111,20 @@ export default function MeterReportPage() {
         actualSales: sum.actualSales + report.actualSales,
         expectedSales: sum.expectedSales + report.expectedSales,
         transactions: sum.transactions + report.transactionCount,
+        comparableVariance: sum.comparableVariance + (report.isSyntheticOrphan ? 0 : report.litersVariance),
+        unassignedLiters: sum.unassignedLiters + (report.isSyntheticOrphan ? report.transactionLiters : 0),
+        unassignedSales: sum.unassignedSales + (report.isSyntheticOrphan ? report.actualSales : 0),
+        unassignedTransactions: sum.unassignedTransactions + (report.isSyntheticOrphan ? report.transactionCount : 0),
     }), {
         meterLiters: 0,
         transactionLiters: 0,
         actualSales: 0,
         expectedSales: 0,
         transactions: 0,
+        comparableVariance: 0,
+        unassignedLiters: 0,
+        unassignedSales: 0,
+        unassignedTransactions: 0,
     });
 
     return (
@@ -150,13 +160,25 @@ export default function MeterReportPage() {
                     <div className="text-2xl font-bold text-blue-400">฿{formatCurrency(totals.actualSales)}</div>
                 </div>
                 <div className="bg-[#1a1a24] rounded-xl p-4 border border-white/10">
-                    <div className="text-sm text-gray-400">ส่วนต่างลิตรรวม</div>
-                    <div className={`text-2xl font-bold ${totals.transactionLiters - totals.meterLiters >= 0 ? 'text-yellow-400' : 'text-red-400'}`}>
-                        {totals.transactionLiters - totals.meterLiters >= 0 ? '+' : ''}
-                        {(totals.transactionLiters - totals.meterLiters).toLocaleString()} L
+                    <div className="text-sm text-gray-400">ส่วนต่างที่เทียบมิเตอร์ได้</div>
+                    <div className={`text-2xl font-bold ${totals.comparableVariance >= 0 ? 'text-yellow-400' : 'text-red-400'}`}>
+                        {totals.comparableVariance >= 0 ? '+' : ''}
+                        {totals.comparableVariance.toLocaleString()} L
                     </div>
                 </div>
             </div>
+
+            {totals.unassignedTransactions > 0 && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+                    <div className="font-semibold text-amber-200">
+                        มีรายการขายที่ยังไม่ผูกกะ {totals.unassignedTransactions.toLocaleString()} รายการ
+                    </div>
+                    <div className="mt-1 text-amber-100/80">
+                        รวม ฿{formatCurrency(totals.unassignedSales)} / {totals.unassignedLiters.toLocaleString()} L
+                        ระบบแสดงยอดขายไว้ให้ผู้จัดการเห็นก่อน แต่ยังไม่นับเป็นส่วนต่างมิเตอร์จนกว่าจะผูกกะหรือมีมิเตอร์ประกบ
+                    </div>
+                </div>
+            )}
 
             {/* Filters */}
             <div className="bg-[#1a1a24] rounded-xl p-4 border border-white/10">
@@ -245,12 +267,22 @@ export default function MeterReportPage() {
                             </thead>
                             <tbody className="divide-y divide-white/5">
                                 {reports.map((r) => (
-                                    <tr key={r.id} className="hover:bg-white/5">
+                                    <tr
+                                        key={r.id}
+                                        className={r.isSyntheticOrphan
+                                            ? 'bg-amber-500/5 hover:bg-amber-500/10'
+                                            : 'hover:bg-white/5'}
+                                    >
                                         <td className="px-4 py-3">{r.displayDate}</td>
                                         <td className="px-4 py-3">{r.stationName}</td>
                                         <td className="px-4 py-3 text-center">
-                                            <span className={`px-2 py-1 rounded text-xs ${r.shiftNumber === 1 ? 'bg-blue-900/50 text-blue-300' : 'bg-purple-900/50 text-purple-300'}`}>
-                                                กะ {r.shiftNumber}
+                                            <span className={`px-2 py-1 rounded text-xs ${r.isSyntheticOrphan
+                                                ? 'bg-amber-900/60 text-amber-200'
+                                                : r.shiftNumber === 1
+                                                    ? 'bg-blue-900/50 text-blue-300'
+                                                    : 'bg-purple-900/50 text-purple-300'
+                                                }`}>
+                                                {r.isSyntheticOrphan ? 'ไม่ผูกกะ' : `กะ ${r.shiftNumber}`}
                                             </span>
                                         </td>
                                         {[1, 2, 3, 4].map(n => {
@@ -278,8 +310,15 @@ export default function MeterReportPage() {
                                         <td className="px-4 py-3 text-right font-mono text-cyan-400">
                                             {r.transactionLiters.toLocaleString()}
                                         </td>
-                                        <td className={`px-4 py-3 text-right font-mono ${r.litersVariance >= 0 ? 'text-yellow-400' : 'text-red-400'}`}>
-                                            {r.litersVariance >= 0 ? '+' : ''}{r.litersVariance.toLocaleString()}
+                                        <td className={`px-4 py-3 text-right font-mono ${r.isSyntheticOrphan
+                                            ? 'text-amber-300'
+                                            : r.litersVariance >= 0
+                                                ? 'text-yellow-400'
+                                                : 'text-red-400'
+                                            }`}>
+                                            {r.isSyntheticOrphan
+                                                ? 'รอผูกกะ'
+                                                : `${r.litersVariance >= 0 ? '+' : ''}${r.litersVariance.toLocaleString()}`}
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             {r.transactionCount}
@@ -288,7 +327,7 @@ export default function MeterReportPage() {
                                             ฿{formatCurrency(r.actualSales)}
                                         </td>
                                         <td className="px-4 py-3 text-right font-mono text-cyan-400">
-                                            ฿{formatCurrency(r.expectedSales)}
+                                            {r.isSyntheticOrphan ? 'รอมิเตอร์' : `฿${formatCurrency(r.expectedSales)}`}
                                         </td>
                                     </tr>
                                 ))}

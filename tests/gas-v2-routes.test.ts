@@ -374,7 +374,7 @@ describe('gas v2 route guards', () => {
         expect(prismaMock.$transaction).not.toHaveBeenCalled();
     });
 
-    it('records gas sales with the daily gas price from the server instead of trusting client totals', async () => {
+    it('records gas sales by deriving liters from the submitted amount and daily gas price', async () => {
         prismaMock.dailyRecord.findFirst.mockResolvedValue({
             id: 'daily-1',
             gasPrice: 18.5,
@@ -385,10 +385,10 @@ describe('gas v2 route guards', () => {
         const { POST } = await import('../src/app/api/v2/gas/[stationId]/sell/route');
         const response = await POST(buildJsonRequest({
             paymentType: 'CASH',
-            liters: 10,
+            liters: 999,
             pricePerLiter: 1,
-            amount: 1,
-            notes: 'client should not control totals',
+            amount: 185,
+            notes: 'client should not control price or liters',
         }) as never, {
             params: Promise.resolve({ stationId: 'station-5' }),
         });
@@ -407,7 +407,7 @@ describe('gas v2 route guards', () => {
         const { POST } = await import('../src/app/api/v2/gas/[stationId]/sell/route');
         const response = await POST(buildJsonRequest({
             paymentType: 'CREDIT',
-            liters: 10,
+            amount: 185,
             ownerId: 'owner-1',
             truckId: 'truck-1',
         }) as never, {
@@ -435,7 +435,7 @@ describe('gas v2 route guards', () => {
         const { POST } = await import('../src/app/api/v2/gas/[stationId]/sell/route');
         const response = await POST(buildJsonRequest({
             paymentType: 'CREDIT',
-            liters: 10,
+            amount: 185,
             ownerId: 'owner-1',
             truckId: 'truck-1',
             licensePlate: 'client-supplied-plate',
@@ -464,6 +464,8 @@ describe('gas v2 route guards', () => {
                 billBookNo: 'A1',
                 billNo: '1001',
                 notes: 'credit test',
+                liters: 10,
+                amount: 185,
             }),
         }));
     });

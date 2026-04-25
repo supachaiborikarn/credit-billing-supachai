@@ -42,7 +42,6 @@ export default function SellPage() {
 
     // Form state
     const [paymentType, setPaymentType] = useState<PaymentType>('CASH');
-    const [liters, setLiters] = useState<string>('');
     const [amount, setAmount] = useState<string>('');
     const [bookNo, setBookNo] = useState<string>('');
     const [billNo, setBillNo] = useState<string>('');
@@ -80,16 +79,6 @@ export default function SellPage() {
         };
         fetchGasPrice();
     }, [editingPrice, stationId]);
-
-    // Auto-calculate amount when liters change
-    useEffect(() => {
-        if (liters) {
-            const calculatedAmount = parseFloat(liters) * gasPrice;
-            setAmount(calculatedAmount.toFixed(2));
-        } else {
-            setAmount('');
-        }
-    }, [liters, gasPrice]);
 
     // Load all owners on mount
     useEffect(() => {
@@ -181,11 +170,17 @@ export default function SellPage() {
         setPriceNotice(null);
     };
 
+    const parsedAmount = Number.parseFloat(amount);
+    const saleAmount = Number.isFinite(parsedAmount) ? parsedAmount : 0;
+    const calculatedLiters = saleAmount > 0 && gasPrice > 0
+        ? saleAmount / gasPrice
+        : 0;
+
     const validateForm = (): boolean => {
         const newErrors: string[] = [];
 
-        if (!liters || parseFloat(liters) <= 0) {
-            newErrors.push('ต้องกรอกจำนวนลิตร');
+        if (!amount || saleAmount <= 0) {
+            newErrors.push('ต้องกรอกยอดเงินขาย');
         }
 
         if (paymentType === 'CREDIT') {
@@ -219,7 +214,7 @@ export default function SellPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     paymentType,
-                    liters: parseFloat(liters),
+                    amount: saleAmount,
                     ownerId: selectedOwner?.id,
                     truckId: selectedTruck?.id,
                     licensePlate: selectedTruck?.licensePlate,
@@ -236,7 +231,6 @@ export default function SellPage() {
                 setTimeout(() => {
                     // Reset form
                     setPaymentType('CASH');
-                    setLiters('');
                     setAmount('');
                     setBookNo('');
                     setBillNo('');
@@ -478,24 +472,32 @@ export default function SellPage() {
                 </div>
             )}
 
-            {/* Liters Input */}
+            {/* Amount Input */}
             <div className="bg-[#1a1a24] rounded-xl p-4 mb-4 border border-white/10">
-                <label className="block text-sm text-gray-400 mb-2">จำนวนลิตร</label>
+                <label className="block text-sm text-gray-400 mb-2">ยอดเงินที่ขาย (บาท)</label>
                 <input
                     type="number"
                     step="0.01"
-                    value={liters}
-                    onChange={(e) => setLiters(e.target.value)}
+                    min="0"
+                    inputMode="decimal"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
                     placeholder="0.00"
                     className="w-full bg-gray-800 border border-white/10 rounded-lg px-4 py-4 text-2xl font-mono text-center focus:border-orange-500 focus:outline-none"
                 />
             </div>
 
-            {/* Amount Display */}
+            {/* Calculated Liters Display */}
             <div className="bg-gradient-to-r from-orange-900/30 to-red-900/30 rounded-xl p-6 mb-4 border border-orange-500/30 text-center">
-                <div className="text-gray-400 text-sm mb-1">ยอดเงิน</div>
+                <div className="text-gray-400 text-sm mb-1">ระบบคำนวณลิตรจากราคาวันนี้</div>
                 <div className="text-4xl font-bold text-white">
-                    ฿{amount ? formatCurrency(parseFloat(amount)) : '0.00'}
+                    {calculatedLiters.toLocaleString('th-TH', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 5,
+                    })} L
+                </div>
+                <div className="mt-2 text-xs text-gray-400">
+                    ฿{formatCurrency(saleAmount)} ÷ ฿{formatCurrency(gasPrice)}/ลิตร
                 </div>
             </div>
 
@@ -559,8 +561,8 @@ export default function SellPage() {
             {/* Submit Button */}
             <button
                 onClick={handleSubmit}
-                disabled={loading || !liters}
-                className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all ${loading || !liters
+                disabled={loading || saleAmount <= 0}
+                className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all ${loading || saleAmount <= 0
                     ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
                     : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg'
                     }`}

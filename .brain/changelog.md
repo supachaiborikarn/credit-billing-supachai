@@ -177,3 +177,8 @@
   - patch `src/lib/gas/admin-analytics.ts` ให้ transaction ที่ match กะไม่ได้แสดงเป็น bucket `UNASSIGNED`/“ไม่ผูกกะ” แทนการถูกซ่อนจาก daily/executive reports
   - patch legacy `/api/gas-station/[id]/transactions` และ `/gas-station/[id]/new/sell` ให้ auto-link กะเปิดหรือ block การบันทึกขายถ้าไม่มีกะเปิด
   - เพิ่ม test กัน regression ใน `tests/gas-admin-analytics.test.ts`
+- 🛠️ เปลี่ยน GAS sale entry ให้กรอกยอดเงินและปรับ meter report orphan state
+  - ให้ `POST /api/v2/gas/[stationId]/sell` ใช้ `amount` เป็น source หลัก แล้วคำนวณลิตรจาก `dailyRecord.gasPrice` ฝั่ง server พร้อม fallback รับ `liters` สำหรับ client เก่า
+  - ปรับหน้า `/gas/[stationId]/sell`, `/gas-station/[id]/new/sell`, และ legacy `/gas-station/[id]` ให้กรอก “ยอดเงินที่ขาย” แล้วแสดงลิตรที่คำนวณได้
+  - ปรับ meter report ให้แสดง orphan rows เป็น “ไม่ผูกกะ/รอผูกกะ” และแยก comparable variance ออกจากยอดขายที่ยังไม่มีมิเตอร์ประกบ
+  - verification: `npm run test` ผ่าน 55 tests; targeted eslint ผ่านแบบไม่มี error

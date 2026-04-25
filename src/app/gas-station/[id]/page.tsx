@@ -126,7 +126,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
     const [ownerCode, setOwnerCode] = useState<string | null>(null);
     const [ownerPhone, setOwnerPhone] = useState<string | null>(null);
     const [nozzleNumber, setNozzleNumber] = useState(1);
-    const [liters, setLiters] = useState('');
+    const [saleAmountInput, setSaleAmountInput] = useState('');
     const [staffName, setStaffName] = useState('');
 
     // License plate search
@@ -249,10 +249,10 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
             const res = await fetch(`/api/gas-station/${id}/shifts?date=${targetDate}`);
             if (res.ok) {
                 const data = await res.json();
-                const prevShift = data.shifts?.find((s: any) => s.shiftNumber === targetShift);
+                const prevShift = data.shifts?.find((s: Shift) => s.shiftNumber === targetShift);
                 if (prevShift?.meters) {
                     const meters: Record<number, number> = {};
-                    prevShift.meters.forEach((m: any) => {
+                    prevShift.meters.forEach((m) => {
                         // Use end reading if available, otherwise start reading
                         meters[m.nozzleNumber] = m.endReading ?? m.startReading ?? 0;
                     });
@@ -730,7 +730,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
     const handleCloseShift = async () => {
         if (!shiftData?.shifts || !currentShift) return;
 
-        const myShift = shiftData.shifts.find((s: any) => s.shiftNumber === currentShift);
+        const myShift = shiftData.shifts.find((s: Shift) => s.shiftNumber === currentShift);
         if (!myShift) {
             alert('ไม่พบกะที่เปิดอยู่');
             return;
@@ -858,6 +858,12 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
 
     const handleSubmitTransaction = async (e: React.FormEvent) => {
         e.preventDefault();
+        const saleAmount = parseFloat(saleAmountInput);
+
+        if (!Number.isFinite(saleAmount) || saleAmount <= 0) {
+            alert('กรุณากรอกยอดเงินขาย');
+            return;
+        }
 
         try {
             const res = await fetch(`/api/gas-station/${id}/transactions`, {
@@ -870,9 +876,9 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                     ownerId,
                     paymentType,
                     nozzleNumber,
-                    liters: parseFloat(liters),
+                    liters: gasPrice > 0 ? saleAmount / gasPrice : 0,
                     pricePerLiter: gasPrice,
-                    amount: parseFloat(liters) * gasPrice,
+                    amount: saleAmount,
                     productType: 'LPG',
                 }),
             });
@@ -881,7 +887,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                 setLicensePlate('');
                 setOwnerName('');
                 setOwnerId(null);
-                setLiters('');
+                setSaleAmountInput('');
                 fetchDailyData();
             }
         } catch (error) {
@@ -1045,8 +1051,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
     const formatCurrency = (num: number) => new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2 }).format(num);
 
     const calculateAmount = () => {
-        const qty = parseFloat(liters) || 0;
-        return qty * gasPrice;
+        return parseFloat(saleAmountInput) || 0;
     };
 
     if (!station || !isGasStation) {
@@ -1150,7 +1155,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                         {/* Status indicators */}
                         {shiftData?.shifts && shiftData.shifts.length > 0 && (
                             <div className="flex gap-1 items-center px-2">
-                                {shiftData.shifts.map((s: any) => (
+                                {shiftData.shifts.map((s: Shift) => (
                                     <div key={s.id} className={`w-2.5 h-2.5 rounded-full ${s.status === 'OPEN' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-gray-600'}`} title={`กะ ${s.shiftNumber}: ${s.status}`} />
                                 ))}
                             </div>
@@ -1161,7 +1166,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                         {/* Action Buttons */}
                         {currentShift && (
                             <div className="flex items-center gap-2">
-                                {shiftData?.shifts?.find((s: any) => s.shiftNumber === currentShift && s.status === 'OPEN') ? (
+                                {shiftData?.shifts?.find((s: Shift) => s.shiftNumber === currentShift && s.status === 'OPEN') ? (
                                     <button onClick={() => setShowCloseShiftModal(true)} className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 transition-all flex items-center gap-2">
                                         ปิดกะ
                                     </button>
@@ -1913,8 +1918,8 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                                         ))
                                                     ) : !searchLoading && licensePlate.length >= 2 ? (
                                                         <div className="p-3">
-                                                            <p className="text-yellow-400 text-sm mb-2">⚠️ ไม่พบทะเบียน "{licensePlate}"</p>
-                                                            <p className="text-gray-400 text-xs">กรุณาตรวจสอบทะเบียนอีกครั้ง หรือเพิ่มทะเบียนใหม่ที่หน้า "รถ"</p>
+                                                            <p className="text-yellow-400 text-sm mb-2">⚠️ ไม่พบทะเบียน &quot;{licensePlate}&quot;</p>
+                                                            <p className="text-gray-400 text-xs">กรุณาตรวจสอบทะเบียนอีกครั้ง หรือเพิ่มทะเบียนใหม่ที่หน้า &quot;รถ&quot;</p>
                                                         </div>
                                                     ) : null}
                                                 </div>
@@ -1929,12 +1934,13 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm text-gray-400 mb-2">จำนวน (ลิตร)</label>
+                                        <label className="block text-sm text-gray-400 mb-2">ยอดเงินที่ขาย (บาท)</label>
                                         <input
                                             type="number"
                                             step="0.01"
-                                            value={liters}
-                                            onChange={(e) => setLiters(e.target.value)}
+                                            min="0"
+                                            value={saleAmountInput}
+                                            onChange={(e) => setSaleAmountInput(e.target.value)}
                                             placeholder="0.00"
                                             className="input-glow text-xl font-mono text-center"
                                             required
@@ -1942,9 +1948,14 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm text-gray-400 mb-2">รวมเป็นเงิน</label>
+                                        <label className="block text-sm text-gray-400 mb-2">ลิตรที่คำนวณได้</label>
                                         <div className="input-glow text-xl font-mono text-center bg-cyan-900/30 text-cyan-400">
-                                            {formatCurrency(calculateAmount())} บาท
+                                            {gasPrice > 0
+                                                ? (calculateAmount() / gasPrice).toLocaleString('th-TH', {
+                                                    minimumFractionDigits: 2,
+                                                    maximumFractionDigits: 5,
+                                                })
+                                                : '0'} L
                                         </div>
                                     </div>
                                 </div>
