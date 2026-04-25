@@ -12,6 +12,7 @@ import {
     Loader2
 } from 'lucide-react';
 import { STATIONS } from '@/constants';
+import { getTodayBangkok } from '@/lib/gas';
 
 interface ShiftData {
     id?: string;
@@ -30,7 +31,7 @@ export default function AdminDataEntryPage() {
     const gasStations = STATIONS.filter(s => s.type === 'GAS');
 
     const [stationId, setStationId] = useState<string>(gasStations[0]?.id || '');
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState(getTodayBangkok());
     const [shiftNumber, setShiftNumber] = useState(1);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -158,7 +159,7 @@ export default function AdminDataEntryPage() {
                 const error = await res.json();
                 setMessage({ type: 'error', text: error.message || 'เกิดข้อผิดพลาด' });
             }
-        } catch (error) {
+        } catch {
             setMessage({ type: 'error', text: 'ไม่สามารถบันทึกข้อมูลได้' });
         } finally {
             setSaving(false);

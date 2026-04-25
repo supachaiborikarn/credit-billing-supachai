@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const txMock = {
     shift: {
         findFirst: vi.fn(),
+        findUnique: vi.fn(),
         create: vi.fn(),
     },
     dailyRecord: {
@@ -32,11 +33,15 @@ const prismaMock = {
     transaction: {
         create: vi.fn(),
         count: vi.fn(),
+        updateMany: vi.fn(),
     },
     dailyRecord: {
         findFirst: vi.fn(),
+        create: vi.fn(),
     },
     shift: {
+        findFirst: vi.fn(),
+        create: vi.fn(),
         findUnique: vi.fn(),
         update: vi.fn(),
     },
@@ -46,12 +51,14 @@ const prismaMock = {
     meterReading: {
         update: vi.fn(),
         create: vi.fn(),
+        upsert: vi.fn(),
     },
     gaugeReading: {
         count: vi.fn(),
         findFirst: vi.fn(),
         update: vi.fn(),
         create: vi.fn(),
+        deleteMany: vi.fn(),
     },
     gasSettings: {
         findUnique: vi.fn(),
@@ -70,6 +77,7 @@ const prismaMock = {
 const requireGasStationAccessMock = vi.fn();
 const resolveGasStationMock = vi.fn();
 const requireStationAccessApiMock = vi.fn();
+const requireAdminApiMock = vi.fn();
 
 vi.mock('@/lib/prisma', () => ({
     prisma: prismaMock,
@@ -88,6 +96,7 @@ vi.mock('@/lib/gas/station-resolver', () => ({
 
 vi.mock('@/lib/api-auth', () => ({
     requireStationAccessApi: requireStationAccessApiMock,
+    requireAdminApi: requireAdminApiMock,
 }));
 
 function buildJsonRequest(body: unknown, method = 'POST'): Request {
@@ -117,6 +126,7 @@ beforeEach(() => {
     requireGasStationAccessMock.mockReset();
     resolveGasStationMock.mockReset();
     requireStationAccessApiMock.mockReset();
+    requireAdminApiMock.mockReset();
 
     prismaMock.$transaction.mockImplementation(async (callback: (client: typeof txMock) => unknown) => callback(txMock));
 
@@ -141,6 +151,10 @@ beforeEach(() => {
 
     requireStationAccessApiMock.mockResolvedValue({
         user: { id: 'user-1' },
+    });
+
+    requireAdminApiMock.mockResolvedValue({
+        user: { id: 'admin-1' },
     });
 });
 
@@ -298,6 +312,46 @@ describe('gas v2 route guards', () => {
                 }),
             }),
         }));
+    });
+
+    it('rejects opening the same gas shift number twice for the same day', async () => {
+        txMock.shift.findFirst.mockResolvedValue(null);
+        txMock.dailyRecord.findFirst.mockResolvedValue({
+            id: 'daily-1',
+            date: new Date('2026-04-24T17:00:00.000Z'),
+            gasPrice: 16.09,
+        });
+        txMock.shift.findUnique.mockResolvedValue({
+            id: 'shift-existing',
+            shiftNumber: 1,
+        });
+
+        const { POST } = await import('../src/app/api/v2/gas/[stationId]/shift/open/route');
+        const response = await POST(buildJsonRequest({
+            dateKey: '2026-04-25',
+            shiftNumber: 1,
+            meters: [
+                { nozzleNumber: 1, reading: 1000 },
+                { nozzleNumber: 2, reading: 1001 },
+                { nozzleNumber: 3, reading: 1002 },
+                { nozzleNumber: 4, reading: 1003 },
+            ],
+            gauges: [
+                { tankNumber: 1, percentage: 40 },
+                { tankNumber: 2, percentage: 50 },
+                { tankNumber: 3, percentage: 60 },
+            ],
+        }) as never, {
+            params: Promise.resolve({ stationId: 'station-5' }),
+        });
+
+        expect(response.status).toBe(409);
+        await expect(response.json()).resolves.toMatchObject({
+            error: expect.stringContaining('กะเช้า'),
+        });
+        expect(txMock.shift.create).not.toHaveBeenCalled();
+        expect(txMock.meterReading.create).not.toHaveBeenCalled();
+        expect(txMock.gaugeReading.create).not.toHaveBeenCalled();
     });
 
     it('lets station staff update the daily gas price after opening a shift', async () => {
@@ -466,6 +520,69 @@ describe('gas v2 route guards', () => {
                 notes: 'credit test',
                 liters: 10,
                 amount: 185,
+            }),
+        }));
+    });
+
+    it('persists admin gas data-entry sales as linked summary transactions', async () => {
+        prismaMock.dailyRecord.findFirst.mockResolvedValue({
+            id: 'daily-1',
+            date: new Date('2026-04-24T17:00:00.000Z'),
+            gasPrice: 16,
+            retailPrice: 16,
+        });
+        prismaMock.shift.findFirst.mockResolvedValue(null);
+        prismaMock.shift.create.mockResolvedValue({ id: 'shift-1' });
+        prismaMock.meterReading.upsert.mockResolvedValue({});
+        prismaMock.gaugeReading.deleteMany.mockResolvedValue({ count: 0 });
+        prismaMock.gaugeReading.create.mockResolvedValue({});
+        prismaMock.transaction.updateMany.mockResolvedValue({ count: 0 });
+        prismaMock.transaction.create.mockResolvedValue({ id: 'tx-summary' });
+
+        const { POST } = await import('../src/app/api/v2/gas/admin/data-entry/route');
+        const response = await POST(buildJsonRequest({
+            stationId: 'station-5',
+            date: '2026-04-25',
+            shiftNumber: 1,
+            meters: [
+                { nozzle: 1, start: 100, end: 110 },
+                { nozzle: 2, start: null, end: null },
+                { nozzle: 3, start: null, end: null },
+                { nozzle: 4, start: null, end: null },
+            ],
+            gauges: [
+                { tank: 1, percentage: 40 },
+                { tank: 2, percentage: null },
+                { tank: 3, percentage: null },
+            ],
+            sales: {
+                cash: 160,
+                credit: 80,
+                card: 0,
+                transfer: 32,
+            },
+        }) as never);
+
+        expect(response.status).toBe(200);
+        expect(prismaMock.transaction.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: expect.objectContaining({
+                stationId: 'station-5',
+                dailyRecordId: 'daily-1',
+                shiftId: 'shift-1',
+                notes: { startsWith: 'admin-data-entry:' },
+            }),
+        }));
+        expect(prismaMock.transaction.create).toHaveBeenCalledTimes(3);
+        expect(prismaMock.transaction.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({
+                stationId: 'station-5',
+                dailyRecordId: 'daily-1',
+                shiftId: 'shift-1',
+                paymentType: 'CASH',
+                amount: 160,
+                liters: 10,
+                recordedById: 'admin-1',
+                notes: 'admin-data-entry:cash',
             }),
         }));
     });

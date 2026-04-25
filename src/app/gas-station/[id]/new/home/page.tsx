@@ -5,6 +5,7 @@ import { Calendar, AlertTriangle } from 'lucide-react';
 import { STATIONS } from '@/constants';
 import Link from 'next/link';
 import { BreadcrumbLight } from '@/components/Breadcrumb';
+import { getTodayBangkok } from '@/lib/gas';
 import { useGasStation } from '../../hooks/useGasStation';
 import StatsCard from '../../components/StatsCard';
 import ShiftControls from '../../components/ShiftControls';
@@ -17,7 +18,7 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
     const stationIndex = parseInt(id) - 1;
     const station = STATIONS[stationIndex];
 
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+    const [selectedDate, setSelectedDate] = useState(getTodayBangkok());
 
     const {
         loading,
@@ -28,7 +29,6 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
         gaugeReadings,
         actionLoading,
         deletingId,
-        closeShift,
         handleDelete,
     } = useGasStation(id, selectedDate);
 
@@ -106,7 +106,6 @@ export default function GasStationHomePage({ params }: { params: Promise<{ id: s
                                 currentShift={currentShift}
                                 allShifts={allShifts}
                                 actionLoading={actionLoading}
-                                onCloseShift={closeShift}
                             />
                         </div>
 

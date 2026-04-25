@@ -105,6 +105,21 @@ export async function POST(
                 });
             }
 
+            const existingShiftNumber = await tx.shift.findUnique({
+                where: {
+                    dailyRecordId_shiftNumber: {
+                        dailyRecordId: dailyRecord.id,
+                        shiftNumber,
+                    },
+                },
+            });
+
+            if (existingShiftNumber) {
+                return NextResponse.json({
+                    error: `${shiftNumber === 1 ? 'กะเช้า' : 'กะบ่าย'}ของวันนี้มีอยู่แล้ว กรุณาเปิดกะถัดไปหรือเลือกหน้าปิดกะเดิม`,
+                }, { status: 409 });
+            }
+
             const shift = await tx.shift.create({
                 data: {
                     dailyRecordId: dailyRecord.id,

@@ -72,10 +72,20 @@ export async function GET(
         const transactionWhere: Record<string, unknown> = {
             stationId: station.id,
             deletedAt: null,
-            date: {
-                gte: startOfDay,
-                lte: endOfDay,
-            }
+            isVoided: false,
+            ...(dailyRecord
+                ? {
+                    OR: [
+                        { dailyRecordId: dailyRecord.id },
+                        { date: { gte: startOfDay, lte: endOfDay } },
+                    ],
+                }
+                : {
+                    date: {
+                        gte: startOfDay,
+                        lte: endOfDay,
+                    },
+                }),
         };
 
         // Filter by shiftId if specific shift is selected (shiftNumber > 0)
@@ -199,14 +209,13 @@ export async function POST(
 ) {
     try {
         const { id } = await params;
-        const stationIndex = parseInt(id) - 1;
-        const stationConfig = STATIONS[stationIndex];
-
-        if (!stationConfig || stationConfig.type !== 'GAS') {
+        const resolvedStation = await resolveGasStation(id);
+        if (!resolvedStation) {
             return NextResponse.json({ error: 'Gas station not found' }, { status: 404 });
         }
 
-        const stationId = `station-${id}`;
+        const stationConfig = STATIONS[resolvedStation.index - 1];
+        const stationId = resolvedStation.dbId;
         const auth = await requireStationAccessApi(stationId);
         if (auth.response) return auth.response;
 

@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { ArrowLeft, Plus, Trash2, Package, Calendar, Fuel } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Package, Calendar } from 'lucide-react';
 import { STATIONS } from '@/constants';
 import Link from 'next/link';
+import { getTodayBangkok } from '@/lib/gas';
 
 interface GasSupply {
     id: string;
@@ -28,7 +29,7 @@ export default function GasSupplyPage({ params }: { params: Promise<{ id: string
     const [showForm, setShowForm] = useState(false);
 
     // Form state
-    const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
+    const [formDate, setFormDate] = useState(getTodayBangkok());
     const [formLiters, setFormLiters] = useState('');
     const [formSupplier, setFormSupplier] = useState('');
     const [formInvoiceNo, setFormInvoiceNo] = useState('');

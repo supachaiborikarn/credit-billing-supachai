@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { HttpErrors, getErrorMessage } from '@/lib/api-error';
 import { PaymentType } from '@prisma/client';
 import { requireGasStationAccess } from '@/lib/gas/api-guards';
+import { getEndOfDayBangkokUTC, getStartOfDayBangkokUTC } from '@/lib/gas';
+import { createTransactionDate } from '@/lib/date-utils';
 
 interface TransactionInput {
     date: string;
@@ -76,14 +78,19 @@ export async function POST(
             }
         });
 
-        // Get or create daily record (use Bangkok timezone)
-        const { getStartOfDayBangkok } = await import('@/lib/date-utils');
-        const date = getStartOfDayBangkok(dateStr);
+        // Get or create daily record using a Bangkok-day range. Older records may not
+        // be stored at the exact same Date object, so exact unique lookup is fragile.
+        const date = getStartOfDayBangkokUTC(dateStr);
+        const endOfDay = getEndOfDayBangkokUTC(dateStr);
         let dailyRecord = await prisma.dailyRecord.findFirst({
             where: {
                 stationId: station.id,
-                date: date,
-            }
+                date: {
+                    gte: date,
+                    lte: endOfDay,
+                },
+            },
+            orderBy: { date: 'asc' },
         });
 
         if (!dailyRecord) {
@@ -102,11 +109,9 @@ export async function POST(
             || Number(dailyRecord.gasPrice)
             || Number(station.gasPrice)
             || 0;
-        const effectiveLiters = providedLiters > 0
-            ? Number(providedLiters.toFixed(5))
-            : (!isExpense && effectivePricePerLiter > 0
-                ? Number((amountNumber / effectivePricePerLiter).toFixed(5))
-                : 0);
+        const effectiveLiters = !isExpense && effectivePricePerLiter > 0
+            ? Number((amountNumber / effectivePricePerLiter).toFixed(5))
+            : (providedLiters > 0 ? Number(providedLiters.toFixed(5)) : 0);
 
         if (!isExpense && effectiveLiters <= 0) {
             return HttpErrors.badRequest('ไม่สามารถคำนวณลิตรได้ กรุณาตั้งราคาขายประจำวันก่อนบันทึกขาย');
@@ -207,7 +212,7 @@ export async function POST(
             data: {
                 stationId: station.id,
                 dailyRecordId: dailyRecord.id,
-                date: new Date(),
+                date: createTransactionDate(dateStr),
                 truckId,
                 licensePlate: licensePlate?.toUpperCase() || null,
                 ownerId: resolvedOwnerId,

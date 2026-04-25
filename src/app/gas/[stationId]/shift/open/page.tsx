@@ -11,7 +11,7 @@ import {
     CheckCircle,
     Banknote
 } from 'lucide-react';
-import { getTodayBangkok, getCurrentShiftNumber, getShiftName, NOZZLE_COUNT, TANK_COUNT } from '@/lib/gas';
+import { getTodayBangkok, getShiftName, NOZZLE_COUNT, TANK_COUNT } from '@/lib/gas';
 
 interface MeterInput {
     nozzleNumber: number;
@@ -30,7 +30,9 @@ export default function ShiftOpenPage() {
 
     const [loading, setLoading] = useState(false);
     const [checkingShift, setCheckingShift] = useState(true);
-    const [existingShift, setExistingShift] = useState<{ id: string } | null>(null);
+    const [existingShift, setExistingShift] = useState<{ id: string; shiftNumber?: number; status?: string } | null>(null);
+    const [dayComplete, setDayComplete] = useState(false);
+    const [nextShiftNumber, setNextShiftNumber] = useState(1);
     const [step, setStep] = useState<'meters' | 'gauge' | 'confirm'>('meters');
     const [gasPrice, setGasPrice] = useState('16.09');
 
@@ -59,6 +61,10 @@ export default function ShiftOpenPage() {
                     const data = await res.json();
                     if (data.shift && data.shift.status === 'OPEN') {
                         setExistingShift(data.shift);
+                    } else if (data.shift?.shiftNumber === 1) {
+                        setNextShiftNumber(2);
+                    } else if (data.shift?.shiftNumber >= 2) {
+                        setDayComplete(true);
                     }
                 }
                 if (summaryRes.ok) {
@@ -141,7 +147,7 @@ export default function ShiftOpenPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     dateKey: getTodayBangkok(),
-                    shiftNumber: getCurrentShiftNumber(),
+                    shiftNumber: nextShiftNumber,
                     gasPrice: parsedGasPrice,
                     meters: meters.map(m => ({
                         nozzleNumber: m.nozzleNumber,
@@ -197,6 +203,24 @@ export default function ShiftOpenPage() {
         );
     }
 
+    if (dayComplete) {
+        return (
+            <div className="max-w-lg mx-auto text-center">
+                <div className="bg-amber-900/30 rounded-2xl p-8 border border-amber-500/30">
+                    <AlertCircle className="mx-auto text-amber-400 mb-4" size={60} />
+                    <h2 className="text-2xl font-bold mb-2">วันนี้เปิดครบ 2 กะแล้ว</h2>
+                    <p className="text-gray-400 mb-6">ถ้าต้องแก้ไขข้อมูล ให้กลับไปที่รายงานกะหรือหน้าปิดกะเดิมแทนการเปิดกะใหม่</p>
+                    <button
+                        onClick={() => router.push(`/gas/${stationId}`)}
+                        className="bg-amber-600 hover:bg-amber-500 text-white px-6 py-3 rounded-xl font-medium"
+                    >
+                        กลับหน้าหลัก
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     if (success) {
         return (
             <div className="max-w-lg mx-auto text-center">
@@ -218,7 +242,7 @@ export default function ShiftOpenPage() {
                     เปิดกะใหม่
                 </h1>
                 <p className="text-gray-400">
-                    {getTodayBangkok()} | {getShiftName(getCurrentShiftNumber())}
+                    {getTodayBangkok()} | {getShiftName(nextShiftNumber)}
                 </p>
             </div>
 

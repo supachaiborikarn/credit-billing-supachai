@@ -4,6 +4,7 @@ import { useState, useEffect, use } from 'react';
 import { ArrowLeft, RefreshCw, CheckCircle, AlertTriangle, Printer } from 'lucide-react';
 import Link from 'next/link';
 import { STATIONS } from '@/constants';
+import { getTodayBangkok } from '@/lib/gas';
 
 interface ShiftSnapshot {
     shift: {
@@ -106,7 +107,7 @@ export default function ShiftSummaryPage({ params }: { params: Promise<{ id: str
     const fetchShifts = async () => {
         setLoading(true);
         try {
-            const today = new Date().toISOString().split('T')[0];
+            const today = getTodayBangkok();
             const res = await fetch(`/api/gas-station/${id}/shifts?date=${today}`);
             if (res.ok) {
                 const data = await res.json();

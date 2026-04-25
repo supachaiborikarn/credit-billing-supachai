@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { STATIONS } from '@/constants';
-import { requireStationAccessApi } from '@/lib/api-auth';
+import { getStartOfDayBangkokUTC } from '@/lib/gas';
+import { requireGasStationAccess } from '@/lib/gas/api-guards';
 
 export async function GET(
     request: Request,
@@ -9,24 +9,15 @@ export async function GET(
 ) {
     try {
         const { id } = await params;
-        const stationIndex = parseInt(id) - 1;
-        const stationConfig = STATIONS[stationIndex];
-
-        if (!stationConfig || stationConfig.type !== 'GAS') {
-            return NextResponse.json({ error: 'Gas station not found' }, { status: 404 });
-        }
-
-        // Get or create station with consistent ID
-        const stationId = `station-${id}`;
-        const auth = await requireStationAccessApi(stationId);
+        const auth = await requireGasStationAccess(id);
         if (auth.response) return auth.response;
 
         const station = await prisma.station.upsert({
-            where: { id: stationId },
+            where: { id: auth.station.dbId },
             update: {},
             create: {
-                id: stationId,
-                name: stationConfig.name,
+                id: auth.station.dbId,
+                name: auth.station.name,
                 type: 'GAS',
                 gasPrice: 15.50,
                 gasStockAlert: 1000,
@@ -57,27 +48,25 @@ export async function POST(
 ) {
     try {
         const { id } = await params;
-        const stationIndex = parseInt(id) - 1;
-        const stationConfig = STATIONS[stationIndex];
-
-        if (!stationConfig || stationConfig.type !== 'GAS') {
-            return NextResponse.json({ error: 'Gas station not found' }, { status: 404 });
-        }
-
-        const stationId = `station-${id}`;
-        const auth = await requireStationAccessApi(stationId);
+        const auth = await requireGasStationAccess(id);
         if (auth.response) return auth.response;
 
         const body = await request.json();
         const { date: dateStr, liters, supplier, invoiceNo, pricePerLiter } = body;
+        const litersNumber = Number(liters);
+        const priceNumber = pricePerLiter ? Number(pricePerLiter) : null;
+
+        if (!dateStr || !Number.isFinite(litersNumber) || litersNumber <= 0) {
+            return NextResponse.json({ error: 'กรุณาระบุวันที่และจำนวนลิตรรับเข้า' }, { status: 400 });
+        }
 
         // Get or create station with consistent ID
         const station = await prisma.station.upsert({
-            where: { id: stationId },
+            where: { id: auth.station.dbId },
             update: {},
             create: {
-                id: stationId,
-                name: stationConfig.name,
+                id: auth.station.dbId,
+                name: auth.station.name,
                 type: 'GAS',
                 gasPrice: 15.50,
                 gasStockAlert: 1000,
@@ -87,12 +76,12 @@ export async function POST(
         const supply = await prisma.gasSupply.create({
             data: {
                 stationId: station.id,
-                date: new Date(dateStr + 'T00:00:00Z'),
-                liters,
+                date: getStartOfDayBangkokUTC(dateStr),
+                liters: litersNumber,
                 supplier: supplier || null,
                 invoiceNo: invoiceNo || null,
-                pricePerLiter: pricePerLiter || null,
-                totalCost: pricePerLiter ? liters * pricePerLiter : null,
+                pricePerLiter: priceNumber,
+                totalCost: priceNumber ? litersNumber * priceNumber : null,
             }
         });
 

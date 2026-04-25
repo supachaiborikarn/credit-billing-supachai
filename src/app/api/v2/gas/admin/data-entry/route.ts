@@ -2,6 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { STATIONS } from '@/constants';
 import { requireAdminApi } from '@/lib/api-auth';
+import { getEndOfDayBangkokUTC, getStartOfDayBangkokUTC } from '@/lib/gas';
+import type { PaymentType } from '@prisma/client';
+
+type AdminSalesInput = {
+    cash?: unknown;
+    credit?: unknown;
+    card?: unknown;
+    transfer?: unknown;
+};
+
+function normalizeAdminAmount(value: unknown) {
+    const amount = Number(value || 0);
+    return Number.isFinite(amount) && amount > 0 ? amount : 0;
+}
 
 // GET: Fetch existing shift data for a specific date/station/shift
 export async function GET(request: NextRequest) {
@@ -24,14 +38,19 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid gas station' }, { status: 400 });
         }
 
-        const date = new Date(dateStr);
-        date.setHours(0, 0, 0, 0);
+        const date = getStartOfDayBangkokUTC(dateStr);
+        const endOfDay = getEndOfDayBangkokUTC(dateStr);
 
         // Find daily record and shift
-        const dailyRecord = await prisma.dailyRecord.findUnique({
+        const dailyRecord = await prisma.dailyRecord.findFirst({
             where: {
-                stationId_date: { stationId, date }
+                stationId,
+                date: {
+                    gte: date,
+                    lte: endOfDay,
+                },
             },
+            orderBy: { date: 'asc' },
             include: {
                 shifts: {
                     where: { shiftNumber },
@@ -82,10 +101,8 @@ export async function GET(request: NextRequest) {
             where: {
                 stationId,
                 dailyRecordId: dailyRecord.id,
-                createdAt: {
-                    gte: new Date(date.getTime()),
-                    lt: new Date(date.getTime() + 24 * 60 * 60 * 1000)
-                }
+                deletedAt: null,
+                isVoided: false,
             },
             _sum: { amount: true }
         });
@@ -125,7 +142,7 @@ export async function POST(request: NextRequest) {
         if (auth.response) return auth.response;
 
         const body = await request.json();
-        const { stationId, date: dateStr, shiftNumber, meters, gauges } = body;
+        const { stationId, date: dateStr, shiftNumber, meters, gauges, sales } = body;
 
         if (!stationId || !dateStr || !shiftNumber) {
             return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
@@ -137,23 +154,34 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid gas station' }, { status: 400 });
         }
 
-        const date = new Date(dateStr);
-        date.setHours(0, 0, 0, 0);
+        const date = getStartOfDayBangkokUTC(dateStr);
+        const endOfDay = getEndOfDayBangkokUTC(dateStr);
 
-        // Upsert daily record
-        const dailyRecord = await prisma.dailyRecord.upsert({
+        // Find-or-create by Bangkok day range so admin fixes attach to the same day
+        // as staff-entered v2 records.
+        let dailyRecord = await prisma.dailyRecord.findFirst({
             where: {
-                stationId_date: { stationId, date }
-            },
-            create: {
                 stationId,
-                date,
-                retailPrice: 16.09, // Gas price
-                wholesalePrice: 16.09,
-                status: 'OPEN'
+                date: {
+                    gte: date,
+                    lte: endOfDay,
+                },
             },
-            update: {}
+            orderBy: { date: 'asc' },
         });
+
+        if (!dailyRecord) {
+            dailyRecord = await prisma.dailyRecord.create({
+                data: {
+                    stationId,
+                    date,
+                    retailPrice: 16.09,
+                    wholesalePrice: 16.09,
+                    gasPrice: 16.09,
+                    status: 'OPEN',
+                },
+            });
+        }
 
         // Upsert shift
         let shift = await prisma.shift.findFirst({
@@ -231,9 +259,46 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Note: Sales would require creating individual transactions
-        // For now, we just save the summary as a note or separate logic
-        // TODO: Add sales transaction creation if needed
+        // Replace only synthetic summary transactions created by this admin tool.
+        // This keeps manager-entered cash/card/transfer/credit totals visible in reports
+        // without touching real staff-entered sale rows.
+        const salesInput = (sales || {}) as AdminSalesInput;
+        const salesRows = [
+            { key: 'cash', paymentType: 'CASH' as PaymentType, amount: normalizeAdminAmount(salesInput.cash) },
+            { key: 'credit', paymentType: 'CREDIT' as PaymentType, amount: normalizeAdminAmount(salesInput.credit) },
+            { key: 'card', paymentType: 'CREDIT_CARD' as PaymentType, amount: normalizeAdminAmount(salesInput.card) },
+            { key: 'transfer', paymentType: 'TRANSFER' as PaymentType, amount: normalizeAdminAmount(salesInput.transfer) },
+        ].filter((row) => row.amount > 0);
+
+        await prisma.transaction.updateMany({
+            where: {
+                stationId,
+                dailyRecordId: dailyRecord.id,
+                shiftId: shift.id,
+                notes: { startsWith: 'admin-data-entry:' },
+                deletedAt: null,
+            },
+            data: { deletedAt: new Date() },
+        });
+
+        const gasPrice = Number(dailyRecord.gasPrice || dailyRecord.retailPrice || 16.09);
+        for (const row of salesRows) {
+            await prisma.transaction.create({
+                data: {
+                    stationId,
+                    dailyRecordId: dailyRecord.id,
+                    shiftId: shift.id,
+                    date,
+                    liters: gasPrice > 0 ? row.amount / gasPrice : 0,
+                    pricePerLiter: gasPrice,
+                    amount: row.amount,
+                    paymentType: row.paymentType,
+                    productType: 'LPG',
+                    recordedById: auth.user.id,
+                    notes: `admin-data-entry:${row.key}`,
+                },
+            });
+        }
 
         return NextResponse.json({
             success: true,

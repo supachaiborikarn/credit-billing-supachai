@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getStartOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
+import { getEndOfDayBangkokUTC, getStartOfDayBangkokUTC, getTodayBangkok } from '@/lib/gas';
 import { HttpErrors, getErrorMessage } from '@/lib/api-error';
 import { requireAdminApi } from '@/lib/api-auth';
 import { requireGasStationAccess } from '@/lib/gas/api-guards';
@@ -8,6 +8,13 @@ import { requireGasStationAccess } from '@/lib/gas/api-guards';
 interface MeterInput {
     nozzleNumber: number;
     startReading: number;
+}
+
+function getBangkokDayRange(dateStr: string) {
+    return {
+        start: getStartOfDayBangkokUTC(dateStr),
+        end: getEndOfDayBangkokUTC(dateStr),
+    };
 }
 
 // GET shifts for a gas station by date
@@ -25,11 +32,18 @@ export async function GET(
         const { searchParams } = new URL(request.url);
         const dateStr = searchParams.get('date') || getTodayBangkok();
 
-        const date = getStartOfDayBangkok(dateStr);
+        const { start, end } = getBangkokDayRange(dateStr);
 
         // Get daily record with shifts
-        const dailyRecord = await prisma.dailyRecord.findUnique({
-            where: { stationId_date: { stationId, date } },
+        const dailyRecord = await prisma.dailyRecord.findFirst({
+            where: {
+                stationId,
+                date: {
+                    gte: start,
+                    lte: end,
+                },
+            },
+            orderBy: { date: 'asc' },
             include: {
                 shifts: {
                     include: {
@@ -89,10 +103,16 @@ export async function POST(
         let shiftNumber = providedShiftNumber;
         if (action === 'open' && !shiftNumber) {
             // Auto-detect shift number based on existing shifts
-            const date = getStartOfDayBangkok(dateStr || getTodayBangkok());
+            const { start, end } = getBangkokDayRange(dateStr || getTodayBangkok());
             const existingShifts = await prisma.shift.findMany({
                 where: {
-                    dailyRecord: { stationId, date }
+                    dailyRecord: {
+                        stationId,
+                        date: {
+                            gte: start,
+                            lte: end,
+                        },
+                    },
                 },
                 orderBy: { shiftNumber: 'desc' }
             });
@@ -110,7 +130,7 @@ export async function POST(
 
         if (action === 'close') {
             // Handle close action
-            const date = getStartOfDayBangkok(dateStr || getTodayBangkok());
+            const { start, end } = getBangkokDayRange(dateStr || getTodayBangkok());
             const openShift = shiftId
                 ? await prisma.shift.findUnique({
                     where: { id: shiftId },
@@ -121,7 +141,13 @@ export async function POST(
                 })
                 : await prisma.shift.findFirst({
                     where: {
-                        dailyRecord: { stationId, date },
+                        dailyRecord: {
+                            stationId,
+                            date: {
+                                gte: start,
+                                lte: end,
+                            },
+                        },
                         status: 'OPEN'
                     },
                     include: {
@@ -188,7 +214,7 @@ export async function POST(
             if (adminAuth.response) return adminAuth.response;
 
             // Handle lock action (Admin only - ล็อกกะถาวร)
-            const date = getStartOfDayBangkok(dateStr || getTodayBangkok());
+            const { start, end } = getBangkokDayRange(dateStr || getTodayBangkok());
             const closedShift = shiftId
                 ? await prisma.shift.findUnique({
                     where: { id: shiftId },
@@ -196,7 +222,13 @@ export async function POST(
                 })
                 : await prisma.shift.findFirst({
                     where: {
-                        dailyRecord: { stationId, date },
+                        dailyRecord: {
+                            stationId,
+                            date: {
+                                gte: start,
+                                lte: end,
+                            },
+                        },
                         status: 'CLOSED'
                     },
                     include: { dailyRecord: { select: { stationId: true } } }
@@ -256,20 +288,31 @@ export async function POST(
             return HttpErrors.badRequest('กรุณาเปิดกะผ่านหน้าเปิดกะใหม่ เพื่อกรอกราคาขาย มิเตอร์ และเกจให้ครบก่อนบันทึก');
         }
 
-        const date = getStartOfDayBangkok(dateStr || getTodayBangkok());
+        const { start, end } = getBangkokDayRange(dateStr || getTodayBangkok());
 
         // Get or create daily record
-        const dailyRecord = await prisma.dailyRecord.upsert({
-            where: { stationId_date: { stationId, date } },
-            update: {},
-            create: {
+        let dailyRecord = await prisma.dailyRecord.findFirst({
+            where: {
                 stationId,
-                date,
-                retailPrice: 31.34,
-                wholesalePrice: 30.5,
-                status: 'OPEN',
-            }
+                date: {
+                    gte: start,
+                    lte: end,
+                },
+            },
+            orderBy: { date: 'asc' },
         });
+
+        if (!dailyRecord) {
+            dailyRecord = await prisma.dailyRecord.create({
+                data: {
+                    stationId,
+                    date: start,
+                    retailPrice: 31.34,
+                    wholesalePrice: 30.5,
+                    status: 'OPEN',
+                },
+            });
+        }
 
         // Check if shift already exists
         const existingShift = await prisma.shift.findUnique({

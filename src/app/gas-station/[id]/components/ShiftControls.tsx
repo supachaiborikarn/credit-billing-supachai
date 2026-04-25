@@ -8,7 +8,6 @@ interface ShiftControlsProps {
     currentShift: ShiftData | null;
     allShifts: { shiftNumber: number; status: string }[];
     actionLoading: boolean;
-    onCloseShift: () => void;
 }
 
 export default function ShiftControls({
@@ -16,7 +15,6 @@ export default function ShiftControls({
     currentShift,
     allShifts,
     actionLoading,
-    onCloseShift,
 }: ShiftControlsProps) {
     if (currentShift) {
         return (
@@ -35,13 +33,16 @@ export default function ShiftControls({
                         📋 คัดลอกจากกะก่อน
                     </div>
                 )}
-                <button
-                    onClick={onCloseShift}
-                    disabled={actionLoading}
-                    className="w-full rounded-full border border-black/15 bg-white px-6 py-3 text-sm font-extrabold hover:bg-neutral-50 transition disabled:opacity-50"
+                <Link
+                    href={`/gas/${stationId}/shift/close`}
+                    aria-disabled={actionLoading}
+                    className={`block w-full rounded-full border border-black/15 bg-white px-6 py-3 text-center text-sm font-extrabold transition ${actionLoading
+                        ? 'pointer-events-none opacity-50'
+                        : 'hover:bg-neutral-50'
+                        }`}
                 >
-                    {actionLoading ? 'กำลังดำเนินการ...' : '🔒 ปิดกะ'}
-                </button>
+                    🔒 ไปหน้าปิดกะ
+                </Link>
             </div>
         );
     }

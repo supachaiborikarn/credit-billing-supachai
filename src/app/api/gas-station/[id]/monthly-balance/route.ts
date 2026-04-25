@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getStartOfDayBangkok, getEndOfDayBangkok } from '@/lib/date-utils';
+import { getEndOfDayBangkokUTC, getStartOfDayBangkokUTC, getTodayBangkok, toBangkokDateKey } from '@/lib/gas';
 import { requireGasStationAccess } from '@/lib/gas/api-guards';
 
 export async function GET(
@@ -15,16 +15,18 @@ export async function GET(
         const { searchParams } = new URL(request.url);
 
         // Get month and year (default to current month)
-        const now = new Date();
-        const year = parseInt(searchParams.get('year') || now.getFullYear().toString());
-        const month = parseInt(searchParams.get('month') || (now.getMonth() + 1).toString());
+        const [currentYear, currentMonth] = getTodayBangkok().split('-').map(Number);
+        const year = parseInt(searchParams.get('year') || currentYear.toString());
+        const month = parseInt(searchParams.get('month') || currentMonth.toString());
 
         // Calculate date range for the month
-        const startDate = new Date(year, month - 1, 1);
-        const endDate = new Date(year, month, 0, 23, 59, 59);
+        const monthPart = String(month).padStart(2, '0');
+        const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+        const startKey = `${year}-${monthPart}-01`;
+        const endKey = `${year}-${monthPart}-${String(lastDay).padStart(2, '0')}`;
 
-        const startOfMonth = getStartOfDayBangkok(startDate.toISOString().split('T')[0]);
-        const endOfMonth = getEndOfDayBangkok(endDate.toISOString().split('T')[0]);
+        const startOfMonth = getStartOfDayBangkokUTC(startKey);
+        const endOfMonth = getEndOfDayBangkokUTC(endKey);
 
         // Get gas supplies for the month
         const supplies = await prisma.gasSupply.findMany({
@@ -41,6 +43,7 @@ export async function GET(
                 stationId,
                 productType: 'LPG',
                 deletedAt: null,
+                isVoided: false,
                 date: { gte: startOfMonth, lte: endOfMonth }
             },
             orderBy: { date: 'asc' }
@@ -99,7 +102,7 @@ export async function GET(
 
         // Group supplies by date
         const suppliesByDate = supplies.reduce((acc, s) => {
-            const dateKey = new Date(s.date).toISOString().split('T')[0];
+            const dateKey = toBangkokDateKey(s.date);
             if (!acc[dateKey]) {
                 acc[dateKey] = { date: dateKey, liters: 0, count: 0 };
             }
@@ -110,7 +113,7 @@ export async function GET(
 
         // Group sales by date
         const salesByDate = transactions.reduce((acc, t) => {
-            const dateKey = new Date(t.date).toISOString().split('T')[0];
+            const dateKey = toBangkokDateKey(t.date);
             if (!acc[dateKey]) {
                 acc[dateKey] = { date: dateKey, liters: 0, amount: 0, count: 0 };
             }

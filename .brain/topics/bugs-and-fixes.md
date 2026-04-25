@@ -155,6 +155,12 @@
 - **Verification**: `npm run test` ผ่าน 55 tests; targeted eslint ไฟล์ที่แตะผ่าน (เหลือ warning เดิมใน legacy page); `npm run build` compile source หลักผ่านแต่หยุดที่ untracked `scratch/new_gauges.tsx` ที่ไม่อยู่ใน commit/deploy
 - **สถานะ**: ✅ patch code + tests แล้ว
 
+### GAS Route Consolidation and Admin Data Entry Persistence (Apr 25, 2026)
+- **ปัญหา**: หลังแก้หลายรอบยังมี business logic ซ้อนระหว่าง `/gas` v2 กับ legacy `/gas-station/[id]/new`; หน้าเก่าบางจุดยังใช้ date default แบบ UTC, API legacy บางตัวใช้ exact `stationId_date`, และ admin data-entry รับยอดขายในฟอร์มแต่ไม่สร้าง transaction จริง ทำให้ผู้จัดการเห็นข้อมูลไม่ครบหรือแก้แล้วตัวเลขรายงานไม่ขยับ
+- **แก้ไข**: redirect หน้า legacy root/sell/meters ไป flow `/gas` v2, legacy home ปุ่มปิดกะพาไปหน้า close v2 แทนปิดกะทันที, legacy shifts/transactions/daily/supplies/monthly balance ใช้ Bangkok day range + station resolver/guard, เพิ่ม `/api/gas-station/[id]/shifts/previous`, กัน v2 open shift เลขซ้ำในวันเดียวกัน, และทำ admin data-entry ให้บันทึกยอด cash/credit/card/transfer เป็น synthetic transactions ที่ผูก `dailyRecordId` + `shiftId`
+- **Verification**: `npm run test` ผ่าน 57 tests; `npx tsc --noEmit` ผ่านบน clean tracked tree + patch; local `npm run build` compile source ผ่านแต่ TypeScript หยุดที่ untracked `scratch/new_gauges.tsx` ที่ไม่อยู่ใน deploy tree
+- **สถานะ**: ✅ consolidated GAS entrypoints หลักและ admin historical edit persistence แล้ว; หากเจอข้อมูลเดิมที่เป็น orphan/corrupt ยังต้อง repair DB แบบ admin-confirmed แยกต่างหาก
+
 ## ⚠️ Known Gotchas
 1. **String vs Numeric Sort**: ทุก sort ที่เกี่ยวกับตัวเลข (book, number) ต้องใช้ parseInt
 2. **Neon Data Transfer**: free tier จำกัด 5GB/month → ระวัง polling ถี่เกินไป
@@ -182,6 +188,8 @@
 24. **GAS Open Shift Date Scope**: guard เปิดกะต้องเช็ก `OPEN` shift เฉพาะ station/day เดียวกับ `dateKey`; ห้ามให้กะค้างวันก่อนบล็อกการเปิดกะวันใหม่ ให้ใช้ `/api/admin/gas/stale-shifts` สำหรับ cleanup แบบมี audit
 25. **GAS Orphan Transactions**: admin analytics ต้องไม่ทิ้ง transaction ที่ `shiftId=null` หรือ match shift window ไม่ได้; ให้แสดงเป็น `UNASSIGNED`/“ไม่ผูกกะ” เพื่อให้ผู้จัดการเห็นยอดจริง และ legacy sell route ต้อง block/auto-link ก่อนสร้างรายการใหม่
 26. **GAS Amount-Based Sales**: หน้า GAS sell ต้องให้พนักงานกรอกยอดเงินเป็นหลัก และ backend ต้องคำนวณลิตรจาก `dailyRecord.gasPrice`; ห้ามเชื่อ `liters`/`pricePerLiter` จาก client เมื่อมี `amount` ส่งมา เพื่อไม่ให้ยอดขายกับราคาประจำวัน drift กัน
+27. **GAS Single Source Entry Flow**: หน้า legacy `/gas-station/[id]`, `/new/sell`, และ `/new/meters` ต้อง redirect ไป `/gas` v2; ห้ามเพิ่ม logic บันทึกขาย/มิเตอร์ชุดใหม่ใน legacy pages เพราะจะกลับไปสร้าง orphan/duplicate daily records
+28. **GAS Admin Data Entry Sales**: หน้า admin data-entry ต้องสร้าง/replace เฉพาะ synthetic transactions ที่ notes ขึ้นต้น `admin-data-entry:` และผูก `dailyRecordId` + `shiftId`; ห้ามเก็บยอดขายเป็นตัวเลขลอยในหน้าโดยไม่สร้าง transaction
 
 ## Changelog
 - 2026-02-24: สร้างไฟล์ brain topic นี้จากประวัติ conversations
@@ -205,3 +213,4 @@
 - 2026-04-25: smoke test GAS manager/staff flow พบ stale `OPEN` shift จากวันก่อนบล็อกเปิดกะวันนี้; patch `shift/open` ให้ scope existing open shift ตาม `dailyRecord.date` ของ `dateKey`, เพิ่ม test, และยืนยัน browser/API smoke ผ่าน
 - 2026-04-25: ตรวจ live DB พบรายการขาย GAS วันนี้ 5 รายการผูก `DailyRecord` แต่ไม่ผูก `Shift`; patch admin analytics ให้แสดงเป็น “ไม่ผูกกะ” และ block legacy sell ไม่ให้สร้าง orphan transactions เพิ่ม
 - 2026-04-25: เปลี่ยน GAS sale entry ให้กรอกยอดเงินเป็นหลัก, backend คำนวณลิตรจากราคาประจำวัน, และปรับ meter report ให้ orphan rows แสดง “ไม่ผูกกะ/รอผูกกะ” โดยไม่ปนเป็นส่วนต่างมิเตอร์ที่เทียบได้จริง
+- 2026-04-25: consolidate GAS legacy entrypoints ไป `/gas` v2, patch legacy APIs ให้ใช้ Bangkok day range, เพิ่ม previous-shift compat route, กันเปิดกะเลขซ้ำ, และทำ admin data-entry สร้าง synthetic transactions สำหรับยอดขายย้อนหลังจริง

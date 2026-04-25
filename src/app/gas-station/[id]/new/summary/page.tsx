@@ -4,6 +4,7 @@ import { useState, useEffect, use } from 'react';
 import { ArrowLeft, Printer, DollarSign, Fuel, FileText, CreditCard, Banknote, Wallet, Trash2 } from 'lucide-react';
 import { STATIONS } from '@/constants';
 import Link from 'next/link';
+import { getTodayBangkok } from '@/lib/gas';
 
 interface Transaction {
     id: string;
@@ -49,7 +50,7 @@ export default function GasStationSummaryPage({ params }: { params: Promise<{ id
     const station = STATIONS[stationIndex];
 
     const [loading, setLoading] = useState(true);
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+    const [selectedDate, setSelectedDate] = useState(getTodayBangkok());
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [stats, setStats] = useState<SummaryStats>({
         totalAmount: 0,

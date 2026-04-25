@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { getTodayBangkok } from '@/lib/gas';
 
 // Types
 export interface ShiftSnapshot {
@@ -115,7 +116,7 @@ export function useShiftSnapshot(stationId: string): UseShiftSnapshotReturn {
         setLoading(true);
         setError(null);
         try {
-            const dateStr = date || new Date().toISOString().split('T')[0];
+            const dateStr = date || getTodayBangkok();
             const res = await fetch(`/api/gas-station/${stationId}/shifts?date=${dateStr}`);
             if (res.ok) {
                 const data = await res.json();
