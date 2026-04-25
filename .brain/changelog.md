@@ -157,3 +157,8 @@
   - เพิ่ม `PUT /api/v2/gas/[stationId]/price` สำหรับ staff station access โดย update/create `DailyRecord` ของวันนั้นพร้อม audit log
   - เพิ่มการ์ด “ราคาขายแก๊สวันนี้” บน `/gas/[stationId]` และปุ่มแก้ราคาบน `/gas/[stationId]/sell`
   - เพิ่ม route-level test ใน `tests/gas-v2-routes.test.ts` เพื่อกัน price update regression
+- 🔎 ตรวจและ patch flow ลงบิล/รับเงินของ GAS
+  - ตรวจ DB จริงพบ GAS `CREDIT` 24 รายการยังไม่มี `billBookNo`/`billNo` และ 5 รายการไม่มี `truckId`
+  - patch `POST /api/v2/gas/[stationId]/sell` ให้เงินเชื่อต้องมี owner/truck/เล่มที่/เลขที่บิล และ verify truck อยู่ใต้ owner ก่อนบันทึก
+  - patch หน้า sell ให้ validate เล่มที่/เลขที่บิลตาม label required จริง
+  - patch close-shift route/page ให้ยอดเงินสดรับ เงินเชื่อ บัตร และโอนต้องเป็นตัวเลขไม่ติดลบ

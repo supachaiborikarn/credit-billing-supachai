@@ -38,6 +38,10 @@ const prismaMock = {
     },
     shift: {
         findUnique: vi.fn(),
+        update: vi.fn(),
+    },
+    shiftReconciliation: {
+        upsert: vi.fn(),
     },
     meterReading: {
         update: vi.fn(),
@@ -54,6 +58,12 @@ const prismaMock = {
     },
     station: {
         findUnique: vi.fn(),
+    },
+    owner: {
+        findFirst: vi.fn(),
+    },
+    truck: {
+        findFirst: vi.fn(),
     },
 };
 
@@ -336,6 +346,108 @@ describe('gas v2 route guards', () => {
                 amount: 185,
             }),
         }));
+    });
+
+    it('rejects credit sales without complete bill details', async () => {
+        const { POST } = await import('../src/app/api/v2/gas/[stationId]/sell/route');
+        const response = await POST(buildJsonRequest({
+            paymentType: 'CREDIT',
+            liters: 10,
+            ownerId: 'owner-1',
+            truckId: 'truck-1',
+        }) as never, {
+            params: Promise.resolve({ stationId: 'station-5' }),
+        });
+
+        expect(response.status).toBe(400);
+        await expect(response.json()).resolves.toMatchObject({
+            error: 'ต้องกรอกเล่มที่และเลขที่บิลเงินเชื่อ',
+        });
+        expect(prismaMock.dailyRecord.findFirst).not.toHaveBeenCalled();
+        expect(prismaMock.transaction.create).not.toHaveBeenCalled();
+    });
+
+    it('records credit sales with owner, truck, and bill links verified server-side', async () => {
+        prismaMock.dailyRecord.findFirst.mockResolvedValue({
+            id: 'daily-1',
+            gasPrice: 18.5,
+            shifts: [{ id: 'shift-1' }],
+        });
+        prismaMock.owner.findFirst.mockResolvedValue({ id: 'owner-1' });
+        prismaMock.truck.findFirst.mockResolvedValue({ licensePlate: 'บย 1026' });
+        prismaMock.transaction.create.mockResolvedValue({ id: 'tx-1' });
+
+        const { POST } = await import('../src/app/api/v2/gas/[stationId]/sell/route');
+        const response = await POST(buildJsonRequest({
+            paymentType: 'CREDIT',
+            liters: 10,
+            ownerId: 'owner-1',
+            truckId: 'truck-1',
+            licensePlate: 'client-supplied-plate',
+            bookNo: ' A1 ',
+            billNo: ' 1001 ',
+            notes: ' credit test ',
+        }) as never, {
+            params: Promise.resolve({ stationId: 'station-5' }),
+        });
+
+        expect(response.status).toBe(200);
+        expect(prismaMock.owner.findFirst).toHaveBeenCalledWith({
+            where: { id: 'owner-1', deletedAt: null },
+            select: { id: true },
+        });
+        expect(prismaMock.truck.findFirst).toHaveBeenCalledWith({
+            where: { id: 'truck-1', ownerId: 'owner-1', deletedAt: null },
+            select: { licensePlate: true },
+        });
+        expect(prismaMock.transaction.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({
+                paymentType: 'CREDIT',
+                ownerId: 'owner-1',
+                truckId: 'truck-1',
+                licensePlate: 'บย 1026',
+                billBookNo: 'A1',
+                billNo: '1001',
+                notes: 'credit test',
+            }),
+        }));
+    });
+
+    it('rejects negative received amounts when closing a gas shift', async () => {
+        prismaMock.shift.findUnique.mockResolvedValue({
+            id: 'shift-1',
+            status: 'OPEN',
+            dailyRecordId: 'daily-1',
+            shiftNumber: 1,
+            dailyRecord: { stationId: 'station-5', gasPrice: 18.5 },
+            meters: [
+                { nozzleNumber: 1, startReading: 1000, endReading: 1010, soldQty: null },
+                { nozzleNumber: 2, startReading: 2000, endReading: 2010, soldQty: null },
+                { nozzleNumber: 3, startReading: 3000, endReading: 3010, soldQty: null },
+                { nozzleNumber: 4, startReading: 4000, endReading: 4010, soldQty: null },
+            ],
+        });
+        prismaMock.gaugeReading.count.mockResolvedValue(3);
+
+        const { POST } = await import('../src/app/api/v2/gas/[stationId]/shift/close/route');
+        const response = await POST(buildJsonRequest({
+            shiftId: 'shift-1',
+            reconciliation: {
+                cashReceived: -1,
+                creditReceived: 0,
+                cardReceived: 0,
+                transferReceived: 0,
+            },
+        }) as never, {
+            params: Promise.resolve({ stationId: 'station-5' }),
+        });
+
+        expect(response.status).toBe(400);
+        await expect(response.json()).resolves.toMatchObject({
+            error: 'ยอดรับจริงทุกประเภทต้องเป็นจำนวนไม่ติดลบ',
+        });
+        expect(prismaMock.shiftReconciliation.upsert).not.toHaveBeenCalled();
+        expect(prismaMock.shift.update).not.toHaveBeenCalled();
     });
 
     it('blocks start-meter edits once the shift already has sales', async () => {

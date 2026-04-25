@@ -7,7 +7,8 @@
      auth/ownership guard, shift-scoped v2 sell/summary, payment type `CREDIT_CARD`, product guard เฉพาะ station-5, admin stale-shift cleanup tool,
      follow-up analytics/reporting ให้ GAS admin ใช้ shared shift/day facts ชุดเดียวกันพร้อมเติม payment mix/reconciliation edit flow,
      และ 2026-04-24 พบ live incident จาก `/gas-station/[id]/new/home` ที่เรียก legacy open shift โดยไม่ส่ง meter/gauge ทำให้เกิดกะว่าง;
-     2026-04-25 เพิ่ม staff daily GAS price edit ให้แก้ `dailyRecord.gasPrice` ผ่าน v2 route พร้อม audit -->
+     2026-04-25 เพิ่ม staff daily GAS price edit ให้แก้ `dailyRecord.gasPrice` ผ่าน v2 route พร้อม audit;
+     และปิด gap เงินเชื่อ GAS ที่ไม่บังคับเลขบิล/รถ พร้อม validate ยอดรับจริงตอนปิดกะไม่ให้ติดลบ -->
 
 # Bugs & Fixes
 
@@ -127,6 +128,11 @@
 - **แก้ไข**: เพิ่ม `PUT /api/v2/gas/[stationId]/price` แบบ staff station guard เพื่อ create/update `DailyRecord` ของวันนั้นโดยตั้ง `gasPrice`, `retailPrice`, `wholesalePrice` พร้อม audit log; เพิ่มการ์ดแก้ราคาบน `/gas/[stationId]` และปุ่มแก้ราคาบน `/gas/[stationId]/sell`; รายการขายใหม่คำนวณจากราคาล่าสุด แต่รายการขายเดิมยังเก็บราคาที่บันทึกไว้เดิม
 - **สถานะ**: ✅ เพิ่ม route/UI/tests แล้ว (`tests/gas-v2-routes.test.ts`)
 
+### GAS Credit Bill and Received Amount Validation (Apr 25, 2026)
+- **ปัญหา**: `/gas/[stationId]/sell` แสดง `เล่มที่`/`เลขที่บิล` เป็น required สำหรับเงินเชื่อ แต่ client/server ยังไม่บังคับจริง; DB จริงพบ GAS `CREDIT` 24 รายการที่ไม่มีเลขบิล และ 5 รายการไม่มี `truckId`. ฝั่งปิดกะยังรับยอดเงินสด/เงินเชื่อ/บัตร/โอนที่ติดลบหรือไม่ใช่ตัวเลขได้ถ้าส่งตรงเข้า API
+- **แก้ไข**: บังคับเงินเชื่อต้องมี owner, truck, `billBookNo`, `billNo` ทั้ง client และ `POST /api/v2/gas/[stationId]/sell`; backend ตรวจว่า truck อยู่ใต้ owner จริงและใช้ทะเบียนจาก DB แทนค่าที่ client ส่ง; `POST /api/v2/gas/[stationId]/shift/close` normalize/validate ยอดรับจริงทุกช่องเป็นจำนวนไม่ติดลบ และยังคงเก็บบัตรรวมใน `transferReceived` พร้อม `cardReceived` ใน variance note ตาม schema ปัจจุบัน
+- **สถานะ**: ✅ patch แล้วพร้อม tests route-level สำหรับ credit bill และ negative reconciliation amount
+
 ## ⚠️ Known Gotchas
 1. **String vs Numeric Sort**: ทุก sort ที่เกี่ยวกับตัวเลข (book, number) ต้องใช้ parseInt
 2. **Neon Data Transfer**: free tier จำกัด 5GB/month → ระวัง polling ถี่เกินไป
@@ -149,6 +155,8 @@
 19. **GAS Meter Reports**: `api/v2/gas/admin/reports/meters` ต้องอิง shift facts ชุดเดียวกับ daily/shift/reconciliation เพื่อให้ยอดมิเตอร์, transaction liters, และ liters variance ตรงกันทุกหน้า
 20. **GAS Legacy Empty Open Shift**: ห้ามให้ `/gas-station/[id]/new/home` หรือ legacy `/api/gas-station/[id]/shifts` เปิดกะ GAS โดยไม่มี meter/gauge; ถ้าเจอ `OPEN` shift ที่ `meterRows=0` ให้ถือเป็น partial/corrupt row และ repair ผ่าน admin-confirmed flow ก่อนใช้งานต่อ
 21. **GAS Daily Price Edits**: การแก้ราคาขายประจำวันของพนักงานต้องผ่าน `/api/v2/gas/[stationId]/price` เพื่อ update `dailyRecord.gasPrice/retailPrice/wholesalePrice` พร้อม audit; ห้ามแก้ผ่าน local state อย่างเดียว และต้องถือว่ารายการขายเดิมคง `pricePerLiter` เดิมไว้
+22. **GAS Credit Bill Required Fields**: GAS `CREDIT` transaction ต้องมี `ownerId`, `truckId`, `billBookNo`, `billNo` และ backend ต้อง verify truck-owner relation ก่อนสร้าง transaction; ห้ามพึ่ง validation ฝั่งหน้าอย่างเดียว
+23. **GAS Received Amount Validation**: ยอด `cashReceived`/`creditReceived`/`cardReceived`/`transferReceived` ตอนปิดกะต้องเป็นเลขไม่ติดลบทุกครั้ง; schema ยังไม่มี field `cardReceived` แยก จึงต้อง parse/build ผ่าน `buildGasVarianceNote`/fact layer กลางเท่านั้น
 
 ## Changelog
 - 2026-02-24: สร้างไฟล์ brain topic นี้จากประวัติ conversations
@@ -168,3 +176,4 @@
 - 2026-04-24: บันทึก live incident ที่ `station-6` เปิดกะผ่าน `/gas-station/[id]/new/home` แล้วเกิด `OPEN` shifts 2 แถวแบบไม่มี meter/gauge/transaction เพราะ legacy open route ยอมสร้างกะว่าง
 - 2026-04-24: patch GAS legacy/v2 bridge หลังเจอ `station-5` บันทึกมิเตอร์แล้วหาย: ปิด quick open เก่า, ให้ legacy meters ผูก shift/date ถูกต้อง, เพิ่มช่องราคาขายใน v2 open, และซ่อม live meter rows ของ `เล็ก` กลับเข้า shift จริง
 - 2026-04-25: เพิ่ม staff flow สำหรับแก้ราคาขายแก๊สประจำวันหลังเปิดกะ: v2 price route พร้อม audit, การ์ดบน dashboard, ปุ่มแก้บน sell page, และ route-level test
+- 2026-04-25: ตรวจ flow ลงขาย GAS พบเงินเชื่อไม่บังคับเลขบิลจริงใน DB; patch client/server ให้ require owner/truck/book/bill, verify truck-owner, และ validate ยอดรับจริงตอนปิดกะไม่ให้ติดลบ

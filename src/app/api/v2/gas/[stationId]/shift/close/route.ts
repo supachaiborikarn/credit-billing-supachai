@@ -6,6 +6,19 @@ import { shiftBelongsToStation } from '@/lib/gas/api-guards';
 import { resolveDailyGasPrice } from '@/lib/gas/v2-workflow';
 import { buildGasVarianceNote } from '@/lib/gas/admin-analytics';
 
+function toNonNegativeAmount(value: unknown): number | null {
+    if (value === null || value === undefined || value === '') {
+        return 0;
+    }
+
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+        return null;
+    }
+
+    return Number(parsed.toFixed(2));
+}
+
 /**
  * POST /api/v2/gas/[stationId]/shift/close
  * Close the current shift with reconciliation data (GAS stations only)
@@ -54,7 +67,7 @@ export async function POST(
         }
 
         // Validate all meters have end readings
-        const missingEndMeters = shift.meters.filter(m => !m.endReading);
+        const missingEndMeters = shift.meters.filter(m => m.endReading === null);
         if (missingEndMeters.length > 0) {
             return NextResponse.json({
                 error: `Missing end readings for nozzles: ${missingEndMeters.map(m => m.nozzleNumber).join(', ')}`
@@ -78,8 +91,8 @@ export async function POST(
         // Calculate expected amount from meters
         const gasPrice = await resolveDailyGasPrice(prisma, station.dbId, shift.dailyRecord.gasPrice);
         const totalLiters = shift.meters.reduce((sum, m) => {
-            if (m.soldQty) return sum + Number(m.soldQty);
-            if (m.startReading && m.endReading) {
+            if (m.soldQty !== null && m.soldQty !== undefined) return sum + Number(m.soldQty);
+            if (m.startReading !== null && m.endReading !== null) {
                 return sum + (Number(m.endReading) - Number(m.startReading));
             }
             return sum;
@@ -87,16 +100,41 @@ export async function POST(
         const expectedFuelAmount = totalLiters * gasPrice;
 
         // Create or update reconciliation
-        const { cashReceived, creditReceived, cardReceived, transferReceived, expectedOtherAmount = 0, varianceNote } = reconciliation || {};
-        const combinedTransferReceived = (transferReceived || 0) + (cardReceived || 0);
+        const {
+            cashReceived: rawCashReceived,
+            creditReceived: rawCreditReceived,
+            cardReceived: rawCardReceived,
+            transferReceived: rawTransferReceived,
+            expectedOtherAmount: rawExpectedOtherAmount = 0,
+            varianceNote,
+        } = reconciliation || {};
+        const cashReceived = toNonNegativeAmount(rawCashReceived);
+        const creditReceived = toNonNegativeAmount(rawCreditReceived);
+        const cardReceived = toNonNegativeAmount(rawCardReceived);
+        const transferReceived = toNonNegativeAmount(rawTransferReceived);
+        const expectedOtherAmount = toNonNegativeAmount(rawExpectedOtherAmount);
+
+        if (
+            cashReceived === null
+            || creditReceived === null
+            || cardReceived === null
+            || transferReceived === null
+            || expectedOtherAmount === null
+        ) {
+            return NextResponse.json({
+                error: 'ยอดรับจริงทุกประเภทต้องเป็นจำนวนไม่ติดลบ',
+            }, { status: 400 });
+        }
+
+        const combinedTransferReceived = Number((transferReceived + cardReceived).toFixed(2));
         const normalizedVarianceNote = buildGasVarianceNote(
             varianceNote,
-            Number(cardReceived || 0)
+            cardReceived
         );
 
-        const totalExpected = expectedFuelAmount + (expectedOtherAmount || 0);
-        const totalReceived = (cashReceived || 0) + (creditReceived || 0) + combinedTransferReceived;
-        const variance = totalReceived - totalExpected;
+        const totalExpected = Number((expectedFuelAmount + expectedOtherAmount).toFixed(2));
+        const totalReceived = Number((cashReceived + creditReceived + combinedTransferReceived).toFixed(2));
+        const variance = Number((totalReceived - totalExpected).toFixed(2));
 
         // Determine variance status
         let varianceStatus: 'GREEN' | 'YELLOW' | 'RED' = 'GREEN';
@@ -110,10 +148,10 @@ export async function POST(
             where: { shiftId },
             update: {
                 expectedFuelAmount,
-                expectedOtherAmount: expectedOtherAmount || 0,
+                expectedOtherAmount,
                 totalExpected,
-                cashReceived: cashReceived || 0,
-                creditReceived: creditReceived || 0,
+                cashReceived,
+                creditReceived,
                 transferReceived: combinedTransferReceived,
                 totalReceived,
                 variance,
@@ -122,10 +160,10 @@ export async function POST(
             create: {
                 shiftId,
                 expectedFuelAmount,
-                expectedOtherAmount: expectedOtherAmount || 0,
+                expectedOtherAmount,
                 totalExpected,
-                cashReceived: cashReceived || 0,
-                creditReceived: creditReceived || 0,
+                cashReceived,
+                creditReceived,
                 transferReceived: combinedTransferReceived,
                 totalReceived,
                 variance,

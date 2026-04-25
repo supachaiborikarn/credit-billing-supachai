@@ -195,6 +195,12 @@ export default function SellPage() {
             if (!selectedTruck) {
                 newErrors.push('ต้องเลือกรถ');
             }
+            if (!bookNo.trim()) {
+                newErrors.push('ต้องกรอกเล่มที่บิล');
+            }
+            if (!billNo.trim()) {
+                newErrors.push('ต้องกรอกเลขที่บิล');
+            }
         }
 
         setErrors(newErrors);

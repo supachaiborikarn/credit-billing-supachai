@@ -9,6 +9,15 @@ import {
     roundGasCurrency,
 } from '@/lib/gas/v2-workflow';
 
+function normalizeOptionalText(value: unknown): string | null {
+    if (typeof value !== 'string') {
+        return null;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+}
+
 /**
  * POST /api/v2/gas/[stationId]/sell
  * Record a sale transaction (GAS stations only)
@@ -37,6 +46,12 @@ export async function POST(
         } = body;
 
         const userId = auth.user.id;
+        const normalizedOwnerId = normalizeOptionalText(ownerId);
+        const normalizedTruckId = normalizeOptionalText(truckId);
+        const normalizedBookNo = normalizeOptionalText(bookNo);
+        const normalizedBillNo = normalizeOptionalText(billNo);
+        const normalizedLicensePlate = normalizeOptionalText(licensePlate);
+        const normalizedNotes = normalizeOptionalText(notes);
 
         // Validate required fields
         if (!paymentType || liters === undefined || liters === null) {
@@ -54,8 +69,16 @@ export async function POST(
         }
 
         // For credit, require owner
-        if (normalizedPaymentType === 'CREDIT' && !ownerId) {
-            return NextResponse.json({ error: 'ownerId is required for credit sales' }, { status: 400 });
+        if (normalizedPaymentType === 'CREDIT') {
+            if (!normalizedOwnerId) {
+                return NextResponse.json({ error: 'ต้องเลือกลูกค้าเงินเชื่อ' }, { status: 400 });
+            }
+            if (!normalizedTruckId) {
+                return NextResponse.json({ error: 'ต้องเลือกรถสำหรับบิลเงินเชื่อ' }, { status: 400 });
+            }
+            if (!normalizedBookNo || !normalizedBillNo) {
+                return NextResponse.json({ error: 'ต้องกรอกเล่มที่และเลขที่บิลเงินเชื่อ' }, { status: 400 });
+            }
         }
 
         // Get today's DailyRecord and current shift
@@ -92,6 +115,36 @@ export async function POST(
 
         const resolvedGasPrice = await resolveDailyGasPrice(prisma, station.dbId, dailyRecord.gasPrice);
         const resolvedAmount = roundGasCurrency(normalizedLiters * resolvedGasPrice);
+        let creditTruck: { licensePlate: string } | null = null;
+
+        if (normalizedPaymentType === 'CREDIT') {
+            const [owner, truck] = await Promise.all([
+                prisma.owner.findFirst({
+                    where: {
+                        id: normalizedOwnerId!,
+                        deletedAt: null,
+                    },
+                    select: { id: true },
+                }),
+                prisma.truck.findFirst({
+                    where: {
+                        id: normalizedTruckId!,
+                        ownerId: normalizedOwnerId!,
+                        deletedAt: null,
+                    },
+                    select: { licensePlate: true },
+                }),
+            ]);
+
+            if (!owner) {
+                return NextResponse.json({ error: 'ไม่พบลูกค้าเงินเชื่อในระบบ' }, { status: 400 });
+            }
+            if (!truck) {
+                return NextResponse.json({ error: 'รถที่เลือกไม่ตรงกับลูกค้าเงินเชื่อ' }, { status: 400 });
+            }
+
+            creditTruck = truck;
+        }
 
         // Create transaction
         const transaction = await prisma.transaction.create({
@@ -99,18 +152,20 @@ export async function POST(
                 stationId: station.dbId,
                 dailyRecordId: dailyRecord.id,
                 shiftId: currentShift.id,
-                ownerId: normalizedPaymentType === 'CREDIT' ? ownerId : null,
-                truckId: normalizedPaymentType === 'CREDIT' ? truckId : null,
-                licensePlate: licensePlate || null,
+                ownerId: normalizedPaymentType === 'CREDIT' ? normalizedOwnerId : null,
+                truckId: normalizedPaymentType === 'CREDIT' ? normalizedTruckId : null,
+                licensePlate: normalizedPaymentType === 'CREDIT'
+                    ? creditTruck!.licensePlate
+                    : normalizedLicensePlate,
                 date: new Date(),
                 liters: normalizedLiters,
                 pricePerLiter: resolvedGasPrice,
                 amount: resolvedAmount,
                 paymentType: normalizedPaymentType,
                 productType: 'LPG',
-                billBookNo: bookNo || null,
-                billNo,
-                notes: notes || null,
+                billBookNo: normalizedBookNo,
+                billNo: normalizedBillNo,
+                notes: normalizedNotes,
                 recordedById: userId
             }
         });

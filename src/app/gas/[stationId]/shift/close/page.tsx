@@ -36,6 +36,20 @@ interface ShiftData {
     gasPrice: number;
 }
 
+function parseAmount(value: string): number {
+    if (!value.trim()) {
+        return 0;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : NaN;
+}
+
+function parsePreviewAmount(value: string): number {
+    const parsed = parseAmount(value);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+}
+
 export default function ShiftClosePage() {
     const params = useParams();
     const router = useRouter();
@@ -112,17 +126,31 @@ export default function ShiftClosePage() {
             newErrors.push('ยังไม่ได้เช็คเกจปิดกะ');
         }
 
+        const parsedCashReceived = parseAmount(cashReceived);
+        const parsedCreditReceived = parseAmount(creditReceived);
+        const parsedCardReceived = parseAmount(cardReceived);
+        const parsedTransferReceived = parseAmount(transferReceived);
+        const parsedAmounts = [
+            parsedCashReceived,
+            parsedCreditReceived,
+            parsedCardReceived,
+            parsedTransferReceived,
+        ];
+
+        if (parsedAmounts.some((amount) => !Number.isFinite(amount) || amount < 0)) {
+            newErrors.push('ยอดเงินรับจริงต้องเป็นตัวเลขไม่ติดลบ');
+        }
+
         // Validate amounts
-        if (!cashReceived && !creditReceived && !cardReceived && !transferReceived) {
+        if (parsedAmounts.every((amount) => amount === 0)) {
             newErrors.push('ต้องกรอกยอดเงินอย่างน้อย 1 ช่อง');
         }
 
         // Calculate variance
         const expected = calculateExpected();
-        const received = parseFloat(cashReceived || '0') +
-            parseFloat(creditReceived || '0') +
-            parseFloat(cardReceived || '0') +
-            parseFloat(transferReceived || '0');
+        const received = parsedAmounts.every((amount) => Number.isFinite(amount))
+            ? parsedCashReceived + parsedCreditReceived + parsedCardReceived + parsedTransferReceived
+            : 0;
         const variance = received - expected;
 
         if (Math.abs(variance) > 100) {
@@ -150,10 +178,10 @@ export default function ShiftClosePage() {
                 body: JSON.stringify({
                     shiftId: shift.id,
                     reconciliation: {
-                        cashReceived: parseFloat(cashReceived || '0'),
-                        creditReceived: parseFloat(creditReceived || '0'),
-                        cardReceived: parseFloat(cardReceived || '0'),
-                        transferReceived: parseFloat(transferReceived || '0'),
+                        cashReceived: parseAmount(cashReceived),
+                        creditReceived: parseAmount(creditReceived),
+                        cardReceived: parseAmount(cardReceived),
+                        transferReceived: parseAmount(transferReceived),
                         expectedFuelAmount: calculateExpected(),
                         expectedOtherAmount: 0,
                         varianceNote
@@ -180,10 +208,10 @@ export default function ShiftClosePage() {
 
     // Calculate reconciliation preview
     const reconciliationPreview = calculateReconciliation({
-        cashReceived: parseFloat(cashReceived || '0'),
-        creditReceived: parseFloat(creditReceived || '0'),
-        cardReceived: parseFloat(cardReceived || '0'),
-        transferReceived: parseFloat(transferReceived || '0'),
+        cashReceived: parsePreviewAmount(cashReceived),
+        creditReceived: parsePreviewAmount(creditReceived),
+        cardReceived: parsePreviewAmount(cardReceived),
+        transferReceived: parsePreviewAmount(transferReceived),
         expectedFuelAmount: calculateExpected(),
         expectedOtherAmount: 0
     });
