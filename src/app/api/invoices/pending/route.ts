@@ -1,18 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { requireApiSession } from '@/lib/api-auth';
+import { CREDIT_PAYMENT_TYPES } from '@/constants/payment-types';
 
 export async function GET(request: NextRequest) {
     try {
+        const auth = await requireApiSession();
+        if (auth.response) return auth.response;
+
         const { searchParams } = new URL(request.url);
         const group = searchParams.get('group');
+        const pendingPaymentTypes = [...CREDIT_PAYMENT_TYPES];
 
-        // Build where clause - include CREDIT and BOX_TRUCK payment types for invoicing
+        // Build where clause - include all credit-like payment types for invoicing
         const whereClause: Prisma.OwnerWhereInput = {
             transactions: {
                 some: {
-                    paymentType: { in: ['CREDIT', 'BOX_TRUCK'] },
+                    paymentType: { in: pendingPaymentTypes },
                     invoiceId: null,
+                    deletedAt: null,
+                    isVoided: false,
                 }
             }
         };
@@ -28,8 +36,10 @@ export async function GET(request: NextRequest) {
             include: {
                 transactions: {
                     where: {
-                        paymentType: { in: ['CREDIT', 'BOX_TRUCK'] },
+                        paymentType: { in: pendingPaymentTypes },
                         invoiceId: null,
+                        deletedAt: null,
+                        isVoided: false,
                     },
                     select: {
                         amount: true,

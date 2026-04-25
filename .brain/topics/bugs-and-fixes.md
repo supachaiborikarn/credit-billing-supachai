@@ -9,7 +9,8 @@
      และ 2026-04-24 พบ live incident จาก `/gas-station/[id]/new/home` ที่เรียก legacy open shift โดยไม่ส่ง meter/gauge ทำให้เกิดกะว่าง;
      2026-04-25 เพิ่ม staff daily GAS price edit ให้แก้ `dailyRecord.gasPrice` ผ่าน v2 route พร้อม audit;
      ปิด gap เงินเชื่อ GAS ที่ไม่บังคับเลขบิล/รถ พร้อม validate ยอดรับจริงตอนปิดกะไม่ให้ติดลบ;
-     และ patch stale open shift date guard หลัง smoke test พบกะค้างวันก่อนบล็อกการเปิดกะวันนี้ -->
+     patch stale open shift date guard หลัง smoke test พบกะค้างวันก่อนบล็อกการเปิดกะวันนี้;
+     และ patch orphan GAS transactions ให้รายงาน admin แสดงรายการไม่ผูกกะ พร้อมกัน legacy sell ไม่ให้บันทึกขายถ้าไม่มีกะเปิด -->
 
 # Bugs & Fixes
 
@@ -140,6 +141,13 @@
 - **Smoke verification**: local dev + Chrome headless เปิดหน้า admin `/admin/gas`, `/admin/gas/executive`, `/admin/gas/reports/shift`, `/admin/gas/reconciliation` และหน้า staff `/gas/5`, `/gas/5/summary`, `/gas/5/meters`, `/gas/5/sell` ได้ 200 ไม่มี page error; API smoke ผ่านสำหรับ dashboard, shift report, reconciliation, stale-shifts, staff summary/current, price validation และ manager reconciliation edit จริงพร้อม restore ข้อมูลกลับ
 - **สถานะ**: ✅ patch + route-level test แล้ว; `npm run test` ผ่าน 54 tests
 
+### GAS Orphan Transactions in Admin Reports (Apr 25, 2026)
+- **อาการจาก DB จริง**: วันที่ 2026-04-25 `station-5` มีรายการขาย 5 รายการจากพนักงาน `กุ้ง` รวม `฿21,540.78` / `1,306.29 L` (`CASH ฿13,430.78`, `CREDIT_CARD ฿8,110`) อยู่ใน `DailyRecord` ของวันนั้น แต่ `shiftId=null` และวันนั้นยังไม่มีแถว `Shift`
+- **สาเหตุ**: legacy หน้า `/gas-station/[id]/new/sell` ยังยอม submit ได้แม้ `currentShiftId` เป็น `null`; legacy transaction route จึงสร้าง transaction ที่ผูกแค่ `dailyRecordId`. ฝั่ง admin daily/executive ใช้ `src/lib/gas/admin-analytics.ts` ที่เริ่มจาก shift facts จึงทิ้ง transaction ที่จับเข้ากะไม่ได้
+- **แก้ไข**: fact layer สร้าง synthetic bucket `UNASSIGNED`/`isSyntheticOrphan` ต่อ station/day สำหรับ transaction ที่ไม่ match กะ ทำให้ daily/executive เห็นยอดแทนการซ่อน; daily report UI แสดง badge “ไม่ผูกกะ”; legacy transaction POST จะ auto-link กะเปิดของวันเดียวกันถ้ามี หรือ reject ด้วยข้อความให้เปิดกะก่อน; legacy sell page แสดง warning และ disable ปุ่มบันทึกเมื่อไม่มีกะเปิด
+- **Verification**: read-only query หลัง patch แสดง `orphan:station-5:2026-04-25` ยอด `฿21,540.78`, `1,306.29 L`, 5 รายการ และ `buildGasDailyAnalytics` คืนแถววันที่ 2026-04-25 แล้ว; เพิ่ม test `keeps unassigned gas transactions visible in manager daily analytics`
+- **สถานะ**: ✅ patch code + tests แล้ว; ถ้าต้องการให้ปิดกะ/reconciliation ย้อนหลังกับข้อมูลนี้ ต้องทำ admin-confirmed data repair เพื่อสร้าง/ผูก shift จริงต่างหาก
+
 ## ⚠️ Known Gotchas
 1. **String vs Numeric Sort**: ทุก sort ที่เกี่ยวกับตัวเลข (book, number) ต้องใช้ parseInt
 2. **Neon Data Transfer**: free tier จำกัด 5GB/month → ระวัง polling ถี่เกินไป
@@ -165,6 +173,7 @@
 22. **GAS Credit Bill Required Fields**: GAS `CREDIT` transaction ต้องมี `ownerId`, `truckId`, `billBookNo`, `billNo` และ backend ต้อง verify truck-owner relation ก่อนสร้าง transaction; ห้ามพึ่ง validation ฝั่งหน้าอย่างเดียว
 23. **GAS Received Amount Validation**: ยอด `cashReceived`/`creditReceived`/`cardReceived`/`transferReceived` ตอนปิดกะต้องเป็นเลขไม่ติดลบทุกครั้ง; schema ยังไม่มี field `cardReceived` แยก จึงต้อง parse/build ผ่าน `buildGasVarianceNote`/fact layer กลางเท่านั้น
 24. **GAS Open Shift Date Scope**: guard เปิดกะต้องเช็ก `OPEN` shift เฉพาะ station/day เดียวกับ `dateKey`; ห้ามให้กะค้างวันก่อนบล็อกการเปิดกะวันใหม่ ให้ใช้ `/api/admin/gas/stale-shifts` สำหรับ cleanup แบบมี audit
+25. **GAS Orphan Transactions**: admin analytics ต้องไม่ทิ้ง transaction ที่ `shiftId=null` หรือ match shift window ไม่ได้; ให้แสดงเป็น `UNASSIGNED`/“ไม่ผูกกะ” เพื่อให้ผู้จัดการเห็นยอดจริง และ legacy sell route ต้อง block/auto-link ก่อนสร้างรายการใหม่
 
 ## Changelog
 - 2026-02-24: สร้างไฟล์ brain topic นี้จากประวัติ conversations
@@ -186,3 +195,4 @@
 - 2026-04-25: เพิ่ม staff flow สำหรับแก้ราคาขายแก๊สประจำวันหลังเปิดกะ: v2 price route พร้อม audit, การ์ดบน dashboard, ปุ่มแก้บน sell page, และ route-level test
 - 2026-04-25: ตรวจ flow ลงขาย GAS พบเงินเชื่อไม่บังคับเลขบิลจริงใน DB; patch client/server ให้ require owner/truck/book/bill, verify truck-owner, และ validate ยอดรับจริงตอนปิดกะไม่ให้ติดลบ
 - 2026-04-25: smoke test GAS manager/staff flow พบ stale `OPEN` shift จากวันก่อนบล็อกเปิดกะวันนี้; patch `shift/open` ให้ scope existing open shift ตาม `dailyRecord.date` ของ `dateKey`, เพิ่ม test, และยืนยัน browser/API smoke ผ่าน
+- 2026-04-25: ตรวจ live DB พบรายการขาย GAS วันนี้ 5 รายการผูก `DailyRecord` แต่ไม่ผูก `Shift`; patch admin analytics ให้แสดงเป็น “ไม่ผูกกะ” และ block legacy sell ไม่ให้สร้าง orphan transactions เพิ่ม

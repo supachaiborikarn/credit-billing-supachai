@@ -2,11 +2,14 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Invoice, Owner } from '@prisma/client';
 import { requireAdminApi, requireApiSession } from '@/lib/api-auth';
+import { CREDIT_PAYMENT_TYPES } from '@/constants/payment-types';
 
 type InvoiceWithRelations = Invoice & {
     owner: Pick<Owner, 'id' | 'name' | 'code'>;
     _count: { transactions: number };
 };
+
+const invoicePaymentTypes = [...CREDIT_PAYMENT_TYPES];
 
 export async function GET() {
     try {
@@ -63,8 +66,10 @@ export async function POST(request: Request) {
             const transactions = await prisma.transaction.findMany({
                 where: {
                     ownerId: { in: targetOwnerIds },
-                    paymentType: { in: ['CREDIT', 'BOX_TRUCK'] },
+                    paymentType: { in: invoicePaymentTypes },
                     invoiceId: null,
+                    deletedAt: null,
+                    isVoided: false,
                     ...(Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {}),
                 },
             });
@@ -116,8 +121,10 @@ export async function POST(request: Request) {
                 const transactions = await prisma.transaction.findMany({
                     where: {
                         ownerId: owId,
-                        paymentType: { in: ['CREDIT', 'BOX_TRUCK'] },
+                        paymentType: { in: invoicePaymentTypes },
                         invoiceId: null,
+                        deletedAt: null,
+                        isVoided: false,
                         ...(Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {}),
                     },
                 });

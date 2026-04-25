@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use, useRef } from 'react';
-import { ArrowLeft, Fuel, Search, User, Check, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Fuel, User, Check } from 'lucide-react';
 import { STATIONS, GAS_PAYMENT_TYPES, DEFAULT_GAS_PRICE } from '@/constants';
 import Link from 'next/link';
 
@@ -25,9 +25,10 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
     const station = STATIONS[stationIndex];
 
     const [loading, setLoading] = useState(false);
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+    const [selectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [gasPrice, setGasPrice] = useState(DEFAULT_GAS_PRICE);
     const [currentShiftId, setCurrentShiftId] = useState<string | null>(null);  // NEW: track current shift
+    const [shiftStatusChecked, setShiftStatusChecked] = useState(false);
 
     // Form state
     const [licensePlate, setLicensePlate] = useState('');
@@ -68,6 +69,7 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
     // Fetch gas price and current shift
     useEffect(() => {
         const fetchPrice = async () => {
+            setShiftStatusChecked(false);
             try {
                 const res = await fetch(`/api/gas-station/${id}/daily?date=${selectedDate}`);
                 if (res.ok) {
@@ -86,6 +88,8 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
                 }
             } catch (error) {
                 console.error('Error fetching price:', error);
+            } finally {
+                setShiftStatusChecked(true);
             }
         };
         fetchPrice();
@@ -252,6 +256,11 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
             return;
         }
 
+        if (!currentShiftId) {
+            alert('กรุณาเปิดกะก่อนบันทึกขาย เพื่อให้รายการขึ้นรายงานผู้จัดการ');
+            return;
+        }
+
         // Validate owner for credit transactions
         if (paymentType === 'CREDIT' && !ownerName) {
             alert('รายการเงินเชื่อต้องเลือกเจ้าของ');
@@ -326,6 +335,12 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
             </header>
 
             <div className="p-4 space-y-4">
+                {shiftStatusChecked && !currentShiftId && (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
+                        ยังไม่มีกะที่เปิดอยู่ กรุณาเปิดกะก่อนบันทึกขาย เพื่อไม่ให้รายการขายหลุดจากรายงานผู้จัดการ
+                    </div>
+                )}
+
                 {/* License Plate Search */}
                 <div className="bg-white rounded-2xl shadow-sm p-4" ref={searchRef}>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -365,7 +380,7 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
                     {/* No results - show add button */}
                     {showResults && searchResults.length === 0 && licensePlate.length >= 2 && !searchLoading && (
                         <div className="mt-2 border border-gray-200 rounded-xl p-4 text-center">
-                            <p className="text-gray-500 text-sm mb-2">ไม่พบทะเบียน "{licensePlate}"</p>
+                            <p className="text-gray-500 text-sm mb-2">ไม่พบทะเบียน &quot;{licensePlate}&quot;</p>
                             <button
                                 onClick={openNewTruckModal}
                                 className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600"
@@ -503,7 +518,7 @@ export default function GasStationSellPage({ params }: { params: Promise<{ id: s
                 {/* Submit Button */}
                 <button
                     onClick={handleSubmit}
-                    disabled={loading || !liters || parseFloat(liters) <= 0}
+                    disabled={loading || !currentShiftId || !liters || parseFloat(liters) <= 0}
                     className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white text-lg font-bold rounded-2xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                 >
                     {loading ? 'กำลังบันทึก...' : '✅ บันทึกขาย'}

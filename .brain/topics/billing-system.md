@@ -1,7 +1,9 @@
 <!-- SUMMARY: ระบบออกบิลน้ำมัน/แก๊ส ใช้ Prisma + Neon, sort ด้วย numeric comparison (parseInt),
      รองรับ 7 ประเภทการชำระ (CASH/CREDIT/TRANSFER/BOX_TRUCK/OIL_TRUCK_SUPACHAI/CREDIT_CARD/EXPENSE),
      ใบวางบิล/ใบแจ้งหนี้ยึด ownerId เป็นหลัก ส่วน ownerName เป็น snapshot/legacy fallback,
-     และ external integration ต้อง map ลูกค้าให้ได้ ownerId ให้ชัดก่อนรวมบิล -->
+     external integration ต้อง map ลูกค้าให้ได้ ownerId ให้ชัดก่อนรวมบิล,
+     และ audit 2026-04-25 patch ให้ invoice/pending/debt report รวม `OIL_TRUCK_SUPACHAI`,
+     lock search APIs ด้วย session, และบังคับ credit-like sale ต้องมี owner/truck/book/bill -->
 
 # Billing System
 
@@ -67,12 +69,39 @@
 - มี owner ชื่อซ้ำ exact ในระบบจริงหลายรายการ เช่นบางชื่อมีซ้ำ `4-13` records จึงห้ามใช้ `findFirst(name contains ...)` เป็นกลไกหลักสำหรับ external billing merge
 - ณ ตอนนี้ทั้ง `ownerName`, `owner.code`, และ `venderCode` ยังไม่เหมาะจะใช้เป็น integration key กับ external billing โดยตรง
 
+### Live Audit Snapshot (2026-04-25)
+- ตรวจ DB จริงพบ active credit-like transactions:
+  - `CREDIT` 5,800 รายการ / 21.70M บาท
+  - `BOX_TRUCK` 1,268 รายการ / 42.93M บาท
+  - `OIL_TRUCK_SUPACHAI` 57 รายการ / 321K บาท
+- รายการยังไม่เข้า invoice:
+  - `CREDIT` 5,739 รายการ / 21.10M บาท
+  - `BOX_TRUCK` 12 รายการ / 352.8K บาท
+  - `OIL_TRUCK_SUPACHAI` 57 รายการ / 321K บาท
+- ก่อน patch, `/api/invoices`, `/api/invoices/pending`, และ report debt ดึงแค่ `CREDIT/BOX_TRUCK` ทำให้ `OIL_TRUCK_SUPACHAI` หลุดจากคิววางบิล แม้ `credit-service` ฝั่ง monthly invoice จะนับ type นี้อยู่แล้ว
+- พบข้อมูลเก่าที่ connection ไม่ครบ:
+  - missing `ownerId`: `CREDIT` 34, `BOX_TRUCK` 3, `OIL_TRUCK_SUPACHAI` 32
+  - missing `truckId`: `CREDIT` 3,024, `BOX_TRUCK` 662, `OIL_TRUCK_SUPACHAI` 33
+  - missing book/bill: `CREDIT` 351, `BOX_TRUCK` 143, `OIL_TRUCK_SUPACHAI` 4
+- Invoice integrity:
+  - มี invoices 15 ใบ, พบ total mismatch 4 ใบ, payment total mismatch 0 ใบ, และ cross-owner invoices 2 ใบ
+  - `billing_collections` item/slip totals ตรงกับ paid/total ใน sample audit
+- `owners.currentCredit` ไม่ควรใช้เป็น source of truth ตอนนี้: audit พบ 168 owners ที่ `currentCredit` ต่างจากยอดค้างคำนวณจริง (un-invoiced credit-like transactions + unpaid invoice balance) มากกว่า 1 บาท; ตัวเลขหน้า outstanding/credit-limit จึงอาจไม่ตรงกับคิววางบิลจริงจนกว่าจะมี backfill/recompute
+
+### Credit Billing Hardening (Apr 25, 2026)
+- Patch ให้ invoice queue/create และ debt report ใช้ `CREDIT_PAYMENT_TYPES` กลาง (`CREDIT`, `BOX_TRUCK`, `OIL_TRUCK_SUPACHAI`) และกรอง `deletedAt=null`, `isVoided=false`
+- เพิ่ม session guard ให้ `/api/owners/search`, `/api/owners/check-duplicate`, `/api/trucks/search` เพราะ endpoint เหล่านี้เปิดเผยรายชื่อลูกค้า/ทะเบียนรถ
+- Patch `BillEntryForm` และ station transaction APIs ให้ credit-like payment ต้องมี owner/truck/book/bill ครบ และตรวจว่า truck อยู่กับ owner ที่เลือกก่อนบันทึก
+- Patch `/api/invoices/[id]/payments` ให้ validate amount > 0, ห้ามจ่ายเกินยอดคงค้าง, และ create payment + update invoice ใน transaction เดียว
+- Patch billing collection payment slip verify/delete ให้ recalc paid/status ใน transaction เดียว และเช็กว่า slipId อยู่ใต้ collectionId นั้นจริงก่อน delete
+
 ## Owner & Truck Management
 - **Owner groups**: SUGAR_FACTORY, GENERAL_CREDIT, BOX_TRUCK, OIL_TRUCK, OOY_TRUCK
 - **Credit system**: `creditLimit` + `currentCredit` ใน Owner model
 - **Truck**: ผูกกับ Owner ผ่าน `ownerId`
 
 ## Changelog
+- 2026-04-25: audit ระบบบิลเงินเชื่อและ connection จริง พบ invoice/pending/debt report ตก `OIL_TRUCK_SUPACHAI`, search APIs ไม่มี auth, credit-like entry ยังพึ่ง ownerName/ทะเบียนแบบไม่ enforce, `owners.currentCredit` drift จากยอดค้างจริง 168 owners, และ patch hardening หลักโดยไม่แก้ข้อมูลเก่า
 - 2026-04-21: บันทึกว่าใบวางบิล/ใบแจ้งหนี้ยึด `ownerId` เป็นหลัก, เพิ่มผล audit live DB เรื่อง missing `ownerId`, duplicate owner names, duplicate owner codes, `venderCode` ที่ยังว่าง, และย้ำว่าการเชื่อม external system ต้อง map ลูกค้าด้วย stable key ก่อน
 - 2026-02-24: สร้างไฟล์ brain topic นี้จากประวัติการทำงานจริง
 - 2026-02-23: แก้ sort order billing จาก string เป็น numeric (parseInt)

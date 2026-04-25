@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getStartOfDayBangkok, getEndOfDayBangkok, createTransactionDate } from '@/lib/date-utils';
 import { requireStationAccessApi } from '@/lib/api-auth';
 import { PaymentType } from '@prisma/client';
+import { CREDIT_PAYMENT_TYPES } from '@/constants/payment-types';
 
 interface TransactionLine {
     fuelType: string;
@@ -22,6 +23,8 @@ interface BulkTransactionRequest {
     transferProofUrl?: string;
     lines: TransactionLine[];
 }
+
+const creditPaymentTypeSet = new Set<string>(CREDIT_PAYMENT_TYPES);
 
 // POST - Save multiple transactions atomically
 export async function POST(
@@ -46,15 +49,23 @@ export async function POST(
             transferProofUrl,
             lines
         } = body;
+        const isCreditLikePayment = creditPaymentTypeSet.has(paymentType);
+        const normalizedLicensePlate = licensePlate?.trim().toUpperCase() || '';
 
         // Validate
         if (!lines || lines.length === 0) {
             return NextResponse.json({ error: 'ต้องมีอย่างน้อย 1 รายการ' }, { status: 400 });
         }
 
-        // CREDIT transactions require owner name
-        if (paymentType === 'CREDIT' && !ownerName && !ownerId) {
+        // Credit-like transactions require stable customer/bill identity.
+        if (isCreditLikePayment && !ownerName && !ownerId) {
             return NextResponse.json({ error: 'รายการเงินเชื่อต้องระบุชื่อเจ้าของ' }, { status: 400 });
+        }
+        if (isCreditLikePayment && (!billBookNo?.trim() || !billNo?.trim())) {
+            return NextResponse.json({ error: 'รายการเงินเชื่อต้องระบุเล่มที่และเลขที่บิล' }, { status: 400 });
+        }
+        if (isCreditLikePayment && !licensePlate?.trim()) {
+            return NextResponse.json({ error: 'รายการเงินเชื่อต้องระบุทะเบียนรถ' }, { status: 400 });
         }
 
         const userId = auth.user.id;
@@ -100,7 +111,7 @@ export async function POST(
 
         // Find owner if provided
         let resolvedOwnerId: string | null = ownerId || null;
-        if (!resolvedOwnerId && ['CREDIT', 'BOX_TRUCK'].includes(paymentType) && ownerName) {
+        if (!resolvedOwnerId && isCreditLikePayment && ownerName) {
             const owner = await prisma.owner.findFirst({
                 where: { name: { contains: ownerName }, deletedAt: null }
             });
@@ -108,9 +119,9 @@ export async function POST(
         }
 
         // If still no owner but we have licensePlate, try to find owner from truck
-        if (!resolvedOwnerId && ['CREDIT', 'BOX_TRUCK'].includes(paymentType) && licensePlate) {
+        if (!resolvedOwnerId && isCreditLikePayment && normalizedLicensePlate) {
             const truck = await prisma.truck.findFirst({
-                where: { licensePlate: licensePlate.toUpperCase(), deletedAt: null },
+                where: { licensePlate: normalizedLicensePlate, deletedAt: null },
                 include: { owner: true }
             });
             if (truck?.owner && !truck.owner.deletedAt) {
@@ -121,25 +132,35 @@ export async function POST(
 
         // Auto-create truck if license plate + owner provided but truck doesn't exist
         let truckId: string | null = null;
-        if (licensePlate && resolvedOwnerId) {
+        if (normalizedLicensePlate && resolvedOwnerId) {
             // Check if truck exists
             const existingTruck = await prisma.truck.findFirst({
-                where: { licensePlate: licensePlate.toUpperCase() }
+                where: { licensePlate: normalizedLicensePlate, deletedAt: null },
+                include: { owner: { select: { id: true, name: true } } },
             });
 
             if (existingTruck) {
+                if (isCreditLikePayment && existingTruck.owner.id !== resolvedOwnerId) {
+                    return NextResponse.json({
+                        error: `ทะเบียน ${normalizedLicensePlate} อยู่กับลูกค้า ${existingTruck.owner.name} แล้ว กรุณาเลือกลูกค้า/ทะเบียนให้ตรงกัน`,
+                    }, { status: 400 });
+                }
                 truckId = existingTruck.id;
             } else {
                 // Create new truck automatically
                 const newTruck = await prisma.truck.create({
                     data: {
-                        licensePlate: licensePlate.toUpperCase(),
+                        licensePlate: normalizedLicensePlate,
                         ownerId: resolvedOwnerId,
                     }
                 });
                 truckId = newTruck.id;
                 // Auto-created truck for owner
             }
+        }
+
+        if (isCreditLikePayment && (!resolvedOwnerId || !truckId)) {
+            return NextResponse.json({ error: 'รายการเงินเชื่อต้องผูกลูกค้าและทะเบียนรถในระบบให้ครบ' }, { status: 400 });
         }
 
         // Check for duplicates - be more strict to avoid false positives
@@ -169,14 +190,14 @@ export async function POST(
         // This catches true duplicates like double-clicking submit
         // Only check if licensePlate is a valid non-empty string (not "0", not empty)
         // Must also have same bill to be considered duplicate (for red plate vehicles)
-        const hasValidPlate = licensePlate && licensePlate.trim() !== '' && licensePlate !== '0';
+        const hasValidPlate = normalizedLicensePlate && normalizedLicensePlate !== '0';
 
         if (hasValidPlate) {
             // Build duplicate check criteria
             const duplicateWhere: Record<string, unknown> = {
                 stationId,
                 date: { gte: startOfDay, lte: endOfDay },
-                licensePlate: licensePlate,
+                licensePlate: normalizedLicensePlate,
                 amount: totalAmount,
                 paymentType: paymentType as PaymentType,
                 deletedAt: null,
@@ -211,7 +232,7 @@ export async function POST(
                         stationId,
                         dailyRecordId,
                         date: createTransactionDate(dateStr),
-                        licensePlate: licensePlate || null,
+                        licensePlate: normalizedLicensePlate || null,
                         ownerName: ownerName || null,
                         ownerId: resolvedOwnerId,
                         truckId: truckId,

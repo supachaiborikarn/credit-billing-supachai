@@ -8,8 +8,10 @@ import {
     getOperationalSalesDataset,
     summarizeOperationalRows,
 } from '@/lib/operational-sales';
+import { CREDIT_PAYMENT_TYPES } from '@/constants/payment-types';
 
 const stationNameById: Map<string, string> = new Map(STATIONS.map((station) => [station.id, station.name]));
+const creditPaymentTypes = [...CREDIT_PAYMENT_TYPES];
 
 function parseDateOnlyUtc(dateKey: string): Date {
     const [year, month, day] = dateKey.split('-').map(Number);
@@ -196,9 +198,10 @@ export async function GET(request: Request) {
             // Debt/Credit report
             const pendingTransactions = await prisma.transaction.findMany({
                 where: {
-                    paymentType: 'CREDIT',
+                    paymentType: { in: creditPaymentTypes },
                     invoiceId: null,
                     deletedAt: null,
+                    isVoided: false,
                 },
                 select: {
                     id: true,

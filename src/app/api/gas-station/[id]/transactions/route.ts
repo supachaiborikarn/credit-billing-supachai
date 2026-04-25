@@ -95,9 +95,11 @@ export async function POST(
             });
         }
 
-        if (shiftId) {
+        let effectiveShiftId = shiftId || null;
+
+        if (effectiveShiftId) {
             const shift = await prisma.shift.findUnique({
-                where: { id: shiftId },
+                where: { id: effectiveShiftId },
                 include: { dailyRecord: { select: { stationId: true } } }
             });
 
@@ -112,6 +114,20 @@ export async function POST(
             if (shift.status !== 'OPEN') {
                 return HttpErrors.badRequest('ไม่สามารถเพิ่มรายการในกะที่ปิดแล้ว');
             }
+        } else if (paymentType !== 'EXPENSE') {
+            const openShift = await prisma.shift.findFirst({
+                where: {
+                    dailyRecordId: dailyRecord.id,
+                    status: 'OPEN',
+                },
+                orderBy: { createdAt: 'desc' },
+            });
+
+            if (!openShift) {
+                return HttpErrors.badRequest('กรุณาเปิดกะก่อนบันทึกขาย เพื่อให้รายการผูกกับกะและขึ้นรายงานผู้จัดการ');
+            }
+
+            effectiveShiftId = openShift.id;
         }
 
         // Find truck if license plate provided
@@ -187,7 +203,7 @@ export async function POST(
                 productType: productType || (paymentType === 'EXPENSE' ? 'EXPENSE' : 'LPG'),
                 recordedById: auth.user.id,
                 notes: notes || null,
-                shiftId: shiftId || null,  // NEW: link to shift
+                shiftId: effectiveShiftId,  // NEW: link to shift
             }
         });
 

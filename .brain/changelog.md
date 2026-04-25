@@ -167,3 +167,13 @@
   - patch `POST /api/v2/gas/[stationId]/shift/open` ให้เช็ก existing open shift เฉพาะ station/day ตาม `dateKey`
   - เพิ่ม route-level test กัน regression และรัน `npm run test` ผ่าน 54 tests
   - smoke ผ่านทั้งหน้า manager/staff และ API หลัก รวมถึง manager reconciliation edit จริงพร้อม cleanup/restore ข้อมูลกลับ
+- 🔎 Audit และ harden ระบบบิลเงินเชื่อ
+  - live DB audit พบ invoice/pending/debt report ตก `OIL_TRUCK_SUPACHAI` จากคิววางบิล, search APIs สำหรับ owner/truck ไม่มี auth, และ `owners.currentCredit` drift จากยอดค้างจริง 168 owners
+  - patch invoice queue/create + debt report ให้ใช้ `CREDIT_PAYMENT_TYPES` กลางและกรอง void/deleted
+  - patch credit-like entry ให้ต้องผูก owner/truck/book/bill และตรวจ truck-owner ก่อนบันทึก
+  - patch invoice payment และ billing collection slip verification ให้ validate/atomic มากขึ้น
+- 🔎 ตรวจเหตุ GAS daily report แสดงกะแต่ยอดขายเป็นศูนย์
+  - DB จริงวันที่ 2026-04-25 มี transaction ของ `station-5` 5 รายการ ยอด `฿21,540.78` / `1,306.29 L` แต่ `shiftId=null` และยังไม่มี `Shift` ของวันนั้น
+  - patch `src/lib/gas/admin-analytics.ts` ให้ transaction ที่ match กะไม่ได้แสดงเป็น bucket `UNASSIGNED`/“ไม่ผูกกะ” แทนการถูกซ่อนจาก daily/executive reports
+  - patch legacy `/api/gas-station/[id]/transactions` และ `/gas-station/[id]/new/sell` ให้ auto-link กะเปิดหรือ block การบันทึกขายถ้าไม่มีกะเปิด
+  - เพิ่ม test กัน regression ใน `tests/gas-admin-analytics.test.ts`

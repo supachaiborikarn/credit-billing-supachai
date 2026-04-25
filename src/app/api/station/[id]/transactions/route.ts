@@ -5,6 +5,7 @@ import { buildTruckCodeMap, findCodeByPlate } from '@/lib/truck-utils';
 import { HttpErrors, getErrorMessage } from '@/lib/api-error';
 import { requireStationAccessApi } from '@/lib/api-auth';
 import { PaymentType } from '@prisma/client';
+import { CREDIT_PAYMENT_TYPES } from '@/constants/payment-types';
 
 interface TransactionInput {
     date: string;
@@ -23,6 +24,8 @@ interface TransactionInput {
     transferProofUrl?: string;
     products?: Array<{ productId: string; qty: number }>;
 }
+
+const creditPaymentTypeSet = new Set<string>(CREDIT_PAYMENT_TYPES);
 
 // GET transactions for a station by date
 export async function GET(
@@ -140,13 +143,20 @@ export async function POST(
             fuelType,
             transferProofUrl,
         } = body;
+        const isCreditLikePayment = creditPaymentTypeSet.has(paymentType);
 
         // Use fuelType if provided, fallback to productType
         const actualProductType = fuelType || productType;
 
-        // CREDIT transactions require owner name
-        if (paymentType === 'CREDIT' && !ownerName) {
+        // Credit-like transactions require stable customer/bill identity.
+        if (isCreditLikePayment && !ownerName && !body.ownerId) {
             return HttpErrors.badRequest('รายการเงินเชื่อต้องระบุชื่อเจ้าของ');
+        }
+        if (isCreditLikePayment && (!billBookNo?.trim() || !billNo?.trim())) {
+            return HttpErrors.badRequest('รายการเงินเชื่อต้องระบุเล่มที่และเลขที่บิล');
+        }
+        if (isCreditLikePayment && !licensePlate?.trim()) {
+            return HttpErrors.badRequest('รายการเงินเชื่อต้องระบุทะเบียนรถ');
         }
 
         const userId = auth.user.id;
@@ -189,9 +199,9 @@ export async function POST(
 
         // Find owner - prioritize ownerId from frontend, fallback to name search
         let ownerId: string | null = body.ownerId || null;
-        if (!ownerId && paymentType === 'CREDIT' && ownerName) {
+        if (!ownerId && isCreditLikePayment && ownerName) {
             const owner = await prisma.owner.findFirst({
-                where: { name: { contains: ownerName } }
+                where: { name: { contains: ownerName }, deletedAt: null }
             });
             if (owner) ownerId = owner.id;
         }
@@ -253,11 +263,27 @@ export async function POST(
         const hasValidPlateForTruck = licensePlate && licensePlate.trim() !== '' && licensePlate !== '0';
 
         if (hasValidPlateForTruck && ownerId) {
+            const normalizedLicensePlate = licensePlate.trim().toUpperCase();
+            const existingPlate = await prisma.truck.findFirst({
+                where: {
+                    licensePlate: normalizedLicensePlate,
+                    deletedAt: null,
+                },
+                include: { owner: { select: { id: true, name: true } } },
+            });
+
+            if (existingPlate && existingPlate.owner.id !== ownerId) {
+                return HttpErrors.badRequest(
+                    `ทะเบียน ${licensePlate.trim()} อยู่กับลูกค้า ${existingPlate.owner.name} แล้ว กรุณาเลือกลูกค้า/ทะเบียนให้ตรงกัน`
+                );
+            }
+
             // Check if this plate already exists for this owner
             const existingTruck = await prisma.truck.findFirst({
                 where: {
                     ownerId,
-                    licensePlate: licensePlate.trim(),
+                    licensePlate: normalizedLicensePlate,
+                    deletedAt: null,
                 }
             });
 
@@ -267,7 +293,7 @@ export async function POST(
                 // Auto-create new truck for this owner
                 const newTruck = await prisma.truck.create({
                     data: {
-                        licensePlate: licensePlate.trim(),
+                        licensePlate: normalizedLicensePlate,
                         ownerId,
                     }
                 });
@@ -276,13 +302,17 @@ export async function POST(
             }
         }
 
+        if (isCreditLikePayment && (!ownerId || !truckId)) {
+            return HttpErrors.badRequest('รายการเงินเชื่อต้องผูกลูกค้าและทะเบียนรถในระบบให้ครบ');
+        }
+
         // Create transaction
         const transaction = await prisma.transaction.create({
             data: {
                 stationId,
                 dailyRecordId,
                 date: createTransactionDate(dateStr),
-                licensePlate,
+                licensePlate: hasValidPlateForTruck ? licensePlate.trim().toUpperCase() : licensePlate,
                 ownerName,
                 ownerId,
                 truckId,

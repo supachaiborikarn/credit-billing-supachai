@@ -5,6 +5,7 @@ import {
 } from '@/lib/gas/payment-utils';
 import {
     getEndOfDayBangkokUTC,
+    getStartOfDayBangkokUTC,
     toBangkokDateKey,
 } from '@/lib/gas/date-utils';
 
@@ -78,6 +79,7 @@ export interface GasShiftAnalytics {
     openedAt: string;
     closedAt: string | null;
     status: string;
+    isSyntheticOrphan?: boolean;
     gasPrice: number;
     transactionCount: number;
     meters: {
@@ -454,6 +456,7 @@ export function buildGasShiftAnalytics(
     }
 
     const transactionsByShiftId = new Map<string, AnalyticsTransactionRecord[]>();
+    const orphanTransactionsByStationDay = new Map<string, AnalyticsTransactionRecord[]>();
 
     for (const transaction of transactions) {
         let matchedShiftId = (
@@ -477,6 +480,11 @@ export function buildGasShiftAnalytics(
         }
 
         if (!matchedShiftId) {
+            const stationMeta = getGasStationMeta(transaction.stationId);
+            const stationDayKey = `${stationMeta.canonicalId}:${toBangkokDateKey(transaction.date)}`;
+            const existing = orphanTransactionsByStationDay.get(stationDayKey) ?? [];
+            existing.push(transaction);
+            orphanTransactionsByStationDay.set(stationDayKey, existing);
             continue;
         }
 
@@ -485,7 +493,7 @@ export function buildGasShiftAnalytics(
         transactionsByShiftId.set(matchedShiftId, existing);
     }
 
-    return shifts.map((shift) => {
+    const analytics = shifts.map((shift) => {
         const stationMeta = getGasStationMeta(shift.dailyRecord.stationId);
         const assignedTransactions = (transactionsByShiftId.get(shift.id) ?? [])
             .slice()
@@ -633,6 +641,89 @@ export function buildGasShiftAnalytics(
             },
         };
     });
+
+    for (const [stationDayKey, orphanTransactions] of orphanTransactionsByStationDay.entries()) {
+        const [stationId, dateKey] = stationDayKey.split(':');
+        const stationMeta = getGasStationMeta(stationId);
+        const sortedTransactions = orphanTransactions
+            .slice()
+            .sort((left, right) => left.date.getTime() - right.date.getTime());
+        const firstTransaction = sortedTransactions[0];
+        const expectedPayments = createPaymentBreakdown();
+        const transactionAmount = roundGasCurrency(sortedTransactions.reduce((sum, transaction) => {
+            const amount = toNumber(transaction.amount);
+            addToGasPaymentSummary(expectedPayments, transaction.paymentType, amount);
+            return sum + amount;
+        }, 0));
+        const transactionLiters = roundGasCurrency(sortedTransactions.reduce((sum, transaction) => (
+            sum + toNumber(transaction.liters)
+        ), 0));
+        const averageTicket = sortedTransactions.length > 0
+            ? roundGasCurrency(transactionAmount / sortedTransactions.length)
+            : 0;
+        const gasPrice = transactionLiters > 0
+            ? roundGasCurrency(transactionAmount / transactionLiters)
+            : DEFAULT_GAS_PRICE;
+        const dayDate = getStartOfDayBangkokUTC(dateKey);
+
+        analytics.push({
+            id: `orphan:${stationId}:${dateKey}`,
+            stationId,
+            stationName: stationMeta.name || stationId,
+            rawStationId: firstTransaction?.stationId || stationId,
+            dateKey,
+            displayDate: getDisplayDate(dayDate),
+            shiftNumber: 0,
+            staffName: null,
+            openedAt: firstTransaction?.date.toISOString() || dayDate.toISOString(),
+            closedAt: null,
+            status: 'UNASSIGNED',
+            isSyntheticOrphan: true,
+            gasPrice,
+            transactionCount: sortedTransactions.length,
+            meters: {
+                total: 0,
+                transactionLiters,
+                litersVariance: transactionLiters,
+                nozzles: [],
+            },
+            sales: {
+                total: transactionAmount,
+                liters: transactionLiters,
+                transactions: sortedTransactions.length,
+                cash: roundGasCurrency(expectedPayments.cash),
+                credit: roundGasCurrency(expectedPayments.credit),
+                card: roundGasCurrency(expectedPayments.card),
+                transfer: roundGasCurrency(expectedPayments.transfer),
+                averageTicket,
+                expectedPayments: clonePaymentBreakdown(expectedPayments),
+            },
+            reconciliation: {
+                hasRecord: false,
+                expected: transactionAmount,
+                received: transactionAmount,
+                variance: 0,
+                varianceStatus: 'BALANCED',
+                varianceSeverity: 'GREEN',
+                cashExpected: roundGasCurrency(expectedPayments.cash),
+                cashReceived: roundGasCurrency(expectedPayments.cash),
+                creditExpected: roundGasCurrency(expectedPayments.credit),
+                creditReceived: roundGasCurrency(expectedPayments.credit),
+                cardExpected: roundGasCurrency(expectedPayments.card),
+                cardReceived: roundGasCurrency(expectedPayments.card),
+                transferExpected: roundGasCurrency(expectedPayments.transfer),
+                transferReceived: roundGasCurrency(expectedPayments.transfer),
+                varianceNote: 'รายการขายที่ยังไม่ผูกกะ',
+            },
+        });
+    }
+
+    return analytics.sort((left, right) => (
+        right.dateKey.localeCompare(left.dateKey)
+        || left.stationId.localeCompare(right.stationId)
+        || left.shiftNumber - right.shiftNumber
+        || left.openedAt.localeCompare(right.openedAt)
+    ));
 }
 
 export function buildGasDailyAnalytics(
@@ -669,7 +760,7 @@ export function buildGasDailyAnalytics(
         existingDay.transactionLiters += shift.meters.transactionLiters;
         existingDay.litersVariance += shift.meters.litersVariance;
         existingDay.transactionCount += shift.sales.transactions;
-        existingDay.shiftCount += 1;
+        existingDay.shiftCount += shift.isSyntheticOrphan ? 0 : 1;
         existingDay.cashAmount += shift.sales.cash;
         existingDay.creditAmount += shift.sales.credit;
         existingDay.cardAmount += shift.sales.card;
@@ -705,7 +796,7 @@ export function buildGasDailyAnalytics(
         existingStationDay.transactionLiters += shift.meters.transactionLiters;
         existingStationDay.litersVariance += shift.meters.litersVariance;
         existingStationDay.transactionCount += shift.sales.transactions;
-        existingStationDay.shiftCount += 1;
+        existingStationDay.shiftCount += shift.isSyntheticOrphan ? 0 : 1;
         existingStationDay.cashAmount += shift.sales.cash;
         existingStationDay.creditAmount += shift.sales.credit;
         existingStationDay.cardAmount += shift.sales.card;

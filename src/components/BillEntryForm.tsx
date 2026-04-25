@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { Save, X, Plus, Trash2, User, Phone, FileText, Camera, Image } from 'lucide-react';
 import { FUEL_TYPES, PAYMENT_TYPES } from '@/constants';
 
+const creditPaymentTypeSet = new Set(['CREDIT', 'BOX_TRUCK', 'OIL_TRUCK_SUPACHAI']);
+
 interface TruckSearchResult {
     id: string;
     licensePlate: string;
@@ -176,8 +178,9 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
                     const res = await fetch(`/api/owners/search?q=${encodeURIComponent(customerName)}`);
                     if (res.ok) {
                         const data = await res.json();
-                        setOwnerSearchResults(data);
-                        setShowOwnerDropdown(data.length > 0);
+                        const owners = Array.isArray(data) ? data : data.owners || [];
+                        setOwnerSearchResults(owners);
+                        setShowOwnerDropdown(owners.length > 0);
                     }
                 } catch (error) {
                     console.error('Owner search error:', error);
@@ -330,6 +333,21 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
         if (validLines.length === 0) {
             alert('กรุณากรอกจำนวนลิตรอย่างน้อย 1 รายการ');
             return;
+        }
+
+        if (creditPaymentTypeSet.has(paymentType)) {
+            if (!bookNo.trim() || !billNo.trim()) {
+                alert('รายการเงินเชื่อต้องระบุเล่มที่และเลขที่บิล');
+                return;
+            }
+            if (!licensePlate.trim()) {
+                alert('รายการเงินเชื่อต้องระบุทะเบียนรถ');
+                return;
+            }
+            if (!ownerId) {
+                alert('รายการเงินเชื่อต้องเลือกลูกค้าจากระบบก่อนบันทึก');
+                return;
+            }
         }
 
         setSaving(true);
@@ -570,7 +588,7 @@ export default function BillEntryForm({ stationId, selectedDate, onSave, onCance
                                     ))
                                 ) : !searchLoading && licensePlate.length >= 2 ? (
                                     <div className="p-3">
-                                        <p className="text-yellow-400 text-sm mb-2">⚠️ ไม่พบทะเบียน "{licensePlate}"</p>
+                                        <p className="text-yellow-400 text-sm mb-2">⚠️ ไม่พบทะเบียน &quot;{licensePlate}&quot;</p>
                                         <button
                                             type="button"
                                             onClick={openAddTruckModal}

@@ -261,7 +261,17 @@ export default function DailyReportPage() {
                                         <td className="px-4 py-3 text-right font-mono text-cyan-400">
                                             {formatCurrency(r.transferAmount)}
                                         </td>
-                                        <td className="px-4 py-3 text-center">{r.shiftCount}</td>
+                                        <td className="px-4 py-3 text-center">
+                                            {r.shiftCount > 0 ? (
+                                                r.shiftCount
+                                            ) : r.transactionCount > 0 ? (
+                                                <span className="rounded-full border border-amber-400/40 bg-amber-500/10 px-2 py-1 text-xs font-semibold text-amber-300">
+                                                    ไม่ผูกกะ
+                                                </span>
+                                            ) : (
+                                                0
+                                            )}
+                                        </td>
                                         <td className="px-4 py-3 text-center">
                                             <button
                                                 onClick={() => setSelectedDate(r.dateKey)}
@@ -342,7 +352,9 @@ export default function DailyReportPage() {
                             <div className="text-sm text-gray-400">ค่าเฉลี่ยต่อบิล</div>
                             <div className="text-2xl font-bold text-purple-400">฿{formatCurrency(selectedDayReport.averageTicket)}</div>
                             <div className="text-xs text-gray-500 mt-1">
-                                {selectedDayReport.transactionCount} รายการ / {selectedDayReport.shiftCount} กะ
+                                {selectedDayReport.shiftCount > 0
+                                    ? `${selectedDayReport.transactionCount} รายการ / ${selectedDayReport.shiftCount} กะ`
+                                    : `${selectedDayReport.transactionCount} รายการ / ไม่ผูกกะ`}
                             </div>
                         </div>
                         <div className="rounded-xl bg-gray-800/70 p-4 border border-white/10">
@@ -372,7 +384,14 @@ export default function DailyReportPage() {
                             <tbody>
                                 {selectedDayReport.stationBreakdown.map((station) => (
                                     <tr key={station.stationId} className="border-b border-white/5 last:border-b-0">
-                                        <td className="py-3 pr-4 font-medium">{station.stationName}</td>
+                                        <td className="py-3 pr-4 font-medium">
+                                            <div>{station.stationName}</div>
+                                            {station.shiftCount === 0 && station.transactionCount > 0 && (
+                                                <div className="mt-1 text-xs font-semibold text-amber-300">
+                                                    รายการขายยังไม่ผูกกะ
+                                                </div>
+                                            )}
+                                        </td>
                                         <td className="py-3 pr-4 text-right font-mono text-green-400">
                                             ฿{formatCurrency(station.totalSales)}
                                         </td>

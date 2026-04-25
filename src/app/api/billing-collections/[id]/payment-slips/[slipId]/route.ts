@@ -31,54 +31,53 @@ export async function PATCH(
             return NextResponse.json({ error: 'ไม่พบสลิป' }, { status: 404 });
         }
 
-        // Update slip status
-        const updatedSlip = await prisma.paymentSlip.update({
-            where: { id: slipId },
-            data: {
-                status,
-                verifiedAt: new Date(),
-                notes: notes !== undefined ? notes : slip.notes,
-            },
-        });
+        const { updatedSlip, totalPaid, newStatus } = await prisma.$transaction(async (tx) => {
+            const updatedSlip = await tx.paymentSlip.update({
+                where: { id: slipId },
+                data: {
+                    status,
+                    verifiedAt: new Date(),
+                    notes: notes !== undefined ? notes : slip.notes,
+                },
+            });
 
-        // Recalculate paidAmount from all VERIFIED slips
-        const verifiedSlips = await prisma.paymentSlip.findMany({
-            where: {
-                billingCollectionId: id,
-                status: 'VERIFIED',
-            },
-        });
+            const verifiedSlips = await tx.paymentSlip.findMany({
+                where: {
+                    billingCollectionId: id,
+                    status: 'VERIFIED',
+                },
+            });
 
-        const totalPaid = verifiedSlips.reduce(
-            (sum, s) => sum + Number(s.amount),
-            0
-        );
+            const totalPaid = verifiedSlips.reduce(
+                (sum, s) => sum + Number(s.amount),
+                0
+            );
 
-        // Get the billing collection to check totalAmount
-        const collection = await prisma.billingCollection.findUnique({
-            where: { id },
-        });
+            const collection = await tx.billingCollection.findUnique({
+                where: { id },
+            });
 
-        if (!collection) {
-            return NextResponse.json({ error: 'ไม่พบใบวางบิลรวม' }, { status: 404 });
-        }
+            if (!collection) {
+                throw new Error('BILLING_COLLECTION_NOT_FOUND');
+            }
 
-        // Determine new status
-        let newStatus: 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE' = 'PENDING';
-        const totalAmount = Number(collection.totalAmount);
-        if (totalPaid >= totalAmount) {
-            newStatus = 'PAID';
-        } else if (totalPaid > 0) {
-            newStatus = 'PARTIAL';
-        }
+            let newStatus: 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE' = 'PENDING';
+            const totalAmount = Number(collection.totalAmount);
+            if (totalPaid >= totalAmount) {
+                newStatus = 'PAID';
+            } else if (totalPaid > 0) {
+                newStatus = 'PARTIAL';
+            }
 
-        // Update billing collection
-        await prisma.billingCollection.update({
-            where: { id },
-            data: {
-                paidAmount: totalPaid,
-                status: newStatus,
-            },
+            await tx.billingCollection.update({
+                where: { id },
+                data: {
+                    paidAmount: totalPaid,
+                    status: newStatus,
+                },
+            });
+
+            return { updatedSlip, totalPaid, newStatus };
         });
 
         return NextResponse.json({
@@ -103,31 +102,42 @@ export async function DELETE(
 
         const { id, slipId } = await params;
 
-        // Delete the slip
-        await prisma.paymentSlip.delete({ where: { id: slipId } });
-
-        // Recalculate paidAmount
-        const verifiedSlips = await prisma.paymentSlip.findMany({
-            where: { billingCollectionId: id, status: 'VERIFIED' },
+        const slip = await prisma.paymentSlip.findFirst({
+            where: { id: slipId, billingCollectionId: id },
+            select: { id: true },
         });
 
-        const totalPaid = verifiedSlips.reduce(
-            (sum, s) => sum + Number(s.amount),
-            0
-        );
+        if (!slip) {
+            return NextResponse.json({ error: 'ไม่พบสลิป' }, { status: 404 });
+        }
 
-        const collection = await prisma.billingCollection.findUnique({ where: { id } });
-        if (collection) {
+        await prisma.$transaction(async (tx) => {
+            await tx.paymentSlip.delete({ where: { id: slipId } });
+
+            const verifiedSlips = await tx.paymentSlip.findMany({
+                where: { billingCollectionId: id, status: 'VERIFIED' },
+            });
+
+            const totalPaid = verifiedSlips.reduce(
+                (sum, s) => sum + Number(s.amount),
+                0
+            );
+
+            const collection = await tx.billingCollection.findUnique({ where: { id } });
+            if (!collection) {
+                throw new Error('BILLING_COLLECTION_NOT_FOUND');
+            }
+
             const totalAmount = Number(collection.totalAmount);
             let newStatus: 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE' = 'PENDING';
             if (totalPaid >= totalAmount) newStatus = 'PAID';
             else if (totalPaid > 0) newStatus = 'PARTIAL';
 
-            await prisma.billingCollection.update({
+            await tx.billingCollection.update({
                 where: { id },
                 data: { paidAmount: totalPaid, status: newStatus },
             });
-        }
+        });
 
         return NextResponse.json({ message: 'ลบสลิปเรียบร้อย' });
     } catch (error) {

@@ -139,4 +139,57 @@ describe('gas admin analytics helpers', () => {
             totalLiters: 50,
         });
     });
+
+    it('keeps unassigned gas transactions visible in manager daily analytics', () => {
+        const shifts = buildGasShiftAnalytics([], [
+            {
+                id: 'tx-orphan-1',
+                stationId: 'station-5',
+                dailyRecordId: 'daily-orphan',
+                shiftId: null,
+                date: new Date('2026-04-25T06:21:49.168Z'),
+                paymentType: 'CASH',
+                liters: 60.64,
+                amount: 999.95,
+            },
+            {
+                id: 'tx-orphan-2',
+                stationId: 'station-5',
+                dailyRecordId: 'daily-orphan',
+                shiftId: null,
+                date: new Date('2026-04-25T06:22:47.240Z'),
+                paymentType: 'CREDIT_CARD',
+                liters: 491.81,
+                amount: 8110,
+            },
+        ]);
+
+        expect(shifts).toHaveLength(1);
+        expect(shifts[0]).toMatchObject({
+            id: 'orphan:station-5:2026-04-25',
+            stationId: 'station-5',
+            dateKey: '2026-04-25',
+            shiftNumber: 0,
+            status: 'UNASSIGNED',
+            isSyntheticOrphan: true,
+            transactionCount: 2,
+            sales: expect.objectContaining({
+                total: 9109.95,
+                cash: 999.95,
+                card: 8110,
+                transactions: 2,
+            }),
+        });
+
+        const daily = buildGasDailyAnalytics(shifts);
+        expect(daily).toHaveLength(1);
+        expect(daily[0]).toMatchObject({
+            dateKey: '2026-04-25',
+            totalSales: 9109.95,
+            transactionCount: 2,
+            shiftCount: 0,
+            cashAmount: 999.95,
+            cardAmount: 8110,
+        });
+    });
 });

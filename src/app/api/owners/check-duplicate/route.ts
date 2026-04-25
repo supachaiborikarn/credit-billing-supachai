@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireApiSession } from '@/lib/api-auth';
 
 // Check for potential duplicate owners by name or phone
 export async function GET(request: NextRequest) {
     try {
+        const auth = await requireApiSession();
+        if (auth.response) return auth.response;
+
         const searchParams = request.nextUrl.searchParams;
         const name = searchParams.get('name') || '';
         const phone = searchParams.get('phone') || '';

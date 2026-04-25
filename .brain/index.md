@@ -8,11 +8,11 @@
 
 | Topic | สรุป | ไฟล์ |
 |-------|------|------|
-| **Billing System** | ระบบออกบิลน้ำมัน/แก๊ส, book/number sorting แบบ numeric, 7 ประเภทการชำระ, และการรวมบิลยึด `ownerId` เป็นหลัก | [→ billing-system.md](topics/billing-system.md) |
+| **Billing System** | ระบบออกบิลน้ำมัน/แก๊ส, book/number sorting แบบ numeric, 7 ประเภทการชำระ, การรวมบิลยึด `ownerId` เป็นหลัก, และ hardening เงินเชื่อ 2026-04-25 ให้ invoice/pending รวม `OIL_TRUCK_SUPACHAI` + บังคับ owner/truck/book/bill | [→ billing-system.md](topics/billing-system.md) |
 | **Database** | Prisma + PostgreSQL (Neon), 30+ models, migration, backup | [→ database.md](topics/database.md) |
 | **Deployment** | Vercel auto-deploy จาก main, Cloudinary สำหรับรูป | [→ deployment.md](topics/deployment.md) |
 | **Station Types** | 6 สถานี: 1 FULL, 3 SIMPLE, 2 GAS แต่ละแบบมี route ต่างกัน | [→ station-types.md](topics/station-types.md) |
-| **Bugs & Fixes** | bugs/gotchas สำคัญ รวมถึง API auth gap, audit atomicity, variance sign convention, fix แท๊งลอยให้ใช้ shift scope ถูกต้อง, sync หน้าใหม่ของแท๊งลอย, GAS hardening/analytics 2026-04-23, fix live incident 2026-04-24, staff daily GAS price edit 2026-04-25, GAS credit bill/reconciliation validation 2026-04-25, และ GAS stale open shift date guard/smoke verification 2026-04-25 | [→ bugs-and-fixes.md](topics/bugs-and-fixes.md) |
+| **Bugs & Fixes** | bugs/gotchas สำคัญ รวมถึง API auth gap, audit atomicity, variance sign convention, fix แท๊งลอยให้ใช้ shift scope ถูกต้อง, sync หน้าใหม่ของแท๊งลอย, GAS hardening/analytics 2026-04-23, fix live incident 2026-04-24, staff daily GAS price edit 2026-04-25, GAS credit bill/reconciliation validation 2026-04-25, GAS stale open shift guard, และ GAS orphan transaction report guard 2026-04-25 | [→ bugs-and-fixes.md](topics/bugs-and-fixes.md) |
 | **Attendance** | ระบบลงเวลา, ลาหยุด, shift swap, overlap detection | [→ attendance.md](topics/attendance.md) |
 | **Watchara Shared Dispenser** | external diesel source ของ Watchara ต้องเก็บ raw แยก, map เข้า `station-2`, และ patch หลายจุดที่ query `transactions` ตรง | [→ watchara-shared-dispenser.md](topics/watchara-shared-dispenser.md) |
 
