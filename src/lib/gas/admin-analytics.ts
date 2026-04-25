@@ -493,7 +493,7 @@ export function buildGasShiftAnalytics(
         transactionsByShiftId.set(matchedShiftId, existing);
     }
 
-    const analytics = shifts.map((shift) => {
+    const analytics: GasShiftAnalytics[] = shifts.map((shift) => {
         const stationMeta = getGasStationMeta(shift.dailyRecord.stationId);
         const assignedTransactions = (transactionsByShiftId.get(shift.id) ?? [])
             .slice()
