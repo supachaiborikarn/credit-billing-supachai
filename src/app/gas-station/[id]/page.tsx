@@ -252,7 +252,7 @@ export default function GasStationPage({ params }: { params: Promise<{ id: strin
                 const prevShift = data.shifts?.find((s: Shift) => s.shiftNumber === targetShift);
                 if (prevShift?.meters) {
                     const meters: Record<number, number> = {};
-                    prevShift.meters.forEach((m) => {
+                    prevShift.meters.forEach((m: MeterReading) => {
                         // Use end reading if available, otherwise start reading
                         meters[m.nozzleNumber] = m.endReading ?? m.startReading ?? 0;
                     });
