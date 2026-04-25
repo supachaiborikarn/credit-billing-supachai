@@ -26,7 +26,7 @@ export default function TransactionList({
             <div className="flex items-center justify-between p-5 border-b border-black/5">
                 <h2 className="text-xl font-black tracking-tight">📋 รายการล่าสุด</h2>
                 <Link
-                    href={`/gas-station/${stationId}/new/summary`}
+                    href={`/gas/${stationId}/summary`}
                     className="inline-flex items-center gap-1 text-sm font-extrabold text-orange-500 hover:text-orange-600"
                 >
                     ดูทั้งหมด <ChevronRight size={16} />

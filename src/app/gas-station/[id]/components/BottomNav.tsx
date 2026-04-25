@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Fuel, Package, Gauge, BarChart3 } from 'lucide-react';
+import { Home, Fuel, Gauge, BarChart3 } from 'lucide-react';
 
 interface BottomNavProps {
     stationId: string;
@@ -10,25 +10,21 @@ interface BottomNavProps {
 }
 
 const navItems = [
-    { href: 'home', label: 'หน้าหลัก', icon: Home },
+    { href: '', label: 'หน้าหลัก', icon: Home },
     { href: 'sell', label: 'ขายแก๊ส', icon: Fuel },
-    { href: 'products', label: 'สินค้า', icon: Package },
     { href: 'meters', label: 'มิเตอร์', icon: Gauge },
     { href: 'summary', label: 'สรุป', icon: BarChart3 },
 ];
 
-export default function BottomNav({ stationId, hasProducts = false }: BottomNavProps) {
+export default function BottomNav({ stationId }: BottomNavProps) {
     const pathname = usePathname();
-    const basePath = `/gas-station/${stationId}/new`;
-    const visibleNavItems = hasProducts
-        ? navItems
-        : navItems.filter((item) => item.href !== 'products');
+    const basePath = `/gas/${stationId}`;
 
     return (
         <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
             <div className="flex justify-around items-center h-16 max-w-lg mx-auto">
-                {visibleNavItems.map((item) => {
-                    const href = `${basePath}/${item.href}`;
+                {navItems.map((item) => {
+                    const href = item.href ? `${basePath}/${item.href}` : basePath;
                     const isActive = pathname === href || pathname.startsWith(href + '/');
                     const Icon = item.icon;
 

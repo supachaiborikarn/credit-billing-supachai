@@ -712,7 +712,7 @@ export default function GasHistoryAdminPage() {
                                             {/* Actions */}
                                             <div className="flex justify-end gap-2">
                                                 <a
-                                                    href={`/gas-station/${selectedStation.split('-')[1]}?date=${record.date}`}
+                                                    href={`/gas/${selectedStation.split('-')[1]}/sell`}
                                                     className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg flex items-center gap-2"
                                                 >
                                                     <Plus size={16} />

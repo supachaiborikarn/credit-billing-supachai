@@ -93,7 +93,7 @@ export default function GasStationLayout({
                 <div className="flex items-center justify-between px-4 py-3">
                     <div className="flex items-center gap-3">
                         <button
-                            onClick={() => router.push(station?.index ? `/gas-station/${station.index}` : '/simple-station')}
+                            onClick={() => router.push(station?.index ? `/gas/${station.index}` : '/dashboard')}
                             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                         >
                             <ChevronLeft size={24} />

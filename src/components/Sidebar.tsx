@@ -146,7 +146,7 @@ export default function Sidebar({ children }: SidebarProps) {
     // Filter stations for staff - only show their assigned station
     const getStationPath = (station: typeof STATIONS[number], index: number) => {
         if (station.type === 'FULL') return `/station/${index + 1}/v2`; // Default to V2
-        if (station.type === 'GAS') return `/gas-station/${index + 1}/new/home`; // New UI with synced data
+        if (station.type === 'GAS') return `/gas/${index + 1}`;
         return `/simple-station/${index + 1}`;
     };
 
@@ -296,6 +296,7 @@ export default function Sidebar({ children }: SidebarProps) {
                                             const isStationActive = isActive(`/station/${index + 1}`) ||
                                                 isActive(`/simple-station/${index + 1}`) ||
                                                 isActive(`/gas-station/${index + 1}`) ||
+                                                isActive(`/gas/${index + 1}`) ||
                                                 isActive(`/gas/${station.id}`);
                                             const color = getStationColors(station.type);
 
@@ -502,7 +503,7 @@ export default function Sidebar({ children }: SidebarProps) {
             </main>
 
             {/* Mobile Bottom Tab Bar - Hide when on station pages (they have their own tab bar) */}
-            {!pathname.includes('/station/') && !pathname.includes('/simple-station/') && !pathname.includes('/gas-station/') && (
+            {!pathname.includes('/station/') && !pathname.includes('/simple-station/') && !pathname.includes('/gas-station/') && !pathname.includes('/gas/') && (
                 <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-white/10"
                     style={{ background: 'rgba(10, 10, 18, 0.98)', backdropFilter: 'blur(20px)' }}>
                     <div className="flex items-center justify-around py-2 px-2">
@@ -524,7 +525,7 @@ export default function Sidebar({ children }: SidebarProps) {
                         {visibleStations.length > 0 && (
                             <Link
                                 href={getStationPath(visibleStations[0], STATIONS.findIndex(s => s.id === visibleStations[0].id))}
-                                className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all min-w-[60px] ${pathname.includes('/station') || pathname.includes('/simple-station') || pathname.includes('/gas-station')
+                                className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all min-w-[60px] ${pathname.includes('/station') || pathname.includes('/simple-station') || pathname.includes('/gas-station') || pathname.includes('/gas/')
                                     ? 'text-orange-400'
                                     : 'text-gray-500 hover:text-white'
                                     }`}

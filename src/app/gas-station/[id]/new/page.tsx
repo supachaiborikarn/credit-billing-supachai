@@ -1,10 +1,10 @@
 import { redirect } from 'next/navigation';
 
-export default async function LegacyGasShiftSummaryPage({
+export default async function LegacyGasNewIndexPage({
     params,
 }: {
     params: Promise<{ id: string }>;
 }) {
     const { id } = await params;
-    redirect(`/gas/${id}/summary`);
+    redirect(`/gas/${id}`);
 }
