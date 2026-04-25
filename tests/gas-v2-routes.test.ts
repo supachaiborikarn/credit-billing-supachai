@@ -22,6 +22,9 @@ const txMock = {
     station: {
         findUnique: vi.fn(),
     },
+    auditLog: {
+        create: vi.fn(),
+    },
 };
 
 const prismaMock = {
@@ -77,9 +80,9 @@ vi.mock('@/lib/api-auth', () => ({
     requireStationAccessApi: requireStationAccessApiMock,
 }));
 
-function buildJsonRequest(body: unknown): Request {
+function buildJsonRequest(body: unknown, method = 'POST'): Request {
     return new Request('http://localhost/api/test', {
-        method: 'POST',
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
@@ -228,6 +231,56 @@ describe('gas v2 route guards', () => {
                 gasPrice: 18.75,
                 retailPrice: 18.75,
                 wholesalePrice: 18.75,
+            }),
+        }));
+    });
+
+    it('lets station staff update the daily gas price after opening a shift', async () => {
+        txMock.dailyRecord.findFirst.mockResolvedValue({
+            id: 'daily-1',
+            date: new Date('2026-04-22T17:00:00.000Z'),
+            gasPrice: 16.09,
+            retailPrice: 16.09,
+            wholesalePrice: 16.09,
+        });
+        txMock.dailyRecord.update.mockResolvedValue({
+            id: 'daily-1',
+            date: new Date('2026-04-22T17:00:00.000Z'),
+            gasPrice: 18.25,
+        });
+        txMock.auditLog.create.mockResolvedValue({});
+
+        const { PUT } = await import('../src/app/api/v2/gas/[stationId]/price/route');
+        const response = await PUT(buildJsonRequest({
+            gasPrice: 18.25,
+        }, 'PUT') as never, {
+            params: Promise.resolve({ stationId: 'station-5' }),
+        });
+
+        expect(response.status).toBe(200);
+        await expect(response.json()).resolves.toMatchObject({
+            success: true,
+            dailyRecordId: 'daily-1',
+            gasPrice: 18.25,
+        });
+        expect(txMock.dailyRecord.update).toHaveBeenCalledWith(expect.objectContaining({
+            where: { id: 'daily-1' },
+            data: {
+                gasPrice: 18.25,
+                retailPrice: 18.25,
+                wholesalePrice: 18.25,
+            },
+        }));
+        expect(txMock.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({
+                userId: 'user-1',
+                action: 'UPDATE',
+                model: 'DailyRecord',
+                recordId: 'daily-1',
+                newData: expect.objectContaining({
+                    gasPrice: 18.25,
+                    source: 'gas-staff-price-update',
+                }),
             }),
         }));
     });

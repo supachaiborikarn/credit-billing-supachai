@@ -151,3 +151,9 @@
   - patch หน้าเก่าให้ปุ่มเปิดกะพาไป v2 open flow, legacy shift route ปฏิเสธ open แบบไม่มี meter, legacy daily/meter/gauge ใช้ Bangkok date range, และ legacy meters save ผูก `shiftId`
   - เพิ่มช่อง “ราคาขายวันนี้” ใน `/gas/[stationId]/shift/open` และให้ v2 open route รับ `gasPrice` เพื่อ seed/update `dailyRecord.gasPrice`
   - ซ่อม DB จริง: ย้าย meter start 4 หัวของ `เล็ก` เข้า shift กะ 2 ที่เปิดอยู่, ตั้ง `gasPrice=16.09`, audit repair, และลบ duplicate daily record ที่ว่างหลังย้ายแล้ว
+
+## 2026-04-25
+- 🛠️ เพิ่มให้พนักงานแก้ราคาขายแก๊สประจำวันหลังเปิดกะได้
+  - เพิ่ม `PUT /api/v2/gas/[stationId]/price` สำหรับ staff station access โดย update/create `DailyRecord` ของวันนั้นพร้อม audit log
+  - เพิ่มการ์ด “ราคาขายแก๊สวันนี้” บน `/gas/[stationId]` และปุ่มแก้ราคาบน `/gas/[stationId]/sell`
+  - เพิ่ม route-level test ใน `tests/gas-v2-routes.test.ts` เพื่อกัน price update regression

@@ -21,6 +21,11 @@ interface Owner {
     trucks: { id: string; licensePlate: string }[];
 }
 
+type PriceNotice = {
+    type: 'success' | 'error';
+    text: string;
+};
+
 export default function SellPage() {
     const params = useParams();
     const router = useRouter();
@@ -28,6 +33,10 @@ export default function SellPage() {
 
     const [loading, setLoading] = useState(false);
     const [gasPrice, setGasPrice] = useState<number>(16.09);
+    const [priceInput, setPriceInput] = useState('16.09');
+    const [editingPrice, setEditingPrice] = useState(false);
+    const [savingPrice, setSavingPrice] = useState(false);
+    const [priceNotice, setPriceNotice] = useState<PriceNotice | null>(null);
     const [success, setSuccess] = useState(false);
     const [successAmount, setSuccessAmount] = useState<number>(0);
 
@@ -57,8 +66,12 @@ export default function SellPage() {
                 const res = await fetch(`/api/v2/gas/${stationId}/summary`);
                 if (res.ok) {
                     const data = await res.json();
-                    if (typeof data.gasPrice === 'number' && Number.isFinite(data.gasPrice)) {
-                        setGasPrice(data.gasPrice);
+                    const nextGasPrice = Number(data.gasPrice);
+                    if (Number.isFinite(nextGasPrice) && nextGasPrice > 0) {
+                        setGasPrice(nextGasPrice);
+                        if (!editingPrice) {
+                            setPriceInput(nextGasPrice.toFixed(2));
+                        }
                     }
                 }
             } catch (error) {
@@ -66,7 +79,7 @@ export default function SellPage() {
             }
         };
         fetchGasPrice();
-    }, [stationId]);
+    }, [editingPrice, stationId]);
 
     // Auto-calculate amount when liters change
     useEffect(() => {
@@ -123,6 +136,49 @@ export default function SellPage() {
         } else {
             setSelectedTruck(null);
         }
+    };
+
+    const handleSaveGasPrice = async () => {
+        const nextPrice = Number(priceInput);
+        if (!Number.isFinite(nextPrice) || nextPrice <= 0) {
+            setPriceNotice({ type: 'error', text: 'กรุณากรอกราคาขายมากกว่า 0' });
+            return;
+        }
+
+        setSavingPrice(true);
+        setPriceNotice(null);
+
+        try {
+            const res = await fetch(`/api/v2/gas/${stationId}/price`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ gasPrice: nextPrice }),
+            });
+            const data = await res.json().catch(() => ({}));
+
+            if (!res.ok) {
+                throw new Error(data.error || 'อัปเดตราคาไม่สำเร็จ');
+            }
+
+            const savedPrice = Number(data.gasPrice ?? nextPrice);
+            setGasPrice(savedPrice);
+            setPriceInput(savedPrice.toFixed(2));
+            setEditingPrice(false);
+            setPriceNotice({ type: 'success', text: 'อัปเดตราคาขายวันนี้แล้ว' });
+        } catch (error) {
+            setPriceNotice({
+                type: 'error',
+                text: error instanceof Error ? error.message : 'อัปเดตราคาไม่สำเร็จ',
+            });
+        } finally {
+            setSavingPrice(false);
+        }
+    };
+
+    const handleCancelPriceEdit = () => {
+        setEditingPrice(false);
+        setPriceInput(gasPrice.toFixed(2));
+        setPriceNotice(null);
     };
 
     const validateForm = (): boolean => {
@@ -224,9 +280,68 @@ export default function SellPage() {
                 </button>
                 <div>
                     <h1 className="text-2xl font-bold">บันทึกขาย</h1>
-                    <p className="text-gray-400 text-sm">ราคา ฿{gasPrice}/ลิตร</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <p className="text-gray-400 text-sm">
+                            ราคา ฿{formatCurrency(gasPrice)}/ลิตร
+                        </p>
+                        <button
+                            onClick={() => {
+                                setEditingPrice(true);
+                                setPriceNotice(null);
+                            }}
+                            className="rounded-full border border-amber-500/40 px-3 py-1 text-xs font-medium text-amber-200 hover:bg-amber-500/10"
+                        >
+                            แก้ราคา
+                        </button>
+                    </div>
                 </div>
             </div>
+
+            {/* Daily Gas Price Editor */}
+            {editingPrice && (
+                <div className="bg-[#1a1a24] rounded-xl p-4 mb-4 border border-amber-500/30">
+                    <label className="block text-sm text-amber-200 mb-2">ราคาขายแก๊สวันนี้</label>
+                    <div className="flex gap-2">
+                        <input
+                            type="number"
+                            inputMode="decimal"
+                            step="0.01"
+                            min="0"
+                            value={priceInput}
+                            onChange={(e) => setPriceInput(e.target.value)}
+                            placeholder="0.00"
+                            className="min-w-0 flex-1 bg-gray-800 border border-amber-500/50 rounded-lg px-4 py-3 text-right text-xl font-mono focus:border-amber-300 focus:outline-none"
+                        />
+                        <button
+                            onClick={handleSaveGasPrice}
+                            disabled={savingPrice}
+                            className="rounded-lg bg-amber-500 px-4 py-3 text-sm font-bold text-gray-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {savingPrice ? 'กำลังบันทึก' : 'บันทึก'}
+                        </button>
+                        <button
+                            onClick={handleCancelPriceEdit}
+                            disabled={savingPrice}
+                            className="rounded-lg border border-white/15 px-4 py-3 text-sm text-gray-300 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            ยกเลิก
+                        </button>
+                    </div>
+                    <p className="mt-2 text-xs text-amber-200/80">
+                        ราคานี้จะใช้กับรายการขายใหม่ รายการเดิมจะคงราคาเดิม
+                    </p>
+                </div>
+            )}
+
+            {priceNotice && (
+                <div className={`rounded-xl border p-4 mb-4 text-sm ${priceNotice.type === 'success'
+                    ? 'bg-green-900/30 border-green-500/30 text-green-300'
+                    : 'bg-red-900/30 border-red-500/30 text-red-300'
+                    }`}
+                >
+                    {priceNotice.text}
+                </div>
+            )}
 
             {/* Errors */}
             {errors.length > 0 && (

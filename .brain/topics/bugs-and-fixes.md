@@ -6,7 +6,8 @@
      audit ปั๊มแก๊ส 2026-04-23 พบ route/API ซ้อนกันและกะ GAS ค้างจำนวนมาก; hardening รอบเดียวกันเติม v2 gauge route,
      auth/ownership guard, shift-scoped v2 sell/summary, payment type `CREDIT_CARD`, product guard เฉพาะ station-5, admin stale-shift cleanup tool,
      follow-up analytics/reporting ให้ GAS admin ใช้ shared shift/day facts ชุดเดียวกันพร้อมเติม payment mix/reconciliation edit flow,
-     และ 2026-04-24 พบ live incident จาก `/gas-station/[id]/new/home` ที่เรียก legacy open shift โดยไม่ส่ง meter/gauge ทำให้เกิดกะว่าง -->
+     และ 2026-04-24 พบ live incident จาก `/gas-station/[id]/new/home` ที่เรียก legacy open shift โดยไม่ส่ง meter/gauge ทำให้เกิดกะว่าง;
+     2026-04-25 เพิ่ม staff daily GAS price edit ให้แก้ `dailyRecord.gasPrice` ผ่าน v2 route พร้อม audit -->
 
 # Bugs & Fixes
 
@@ -121,6 +122,11 @@
 - **ซ่อมข้อมูลจริง**: 2026-04-24 ย้าย meter start 4 หัวของ `station-5` จาก duplicate daily record เข้า shift `1e81a215-3a35-44d7-8d7c-370413f5bd6a` ของ `เล็ก`, ตั้ง `gasPrice=16.09`, สร้าง audit log `REPAIR_GAS_METER_LINK`, และลบ duplicate daily record ที่ว่างแล้ว
 - **สถานะ**: ✅ patch code + repair station-5 แล้ว; station-6 ยังมีกะว่างจาก incident เช้าและต้องตัดสินใจว่าจะปิด/ลบทิ้งหรือให้พนักงานกรอกใหม่
 
+### GAS Staff Daily Price Edit (Apr 25, 2026)
+- **ปัญหา**: หลังเปิดกะแล้ว พนักงานเห็นราคาขายจาก summary/sell ได้ แต่ยังไม่มีช่องให้แก้ราคาขายประจำวัน ทำให้ถ้าราคาหน้างานเปลี่ยนต้องพึ่ง admin/DB หรือเปิดกะใหม่
+- **แก้ไข**: เพิ่ม `PUT /api/v2/gas/[stationId]/price` แบบ staff station guard เพื่อ create/update `DailyRecord` ของวันนั้นโดยตั้ง `gasPrice`, `retailPrice`, `wholesalePrice` พร้อม audit log; เพิ่มการ์ดแก้ราคาบน `/gas/[stationId]` และปุ่มแก้ราคาบน `/gas/[stationId]/sell`; รายการขายใหม่คำนวณจากราคาล่าสุด แต่รายการขายเดิมยังเก็บราคาที่บันทึกไว้เดิม
+- **สถานะ**: ✅ เพิ่ม route/UI/tests แล้ว (`tests/gas-v2-routes.test.ts`)
+
 ## ⚠️ Known Gotchas
 1. **String vs Numeric Sort**: ทุก sort ที่เกี่ยวกับตัวเลข (book, number) ต้องใช้ parseInt
 2. **Neon Data Transfer**: free tier จำกัด 5GB/month → ระวัง polling ถี่เกินไป
@@ -142,6 +148,7 @@
 18. **GAS Card Received Storage**: ตอนนี้ `cardReceived` ของ reconciliation ยังเก็บแฝงใน `shift.varianceNote` และรวมอยู่ใน `shift_reconciliations.transferReceived`; ทุก flow read/write ต้อง parse/build ผ่าน helper กลาง ห้ามแยก encode/decode เอง
 19. **GAS Meter Reports**: `api/v2/gas/admin/reports/meters` ต้องอิง shift facts ชุดเดียวกับ daily/shift/reconciliation เพื่อให้ยอดมิเตอร์, transaction liters, และ liters variance ตรงกันทุกหน้า
 20. **GAS Legacy Empty Open Shift**: ห้ามให้ `/gas-station/[id]/new/home` หรือ legacy `/api/gas-station/[id]/shifts` เปิดกะ GAS โดยไม่มี meter/gauge; ถ้าเจอ `OPEN` shift ที่ `meterRows=0` ให้ถือเป็น partial/corrupt row และ repair ผ่าน admin-confirmed flow ก่อนใช้งานต่อ
+21. **GAS Daily Price Edits**: การแก้ราคาขายประจำวันของพนักงานต้องผ่าน `/api/v2/gas/[stationId]/price` เพื่อ update `dailyRecord.gasPrice/retailPrice/wholesalePrice` พร้อม audit; ห้ามแก้ผ่าน local state อย่างเดียว และต้องถือว่ารายการขายเดิมคง `pricePerLiter` เดิมไว้
 
 ## Changelog
 - 2026-02-24: สร้างไฟล์ brain topic นี้จากประวัติ conversations
@@ -160,3 +167,4 @@
 - 2026-04-23: patch GAS admin analytics/reporting: เพิ่ม shared fact layer `src/lib/gas/admin-analytics.ts`, ย้าย daily/shift/reconciliation/executive ให้ใช้ source เดียวกัน, เติม route `PUT /api/v2/gas/admin/reconciliation/[shiftId]`, อัปเดต admin pages ให้เห็น payment mix / avg ticket / liters variance / day breakdown ชัดขึ้น, และต่อยอด inventory runout, top staff/nozzle performance, action alerts, กับ meter report ให้ใช้ fact layer เดียวกัน
 - 2026-04-24: บันทึก live incident ที่ `station-6` เปิดกะผ่าน `/gas-station/[id]/new/home` แล้วเกิด `OPEN` shifts 2 แถวแบบไม่มี meter/gauge/transaction เพราะ legacy open route ยอมสร้างกะว่าง
 - 2026-04-24: patch GAS legacy/v2 bridge หลังเจอ `station-5` บันทึกมิเตอร์แล้วหาย: ปิด quick open เก่า, ให้ legacy meters ผูก shift/date ถูกต้อง, เพิ่มช่องราคาขายใน v2 open, และซ่อม live meter rows ของ `เล็ก` กลับเข้า shift จริง
+- 2026-04-25: เพิ่ม staff flow สำหรับแก้ราคาขายแก๊สประจำวันหลังเปิดกะ: v2 price route พร้อม audit, การ์ดบน dashboard, ปุ่มแก้บน sell page, และ route-level test
