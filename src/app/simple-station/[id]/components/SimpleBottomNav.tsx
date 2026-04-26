@@ -25,8 +25,11 @@ export default function SimpleBottomNav({ stationId }: SimpleBottomNavProps) {
         : BASE_NAV_ITEMS;
 
     return (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50 pb-safe">
-            <div className="flex justify-around items-center h-16 max-w-lg mx-auto">
+        <nav
+            className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white shadow-lg"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        >
+            <div className="mx-auto flex h-16 max-w-lg items-center justify-around">
                 {navItems.map((item) => {
                     const href = `${basePath}/${item.href}`;
                     const isActive = pathname === href || pathname.startsWith(href + '/');
@@ -46,7 +49,7 @@ export default function SimpleBottomNav({ stationId }: SimpleBottomNavProps) {
                                 {item.label}
                             </span>
                             {isActive && (
-                                <div className="absolute bottom-0 w-12 h-0.5 bg-orange-500 rounded-t-full" />
+                                <div className="absolute bottom-[env(safe-area-inset-bottom)] h-0.5 w-12 rounded-t-full bg-orange-500" />
                             )}
                         </Link>
                     );

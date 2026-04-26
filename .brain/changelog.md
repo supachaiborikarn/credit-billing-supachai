@@ -200,3 +200,9 @@
   - ระบุ station capability rule ว่า Tank Loy (`station-1`) ไม่มี engine-oil/product flow ใน nav/sell/shift steps
   - อัปเดต `AGENTS.md` ให้ agent อ่าน `DESIGN.md` ก่อนทำงาน UI/UX/frontend
   - เพิ่ม brain topic `design-system.md`
+- 🖨️ แก้ bottom nav และรายงานหลังปิดกะแท๊งลอย
+  - เพิ่ม bottom padding ของ `simple-station/[id]/new/layout` ให้เผื่อ fixed bottom nav + mobile safe area
+  - ปรับ `SimpleBottomNav` ให้ใช้ `env(safe-area-inset-bottom)` โดยตรง
+  - ขยาย `daily-report-print` ให้รายงาน A4 landscape ใบเดียวมีเลขเปิด-ปิดมิเตอร์, รายการเติมทั้งหมด, และยอดเงินทั้งหมดที่ได้
+  - ส่ง `meters` จากหน้า `simple-station/[id]/new/shift-end` และ `station/[id]/new/shift-end` เข้า report helper
+  - verification: targeted eslint ผ่าน; `tsc --noEmit` ยังล้มจาก `scratch/*` เท่านั้น

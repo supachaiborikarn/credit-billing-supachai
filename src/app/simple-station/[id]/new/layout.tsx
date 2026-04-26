@@ -26,8 +26,8 @@ export default function SimpleStationLayout({ children, params }: SimpleStationL
 
     return (
         <div className="min-h-screen bg-gray-100">
-            {/* Main content with padding for bottom nav */}
-            <main style={{ paddingBottom: '100px' }}>
+            {/* Main content with generous room for the fixed bottom nav and mobile safe area. */}
+            <main style={{ paddingBottom: 'calc(144px + env(safe-area-inset-bottom))' }}>
                 {children}
             </main>
 

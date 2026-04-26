@@ -434,6 +434,7 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                 stationName: station.name,
                 reportDate,
                 transactions: data.transactions || [],
+                meters,
             });
 
             if (!opened) {

@@ -14,10 +14,21 @@ export interface PrintableDailyTransaction {
     recordedByName?: string | null;
 }
 
+export interface PrintableDailyMeter {
+    nozzleNumber: number;
+    fuelType?: string | null;
+    price?: number | null;
+    startReading: number;
+    endReading?: number | null;
+    liters?: number | null;
+    amount?: number | null;
+}
+
 interface PrintDailyWorkReportInput {
     stationName: string;
     reportDate: string;
     transactions: PrintableDailyTransaction[];
+    meters?: PrintableDailyMeter[];
 }
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -83,6 +94,7 @@ export function printDailyWorkReport({
     stationName,
     reportDate,
     transactions,
+    meters = [],
 }: PrintDailyWorkReportInput): boolean {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -95,20 +107,53 @@ export function printDailyWorkReport({
 
     const totalLiters = sortedTransactions.reduce((sum, transaction) => sum + Number(transaction.liters || 0), 0);
     const totalAmount = sortedTransactions.reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
+    const normalizedMeters = [...meters]
+        .sort((a, b) => a.nozzleNumber - b.nozzleNumber)
+        .map((meter) => {
+            const startReading = Number(meter.startReading || 0);
+            const endReading = Number(meter.endReading || 0);
+            const liters = Number(meter.liters ?? Math.max(endReading - startReading, 0));
+            const price = Number(meter.price || 0);
+            const amount = Number(meter.amount ?? liters * price);
+
+            return {
+                ...meter,
+                startReading,
+                endReading,
+                liters,
+                price,
+                amount,
+            };
+        });
+    const totalMeterLiters = normalizedMeters.reduce((sum, meter) => sum + meter.liters, 0);
+    const totalMeterAmount = normalizedMeters.reduce((sum, meter) => sum + meter.amount, 0);
     const paymentTotals = sortedTransactions.reduce<Record<string, number>>((totals, transaction) => {
         totals[transaction.paymentType] = (totals[transaction.paymentType] || 0) + Number(transaction.amount || 0);
         return totals;
     }, {});
 
-    const paymentSummaryRows = Object.entries(paymentTotals)
+    const paymentSummaryText = Object.entries(paymentTotals)
         .sort(([left], [right]) => getPaymentLabel(left).localeCompare(getPaymentLabel(right), 'th'))
-        .map(([paymentType, amount]) => `
+        .map(([paymentType, amount]) => `${getPaymentLabel(paymentType)} ${formatCurrency(amount)}`)
+        .join(' | ');
+
+    const meterRows = normalizedMeters.length > 0
+        ? normalizedMeters.map((meter) => `
             <tr>
-                <td>${escapeHtml(getPaymentLabel(paymentType))}</td>
-                <td class="text-right">${escapeHtml(formatCurrency(amount))}</td>
+                <td class="text-center">${escapeHtml(meter.nozzleNumber)}</td>
+                <td>${escapeHtml(meter.fuelType || 'ดีเซล B7')}</td>
+                <td class="text-right">${escapeHtml(formatCurrency(meter.startReading))}</td>
+                <td class="text-right">${escapeHtml(formatCurrency(meter.endReading))}</td>
+                <td class="text-right">${escapeHtml(formatCurrency(meter.liters))}</td>
+                <td class="text-right">${escapeHtml(meter.price > 0 ? formatCurrency(meter.price) : '-')}</td>
+                <td class="text-right">${escapeHtml(formatCurrency(meter.amount))}</td>
             </tr>
-        `)
-        .join('');
+        `).join('')
+        : `
+            <tr>
+                <td colspan="7" class="empty-state">ไม่พบเลขมิเตอร์ในรายงานนี้</td>
+            </tr>
+        `;
 
     const transactionRows = sortedTransactions.length > 0
         ? sortedTransactions.map((transaction, index) => `
@@ -122,12 +167,11 @@ export function printDailyWorkReport({
                 <td class="text-right">${escapeHtml(formatCurrency(Number(transaction.liters || 0)))}</td>
                 <td class="text-right">${escapeHtml(formatCurrency(Number(transaction.amount || 0)))}</td>
                 <td>${escapeHtml(getPaymentLabel(transaction.paymentType))}</td>
-                <td>${escapeHtml(transaction.recordedByName || '-')}</td>
             </tr>
         `).join('')
         : `
             <tr>
-                <td colspan="10" class="empty-state">ไม่พบรายการขายในวันดังกล่าว</td>
+                <td colspan="9" class="empty-state">ไม่พบรายการขายในวันดังกล่าว</td>
             </tr>
         `;
 
@@ -143,57 +187,83 @@ export function printDailyWorkReport({
             font-family: 'Sarabun', 'TH Sarabun New', 'Tahoma', sans-serif;
             color: #111827;
             background: #ffffff;
-            padding: 18px;
+            padding: 0;
+            font-size: 10px;
+        }
+        .sheet {
+            padding: 8mm;
         }
         .header {
-            text-align: center;
-            margin-bottom: 18px;
-            padding-bottom: 12px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
             border-bottom: 2px solid #111827;
         }
         .header h1 {
-            margin: 0 0 6px;
-            font-size: 22px;
+            margin: 0 0 3px;
+            font-size: 18px;
         }
         .header p {
             margin: 0;
             color: #4b5563;
-            font-size: 13px;
+            font-size: 10px;
+        }
+        .header .total {
+            text-align: right;
+            min-width: 180px;
+        }
+        .header .total-label {
+            color: #6b7280;
+            font-size: 10px;
+        }
+        .header .total-value {
+            font-size: 20px;
+            font-weight: 800;
+            color: #047857;
         }
         .summary-grid {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 10px;
-            margin-bottom: 18px;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 6px;
+            margin-bottom: 8px;
         }
         .summary-card {
             border: 1px solid #d1d5db;
-            border-radius: 10px;
-            padding: 12px 14px;
+            border-radius: 6px;
+            padding: 6px 8px;
             background: #f9fafb;
         }
         .summary-card .label {
             color: #6b7280;
-            font-size: 12px;
-            margin-bottom: 6px;
+            font-size: 9px;
+            margin-bottom: 2px;
         }
         .summary-card .value {
-            font-size: 20px;
+            font-size: 14px;
             font-weight: 700;
         }
+        .payment-line {
+            margin: 4px 0 8px;
+            color: #374151;
+            font-size: 9px;
+        }
         .section-title {
-            margin: 18px 0 8px;
-            font-size: 15px;
+            margin: 8px 0 4px;
+            font-size: 11px;
             font-weight: 700;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 12px;
+            font-size: 9px;
+            page-break-inside: auto;
         }
         th, td {
             border: 1px solid #d1d5db;
-            padding: 7px 8px;
+            padding: 3px 4px;
             vertical-align: top;
         }
         th {
@@ -209,25 +279,38 @@ export function printDailyWorkReport({
         .empty-state {
             text-align: center;
             color: #6b7280;
-            padding: 20px 12px;
+            padding: 10px 8px;
         }
         .footer {
-            margin-top: 16px;
+            margin-top: 6px;
             color: #6b7280;
-            font-size: 11px;
+            font-size: 8px;
             text-align: right;
         }
+        .avoid-break {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
         @media print {
-            body {
-                padding: 0;
+            @page {
+                size: A4 landscape;
+                margin: 6mm;
             }
+            .sheet { padding: 0; }
         }
     </style>
 </head>
 <body>
+    <div class="sheet">
     <div class="header">
-        <h1>${escapeHtml(stationName)}</h1>
-        <p>รายงานสรุปการทำงานทั้งวัน วันที่ ${escapeHtml(formatReportDate(reportDate))}</p>
+        <div>
+            <h1>${escapeHtml(stationName)}</h1>
+            <p>รายงานสรุปการทำงานทั้งวัน วันที่ ${escapeHtml(formatReportDate(reportDate))}</p>
+        </div>
+        <div class="total">
+            <div class="total-label">ยอดเงินทั้งหมดที่ได้</div>
+            <div class="total-value">${escapeHtml(formatCurrency(totalAmount))} บาท</div>
+        </div>
     </div>
 
     <div class="summary-grid">
@@ -236,33 +319,48 @@ export function printDailyWorkReport({
             <div class="value">${escapeHtml(sortedTransactions.length)}</div>
         </div>
         <div class="summary-card">
-            <div class="label">ปริมาณรวม</div>
+            <div class="label">ลิตรจากรายการเติม</div>
             <div class="value">${escapeHtml(formatCurrency(totalLiters))} ลิตร</div>
         </div>
         <div class="summary-card">
-            <div class="label">ยอดขายรวม</div>
-            <div class="value">${escapeHtml(formatCurrency(totalAmount))} บาท</div>
+            <div class="label">ลิตรจากมิเตอร์</div>
+            <div class="value">${escapeHtml(formatCurrency(totalMeterLiters))} ลิตร</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">ยอดเงินตามมิเตอร์</div>
+            <div class="value">${escapeHtml(formatCurrency(totalMeterAmount))} บาท</div>
         </div>
     </div>
 
-    <div class="section-title">สรุปตามประเภทการชำระ</div>
+    <div class="payment-line">สรุปชำระ: ${escapeHtml(paymentSummaryText || '-')}</div>
+
+    <div class="avoid-break">
+    <div class="section-title">เลขเปิด-ปิดมิเตอร์</div>
     <table>
         <thead>
             <tr>
-                <th>ประเภทชำระ</th>
+                <th class="text-center">หัว</th>
+                <th>น้ำมัน</th>
+                <th class="text-right">เลขเปิด</th>
+                <th class="text-right">เลขปิด</th>
+                <th class="text-right">ลิตร</th>
+                <th class="text-right">ราคา</th>
                 <th class="text-right">ยอดเงิน</th>
             </tr>
         </thead>
         <tbody>
-            ${paymentSummaryRows || `
-                <tr>
-                    <td colspan="2" class="empty-state">ไม่พบยอดชำระ</td>
-                </tr>
-            `}
+            ${meterRows}
+            <tr class="total-row">
+                <td colspan="4">รวมมิเตอร์</td>
+                <td class="text-right">${escapeHtml(formatCurrency(totalMeterLiters))}</td>
+                <td></td>
+                <td class="text-right">${escapeHtml(formatCurrency(totalMeterAmount))}</td>
+            </tr>
         </tbody>
     </table>
+    </div>
 
-    <div class="section-title">รายละเอียดรายการขายทั้งวัน</div>
+    <div class="section-title">รายการเติมทั้งหมด</div>
     <table>
         <thead>
             <tr>
@@ -275,21 +373,21 @@ export function printDailyWorkReport({
                 <th class="text-right">ลิตร</th>
                 <th class="text-right">ยอดเงิน</th>
                 <th>ชำระ</th>
-                <th>ผู้บันทึก</th>
             </tr>
         </thead>
         <tbody>
             ${transactionRows}
             <tr class="total-row">
-                <td colspan="6">รวมทั้งสิ้น</td>
+                <td colspan="6">รวมรายการเติมทั้งหมด</td>
                 <td class="text-right">${escapeHtml(formatCurrency(totalLiters))}</td>
                 <td class="text-right">${escapeHtml(formatCurrency(totalAmount))}</td>
-                <td colspan="2"></td>
+                <td></td>
             </tr>
         </tbody>
     </table>
 
     <div class="footer">พิมพ์เมื่อ ${escapeHtml(new Date().toLocaleString('th-TH'))}</div>
+    </div>
 
     <script>
         window.onload = function () {
