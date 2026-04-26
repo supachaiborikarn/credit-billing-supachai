@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Play, Fuel, RefreshCw, Check } from 'lucide-react';
 import { STATIONS } from '@/constants';
 import {
@@ -16,6 +16,10 @@ export default function OpenShiftPage({ params }: { params: Promise<{ id: string
     const stationIndex = parseInt(id) - 1;
     const station = STATIONS[stationIndex];
     const router = useRouter();
+    const pathname = usePathname();
+    const routeBase = pathname.startsWith('/station/')
+        ? `/station/${id}/new`
+        : `/simple-station/${id}/new`;
 
     const [loading, setLoading] = useState(false);
     const [priceForm, setPriceForm] = useState(createEmptyFullStationDailyPriceForm());
@@ -85,7 +89,7 @@ export default function OpenShiftPage({ params }: { params: Promise<{ id: string
             });
 
             if (res.ok) {
-                router.replace(`/simple-station/${id}/new/home`);
+                router.replace(`${routeBase}/home`);
             } else {
                 const err = await res.json();
                 alert(err.error || 'ไม่สามารถเปิดกะได้');

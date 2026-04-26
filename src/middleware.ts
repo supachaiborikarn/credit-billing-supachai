@@ -32,23 +32,18 @@ function getGasV2RedirectPath(pathname: string) {
 }
 
 function getTankLoyRedirectPath(pathname: string) {
-    if (pathname === '/simple-station/1') return '/simple-station/1/new/home';
+    if (pathname === '/simple-station/1') return '/station/1/new/home';
     if (pathname === '/simple-station/1/new/oil-sell' || pathname === '/simple-station/1/new/products') {
-        return '/simple-station/1/new/home';
+        return '/station/1/new/home';
+    }
+    const simpleNewMatch = pathname.match(/^\/simple-station\/1\/new(?:\/([^/]+))?/);
+    if (simpleNewMatch) {
+        const page = simpleNewMatch[1] || 'home';
+        return `/station/1/new/${page}`;
     }
 
-    const legacyNewMatch = pathname.match(/^\/station\/1\/new(?:\/([^/]+))?/);
-    if (legacyNewMatch) {
-        const page = legacyNewMatch[1] || 'home';
-        const pageMap: Record<string, string> = {
-            home: 'home',
-            record: 'sell',
-            list: 'summary',
-            summary: 'summary',
-            meters: 'shift-end',
-            'shift-end': 'shift-end',
-        };
-        return `/simple-station/1/new/${pageMap[page] || 'home'}`;
+    if (pathname === '/station/1/new/oil-sell' || pathname === '/station/1/new/products') {
+        return '/station/1/new/home';
     }
 
     if (pathname === '/station/1/v2' || pathname.startsWith('/station/1/v2/')) {
@@ -72,7 +67,8 @@ export function middleware(request: NextRequest) {
     // If protected route and no session, redirect to login
     if (isProtectedRoute && !sessionCookie) {
         const loginUrl = new URL('/login', request.url);
-        loginUrl.searchParams.set('redirect', gasV2RedirectPath || tankLoyRedirectPath || pathname);
+        const redirectPath = gasV2RedirectPath || tankLoyRedirectPath || pathname;
+        loginUrl.searchParams.set('redirect', `${redirectPath}${request.nextUrl.search}`);
         return NextResponse.redirect(loginUrl);
     }
 
@@ -81,7 +77,9 @@ export function middleware(request: NextRequest) {
     }
 
     if (tankLoyRedirectPath) {
-        return NextResponse.redirect(new URL(tankLoyRedirectPath, request.url));
+        const redirectUrl = new URL(tankLoyRedirectPath, request.url);
+        redirectUrl.search = request.nextUrl.search;
+        return NextResponse.redirect(redirectUrl);
     }
 
     return NextResponse.next();

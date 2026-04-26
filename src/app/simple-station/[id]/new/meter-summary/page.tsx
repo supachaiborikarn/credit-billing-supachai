@@ -4,6 +4,7 @@ import { useState, useEffect, use } from 'react';
 import { ArrowLeft, Calendar, Fuel, TrendingUp, AlertTriangle } from 'lucide-react';
 import { STATIONS } from '@/constants';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 interface MeterReading {
     nozzle: number;
@@ -32,6 +33,10 @@ export default function MeterSummaryPage({ params }: { params: Promise<{ id: str
     const { id } = use(params);
     const stationIndex = parseInt(id) - 1;
     const station = STATIONS[stationIndex];
+    const pathname = usePathname();
+    const routeBase = pathname.startsWith('/station/')
+        ? `/station/${id}/new`
+        : `/simple-station/${id}/new`;
 
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [loading, setLoading] = useState(true);
@@ -163,7 +168,7 @@ export default function MeterSummaryPage({ params }: { params: Promise<{ id: str
             <div className="bg-black/30 backdrop-blur-sm sticky top-0 z-10">
                 <div className="flex items-center justify-between p-4">
                     <div className="flex items-center gap-3">
-                        <Link href={`/simple-station/${id}/new/home`} className="p-2 hover:bg-white/10 rounded-lg">
+                        <Link href={`${routeBase}/home`} className="p-2 hover:bg-white/10 rounded-lg">
                             <ArrowLeft size={24} />
                         </Link>
                         <div>

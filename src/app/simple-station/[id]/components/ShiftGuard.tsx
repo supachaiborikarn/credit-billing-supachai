@@ -53,8 +53,6 @@ export default function ShiftGuard({
     const fetchShiftStatus = async () => {
         setLoading(true);
         try {
-            const today = new Date().toISOString().split('T')[0];
-
             // Check for today's shift
             const res = await fetch(`/api/simple-station/${stationId}/shift-status`);
             if (res.ok) {
@@ -79,7 +77,9 @@ export default function ShiftGuard({
     useEffect(() => {
         if (loading || isExemptPage) return;
 
-        const basePath = `/simple-station/${urlId}/new`;
+        const basePath = pathname.startsWith('/station/')
+            ? `/station/${urlId}/new`
+            : `/simple-station/${urlId}/new`;
 
         // Priority 1: Force close old shift first
         if (oldUnclosedShift) {
@@ -92,7 +92,7 @@ export default function ShiftGuard({
             router.replace(`${basePath}/open-shift`);
             return;
         }
-    }, [loading, currentShift, oldUnclosedShift, stationId, router, isExemptPage, pathname]);
+    }, [loading, currentShift, oldUnclosedShift, stationId, urlId, router, isExemptPage, pathname]);
 
     // Show loading while checking
     if (loading) {

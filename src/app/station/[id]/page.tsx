@@ -113,7 +113,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
 
                     // Staff should use the single Tank Loy staff UI. Keep this classic page for admins only.
                     if (data.user && data.user.role !== 'ADMIN') {
-                        window.location.href = `/simple-station/${id}/new/home`;
+                        window.location.href = `/station/${id}/new/home`;
                         return;
                     }
                 }
@@ -711,7 +711,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                 <Sparkles size={14} className="text-purple-400" />
                                 {isFullStation ? 'ระบบเต็ม (FULL)' : 'ระบบลงบิล (SIMPLE)'}
                                 <a
-                                    href={`/simple-station/${id}/new/home`}
+                                    href={`/station/${id}/new/home`}
                                     className="ml-2 px-3 py-1 rounded-full text-xs font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors"
                                 >
                                     📱 ไปหน้าใช้งานพนักงาน

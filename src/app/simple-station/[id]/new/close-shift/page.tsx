@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { AlertTriangle, Clock, FileText, Zap, RefreshCw } from 'lucide-react';
 import { STATIONS } from '@/constants';
 
@@ -17,6 +17,10 @@ export default function CloseShiftPage({ params }: { params: Promise<{ id: strin
     const stationIndex = parseInt(id) - 1;
     const station = STATIONS[stationIndex];
     const router = useRouter();
+    const pathname = usePathname();
+    const routeBase = pathname.startsWith('/station/')
+        ? `/station/${id}/new`
+        : `/simple-station/${id}/new`;
 
     const [loading, setLoading] = useState(true);
     const [forceClosing, setForceClosing] = useState(false);
@@ -33,7 +37,7 @@ export default function CloseShiftPage({ params }: { params: Promise<{ id: strin
                         setOldShift(data.oldUnclosedShift);
                     } else {
                         // No old shift, go to open shift
-                        router.replace(`/simple-station/${id}/new/open-shift`);
+                        router.replace(`${routeBase}/open-shift`);
                     }
                 }
             } catch (error) {
@@ -43,11 +47,11 @@ export default function CloseShiftPage({ params }: { params: Promise<{ id: strin
             }
         };
         loadShiftStatus();
-    }, [id, router]);
+    }, [id, routeBase, router]);
 
     const handleGoToMeterEntry = () => {
         // Go to shift-end page to enter meters and close properly
-        router.push(`/simple-station/${id}/new/shift-end`);
+        router.push(`${routeBase}/shift-end`);
     };
 
     const handleForceClose = async () => {
@@ -69,7 +73,7 @@ export default function CloseShiftPage({ params }: { params: Promise<{ id: strin
 
             if (res.ok) {
                 // Go to open new shift
-                router.replace(`/simple-station/${id}/new/open-shift`);
+                router.replace(`${routeBase}/open-shift`);
             } else {
                 const err = await res.json();
                 alert(err.error || 'ไม่สามารถปิดกะได้');

@@ -4,6 +4,7 @@ import { useState, useEffect, use, useRef } from 'react';
 import { ArrowLeft, User, Check, Plus, Minus, UserPlus } from 'lucide-react';
 import { STATIONS, PAYMENT_TYPES, FUEL_TYPES } from '@/constants';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { AbnormalValueWarning } from '@/components/WizardStepper';
 import { getFullStationPriceForPaymentType } from '@/lib/full-station-price-utils';
 import ShiftGuard from '../../components/ShiftGuard';
@@ -33,8 +34,12 @@ interface SelectedProduct {
 
 export default function SimpleStationSellPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
+    const pathname = usePathname();
     const stationIndex = parseInt(id) - 1;
     const station = STATIONS[stationIndex];
+    const routeBase = pathname.startsWith('/station/')
+        ? `/station/${id}/new`
+        : `/simple-station/${id}/new`;
     const stationId = `station-${id}`;
     const isTankLoyStation = station?.id === 'station-1';
     const showOilFeatures = !isTankLoyStation;
@@ -445,7 +450,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                 setShowResults(false);
                 
                 // Redirect to receipt for auto-print
-                window.location.href = `/simple-station/${id}/new/receipt?txn=${data.transaction.id}&autoPrint=true`;
+                window.location.href = `${routeBase}/receipt?txn=${data.transaction.id}&autoPrint=true`;
             } else {
                 const err = await res.json();
                 alert(err.error || 'บันทึกไม่สำเร็จ');
@@ -472,7 +477,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
             <header className={headerClass}>
                 <div className="px-4 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <Link href={`/simple-station/${id}/new/home`} className="p-1">
+                        <Link href={`${routeBase}/home`} className="p-1">
                             <ArrowLeft size={24} className={isTankLoyStation ? 'text-slate-200' : 'text-gray-700'} />
                         </Link>
                         <div>
@@ -776,7 +781,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                             {products.length === 0 ? (
                                 <div className="text-center py-8">
                                     <p className="text-gray-400">ยังไม่มีสินค้า</p>
-                                    <Link href={`/simple-station/${id}/new/products`} className="text-purple-500 text-sm mt-2 inline-block">
+                                    <Link href={`${routeBase}/products`} className="text-purple-500 text-sm mt-2 inline-block">
                                         → ไปเพิ่มสินค้า
                                     </Link>
                                 </div>

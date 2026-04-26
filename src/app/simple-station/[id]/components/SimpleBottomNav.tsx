@@ -18,7 +18,9 @@ const BASE_NAV_ITEMS = [
 
 export default function SimpleBottomNav({ stationId }: SimpleBottomNavProps) {
     const pathname = usePathname();
-    const basePath = `/simple-station/${stationId}/new`;
+    const basePath = pathname.startsWith('/station/')
+        ? `/station/${stationId}/new`
+        : `/simple-station/${stationId}/new`;
     const normalizedStationId = stationId.startsWith('station-') ? stationId : `station-${stationId}`;
     const navItems = normalizedStationId === 'station-1'
         ? BASE_NAV_ITEMS.filter((item) => item.href !== 'oil-sell')

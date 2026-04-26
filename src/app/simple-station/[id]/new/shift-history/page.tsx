@@ -4,7 +4,7 @@ import { useState, useEffect, use } from 'react';
 import { ArrowLeft, Calendar, Clock, User, Lock, Unlock, RefreshCw } from 'lucide-react';
 import { STATIONS } from '@/constants';
 import Link from 'next/link';
-import SimpleBottomNav from '../../components/SimpleBottomNav';
+import { usePathname } from 'next/navigation';
 
 interface Meter {
     nozzleNumber: number;
@@ -35,6 +35,10 @@ export default function ShiftHistoryPage({ params }: { params: Promise<{ id: str
     const { id } = use(params);
     const stationIndex = parseInt(id) - 1;
     const station = STATIONS[stationIndex];
+    const pathname = usePathname();
+    const routeBase = pathname.startsWith('/station/')
+        ? `/station/${id}/new`
+        : `/simple-station/${id}/new`;
 
     const [loading, setLoading] = useState(true);
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -99,7 +103,7 @@ export default function ShiftHistoryPage({ params }: { params: Promise<{ id: str
             <header className="bg-black/30 backdrop-blur-sm sticky top-0 z-40">
                 <div className="flex items-center justify-between px-4 py-3">
                     <div className="flex items-center gap-3">
-                        <Link href={`/simple-station/${id}/new/home`} className="p-2 hover:bg-white/10 rounded-lg">
+                        <Link href={`${routeBase}/home`} className="p-2 hover:bg-white/10 rounded-lg">
                             <ArrowLeft size={20} className="text-gray-400" />
                         </Link>
                         <div>
@@ -261,8 +265,6 @@ export default function ShiftHistoryPage({ params }: { params: Promise<{ id: str
                     </div>
                 )}
             </div>
-
-            <SimpleBottomNav stationId={id} />
         </div>
     );
 }

@@ -13,6 +13,7 @@ import {
     Printer
 } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { STATIONS } from '@/constants';
 import { WizardStepper, VarianceEarlyWarning } from '@/components/WizardStepper';
 import { ShiftAnomalyWarning, AnomalyData } from '@/components/ShiftAnomalyWarning';
@@ -108,8 +109,12 @@ const DEFAULT_FUEL_TYPES = STATION_FUEL_CONFIGS['station-2'];
 
 export default function ShiftEndPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
+    const pathname = usePathname();
     const stationIndex = parseInt(id) - 1;
     const station = STATIONS[stationIndex];
+    const routeBase = pathname.startsWith('/station/')
+        ? `/station/${id}/new`
+        : `/simple-station/${id}/new`;
     const isTankLoyStation = station?.id === 'station-1';
     const showOilFeatures = !isTankLoyStation;
     const pageClass = isTankLoyStation
@@ -412,7 +417,7 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
         });
 
     const handleGoHome = () => {
-        window.location.href = `/simple-station/${id}/new/home`;
+        window.location.href = `${routeBase}/home`;
     };
 
     const handlePrintDailyReport = async () => {
@@ -844,7 +849,7 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
             <header className={headerClass}>
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <Link href={`/simple-station/${id}/new/home`} className="p-2 rounded-lg hover:bg-white/10">
+                        <Link href={`${routeBase}/home`} className="p-2 rounded-lg hover:bg-white/10">
                             <ArrowLeft size={20} className="text-gray-400" />
                         </Link>
                         <div>

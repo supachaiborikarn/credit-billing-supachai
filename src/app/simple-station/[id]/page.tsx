@@ -33,9 +33,14 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
     const station = STATIONS[stationIndex];
     const router = useRouter();
 
-    // Auto redirect to the single active staff UI for SIMPLE stations and Tank Loy.
+    // Auto redirect to the active staff UI for SIMPLE stations and Tank Loy.
     useEffect(() => {
-        if (station && (station.type === 'SIMPLE' || station.id === 'station-1')) {
+        if (station?.id === 'station-1') {
+            router.replace(`/station/${id}/new/home`);
+            return;
+        }
+
+        if (station && station.type === 'SIMPLE') {
             router.replace(`/simple-station/${id}/new/home`);
         }
     }, [station, id, router]);

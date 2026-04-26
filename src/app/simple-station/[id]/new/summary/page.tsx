@@ -4,6 +4,7 @@ import { useState, useEffect, use, useRef, useCallback } from 'react';
 import { ArrowLeft, Trash2, Calendar, Edit, Printer, X, Image as ImageIcon, Download, FileText, DollarSign, Droplets, BarChart3, Eye } from 'lucide-react';
 import { STATIONS, PAYMENT_TYPES, FUEL_TYPES } from '@/constants';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 type PrintDocType = 'receipt' | 'credit';
 type PrintPaperSize = '58' | '80';
@@ -25,8 +26,12 @@ interface Transaction {
 
 export default function SimpleStationSummaryPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
+    const pathname = usePathname();
     const stationIndex = parseInt(id) - 1;
     const station = STATIONS[stationIndex];
+    const routeBase = pathname.startsWith('/station/')
+        ? `/station/${id}/new`
+        : `/simple-station/${id}/new`;
     const isTankLoyStation = station?.id === 'station-1';
     const pageClass = isTankLoyStation
         ? 'min-h-screen bg-slate-950 text-slate-100'
@@ -135,7 +140,7 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
             paper: printPaperSize,
         });
         if (autoPrint) params.set('autoPrint', 'true');
-        return `/simple-station/${id}/new/receipt?${params.toString()}`;
+        return `${routeBase}/receipt?${params.toString()}`;
     };
 
     const formatTime = (dateStr: string) => {
@@ -363,7 +368,7 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
             <header className={headerClass}>
                 <div className="px-4 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <Link href={`/simple-station/${id}/new/home`} className="p-1">
+                        <Link href={`${routeBase}/home`} className="p-1">
                             <ArrowLeft size={24} className={isTankLoyStation ? 'text-slate-200' : 'text-gray-700'} />
                         </Link>
                         <div>

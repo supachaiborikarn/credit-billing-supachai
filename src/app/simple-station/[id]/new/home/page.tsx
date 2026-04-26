@@ -5,7 +5,7 @@ import { Calendar, Clock, LogOut, DollarSign, BarChart3, Banknote, CreditCard, F
 import { STATIONS, STATION_STAFF } from '@/constants';
 import Link from 'next/link';
 import DailyCashEntry from '../../components/DailyCashEntry';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import ShiftGuard from '../../components/ShiftGuard';
 import AutoLogout from '@/components/AutoLogout';
 import TimeBasedReminder from '@/components/TimeBasedReminder';
@@ -45,6 +45,11 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
     const stationConfig = STATION_STAFF[stationId as keyof typeof STATION_STAFF];
     const maxShifts = stationConfig?.maxShifts || 2;
     const router = useRouter();
+    const pathname = usePathname();
+    const routeBase = pathname.startsWith('/station/')
+        ? `/station/${id}/new`
+        : `/simple-station/${id}/new`;
+    const classicRoute = station?.id === 'station-1' ? `/station/${id}` : `/simple-station/${id}`;
 
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [loading, setLoading] = useState(true);
@@ -199,7 +204,7 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                     const confirmClose = confirm(`${err.error}\n\nต้องการไปหน้าปิดกะเก่าหรือไม่?`);
                     if (confirmClose) {
                         // Redirect to shift-end page
-                        window.location.href = `/simple-station/${id}/new/shift-end`;
+                        window.location.href = `${routeBase}/shift-end`;
                     }
                 } else {
                     alert(err.error || 'เปิดกะไม่สำเร็จ');
@@ -240,7 +245,7 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                 <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-rose-500/30">
                     {/* Time-based Reminder for Staff */}
                     <TimeBasedReminder
-                        meterLink={`/simple-station/${id}/new/shift-end`}
+                        meterLink={`${routeBase}/shift-end`}
                         actionLabel="ลงมิเตอร์ปิดกะ"
                         isDayClosed={!currentShift}
                         isAdmin={isAdmin}
@@ -262,7 +267,7 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                             <div className="flex items-center gap-2">
                                 {isAdmin && (
                                     <Link
-                                        href={`/simple-station/${id}`}
+                                        href={classicRoute}
                                         className="px-3 py-1.5 rounded-full text-xs font-bold bg-white/10 text-white border border-white/20 hover:bg-white/20 transition-colors"
                                     >
                                         ← UI เดิม
@@ -351,7 +356,7 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                                 <div className="flex flex-wrap gap-2">
                                     {currentShift ? (
                                         <Link
-                                            href={`/simple-station/${id}/new/shift-end`}
+                                            href={`${routeBase}/shift-end`}
                                             className="flex-1 py-3 px-4 rounded-xl bg-red-500 text-white font-bold hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
                                         >
                                             <Clock size={18} />
@@ -381,7 +386,7 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                                 {/* Quick Actions - Caltex Premium Style */}
                                 <div className="mt-5 grid grid-cols-3 gap-3">
                                     <Link
-                                        href={`/simple-station/${id}/new/sell`}
+                                        href={`${routeBase}/sell`}
                                         className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-500 to-red-600 p-5 text-center text-white shadow-[0_0_20px_rgba(225,29,72,0.4)] hover:shadow-[0_0_25px_rgba(225,29,72,0.6)] transition-all hover:-translate-y-1 border border-white/20 group hover:ring-2 hover:ring-white/50"
                                     >
                                         <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -389,7 +394,7 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                                         <p className="text-sm font-extrabold tracking-wide drop-shadow-sm">ลงบิลใหม่</p>
                                     </Link>
                                     <Link
-                                        href={`/simple-station/${id}/new/summary`}
+                                        href={`${routeBase}/summary`}
                                         className="relative overflow-hidden rounded-2xl bg-slate-800/80 p-5 text-center text-slate-200 border border-white/10 hover:bg-slate-700/80 hover:border-white/30 hover:text-white transition-all hover:-translate-y-1 shadow-lg group"
                                     >
                                         <div className="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -409,7 +414,7 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                                         <p className="text-sm font-bold tracking-wide">ตั้งราคา</p>
                                     </button>
                                     <Link
-                                        href={`/simple-station/${id}/new/meter-summary`}
+                                        href={`${routeBase}/meter-summary`}
                                         className="relative overflow-hidden rounded-2xl bg-slate-800/80 p-5 text-center text-slate-200 border border-white/10 hover:bg-slate-700/80 hover:border-white/30 hover:text-white transition-all hover:-translate-y-1 shadow-lg group"
                                     >
                                         <div className="absolute inset-0 bg-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -417,7 +422,7 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                                         <p className="text-sm font-bold tracking-wide">มิเตอร์</p>
                                     </Link>
                                     <Link
-                                        href={`/simple-station/${id}/new/shift-end`}
+                                        href={`${routeBase}/shift-end`}
                                         className="relative overflow-hidden rounded-2xl bg-slate-800/80 p-5 text-center text-slate-200 border border-white/10 hover:bg-slate-700/80 hover:border-rose-500/50 hover:text-white transition-all hover:-translate-y-1 shadow-lg group"
                                     >
                                         <div className="absolute inset-0 bg-rose-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -425,7 +430,7 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                                         <p className="text-sm font-bold tracking-wide">ปิดกะ</p>
                                     </Link>
                                     <Link
-                                        href={`/simple-station/${id}/new/shift-history`}
+                                        href={`${routeBase}/shift-history`}
                                         className="relative overflow-hidden rounded-2xl bg-slate-800/80 p-5 text-center text-slate-200 border border-white/10 hover:bg-slate-700/80 hover:border-white/30 hover:text-white transition-all hover:-translate-y-1 shadow-lg group"
                                     >
                                         <div className="absolute inset-0 bg-indigo-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -442,7 +447,7 @@ export default function SimpleStationHomePage({ params }: { params: Promise<{ id
                             <div className="rounded-3xl border border-white/10 bg-slate-900/60 backdrop-blur-xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
                                 <div className="flex items-center justify-between mb-4">
                                     <h2 className="font-extrabold text-lg text-white">📋 รายการล่าสุด</h2>
-                                    <Link href={`/simple-station/${id}/new/summary`} className="text-blue-400 hover:text-blue-300 text-sm font-semibold transition-colors">
+                                    <Link href={`${routeBase}/summary`} className="text-blue-400 hover:text-blue-300 text-sm font-semibold transition-colors">
                                         ดูทั้งหมด →
                                     </Link>
                                 </div>

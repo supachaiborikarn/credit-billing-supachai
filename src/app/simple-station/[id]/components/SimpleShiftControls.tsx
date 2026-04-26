@@ -2,6 +2,7 @@
 
 import { STATION_STAFF } from '@/constants';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 interface ShiftData {
     id: string;
@@ -36,6 +37,10 @@ export default function SimpleShiftControls({
 
     // Extract station number from stationId (e.g. "station-2" -> "2")
     const stationNumber = stationId.replace('station-', '');
+    const pathname = usePathname();
+    const routeBase = pathname.startsWith('/station/')
+        ? `/station/${stationNumber}/new`
+        : `/simple-station/${stationNumber}/new`;
 
     // Generate shift options based on maxShifts
     const shiftOptions = Array.from({ length: maxShifts }, (_, i) => ({
@@ -57,7 +62,7 @@ export default function SimpleShiftControls({
                         </div>
                     </div>
                     <Link
-                        href={`/simple-station/${stationNumber}/new/shift-end`}
+                        href={`${routeBase}/shift-end`}
                         className="px-4 py-2 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition"
                     >
                         📊 ลงมิเตอร์/ปิดกะ

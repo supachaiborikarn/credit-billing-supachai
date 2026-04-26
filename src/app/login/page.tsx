@@ -19,10 +19,13 @@ function normalizeGasRedirectPath(path: string) {
 }
 
 function normalizeTankLoyRedirectPath(path: string) {
-    if (path === '/simple-station/1') return '/simple-station/1/new/home';
+    if (path === '/simple-station/1') return '/station/1/new/home';
     if (path === '/simple-station/1/new/oil-sell' || path === '/simple-station/1/new/products') {
-        return '/simple-station/1/new/home';
+        return '/station/1/new/home';
     }
+    const simpleMatch = path.match(/^\/simple-station\/1\/new(?:\/([^/?#]+))?/);
+    if (simpleMatch) return `/station/1/new/${simpleMatch[1] || 'home'}`;
+
     if (path === '/station/1/v2' || path.startsWith('/station/1/v2/')) return '/station/1';
 
     const match = path.match(/^\/station\/1\/new(?:\/([^/?#]+))?/);
@@ -32,17 +35,29 @@ function normalizeTankLoyRedirectPath(path: string) {
     const pageMap: Record<string, string> = {
         home: 'home',
         record: 'sell',
+        sell: 'sell',
         list: 'summary',
         summary: 'summary',
         meters: 'shift-end',
         'shift-end': 'shift-end',
+        'open-shift': 'open-shift',
+        'close-shift': 'close-shift',
+        receipt: 'receipt',
+        'meter-summary': 'meter-summary',
+        'shift-history': 'shift-history',
     };
 
-    return `/simple-station/1/new/${pageMap[legacyPage] || 'home'}`;
+    return `/station/1/new/${pageMap[legacyPage] || 'home'}`;
 }
 
 function normalizeRedirectPath(path: string) {
-    return normalizeTankLoyRedirectPath(normalizeGasRedirectPath(path));
+    try {
+        const parsed = new URL(path, 'https://credit-billing-supachai.local');
+        const normalizedPath = normalizeTankLoyRedirectPath(normalizeGasRedirectPath(parsed.pathname));
+        return `${normalizedPath}${parsed.search}${parsed.hash}`;
+    } catch {
+        return normalizeTankLoyRedirectPath(normalizeGasRedirectPath(path));
+    }
 }
 
 function LoginContent() {
@@ -79,7 +94,7 @@ function LoginContent() {
 
                             if (stationNum > 0) {
                                 if (data.user.stationType === 'FULL') {
-                                    router.push(`/simple-station/${stationNum}/new/home`);
+                                    router.push(`/station/${stationNum}/new/home`);
                                 } else if (data.user.stationType === 'GAS') {
                                     router.push(`/gas/${stationNum}`);
                                 } else {
@@ -174,7 +189,7 @@ function LoginContent() {
                     // Use stationType to determine the correct path
                     if (stationNum > 0) {
                         if (stationType === 'FULL') {
-                            router.push(`/simple-station/${stationNum}/new/home`);
+                            router.push(`/station/${stationNum}/new/home`);
                         } else if (stationType === 'GAS') {
                             router.push(`/gas/${stationNum}`);
                         } else {

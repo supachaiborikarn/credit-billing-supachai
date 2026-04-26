@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, use } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import NextImage from 'next/image';
 import Link from 'next/link';
 import { Printer, ArrowLeft, Home, FileText } from 'lucide-react';
@@ -234,6 +234,7 @@ function ReceiptContent({ txn, config, docNo, copyType, docType, paperSize }: {
 
 export default function ReceiptPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
+    const pathname = usePathname();
     const searchParams = useSearchParams();
     const transactionId = searchParams.get('txn');
     const autoPrint = searchParams.get('autoPrint') === 'true';
@@ -242,6 +243,9 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
     
     const stationId = `station-${id}`;
     const config = RECEIPT_CONFIG[stationId] || RECEIPT_CONFIG['station-1'];
+    const routeBase = pathname.startsWith('/station/')
+        ? `/station/${id}/new`
+        : `/simple-station/${id}/new`;
 
     const [txn, setTxn] = useState<Transaction | null>(null);
     const [loading, setLoading] = useState(true);
@@ -287,7 +291,7 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
             <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center">
                 <FileText size={48} className="text-gray-400 mb-4" />
                 <p className="text-xl font-bold text-gray-700 mb-6">ไม่พบรายการบิลนี้</p>
-                <Link href={`/simple-station/${id}/new/home`} className="px-6 py-3 bg-orange-500 text-white rounded-xl font-bold flex items-center gap-2">
+                <Link href={`${routeBase}/home`} className="px-6 py-3 bg-orange-500 text-white rounded-xl font-bold flex items-center gap-2">
                     <Home size={20} /> กลับไปหน้าแรก
                 </Link>
             </div>
@@ -335,10 +339,10 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
                     <button onClick={() => window.history.back()} className="p-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg flex items-center gap-1 font-medium transition-colors">
                         <ArrowLeft size={18} /> <span className="hidden sm:inline">ย้อนกลับ</span>
                     </button>
-                    <Link href={`/simple-station/${id}/new/sell`} className="p-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg flex items-center gap-1 font-medium transition-colors">
+                    <Link href={`${routeBase}/sell`} className="p-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg flex items-center gap-1 font-medium transition-colors">
                         <FileText size={18} /> <span className="hidden sm:inline">ไปหน้าขายน้ำมัน</span>
                     </Link>
-                    <Link href={`/simple-station/${id}/new/home`} className="p-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg flex items-center gap-1 font-medium transition-colors">
+                    <Link href={`${routeBase}/home`} className="p-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg flex items-center gap-1 font-medium transition-colors">
                         <Home size={18} /> <span className="hidden sm:inline">หน้าแรก</span>
                     </Link>
                 </div>

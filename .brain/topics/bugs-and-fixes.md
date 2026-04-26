@@ -3,7 +3,7 @@
      รอบเดียวกันยังแก้แท๊งลอยให้ใช้ shift-scoped transactions, anomaly preview จากค่าปัจจุบัน, flow ปิดกะเก่าที่ไม่ต้องพึ่ง admin route,
      เพิ่ม post-close daily report printing ที่ต้องอิง station-wide `/daily` แทน `/transactions`,
      เพิ่ม per-transaction thermal print flow ที่เลือกใบเสร็จรับเงิน/บิลเงินเชื่อและขนาด 58/80mm ได้ทุกรายการ,
-     consolidate route แท๊งลอยให้เหลือ staff UI เดียว `/simple-station/1/new/*` และ classic admin `/station/1`,
+     consolidate route แท๊งลอยให้เหลือ staff UI เดียว `/station/1/new/*` และ classic admin `/station/1`,
      และ fix หน้าใหม่ของแท๊งลอยให้เชื่อมทั้ง daily price, transaction contract, receipt/slip flow กับ backend/source ชุดเดียวกับหน้าเก่า;
      audit ปั๊มแก๊ส 2026-04-23 พบ route/API ซ้อนกันและกะ GAS ค้างจำนวนมาก; hardening รอบเดียวกันเติม v2 gauge route,
      auth/ownership guard, shift-scoped v2 sell/summary, payment type `CREDIT_CARD`, product guard เฉพาะ station-5, admin stale-shift cleanup tool,
@@ -94,7 +94,7 @@
 
 ### 🐛 Tank Loy Duplicate UI Route Drift (Apr 2026)
 - **ปัญหา**: แท๊งลอยมีหลาย UI route (`simple-station/1/new/*`, `station/1/new/*`, `station/1/v2`, และ classic `station/1`) ทำให้แก้ปุ่มพิมพ์/flow ในหน้าหนึ่งแล้วพนักงานอาจเปิดอีกหน้าที่ไม่มีฟีเจอร์ล่าสุด
-- **แก้ไข**: กำหนด canonical staff UI เป็น `simple-station/1/new/*`, คง classic admin ที่ `station/1`, เปลี่ยน login/sidebar/quick action ให้ชี้ canonical route, ลด `station/1/new/*` เป็น redirect page ไป staff UI ที่ตรงกัน, และให้ `station/1/v2` redirect กลับ classic admin
+- **แก้ไข**: กำหนด canonical staff UI เป็น `station/1/new/*`, คง classic admin ที่ `station/1`, เปลี่ยน login/sidebar/quick action ให้ชี้ canonical route, ให้ `simple-station/1/new/*` redirect กลับ staff UI ที่ตรงกัน, re-export implementation เดียวกันใต้ `station/1/new/*`, และให้ `station/1/v2` redirect กลับ classic admin
 - **ไฟล์ที่แก้**: `middleware`, `login`, `Sidebar`, dashboard quick action, `station/[id]/new/*`, `station/[id]/v2`, `station/[id]`, `simple-station/[id]`, `simple-station/[id]/new/summary`
 - **สถานะ**: ✅ แก้แล้ว
 
@@ -212,7 +212,7 @@
 10. **Tank Loy Transaction UI Contract**: ถ้าหน้าใหม่ของแท๊งลอยใช้ transaction data จาก station API ให้ preserve alias/shape ที่ UI ใช้ (`billBookNo` + `bookNo`, `date` + `createdAt`, `transferProofUrl`) และการแนบสลิปต้องวิ่งผ่าน `/api/upload/transfer-proof`; ห้ามอ้าง `/api/upload/slip` เพราะไม่มี route จริง
 11. **Tank Loy Sell Entry Pages Need ShiftGuard**: หน้า `new/sell` และ `new/oil-sell` ของแท๊งลอยต้องครอบ `ShiftGuard` เหมือนหน้า `home`; ถ้าเผลอถอด guard ออก พนักงานจะเข้าไปกรอกบิลได้ทั้งที่ยังไม่เปิดกะ แล้วโดน block ตอนกดบันทึกโดยไม่มีปุ่มเปิดกะบนหน้าเดียวกัน
 12. **Tank Loy Transaction Printing**: ทุก transaction ใน `new/summary` ต้องพิมพ์ได้ ไม่ควรผูกปุ่มพิมพ์กับ payment type; หน้า receipt ต้องรับ `docType=receipt|credit` และ `paper=58|80` เพื่อรองรับเครื่องพิมพ์ความร้อน
-13. **Tank Loy Single Staff UI**: ห้ามเพิ่มฟีเจอร์แท๊งลอยใน `station/1/new/*` หรือ `station/1/v2`; staff route เดียวคือ `simple-station/1/new/*` ส่วน `station/1` เก็บไว้เป็น classic/admin เท่านั้น
+13. **Tank Loy Single Staff UI**: ฟีเจอร์พนักงานแท๊งลอยต้องอยู่บน route canonical `station/1/new/*` เท่านั้น โดยใช้ shared implementation จาก `simple-station/[id]/new/*` ได้ แต่ URL ที่พนักงานใช้จริงต้องเป็น `/station/1/new/home`; `station/1` เก็บไว้เป็น classic/admin และ `simple-station/1/new/*` เป็น legacy redirect เท่านั้น
 14. **GAS Route Consolidation**: `/gas` v2 มี gauge/auth/shift/payment hardening แล้ว แต่ยังเป็น route stack แยกจาก `/gas-station/[id]/new`; งานต่อไปควรเลือก source of truth ระยะยาวก่อนเพิ่ม feature ใหญ่
 15. **GAS Stale Open Shifts**: กะ GAS ค้างเก่าถูกปิดจริงแล้วเมื่อ 2026-04-23 พร้อม audit log; งานต่อไปถ้าเจอกะค้างใหม่ให้ใช้ `/api/admin/gas/stale-shifts` เพื่อ preview/close แบบมี confirmation และ audit log
 16. **GAS Price Source**: flow หลักของ GAS v2 (`open`/`sell`/`summary`/`close`) ต้องยึด `dailyRecord.gasPrice` เป็น source เดียวต่อ station/day; global settings ใช้ได้แค่เป็น default ตอนสร้างวันใหม่หรือเติม record ที่ยังไม่มีราคา
@@ -246,7 +246,7 @@
 - 2026-04-26: ปรับหน้าใหม่ของแท๊งลอยให้โทน UI ไปทางเดียวกับหน้า `home` และตัด flow น้ำมันเครื่อง/สินค้าออกจาก nav, `oil-sell`, `sell`, และ `shift-end` สำหรับ `station-1`
 - 2026-04-26: แก้ bottom nav หน้าใหม่แท๊งลอยไม่ให้บังปุ่มท้ายหน้า และปรับรายงานหลังปิดกะให้รวมเลขเปิด-ปิดมิเตอร์, รายการเติมทั้งหมด, และยอดเงินรวมในหน้าเดียว
 - 2026-04-26: เปิดให้ transaction ทุกประเภทในหน้า summary พิมพ์เป็นใบเสร็จรับเงินหรือบิลเงินเชื่อได้ พร้อมเลือกระหว่างกระดาษ thermal 58mm/80mm
-- 2026-04-26: consolidate route แท๊งลอยให้เหลือ staff UI เดียวที่ `simple-station/1/new/*` และ classic admin ที่ `station/1`; route เก่า `station/1/new/*`/`station/1/v2` เป็น redirect เท่านั้น
+- 2026-04-26: consolidate route แท๊งลอยให้เหลือ staff UI เดียวที่ `station/1/new/*` และ classic admin ที่ `station/1`; route legacy `simple-station/1/new/*` redirect เข้า staff UI จริง ส่วน `station/1/v2` redirect กลับ classic
 - 2026-04-23: audit ปั๊มแก๊สทั้ง 2 สาขา พบ route/API ซ้อนกัน, `/api/v2/gas/[stationId]/gauge` ขาด, auth/ownership gaps ใน GAS v2/legacy routes, payment type drift, transaction ไม่ผูก `shiftId` ใน v2 sell, station-5 `hasProducts` config/DB ไม่ตรง, และ DB จริงมีกะ GAS ค้างจำนวนมาก
 - 2026-04-23: implement GAS hardening ตาม audit: เพิ่ม v2 gauge route, helper guard กลาง, station ownership checks, v2 sell/summary shift scope, payment normalize `CREDIT_CARD`/`TRANSFER`, product guard เฉพาะ station-5 พร้อม sync DB, admin stale-shift cleanup endpoint, eslint ignore สำหรับ ad hoc scripts, และ tests เฉพาะ GAS
 - 2026-04-23: ปิด GAS `OPEN` shifts ค้างใน DB จริงครบ 70 กะ (`station-5` 57, `station-6` 13), เติม end meter ที่ว่าง 16 จุดด้วยค่า start เดิม, ปิด daily records ที่ไม่มี open shift เหลือ 67 records, และสร้าง audit log ครบ 70 รายการ
