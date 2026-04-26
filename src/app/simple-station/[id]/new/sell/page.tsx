@@ -6,6 +6,7 @@ import { STATIONS, PAYMENT_TYPES, FUEL_TYPES } from '@/constants';
 import Link from 'next/link';
 import { AbnormalValueWarning } from '@/components/WizardStepper';
 import { getFullStationPriceForPaymentType } from '@/lib/full-station-price-utils';
+import ShiftGuard from '../../components/ShiftGuard';
 
 interface TruckResult {
     id: string;
@@ -34,6 +35,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
     const { id } = use(params);
     const stationIndex = parseInt(id) - 1;
     const station = STATIONS[stationIndex];
+    const stationId = `station-${id}`;
 
     const [loading, setLoading] = useState(false);
     const [selectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -427,7 +429,8 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
     }
 
     return (
-        <div className="min-h-screen bg-gray-100">
+        <ShiftGuard stationId={stationId} urlId={id}>
+            <div className="min-h-screen bg-gray-100">
             {/* Header */}
             <header className="bg-white shadow-sm sticky top-0 z-40">
                 <div className="px-4 py-3 flex items-center justify-between">
@@ -855,6 +858,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                 }}
                 onCancel={() => setShowAbnormalWarning(false)}
             />
-        </div>
+            </div>
+        </ShiftGuard>
     );
 }

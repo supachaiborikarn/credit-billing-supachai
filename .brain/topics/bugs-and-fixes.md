@@ -66,6 +66,12 @@
 - **ไฟล์ที่แก้**: `api/station/[id]/transactions`, `api/station/[id]/transactions/[transactionId]`, `simple-station/[id]/new/summary`, `simple-station/[id]/new/receipt`, `simple-station/[id]/new/sell`
 - **สถานะ**: ✅ แก้แล้ว
 
+### 🐛 Tank Loy Sell Page Missing Shift Guard (Apr 2026)
+- **ปัญหา**: หน้า `simple-station/[id]/new/sell` และ `new/oil-sell` ของแท๊งลอยเปิดให้พนักงานเข้ากรอกบิลได้แม้ยังไม่มีกะเปิด พอกดบันทึกจึงค่อยโดน backend block ด้วยข้อความ “กรุณาเปิดกะก่อนบันทึกรายการของแท๊งลอย” แต่บนหน้าดังกล่าวไม่มีปุ่มเปิดกะ ทำให้พนักงานติดค้างใน flow
+- **แก้ไข**: ครอบทั้ง 2 หน้าไว้ด้วย `ShiftGuard` ตัวเดียวกับหน้า `home` เพื่อ redirect ไป `open-shift` เมื่อยังไม่มีกะเปิด และไป `close-shift` เมื่อมีกะเก่าค้าง แทนการปล่อยให้กรอกข้อมูลจนสุดแล้วค่อย error
+- **ไฟล์ที่แก้**: `simple-station/[id]/new/sell`, `simple-station/[id]/new/oil-sell`
+- **สถานะ**: ✅ แก้แล้ว
+
 ## 🔎 Current Findings
 
 ### Gas Station Audit (Apr 23, 2026)
@@ -178,6 +184,7 @@
 8. **Tank Loy Daily Print Path**: ถ้าต้องการ “รายงานทั้งวัน” ของแท๊งลอยหลังปิดกะ ให้ดึงจาก `/api/station/[id]/daily?date=...` หรือ source ที่เป็น station-wide daily data; ห้ามใช้ `/api/station/[id]/transactions` ตรงๆ เพราะ STAFF route นั้นกรอง `recordedById`
 9. **Tank Loy Daily Price Source**: ราคาน้ำมันประจำวันของหน้าใหม่ต้องใช้ `dailyRecord.retailPrice/wholesalePrice` ผ่าน `/api/station/[id]/daily` เท่านั้น; ห้ามเพิ่ม source แยกใน `localStorage` หรือ route เฉพาะอย่าง `/fuel-prices`
 10. **Tank Loy Transaction UI Contract**: ถ้าหน้าใหม่ของแท๊งลอยใช้ transaction data จาก station API ให้ preserve alias/shape ที่ UI ใช้ (`billBookNo` + `bookNo`, `date` + `createdAt`, `transferProofUrl`) และการแนบสลิปต้องวิ่งผ่าน `/api/upload/transfer-proof`; ห้ามอ้าง `/api/upload/slip` เพราะไม่มี route จริง
+11. **Tank Loy Sell Entry Pages Need ShiftGuard**: หน้า `new/sell` และ `new/oil-sell` ของแท๊งลอยต้องครอบ `ShiftGuard` เหมือนหน้า `home`; ถ้าเผลอถอด guard ออก พนักงานจะเข้าไปกรอกบิลได้ทั้งที่ยังไม่เปิดกะ แล้วโดน block ตอนกดบันทึกโดยไม่มีปุ่มเปิดกะบนหน้าเดียวกัน
 11. **GAS Route Consolidation**: `/gas` v2 มี gauge/auth/shift/payment hardening แล้ว แต่ยังเป็น route stack แยกจาก `/gas-station/[id]/new`; งานต่อไปควรเลือก source of truth ระยะยาวก่อนเพิ่ม feature ใหญ่
 12. **GAS Stale Open Shifts**: กะ GAS ค้างเก่าถูกปิดจริงแล้วเมื่อ 2026-04-23 พร้อม audit log; งานต่อไปถ้าเจอกะค้างใหม่ให้ใช้ `/api/admin/gas/stale-shifts` เพื่อ preview/close แบบมี confirmation และ audit log
 13. **GAS Price Source**: flow หลักของ GAS v2 (`open`/`sell`/`summary`/`close`) ต้องยึด `dailyRecord.gasPrice` เป็น source เดียวต่อ station/day; global settings ใช้ได้แค่เป็น default ตอนสร้างวันใหม่หรือเติม record ที่ยังไม่มีราคา
@@ -207,6 +214,7 @@
 - 2026-04-19: เพิ่ม flow หลังปิดกะแท๊งลอยให้พิมพ์รายงานสรุปทั้งวันได้ทันทีผ่าน success modal และ station-wide daily print helper
 - 2026-04-19: แก้หน้าใหม่ของแท๊งลอยให้ราคาน้ำมันประจำวันเชื่อมกับหน้าเก่าผ่าน `dailyRecord` ชุดเดียวกัน และเลิกพึ่ง `localStorage`/route `fuel-prices` ที่ไม่มีจริง
 - 2026-04-19: แก้ contract ของ transaction/slip flow ในหน้าใหม่แท๊งลอยให้ตรงกับ route เดิม, เพิ่ม `transferProofUrl` ใน list API, เปลี่ยนแนบสลิปให้ใช้ `/api/upload/transfer-proof`, และเปิด payment types/receipt flow ให้ครบแบบหน้าเก่า
+- 2026-04-26: patch incident แท๊งลอยที่หน้า `new/sell`/`new/oil-sell` ไม่มีปุ่มเปิดกะ: เพิ่ม `ShiftGuard` ให้ redirect ไป `open-shift`/`close-shift` ก่อนเข้าหน้าบันทึกขาย
 - 2026-04-23: audit ปั๊มแก๊สทั้ง 2 สาขา พบ route/API ซ้อนกัน, `/api/v2/gas/[stationId]/gauge` ขาด, auth/ownership gaps ใน GAS v2/legacy routes, payment type drift, transaction ไม่ผูก `shiftId` ใน v2 sell, station-5 `hasProducts` config/DB ไม่ตรง, และ DB จริงมีกะ GAS ค้างจำนวนมาก
 - 2026-04-23: implement GAS hardening ตาม audit: เพิ่ม v2 gauge route, helper guard กลาง, station ownership checks, v2 sell/summary shift scope, payment normalize `CREDIT_CARD`/`TRANSFER`, product guard เฉพาะ station-5 พร้อม sync DB, admin stale-shift cleanup endpoint, eslint ignore สำหรับ ad hoc scripts, และ tests เฉพาะ GAS
 - 2026-04-23: ปิด GAS `OPEN` shifts ค้างใน DB จริงครบ 70 กะ (`station-5` 57, `station-6` 13), เติม end meter ที่ว่าง 16 จุดด้วยค่า start เดิม, ปิด daily records ที่ไม่มี open shift เหลือ 67 records, และสร้าง audit log ครบ 70 รายการ

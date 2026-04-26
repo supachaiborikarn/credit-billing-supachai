@@ -182,3 +182,9 @@
   - ปรับหน้า `/gas/[stationId]/sell`, `/gas-station/[id]/new/sell`, และ legacy `/gas-station/[id]` ให้กรอก “ยอดเงินที่ขาย” แล้วแสดงลิตรที่คำนวณได้
   - ปรับ meter report ให้แสดง orphan rows เป็น “ไม่ผูกกะ/รอผูกกะ” และแยก comparable variance ออกจากยอดขายที่ยังไม่มีมิเตอร์ประกบ
   - verification: `npm run test` ผ่าน 55 tests; targeted eslint ผ่านแบบไม่มี error
+
+## 2026-04-26
+- 🛠️ แก้ incident แท๊งลอยที่หน้า “บันทึกการเติม” บอกให้เปิดกะก่อน แต่ไม่มีปุ่มเปิดกะ
+  - พบว่าหน้า `simple-station/[id]/new/sell` และ `new/oil-sell` ไม่ได้ครอบ `ShiftGuard` เหมือนหน้า `home`
+  - patch ทั้ง 2 หน้าให้ redirect ไป `open-shift` ถ้ายังไม่มีกะเปิด และไป `close-shift` ถ้ามีกะเก่าค้าง
+  - verification: targeted eslint ผ่าน; `tsc --noEmit` ทั้งโปรเจกต์ยังติดไฟล์ `scratch/*` ที่ไม่เกี่ยวกับงานนี้

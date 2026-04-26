@@ -4,6 +4,7 @@ import { useState, useEffect, use } from 'react';
 import { RefreshCw, Package, Check, User, X, Plus, Minus, ShoppingCart } from 'lucide-react';
 import { STATIONS, PAYMENT_TYPES } from '@/constants';
 import SimpleBottomNav from '../../components/SimpleBottomNav';
+import ShiftGuard from '../../components/ShiftGuard';
 
 interface Product {
     id: string;
@@ -23,6 +24,7 @@ export default function OilSellPage({ params }: { params: Promise<{ id: string }
     const { id } = use(params);
     const stationIndex = parseInt(id) - 1;
     const station = STATIONS[stationIndex];
+    const stationId = `station-${id}`;
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -168,7 +170,8 @@ export default function OilSellPage({ params }: { params: Promise<{ id: string }
     }
 
     return (
-        <div className="min-h-screen bg-gray-900 pb-20">
+        <ShiftGuard stationId={stationId} urlId={id}>
+            <div className="min-h-screen bg-gray-900 pb-20">
             {/* Header */}
             <header className="bg-gradient-to-r from-orange-600 to-amber-600 text-white sticky top-0 z-40">
                 <div className="flex items-center justify-between px-4 py-3">
@@ -461,6 +464,7 @@ export default function OilSellPage({ params }: { params: Promise<{ id: string }
             )}
 
             <SimpleBottomNav stationId={id} />
-        </div>
+            </div>
+        </ShiftGuard>
     );
 }
