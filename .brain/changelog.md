@@ -188,3 +188,15 @@
   - พบว่าหน้า `simple-station/[id]/new/sell` และ `new/oil-sell` ไม่ได้ครอบ `ShiftGuard` เหมือนหน้า `home`
   - patch ทั้ง 2 หน้าให้ redirect ไป `open-shift` ถ้ายังไม่มีกะเปิด และไป `close-shift` ถ้ามีกะเก่าค้าง
   - verification: targeted eslint ผ่าน; `tsc --noEmit` ทั้งโปรเจกต์ยังติดไฟล์ `scratch/*` ที่ไม่เกี่ยวกับงานนี้
+- 🎨 ปรับหน้าใหม่ของแท๊งลอยให้ภาษาหน้าไปทางเดียวกัน และตัด flow น้ำมันเครื่องที่ไม่ใช้จริง
+  - ซ่อนเมนู `น้ำมันเครื่อง` ใน `SimpleBottomNav` เฉพาะ `station-1`
+  - ให้ route `simple-station/[id]/new/oil-sell` redirect กลับ `home` แทนการเปิดหน้าที่สถานีนี้ไม่มีใช้งาน
+  - patch `new/sell` ให้ใช้ dark slate theme แบบเดียวกับหน้า home, จำกัด fuel types ของแท๊งลอยเหลือดีเซล, และซ่อน product picker/ส่ง `products=[]`
+  - patch `new/summary` และ `new/shift-end` ให้ใช้ direction เดียวกับหน้า home พร้อมตัด tab/step/summary ของสินค้าออกสำหรับแท๊งลอย
+  - verification: targeted eslint ผ่าน; `tsc --noEmit` ทั้งโปรเจกต์ยังล้มจาก `scratch/*` เท่านั้น
+- 🧭 เพิ่ม `DESIGN.md` เป็น design source of truth สำหรับ AI agents
+  - สร้าง root `DESIGN.md` ตามแนวทาง Google Labs DESIGN.md: YAML design tokens + markdown rationale
+  - ระบุ brand direction ของระบบเป็น operational console, Thai-first Sarabun, primary orange, compact mobile station flows, และข้อห้าม default-purple drift
+  - ระบุ station capability rule ว่า Tank Loy (`station-1`) ไม่มี engine-oil/product flow ใน nav/sell/shift steps
+  - อัปเดต `AGENTS.md` ให้ agent อ่าน `DESIGN.md` ก่อนทำงาน UI/UX/frontend
+  - เพิ่ม brain topic `design-system.md`

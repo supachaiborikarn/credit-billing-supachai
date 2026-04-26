@@ -24,6 +24,19 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
     const { id } = use(params);
     const stationIndex = parseInt(id) - 1;
     const station = STATIONS[stationIndex];
+    const isTankLoyStation = station?.id === 'station-1';
+    const pageClass = isTankLoyStation
+        ? 'min-h-screen bg-slate-950 text-slate-100'
+        : 'min-h-screen bg-gray-100';
+    const headerClass = isTankLoyStation
+        ? 'bg-slate-900/80 backdrop-blur-md border-b border-white/10 shadow-sm sticky top-0 z-40'
+        : 'bg-white shadow-sm sticky top-0 z-40';
+    const surfaceClass = isTankLoyStation
+        ? 'rounded-3xl border border-white/10 bg-slate-900/70 p-4 shadow-[0_8px_32px_rgba(0,0,0,0.3)] backdrop-blur-xl'
+        : 'bg-white rounded-2xl p-4 shadow-sm';
+    const inactiveFilterClass = isTankLoyStation
+        ? 'bg-slate-900/70 text-slate-300 border border-white/10 hover:border-white/20'
+        : 'bg-white text-gray-700 border border-gray-200';
 
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [loading, setLoading] = useState(true);
@@ -329,15 +342,20 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
     }
 
     return (
-        <div className="min-h-screen bg-gray-100">
+        <div className={pageClass}>
             {/* Header */}
-            <header className="bg-white shadow-sm sticky top-0 z-40">
+            <header className={headerClass}>
                 <div className="px-4 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <Link href={`/simple-station/${id}/new/home`} className="p-1">
-                            <ArrowLeft size={24} className="text-gray-700" />
+                            <ArrowLeft size={24} className={isTankLoyStation ? 'text-slate-200' : 'text-gray-700'} />
                         </Link>
-                        <h1 className="font-bold text-gray-800 text-lg">สรุปรายวัน</h1>
+                        <div>
+                            <h1 className={`text-lg font-bold ${isTankLoyStation ? 'text-white' : 'text-gray-800'}`}>สรุปรายวัน</h1>
+                            {isTankLoyStation && (
+                                <p className="text-xs text-slate-400">โทนเดียวกับหน้าแท๊งลอยหลัก และแสดงเฉพาะงานน้ำมัน</p>
+                            )}
+                        </div>
                     </div>
                     <div className="flex items-center gap-2">
                         <button
@@ -354,13 +372,13 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                         >
                             <FileText size={18} />
                         </button>
-                        <div className="flex items-center gap-2 rounded-full border border-black/15 bg-white px-3 py-1.5">
-                            <Calendar size={14} className="text-orange-500" />
+                        <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 ${isTankLoyStation ? 'border border-white/10 bg-slate-800/80 text-slate-100' : 'border border-black/15 bg-white'}`}>
+                            <Calendar size={14} className={isTankLoyStation ? 'text-orange-300' : 'text-orange-500'} />
                             <input
                                 type="date"
                                 value={selectedDate}
                                 onChange={(e) => setSelectedDate(e.target.value)}
-                                className="bg-transparent text-sm font-bold focus:outline-none w-[110px]"
+                                className={`w-[110px] bg-transparent text-sm font-bold focus:outline-none ${isTankLoyStation ? 'text-slate-100 [color-scheme:dark]' : ''}`}
                             />
                         </div>
                     </div>
@@ -399,7 +417,7 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                         onClick={() => setActiveFilter('all')}
                         className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeFilter === 'all'
                             ? 'bg-orange-500 text-white'
-                            : 'bg-white text-gray-700 border border-gray-200'
+                            : inactiveFilterClass
                             }`}
                     >
                         ทั้งหมด ({transactions.length})
@@ -412,7 +430,7 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                                 onClick={() => setActiveFilter(pt.value)}
                                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeFilter === pt.value
                                     ? 'bg-orange-500 text-white'
-                                    : 'bg-white text-gray-700 border border-gray-200'
+                                    : inactiveFilterClass
                                     }`}
                             >
                                 {pt.label} ({count})
@@ -427,17 +445,17 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
                     </div>
                 ) : filteredTransactions.length === 0 ? (
-                    <div className="bg-white rounded-2xl p-8 text-center text-gray-400">
+                    <div className={`${surfaceClass} p-8 text-center ${isTankLoyStation ? 'text-slate-500' : 'text-gray-400'}`}>
                         ยังไม่มีรายการ
                     </div>
                 ) : (
                     <div className="space-y-3">
                         {filteredTransactions.map((txn) => (
-                            <div key={txn.id} className="bg-white rounded-2xl p-4 shadow-sm">
+                            <div key={txn.id} className={surfaceClass}>
                                 <div className="flex items-start justify-between">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <span className="font-bold text-gray-800">{txn.licensePlate || 'ไม่ระบุ'}</span>
+                                            <span className={`font-bold ${isTankLoyStation ? 'text-slate-100' : 'text-gray-800'}`}>{txn.licensePlate || 'ไม่ระบุ'}</span>
                                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${txn.paymentType === 'CASH' ? 'bg-green-100 text-green-700' :
                                                 txn.paymentType === 'CREDIT' ? 'bg-purple-100 text-purple-700' :
                                                     'bg-blue-100 text-blue-700'
@@ -445,14 +463,14 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                                                 {getPaymentLabel(txn.paymentType)}
                                             </span>
                                         </div>
-                                        <p className="text-sm text-gray-500">{txn.ownerName || '-'}</p>
-                                        <p className="text-xs text-gray-400 mt-1">
+                                        <p className={`text-sm ${isTankLoyStation ? 'text-slate-400' : 'text-gray-500'}`}>{txn.ownerName || '-'}</p>
+                                        <p className={`mt-1 text-xs ${isTankLoyStation ? 'text-slate-500' : 'text-gray-400'}`}>
                                             {txn.billBookNo || '-'}/{txn.billNo || '-'} • {txn.fuelType ? getFuelLabel(txn.fuelType) : <span className="text-red-400">ไม่ระบุสินค้า</span>} • {formatTime(txn.date)}
                                         </p>
                                     </div>
                                     <div className="text-right">
-                                        <p className="font-bold text-lg text-green-600">{formatCurrency(txn.amount)} ฿</p>
-                                        <p className="text-sm text-gray-500">{txn.liters} ลิตร</p>
+                                        <p className={`text-lg font-bold ${isTankLoyStation ? 'text-emerald-300' : 'text-green-600'}`}>{formatCurrency(txn.amount)} ฿</p>
+                                        <p className={`text-sm ${isTankLoyStation ? 'text-slate-400' : 'text-gray-500'}`}>{txn.liters} ลิตร</p>
                                         <div className="flex items-center justify-end gap-1 mt-2">
                                             {canPrintReceipt(txn.paymentType) && (
                                                 <Link

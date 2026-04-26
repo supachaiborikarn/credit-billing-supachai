@@ -36,6 +36,37 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
     const stationIndex = parseInt(id) - 1;
     const station = STATIONS[stationIndex];
     const stationId = `station-${id}`;
+    const isTankLoyStation = station?.id === 'station-1';
+    const showOilFeatures = !isTankLoyStation;
+    const availableFuelTypes = isTankLoyStation
+        ? FUEL_TYPES.filter((type) => type.value === 'DIESEL')
+        : FUEL_TYPES.filter((type) => !type.isProduct);
+    const pageClass = isTankLoyStation
+        ? 'min-h-screen bg-slate-950 text-slate-100'
+        : 'min-h-screen bg-gray-100';
+    const headerClass = isTankLoyStation
+        ? 'bg-slate-900/80 backdrop-blur-md border-b border-white/10 shadow-sm sticky top-0 z-40'
+        : 'bg-white shadow-sm sticky top-0 z-40';
+    const cardClass = isTankLoyStation
+        ? 'rounded-3xl border border-white/10 bg-slate-900/70 p-4 shadow-[0_8px_32px_rgba(0,0,0,0.3)] backdrop-blur-xl'
+        : 'bg-white rounded-2xl shadow-sm p-4';
+    const labelClass = isTankLoyStation ? 'text-slate-200' : 'text-gray-700';
+    const fieldClass = isTankLoyStation
+        ? 'border-white/10 bg-slate-800/80 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500'
+        : 'border-gray-200 text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500';
+    const optionSelectedClass = isTankLoyStation
+        ? 'border-orange-400 bg-orange-500/10 text-orange-200'
+        : 'border-orange-500 bg-orange-50 text-orange-700';
+    const optionIdleClass = isTankLoyStation
+        ? 'border-white/10 bg-slate-800/70 text-slate-300 hover:border-white/20'
+        : 'border-gray-200 text-gray-700 hover:border-gray-300';
+    const subtleTextClass = isTankLoyStation ? 'text-slate-400' : 'text-gray-500';
+    const totalCardClass = isTankLoyStation
+        ? 'bg-gradient-to-r from-orange-500 to-rose-500 rounded-3xl p-4 text-center shadow-[0_18px_45px_rgba(249,115,22,0.28)]'
+        : 'bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl p-4 text-center';
+    const submitClass = isTankLoyStation
+        ? 'w-full py-4 bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white text-lg font-bold rounded-3xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_18px_45px_rgba(249,115,22,0.28)]'
+        : 'w-full py-4 bg-orange-500 hover:bg-orange-600 text-white text-lg font-bold rounded-2xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg';
 
     const [loading, setLoading] = useState(false);
     const [selectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -89,6 +120,11 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
 
     // Load products for this station
     useEffect(() => {
+        if (!showOilFeatures) {
+            setProducts([]);
+            return;
+        }
+
         const fetchProducts = async () => {
             try {
                 const res = await fetch(`/api/simple-station/${id}/products`);
@@ -101,7 +137,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
             }
         };
         fetchProducts();
-    }, [id]);
+    }, [id, showOilFeatures]);
 
     // Load daily prices from shared daily record
     useEffect(() => {
@@ -154,6 +190,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
     // Calculate total including products
     const productsTotal = selectedProducts.reduce((sum, p) => sum + p.price * p.qty, 0);
     const grandTotal = amount + productsTotal;
+    const canSubmit = Boolean((liters && parseFloat(liters) > 0) || (showOilFeatures && selectedProducts.length > 0));
 
     // Search trucks
     useEffect(() => {
@@ -344,7 +381,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
         const hasProducts = selectedProducts.length > 0;
 
         if (!hasFuel && !hasProducts) {
-            alert('กรุณาใส่จำนวนลิตร หรือเลือกสินค้า');
+            alert(showOilFeatures ? 'กรุณาใส่จำนวนลิตร หรือเลือกสินค้า' : 'กรุณาใส่จำนวนลิตร');
             return;
         }
         if (hasFuel && (!pricePerLiter || parseFloat(pricePerLiter) <= 0)) {
@@ -383,7 +420,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                     amount: grandTotal,
                     billBookNo: bookNo || null,
                     billNo: billNo || null,
-                    products: selectedProducts,
+                    products: showOilFeatures ? selectedProducts : [],
                 }),
             });
 
@@ -430,23 +467,28 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
 
     return (
         <ShiftGuard stationId={stationId} urlId={id}>
-            <div className="min-h-screen bg-gray-100">
+            <div className={pageClass}>
             {/* Header */}
-            <header className="bg-white shadow-sm sticky top-0 z-40">
+            <header className={headerClass}>
                 <div className="px-4 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <Link href={`/simple-station/${id}/new/home`} className="p-1">
-                            <ArrowLeft size={24} className="text-gray-700" />
+                            <ArrowLeft size={24} className={isTankLoyStation ? 'text-slate-200' : 'text-gray-700'} />
                         </Link>
-                        <h1 className="font-bold text-gray-800 text-lg">ลงบิลใหม่</h1>
+                        <div>
+                            <h1 className={`text-lg font-bold ${isTankLoyStation ? 'text-white' : 'text-gray-800'}`}>ลงบิลใหม่</h1>
+                            {isTankLoyStation && (
+                                <p className="text-xs text-slate-400">ธีมเดียวกับหน้าแท๊งลอยหลัก และไม่มีส่วนน้ำมันเครื่อง</p>
+                            )}
+                        </div>
                     </div>
                 </div>
             </header>
 
             <div className="p-4 pb-24 space-y-4">
                 {/* Book & Bill Number */}
-                <div className="bg-white rounded-2xl shadow-sm p-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className={cardClass}>
+                    <label className={`block text-sm font-medium mb-2 ${labelClass}`}>
                         📝 เล่ม/เลขที่บิล
                     </label>
                     <div className="grid grid-cols-2 gap-3">
@@ -455,21 +497,21 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                             value={bookNo}
                             onChange={(e) => setBookNo(e.target.value)}
                             placeholder="เล่มที่"
-                            className="px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800"
+                            className={`px-4 py-3 rounded-xl border ${fieldClass}`}
                         />
                         <input
                             type="text"
                             value={billNo}
                             onChange={(e) => setBillNo(e.target.value)}
                             placeholder="เลขที่"
-                            className="px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800"
+                            className={`px-4 py-3 rounded-xl border ${fieldClass}`}
                         />
                     </div>
                 </div>
 
                 {/* License Plate Search */}
-                <div className="bg-white rounded-2xl shadow-sm p-4" ref={searchRef}>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className={cardClass} ref={searchRef}>
+                    <label className={`block text-sm font-medium mb-2 ${labelClass}`}>
                         🚗 ทะเบียนรถ
                     </label>
                     <div className="relative">
@@ -478,7 +520,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                             value={licensePlate}
                             onChange={(e) => setLicensePlate(e.target.value)}
                             placeholder="กรอกทะเบียน หรือ ปล่อยว่าง"
-                            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800"
+                            className={`w-full px-4 py-3 rounded-xl border text-lg ${fieldClass}`}
                         />
                         {searchLoading && (
                             <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -488,15 +530,15 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                     </div>
 
                     {showResults && searchResults.length > 0 && (
-                        <div className="mt-2 border border-gray-200 rounded-xl overflow-hidden">
+                        <div className={`mt-2 overflow-hidden rounded-xl border ${isTankLoyStation ? 'border-white/10 bg-slate-800/70' : 'border-gray-200'}`}>
                             {searchResults.map((truck) => (
                                 <button
                                     key={truck.id}
                                     onClick={() => selectTruck(truck)}
-                                    className="w-full px-4 py-3 text-left hover:bg-orange-50 border-b border-gray-100 last:border-b-0"
+                                    className={`w-full border-b px-4 py-3 text-left last:border-b-0 ${isTankLoyStation ? 'border-white/10 hover:bg-slate-700/70' : 'border-gray-100 hover:bg-orange-50'}`}
                                 >
-                                    <p className="font-medium text-gray-800">{truck.licensePlate}</p>
-                                    <p className="text-sm text-gray-500">{truck.ownerName}</p>
+                                    <p className={`font-medium ${isTankLoyStation ? 'text-slate-100' : 'text-gray-800'}`}>{truck.licensePlate}</p>
+                                    <p className={`text-sm ${subtleTextClass}`}>{truck.ownerName}</p>
                                 </button>
                             ))}
                         </div>
@@ -506,7 +548,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                     {showResults && searchResults.length === 0 && licensePlate.length >= 2 && !searchLoading && (
                         <button
                             onClick={openNewTruckModal}
-                            className="mt-2 w-full px-4 py-3 flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 hover:bg-blue-100 transition"
+                            className={`mt-2 flex w-full items-center gap-2 rounded-xl border px-4 py-3 transition ${isTankLoyStation ? 'border-sky-400/20 bg-sky-500/10 text-sky-200 hover:bg-sky-500/15' : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'}`}
                         >
                             <UserPlus size={18} />
                             <span>เพิ่มทะเบียนใหม่ &quot;{licensePlate}&quot;</span>
@@ -514,7 +556,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                     )}
 
                     {ownerName && (
-                        <div className="mt-3 flex items-center gap-2 text-green-600">
+                        <div className={`mt-3 flex items-center gap-2 ${isTankLoyStation ? 'text-emerald-300' : 'text-green-600'}`}>
                             <User size={16} />
                             <span className="text-sm">{ownerName}</span>
                         </div>
@@ -522,18 +564,18 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                 </div>
 
                 {/* Fuel Type */}
-                <div className="bg-white rounded-2xl shadow-sm p-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                <div className={cardClass}>
+                    <label className={`block text-sm font-medium mb-3 ${labelClass}`}>
                         ⛽ ประเภทน้ำมัน
                     </label>
                     <div className="grid grid-cols-3 gap-2">
-                        {FUEL_TYPES.map((type) => (
+                        {availableFuelTypes.map((type) => (
                             <button
                                 key={type.value}
                                 onClick={() => setFuelType(type.value)}
-                                className={`py-3 px-2 rounded-xl border-2 text-sm font-medium transition-all ${fuelType === type.value
-                                    ? 'border-orange-500 bg-orange-50 text-orange-700'
-                                    : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                                className={`rounded-xl border-2 px-2 py-3 text-sm font-medium transition-all ${fuelType === type.value
+                                    ? optionSelectedClass
+                                    : optionIdleClass
                                     }`}
                             >
                                 {fuelType === type.value && <Check size={14} className="inline mr-1" />}
@@ -544,8 +586,8 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                 </div>
 
                 {/* Payment Type */}
-                <div className="bg-white rounded-2xl shadow-sm p-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                <div className={cardClass}>
+                    <label className={`block text-sm font-medium mb-3 ${labelClass}`}>
                         💳 ประเภทชำระ
                     </label>
                     <div className="grid grid-cols-2 gap-2">
@@ -553,9 +595,9 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                             <button
                                 key={type.value}
                                 onClick={() => setPaymentType(type.value)}
-                                className={`py-3 px-2 rounded-xl border-2 text-sm font-medium transition-all ${paymentType === type.value
-                                    ? 'border-orange-500 bg-orange-50 text-orange-700'
-                                    : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                                className={`rounded-xl border-2 px-2 py-3 text-sm font-medium transition-all ${paymentType === type.value
+                                    ? optionSelectedClass
+                                    : optionIdleClass
                                     }`}
                             >
                                 {paymentType === type.value && <Check size={14} className="inline mr-1" />}
@@ -566,18 +608,28 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                 </div>
 
                 {/* Liters/Amount Input with Mode Toggle */}
-                <div className="bg-white rounded-2xl shadow-sm p-4 space-y-3">
+                <div className={`${cardClass} space-y-3`}>
                     {/* Mode Toggle */}
                     <div className="flex items-center justify-center gap-2 mb-2">
                         <button
                             onClick={() => setInputMode('liters')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${inputMode === 'liters' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600'}`}
+                            className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${inputMode === 'liters'
+                                ? 'bg-orange-500 text-white'
+                                : isTankLoyStation
+                                    ? 'bg-slate-800 text-slate-300'
+                                    : 'bg-gray-100 text-gray-600'
+                                }`}
                         >
                             กรอกลิตร
                         </button>
                         <button
                             onClick={() => setInputMode('amount')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${inputMode === 'amount' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600'}`}
+                            className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${inputMode === 'amount'
+                                ? 'bg-orange-500 text-white'
+                                : isTankLoyStation
+                                    ? 'bg-slate-800 text-slate-300'
+                                    : 'bg-gray-100 text-gray-600'
+                                }`}
                         >
                             กรอกเงิน
                         </button>
@@ -585,7 +637,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
 
                     {inputMode === 'liters' ? (
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium mb-2 ${labelClass}`}>
                                 🔢 จำนวนลิตร
                             </label>
                             <input
@@ -593,13 +645,13 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                                 value={liters}
                                 onChange={(e) => setLiters(e.target.value)}
                                 placeholder="0.00"
-                                className="w-full px-4 py-4 border border-gray-200 rounded-xl text-2xl text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800"
+                                className={`w-full rounded-xl border px-4 py-4 text-center text-2xl font-bold ${fieldClass}`}
                                 inputMode="decimal"
                             />
                         </div>
                     ) : (
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className={`block text-sm font-medium mb-2 ${labelClass}`}>
                                 💵 จำนวนเงิน (บาท)
                             </label>
                             <input
@@ -607,11 +659,11 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                                 value={amountInput}
                                 onChange={(e) => setAmountInput(e.target.value)}
                                 placeholder="0"
-                                className="w-full px-4 py-4 border border-gray-200 rounded-xl text-2xl text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800"
+                                className={`w-full rounded-xl border px-4 py-4 text-center text-2xl font-bold ${fieldClass}`}
                                 inputMode="decimal"
                             />
                             {liters && parseFloat(liters) > 0 && (
-                                <p className="text-center text-sm text-gray-500 mt-2">
+                                <p className={`mt-2 text-center text-sm ${subtleTextClass}`}>
                                     = {parseFloat(liters).toFixed(2)} ลิตร
                                 </p>
                             )}
@@ -619,18 +671,18 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                     )}
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            💰 ราคาต่อลิตร {pricePerLiter && <span className="text-green-600 text-xs">(ดึงจากราคาประจำวัน)</span>}
+                        <label className={`block text-sm font-medium mb-2 ${labelClass}`}>
+                            💰 ราคาต่อลิตร {pricePerLiter && <span className={`text-xs ${isTankLoyStation ? 'text-emerald-300' : 'text-green-600'}`}>(ดึงจากราคาประจำวัน)</span>}
                         </label>
                         <input
                             type="text"
                             value={priceDisplay ? formatPriceDisplay(priceDisplay) : ''}
                             onChange={handlePriceChange}
                             placeholder="0.00"
-                            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-xl text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800"
+                            className={`w-full rounded-xl border px-4 py-3 text-center text-xl font-bold ${fieldClass}`}
                             inputMode="numeric"
                         />
-                        <p className="mt-2 text-xs text-gray-500">
+                        <p className={`mt-2 text-xs ${subtleTextClass}`}>
                             {paymentType === 'CASH' || paymentType === 'TRANSFER'
                                 ? `ใช้ราคาขายส่ง/สด ${formatCurrency(dailyPrices.wholesalePrice)} บาท`
                                 : `ใช้ราคาขายปลีก/เชื่อ ${formatCurrency(dailyPrices.retailPrice)} บาท`}
@@ -639,9 +691,10 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                 </div>
 
                 {/* Product Selection */}
-                <div className="bg-white rounded-2xl shadow-sm p-4">
+                {showOilFeatures && (
+                <div className={cardClass}>
                     <div className="flex items-center justify-between mb-3">
-                        <label className="text-sm font-medium text-gray-700">
+                        <label className={`text-sm font-medium ${labelClass}`}>
                             🛒 สินค้าเพิ่มเติม (น้ำมันเครื่อง/อุปกรณ์)
                         </label>
                         <button
@@ -685,15 +738,16 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                             </div>
                         </div>
                     ) : (
-                        <p className="text-sm text-gray-400 text-center py-3">ยังไม่มีสินค้า กดปุ่ม &quot;เพิ่ม&quot; เพื่อเลือก</p>
+                        <p className={`py-3 text-center text-sm ${isTankLoyStation ? 'text-slate-500' : 'text-gray-400'}`}>ยังไม่มีสินค้า กดปุ่ม &quot;เพิ่ม&quot; เพื่อเลือก</p>
                     )}
                 </div>
+                )}
 
                 {/* Total Amount */}
-                <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl p-4 text-center">
+                <div className={totalCardClass}>
                     <p className="text-orange-100 text-sm mb-1">รวมทั้งสิ้น</p>
                     <p className="text-white text-4xl font-bold">฿{formatCurrency(grandTotal)}</p>
-                    {productsTotal > 0 && (
+                    {showOilFeatures && productsTotal > 0 && (
                         <p className="text-orange-100 text-xs mt-1">
                             (น้ำมัน {formatCurrency(amount)} + สินค้า {formatCurrency(productsTotal)})
                         </p>
@@ -703,15 +757,15 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                 {/* Submit Button */}
                 <button
                     onClick={attemptSubmit}
-                    disabled={loading || ((!liters || parseFloat(liters) <= 0) && selectedProducts.length === 0)}
-                    className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white text-lg font-bold rounded-2xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                    disabled={loading || !canSubmit}
+                    className={submitClass}
                 >
                     {loading ? 'กำลังบันทึก...' : '✅ บันทึก'}
                 </button>
             </div>
 
             {/* Product Picker Modal */}
-            {showProductPicker && (
+            {showOilFeatures && showProductPicker && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
                     <div className="bg-white w-full max-w-lg rounded-t-3xl max-h-[80vh] overflow-hidden flex flex-col">
                         <div className="p-4 border-b flex items-center justify-between">

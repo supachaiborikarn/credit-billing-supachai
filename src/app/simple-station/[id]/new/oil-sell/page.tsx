@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { RefreshCw, Package, Check, User, X, Plus, Minus, ShoppingCart } from 'lucide-react';
 import { STATIONS, PAYMENT_TYPES } from '@/constants';
-import SimpleBottomNav from '../../components/SimpleBottomNav';
 import ShiftGuard from '../../components/ShiftGuard';
 
 interface Product {
@@ -25,6 +25,8 @@ export default function OilSellPage({ params }: { params: Promise<{ id: string }
     const stationIndex = parseInt(id) - 1;
     const station = STATIONS[stationIndex];
     const stationId = `station-${id}`;
+    const router = useRouter();
+    const isTankLoyStation = station?.id === 'station-1';
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -44,7 +46,7 @@ export default function OilSellPage({ params }: { params: Promise<{ id: string }
     const [showOwnerDropdown, setShowOwnerDropdown] = useState(false);
 
     // Fetch products
-    const fetchProducts = async () => {
+    const fetchProducts = useCallback(async () => {
         setLoading(true);
         try {
             const res = await fetch(`/api/simple-station/${id}/products`);
@@ -57,11 +59,21 @@ export default function OilSellPage({ params }: { params: Promise<{ id: string }
         } finally {
             setLoading(false);
         }
-    };
+    }, [id]);
 
     useEffect(() => {
+        if (isTankLoyStation) {
+            setLoading(false);
+            return;
+        }
         fetchProducts();
-    }, [id]);
+    }, [fetchProducts, isTankLoyStation]);
+
+    useEffect(() => {
+        if (isTankLoyStation) {
+            router.replace(`/simple-station/${id}/new/home`);
+        }
+    }, [id, isTankLoyStation, router]);
 
     // Fetch owners for credit
     useEffect(() => {
@@ -167,6 +179,17 @@ export default function OilSellPage({ params }: { params: Promise<{ id: string }
 
     if (!station) {
         return <div className="p-4 text-gray-500">ไม่พบสถานี</div>;
+    }
+
+    if (isTankLoyStation) {
+        return (
+            <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+                <div className="text-center text-slate-300">
+                    <RefreshCw size={24} className="mx-auto mb-3 animate-spin" />
+                    <p>กำลังกลับหน้าหลัก...</p>
+                </div>
+            </div>
+        );
     }
 
     return (
@@ -463,7 +486,6 @@ export default function OilSellPage({ params }: { params: Promise<{ id: string }
                 </div>
             )}
 
-            <SimpleBottomNav stationId={id} />
             </div>
         </ShiftGuard>
     );

@@ -110,6 +110,28 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
     const { id } = use(params);
     const stationIndex = parseInt(id) - 1;
     const station = STATIONS[stationIndex];
+    const isTankLoyStation = station?.id === 'station-1';
+    const showOilFeatures = !isTankLoyStation;
+    const pageClass = isTankLoyStation
+        ? 'min-h-screen bg-slate-950 text-slate-100'
+        : 'min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900';
+    const headerClass = isTankLoyStation
+        ? 'sticky top-0 z-40 bg-slate-900/80 backdrop-blur-md border-b border-white/10 px-4 py-3 shadow-sm'
+        : 'sticky top-0 z-40 backdrop-blur-xl border-b border-white/10 px-4 py-3';
+    const accentTabClass = isTankLoyStation
+        ? 'text-orange-300 border-b-2 border-orange-400 bg-orange-500/10'
+        : 'text-purple-400 border-b-2 border-purple-400 bg-purple-500/10';
+    const accentInputRingClass = isTankLoyStation ? 'focus:ring-orange-500' : 'focus:ring-purple-500';
+    const accentBadgeClass = isTankLoyStation
+        ? 'bg-orange-500/20 text-orange-200'
+        : 'bg-purple-500/30 text-purple-300';
+    const accentTotalCardClass = isTankLoyStation
+        ? 'card-glass p-4 rounded-xl bg-orange-500/10 border border-orange-500/30'
+        : 'card-glass p-4 rounded-xl bg-purple-500/10 border border-purple-500/30';
+    const accentTotalTextClass = isTankLoyStation ? 'text-orange-300' : 'text-purple-300';
+    const submitButtonClass = isTankLoyStation
+        ? 'w-full py-4 px-6 bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-50'
+        : 'w-full py-4 px-6 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-50';
 
     const [activeTab, setActiveTab] = useState<'meters' | 'products' | 'cash' | 'summary'>('meters');
     const [loading, setLoading] = useState(true);
@@ -145,7 +167,6 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
         discounts: 0,
         discountNote: ''
     });
-    const isTankLoyStation = station?.id === 'station-1';
 
     // Auto-save meters to localStorage when changed
     useEffect(() => {
@@ -272,7 +293,7 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                 }
 
                 // Initialize products
-                if (data.products) {
+                if (showOilFeatures && data.products) {
                     setProducts(data.products.map((p: { id: string; name: string; price: number; quantity: number }) => ({
                         id: p.id,
                         name: p.name,
@@ -283,6 +304,8 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                         closingStock: p.quantity || 0,
                         amount: 0
                     })));
+                } else {
+                    setProducts([]);
                 }
 
                 // Calculate expected cash from transactions
@@ -315,7 +338,13 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
         } finally {
             setLoading(false);
         }
-    }, [id]);
+    }, [id, showOilFeatures]);
+
+    useEffect(() => {
+        if (!showOilFeatures && activeTab === 'products') {
+            setActiveTab('cash');
+        }
+    }, [activeTab, showOilFeatures]);
 
     // Fetch station config and current shift data
     useEffect(() => {
@@ -356,7 +385,7 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
     // Calculate totals
     const totalMeterLiters = meters.reduce((sum, m) => sum + m.liters, 0);
     const totalMeterAmount = meters.reduce((sum, m) => sum + m.amount, 0);
-    const totalProductAmount = products.reduce((sum, p) => sum + p.amount, 0);
+    const totalProductAmount = showOilFeatures ? products.reduce((sum, p) => sum + p.amount, 0) : 0;
     const totalExpected = totalMeterAmount + totalProductAmount;
     const totalReceived =
         cash.cashReceived +
@@ -472,7 +501,7 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                 body: JSON.stringify({
                     shiftId: shift?.id,
                     meters,
-                    products,
+                    products: showOilFeatures ? products : [],
                     cash,
                     totalExpected,
                     totalReceived,
@@ -729,10 +758,27 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
         { id: 'products', label: 'สินค้า', icon: Package },
         { id: 'cash', label: 'เงิน', icon: Wallet },
         { id: 'summary', label: 'สรุป', icon: CheckCircle },
-    ] as const;
+    ].filter((tab) => showOilFeatures || tab.id !== 'products') as Array<{
+        id: 'meters' | 'products' | 'cash' | 'summary';
+        label: string;
+        icon: typeof Fuel;
+    }>;
+
+    const wizardSteps = showOilFeatures
+        ? [
+            { id: 'meters', label: 'มิเตอร์', completed: activeTab !== 'meters' },
+            { id: 'products', label: 'สินค้า', completed: activeTab === 'cash' || activeTab === 'summary' },
+            { id: 'cash', label: 'เงิน', completed: activeTab === 'summary' },
+            { id: 'summary', label: 'สรุป', completed: false },
+        ]
+        : [
+            { id: 'meters', label: 'มิเตอร์', completed: activeTab !== 'meters' },
+            { id: 'cash', label: 'เงิน', completed: activeTab === 'summary' },
+            { id: 'summary', label: 'สรุป', completed: false },
+        ];
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className={pageClass}>
             {showCloseSuccess && isTankLoyStation && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
                     <div className="w-full max-w-md rounded-2xl border border-emerald-500/30 bg-slate-900 p-6 shadow-2xl">
@@ -794,7 +840,7 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
             )}
 
             {/* Header */}
-            <header className="sticky top-0 z-40 backdrop-blur-xl border-b border-white/10 px-4 py-3">
+            <header className={headerClass}>
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <Link href={`/simple-station/${id}/new/home`} className="p-2 rounded-lg hover:bg-white/10">
@@ -832,12 +878,7 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
             {/* WizardStepper - Supachaigroup Style */}
             <div className="bg-white/5 px-4 py-2">
                 <WizardStepper
-                    steps={[
-                        { id: 'meters', label: 'มิเตอร์', completed: activeTab !== 'meters' },
-                        { id: 'products', label: 'สินค้า', completed: activeTab === 'cash' || activeTab === 'summary' },
-                        { id: 'cash', label: 'เงิน', completed: activeTab === 'summary' },
-                        { id: 'summary', label: 'สรุป', completed: false },
-                    ]}
+                    steps={wizardSteps}
                     currentStep={tabs.findIndex(t => t.id === activeTab)}
                     onStepClick={(index) => setActiveTab(tabs[index].id)}
                 />
@@ -857,7 +898,7 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${activeTab === tab.id
-                            ? 'text-purple-400 border-b-2 border-purple-400 bg-purple-500/10'
+                            ? accentTabClass
                             : 'text-gray-500 hover:text-gray-300'
                             }`}
                     >
@@ -869,7 +910,7 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
 
             {loading ? (
                 <div className="flex items-center justify-center h-64">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                    <div className={`animate-spin rounded-full h-8 w-8 border-b-2 ${isTankLoyStation ? 'border-orange-400' : 'border-purple-500'}`}></div>
                 </div>
             ) : (
                 <div className="p-4">
@@ -882,7 +923,7 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                                 <div key={meter.nozzleNumber} className="card-glass p-4 rounded-xl">
                                     <div className="flex items-center justify-between mb-3">
                                         <div className="flex items-center gap-2">
-                                            <span className="w-8 h-8 rounded-full bg-purple-500/30 flex items-center justify-center text-purple-300 font-bold">
+                                            <span className={`flex h-8 w-8 items-center justify-center rounded-full font-bold ${accentBadgeClass}`}>
                                                 {meter.nozzleNumber}
                                             </span>
                                             <span className="text-white font-medium">{meter.fuelType}</span>
@@ -897,7 +938,7 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                                                 type="number"
                                                 value={meter.startReading || ''}
                                                 onChange={e => updateMeter(index, 'startReading', parseFloat(e.target.value) || 0)}
-                                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-right font-mono focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                className={`w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-right font-mono focus:outline-none focus:ring-2 ${accentInputRingClass}`}
                                                 placeholder="0"
                                             />
                                         </div>
@@ -907,7 +948,7 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                                                 type="number"
                                                 value={meter.endReading || ''}
                                                 onChange={e => updateMeter(index, 'endReading', parseFloat(e.target.value) || 0)}
-                                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-right font-mono focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                className={`w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-right font-mono focus:outline-none focus:ring-2 ${accentInputRingClass}`}
                                                 placeholder="0"
                                             />
                                         </div>
@@ -927,21 +968,21 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                             ))}
 
                             {/* Totals */}
-                            <div className="card-glass p-4 rounded-xl bg-purple-500/10 border border-purple-500/30">
+                            <div className={accentTotalCardClass}>
                                 <div className="flex justify-between items-center">
                                     <span className="text-gray-300">รวมลิตร</span>
                                     <span className="text-white font-bold text-lg">{formatNumber(totalMeterLiters)} ล.</span>
                                 </div>
                                 <div className="flex justify-between items-center mt-2">
                                     <span className="text-gray-300">รวมเงิน</span>
-                                    <span className="text-purple-300 font-bold text-xl">{formatCurrency(totalMeterAmount)} ฿</span>
+                                    <span className={`font-bold text-xl ${accentTotalTextClass}`}>{formatCurrency(totalMeterAmount)} ฿</span>
                                 </div>
                             </div>
                         </div>
                     )}
 
                     {/* Tab 2: Products */}
-                    {activeTab === 'products' && (
+                    {showOilFeatures && activeTab === 'products' && (
                         <div className="space-y-4">
                             <p className="text-sm text-gray-400">กรอกยอดสินค้าขาย (น้ำมันเครื่อง, SF, etc.)</p>
 
@@ -965,7 +1006,7 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                                                 type="number"
                                                 value={product.received || ''}
                                                 onChange={e => updateProduct(index, 'received', parseInt(e.target.value) || 0)}
-                                                className="w-full px-2 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-center focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                className={`w-full px-2 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-center focus:outline-none focus:ring-2 ${accentInputRingClass}`}
                                                 placeholder="0"
                                             />
                                         </div>
@@ -975,7 +1016,7 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                                                 type="number"
                                                 value={product.sold || ''}
                                                 onChange={e => updateProduct(index, 'sold', parseInt(e.target.value) || 0)}
-                                                className="w-full px-2 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-center focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                className={`w-full px-2 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-center focus:outline-none focus:ring-2 ${accentInputRingClass}`}
                                                 placeholder="0"
                                             />
                                         </div>
@@ -1040,7 +1081,7 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                                     type="number"
                                     value={cash.cashReceived || ''}
                                     onChange={e => setCash(prev => ({ ...prev, cashReceived: parseFloat(e.target.value) || 0 }))}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-right text-lg font-mono focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    className={`w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-right text-lg font-mono focus:outline-none focus:ring-2 ${isTankLoyStation ? 'focus:ring-orange-500' : 'focus:ring-green-500'}`}
                                     placeholder="0.00"
                                 />
                             </div>
@@ -1052,7 +1093,7 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                                     type="number"
                                     value={cash.cardReceived || ''}
                                     onChange={e => setCash(prev => ({ ...prev, cardReceived: parseFloat(e.target.value) || 0 }))}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-right text-lg font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className={`w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-right text-lg font-mono focus:outline-none focus:ring-2 ${isTankLoyStation ? 'focus:ring-orange-500' : 'focus:ring-blue-500'}`}
                                     placeholder="0.00"
                                 />
                                 <p className="text-xs text-gray-500 mt-2">ตามระบบ {formatCurrency(cash.cardExpected)} ฿</p>
@@ -1065,7 +1106,7 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                                     type="number"
                                     value={cash.transferReceived || ''}
                                     onChange={e => setCash(prev => ({ ...prev, transferReceived: parseFloat(e.target.value) || 0 }))}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-right text-lg font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                                    className={`w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-right text-lg font-mono focus:outline-none focus:ring-2 ${isTankLoyStation ? 'focus:ring-orange-500' : 'focus:ring-cyan-500'}`}
                                     placeholder="0.00"
                                 />
                                 <p className="text-xs text-gray-500 mt-2">ตามระบบ {formatCurrency(cash.transferExpected)} ฿</p>
@@ -1078,14 +1119,14 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                                     type="number"
                                     value={cash.expenses || ''}
                                     onChange={e => setCash(prev => ({ ...prev, expenses: parseFloat(e.target.value) || 0 }))}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-right text-lg font-mono focus:outline-none focus:ring-2 focus:ring-red-500 mb-2"
+                                    className={`mb-2 w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-right text-lg font-mono focus:outline-none focus:ring-2 ${isTankLoyStation ? 'focus:ring-orange-500' : 'focus:ring-red-500'}`}
                                     placeholder="0.00"
                                 />
                                 <input
                                     type="text"
                                     value={cash.expenseNote}
                                     onChange={e => setCash(prev => ({ ...prev, expenseNote: e.target.value }))}
-                                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                                    className={`w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-2 ${isTankLoyStation ? 'focus:ring-orange-500' : 'focus:ring-red-500'}`}
                                     placeholder="หมายเหตุ (เช่น ค่าน้ำมันรถ)"
                                 />
                             </div>
@@ -1097,14 +1138,14 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                                     type="number"
                                     value={cash.discounts || ''}
                                     onChange={e => setCash(prev => ({ ...prev, discounts: parseFloat(e.target.value) || 0 }))}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-right text-lg font-mono focus:outline-none focus:ring-2 focus:ring-yellow-500 mb-2"
+                                    className={`mb-2 w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-right text-lg font-mono focus:outline-none focus:ring-2 ${isTankLoyStation ? 'focus:ring-orange-500' : 'focus:ring-yellow-500'}`}
                                     placeholder="0.00"
                                 />
                                 <input
                                     type="text"
                                     value={cash.discountNote}
                                     onChange={e => setCash(prev => ({ ...prev, discountNote: e.target.value }))}
-                                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                    className={`w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-2 ${isTankLoyStation ? 'focus:ring-orange-500' : 'focus:ring-yellow-500'}`}
                                     placeholder="หมายเหตุ"
                                 />
                             </div>
@@ -1132,13 +1173,15 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                                         <span className="text-gray-400">น้ำมัน ({formatNumber(totalMeterLiters)} ล.)</span>
                                         <span className="text-white">{formatCurrency(totalMeterAmount)} ฿</span>
                                     </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-gray-400">สินค้า</span>
-                                        <span className="text-white">{formatCurrency(totalProductAmount)} ฿</span>
-                                    </div>
+                                    {showOilFeatures && (
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-400">สินค้า</span>
+                                            <span className="text-white">{formatCurrency(totalProductAmount)} ฿</span>
+                                        </div>
+                                    )}
                                     <div className="flex justify-between pt-2 border-t border-white/10">
                                         <span className="text-gray-300 font-medium">รวม</span>
-                                        <span className="text-purple-300 font-bold">{formatCurrency(totalExpected)} ฿</span>
+                                        <span className={`font-bold ${accentTotalTextClass}`}>{formatCurrency(totalExpected)} ฿</span>
                                     </div>
                                 </div>
                             </div>
@@ -1214,7 +1257,7 @@ export default function ShiftEndPage({ params }: { params: Promise<{ id: string 
                             <button
                                 onClick={handleSubmit}
                                 disabled={saving}
-                                className="w-full py-4 px-6 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                                className={submitButtonClass}
                             >
                                 {saving ? (
                                     <>

@@ -8,7 +8,7 @@ interface SimpleBottomNavProps {
     stationId: string;
 }
 
-const navItems = [
+const BASE_NAV_ITEMS = [
     { href: 'home', label: 'หน้าหลัก', icon: Home },
     { href: 'sell', label: 'ลงบิล', icon: FileText },
     { href: 'oil-sell', label: 'น้ำมันเครื่อง', icon: Droplets },
@@ -19,6 +19,10 @@ const navItems = [
 export default function SimpleBottomNav({ stationId }: SimpleBottomNavProps) {
     const pathname = usePathname();
     const basePath = `/simple-station/${stationId}/new`;
+    const normalizedStationId = stationId.startsWith('station-') ? stationId : `station-${stationId}`;
+    const navItems = normalizedStationId === 'station-1'
+        ? BASE_NAV_ITEMS.filter((item) => item.href !== 'oil-sell')
+        : BASE_NAV_ITEMS;
 
     return (
         <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50 pb-safe">

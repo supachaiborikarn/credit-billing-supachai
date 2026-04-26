@@ -72,6 +72,12 @@
 - **ไฟล์ที่แก้**: `simple-station/[id]/new/sell`, `simple-station/[id]/new/oil-sell`
 - **สถานะ**: ✅ แก้แล้ว
 
+### 🐛 Tank Loy New UI Theme/Oil Flow Drift (Apr 2026)
+- **ปัญหา**: หน้าใหม่ของแท๊งลอย (`home`/`sell`/`summary`/`shift-end`) ใช้คนละ visual direction ระหว่าง dark slate, white cards, และ purple close-shift ทำให้พนักงานรู้สึกว่าเป็นคนละระบบ อีกทั้งแท๊งลอยไม่มีงานน้ำมันเครื่อง แต่ bottom nav, route `oil-sell`, หน้า `sell`, และ `shift-end` ยังแสดงเมนู/step/section ของสินค้าเพิ่มเติมอยู่
+- **แก้ไข**: ซ่อนเมนู `น้ำมันเครื่อง` ใน `SimpleBottomNav` เฉพาะ `station-1`, ให้ route `new/oil-sell` redirect กลับ `home`, จำกัดหน้า `new/sell` ของแท๊งลอยให้เหลือ fuel-only flow (ซ่อน product picker และส่ง `products=[]`), ตัด step/tab/summary ของสินค้าออกจาก `new/shift-end`, และปรับหน้า `sell`/`summary`/`shift-end` ของแท๊งลอยให้ใช้ dark slate + orange accent direction เดียวกับหน้า `home`
+- **ไฟล์ที่แก้**: `simple-station/[id]/components/SimpleBottomNav`, `simple-station/[id]/new/oil-sell`, `simple-station/[id]/new/sell`, `simple-station/[id]/new/summary`, `simple-station/[id]/new/shift-end`
+- **สถานะ**: ✅ แก้แล้ว
+
 ## 🔎 Current Findings
 
 ### Gas Station Audit (Apr 23, 2026)
@@ -215,6 +221,7 @@
 - 2026-04-19: แก้หน้าใหม่ของแท๊งลอยให้ราคาน้ำมันประจำวันเชื่อมกับหน้าเก่าผ่าน `dailyRecord` ชุดเดียวกัน และเลิกพึ่ง `localStorage`/route `fuel-prices` ที่ไม่มีจริง
 - 2026-04-19: แก้ contract ของ transaction/slip flow ในหน้าใหม่แท๊งลอยให้ตรงกับ route เดิม, เพิ่ม `transferProofUrl` ใน list API, เปลี่ยนแนบสลิปให้ใช้ `/api/upload/transfer-proof`, และเปิด payment types/receipt flow ให้ครบแบบหน้าเก่า
 - 2026-04-26: patch incident แท๊งลอยที่หน้า `new/sell`/`new/oil-sell` ไม่มีปุ่มเปิดกะ: เพิ่ม `ShiftGuard` ให้ redirect ไป `open-shift`/`close-shift` ก่อนเข้าหน้าบันทึกขาย
+- 2026-04-26: ปรับหน้าใหม่ของแท๊งลอยให้โทน UI ไปทางเดียวกับหน้า `home` และตัด flow น้ำมันเครื่อง/สินค้าออกจาก nav, `oil-sell`, `sell`, และ `shift-end` สำหรับ `station-1`
 - 2026-04-23: audit ปั๊มแก๊สทั้ง 2 สาขา พบ route/API ซ้อนกัน, `/api/v2/gas/[stationId]/gauge` ขาด, auth/ownership gaps ใน GAS v2/legacy routes, payment type drift, transaction ไม่ผูก `shiftId` ใน v2 sell, station-5 `hasProducts` config/DB ไม่ตรง, และ DB จริงมีกะ GAS ค้างจำนวนมาก
 - 2026-04-23: implement GAS hardening ตาม audit: เพิ่ม v2 gauge route, helper guard กลาง, station ownership checks, v2 sell/summary shift scope, payment normalize `CREDIT_CARD`/`TRANSFER`, product guard เฉพาะ station-5 พร้อม sync DB, admin stale-shift cleanup endpoint, eslint ignore สำหรับ ad hoc scripts, และ tests เฉพาะ GAS
 - 2026-04-23: ปิด GAS `OPEN` shifts ค้างใน DB จริงครบ 70 กะ (`station-5` 57, `station-6` 13), เติม end meter ที่ว่าง 16 จุดด้วยค่า start เดิม, ปิด daily records ที่ไม่มี open shift เหลือ 67 records, และสร้าง audit log ครบ 70 รายการ
