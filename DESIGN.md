@@ -100,6 +100,12 @@ components:
     textColor: "{colors.text-muted}"
     rounded: "{rounded.xs}"
     height: 64px
+  thermal-receipt:
+    widthOptions: [58mm, 80mm]
+    backgroundColor: "#FFFFFF"
+    textColor: "#000000"
+    fontFamily: Sarabun
+    printColorAdjust: exact
 ---
 
 ## Overview
@@ -143,6 +149,8 @@ Inputs must show numeric intent with right-aligned values for money, liters, met
 Bottom navigation must reflect station capability. For Tank Loy Watcharakiat (`station-1`), do not show engine-oil/product navigation or product sale entry because that station does not operate that flow.
 
 Shift pages must keep their step order stable for each station type. If a station does not sell products, remove product steps from both the visible stepper and the submitted payload.
+
+Thermal receipt and credit-bill screens are print-first surfaces. They must support both 58mm and 80mm paper, set `@page` to the chosen width, keep the receipt width exact with border-box sizing, and avoid relying on screen-only themes or gradients inside the printable area. Every transaction should be printable as either a receipt or a credit bill; document type is a user choice, not something inferred only from payment type.
 
 ## Do's and Don'ts
 

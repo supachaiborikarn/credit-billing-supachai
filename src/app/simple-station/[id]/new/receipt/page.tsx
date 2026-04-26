@@ -6,6 +6,9 @@ import NextImage from 'next/image';
 import Link from 'next/link';
 import { Printer, ArrowLeft, Home, FileText } from 'lucide-react';
 
+type ReceiptDocType = 'receipt' | 'credit';
+type PaperSize = '58' | '80';
+
 interface Transaction {
     id: string;
     date: string;
@@ -54,11 +57,13 @@ const PAYMENT_LABELS: Record<string, string> = {
 };
 
 // Receipt Component
-function ReceiptContent({ txn, config, docNo, copyType }: {
+function ReceiptContent({ txn, config, docNo, copyType, docType, paperSize }: {
     txn: Transaction;
     config: { name: string; address1: string; address2: string; tel: string };
     docNo: string;
     copyType: 'ต้นฉบับ' | 'สำเนา';
+    docType: ReceiptDocType;
+    paperSize: PaperSize;
 }) {
     const fmt = (n: number) => new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2 }).format(n);
     const fmtDate = (d: string) => {
@@ -68,24 +73,31 @@ function ReceiptContent({ txn, config, docNo, copyType }: {
     const fmtTime = (d: string) => new Date(d).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 
     const paymentLabel = PAYMENT_LABELS[txn.paymentType] || txn.paymentType;
-    const isCredit = txn.paymentType === 'CREDIT' || txn.paymentType === 'BOX_TRUCK' || txn.paymentType === 'OIL_TRUCK_SUPACHAI';
+    const isCreditDocument = docType === 'credit';
+    const isCompact = paperSize === '58';
+    const paperWidthMm = paperSize === '58' ? 58 : 80;
+    const receiptDate = txn.createdAt || txn.date;
+    const documentTitle = isCreditDocument ? 'บิลเงินเชื่อ / ใบส่งของ' : 'ใบเสร็จรับเงิน';
 
     return (
-        <div className="receipt bg-white w-[80mm] p-3 text-black mx-auto overflow-hidden">
+        <div
+            className={`receipt bg-white text-black mx-auto overflow-hidden ${isCompact ? 'p-2' : 'p-3'}`}
+            style={{ width: `${paperWidthMm}mm`, boxSizing: 'border-box' }}
+        >
             <style jsx>{`
                 @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
                 
                 .receipt {
                     font-family: 'Sarabun', sans-serif;
-                    line-height: 1.4;
+                    line-height: ${isCompact ? '1.25' : '1.4'};
                 }
-                .line { border-top: 1px solid black; margin: 8px 0; }
-                .line-dashed { border-top: 1px dashed black; margin: 8px 0; }
-                .dline { border-top: 3px double black; margin: 8px 0; }
+                .line { border-top: 1px solid black; margin: ${isCompact ? '6px' : '8px'} 0; }
+                .line-dashed { border-top: 1px dashed black; margin: ${isCompact ? '6px' : '8px'} 0; }
+                .dline { border-top: 3px double black; margin: ${isCompact ? '6px' : '8px'} 0; }
             `}</style>
 
             {/* Copy Type Tag */}
-            <div className="text-center font-bold text-sm border-2 border-black py-1 mb-3 rounded-lg uppercase tracking-wide">
+            <div className={`text-center font-bold border-2 border-black py-1 rounded-lg uppercase tracking-wide ${isCompact ? 'mb-2 text-[11px]' : 'mb-3 text-sm'}`}>
                 [ {copyType} ]
             </div>
 
@@ -94,39 +106,39 @@ function ReceiptContent({ txn, config, docNo, copyType }: {
                 <NextImage
                     src="/caltex-logo.jpg"
                     alt="Caltex"
-                    width={50}
-                    height={50}
+                    width={isCompact ? 38 : 50}
+                    height={isCompact ? 38 : 50}
                     priority
-                    className="mx-auto mb-2 grayscale"
+                    className={`mx-auto grayscale ${isCompact ? 'mb-1' : 'mb-2'}`}
                     style={{ height: 'auto', display: 'block' }}
                 />
-                <h1 className="text-lg font-bold leading-tight mb-1">{config.name}</h1>
-                <p className="text-[11px] leading-tight">{config.address1}</p>
-                <p className="text-[11px] leading-tight">{config.address2}</p>
-                <p className="text-[11px] font-semibold mt-1">โทร: {config.tel}</p>
+                <h1 className={`font-bold leading-tight mb-1 ${isCompact ? 'text-[15px]' : 'text-lg'}`}>{config.name}</h1>
+                <p className={`${isCompact ? 'text-[9px]' : 'text-[11px]'} leading-tight`}>{config.address1}</p>
+                <p className={`${isCompact ? 'text-[9px]' : 'text-[11px]'} leading-tight`}>{config.address2}</p>
+                <p className={`${isCompact ? 'text-[9px]' : 'text-[11px]'} font-semibold mt-1`}>โทร: {config.tel}</p>
             </div>
             
             <div className="dline"></div>
 
             {/* Document Title */}
             <div className="text-center py-1">
-                <h2 className="text-[14px] font-bold">
-                    {isCredit ? 'ใบแจังหนี้ / ใบส่งของ' : 'ใบเสร็จรับเงินอย่างย่อ'}
+                <h2 className={`${isCompact ? 'text-[12px]' : 'text-[14px]'} font-bold`}>
+                    {documentTitle}
                 </h2>
-                <div className="text-[13px] font-semibold">({paymentLabel})</div>
+                <div className={`${isCompact ? 'text-[11px]' : 'text-[13px]'} font-semibold`}>({paymentLabel})</div>
             </div>
             
             <div className="line"></div>
 
             {/* Generic Info */}
-            <div className="text-[12px] space-y-1 py-1">
+            <div className={`${isCompact ? 'text-[10px]' : 'text-[12px]'} space-y-1 py-1`}>
                 <div className="flex justify-between">
                     <span className="text-gray-800">เลขที่:</span>
                     <span className="font-bold">{docNo}</span>
                 </div>
                 <div className="flex justify-between">
                     <span className="text-gray-800">วันที่:</span>
-                    <span>{fmtDate(txn.createdAt)} {fmtTime(txn.createdAt)}</span>
+                    <span>{fmtDate(receiptDate)} {fmtTime(receiptDate)}</span>
                 </div>
                 <div className="flex justify-between">
                     <span className="text-gray-800">พนักงาน:</span>
@@ -136,11 +148,11 @@ function ReceiptContent({ txn, config, docNo, copyType }: {
 
             {/* Customer Info (especially for credit) */}
             <div className="line-dashed"></div>
-            <div className="py-1 text-[12px]">
+            <div className={`py-1 ${isCompact ? 'text-[10px]' : 'text-[12px]'}`}>
                 <div className="font-bold mb-1">ข้อมูลลูกค้า</div>
                 <div className="flex justify-between">
                     <span className="text-gray-800">ชื่อลูกค้า:</span>
-                    <span className="font-bold text-right truncate max-w-[180px]">{txn.ownerName || 'เงินสดทั่วไป'}</span>
+                    <span className={`font-bold text-right truncate ${isCompact ? 'max-w-[118px]' : 'max-w-[180px]'}`}>{txn.ownerName || 'เงินสดทั่วไป'}</span>
                 </div>
                 {txn.licensePlate && (
                     <div className="flex justify-between mt-1">
@@ -153,25 +165,25 @@ function ReceiptContent({ txn, config, docNo, copyType }: {
 
             {/* Items */}
             <div className="py-2">
-                <div className="flex justify-between font-bold text-[13px] mb-2">
+                <div className={`flex justify-between font-bold mb-2 ${isCompact ? 'text-[11px]' : 'text-[13px]'}`}>
                     <span>รายการสินค้า</span>
                     <span>รวม (บาท)</span>
                 </div>
                 
                 {txn.liters > 0 ? (
-                    <div className="text-[12px]">
-                        <div className="font-bold text-[13px]">{FUEL_LABELS[txn.fuelType] || txn.fuelType}</div>
+                    <div className={isCompact ? 'text-[10px]' : 'text-[12px]'}>
+                        <div className={`font-bold ${isCompact ? 'text-[11px]' : 'text-[13px]'}`}>{FUEL_LABELS[txn.fuelType] || txn.fuelType}</div>
                         <div className="flex justify-between items-end mt-1">
                             <span className="text-gray-800">{fmt(txn.liters)} ลิตร @ {fmt(txn.pricePerLiter)}</span>
-                            <span className="font-semibold text-[13px]">{fmt(txn.amount)}</span>
+                            <span className={`font-semibold ${isCompact ? 'text-[11px]' : 'text-[13px]'}`}>{fmt(txn.amount)}</span>
                         </div>
                     </div>
                 ) : (
-                    <div className="text-[12px]">
-                        <div className="font-bold text-[13px]">{FUEL_LABELS[txn.fuelType] || txn.fuelType || 'สินค้าอื่นๆ'}</div>
+                    <div className={isCompact ? 'text-[10px]' : 'text-[12px]'}>
+                        <div className={`font-bold ${isCompact ? 'text-[11px]' : 'text-[13px]'}`}>{FUEL_LABELS[txn.fuelType] || txn.fuelType || 'สินค้าอื่นๆ'}</div>
                         <div className="flex justify-between items-end mt-1">
                             <span className="text-gray-800">1 รายการ</span>
-                            <span className="font-semibold text-[13px]">{fmt(txn.amount)}</span>
+                            <span className={`font-semibold ${isCompact ? 'text-[11px]' : 'text-[13px]'}`}>{fmt(txn.amount)}</span>
                         </div>
                     </div>
                 )}
@@ -180,41 +192,41 @@ function ReceiptContent({ txn, config, docNo, copyType }: {
             {/* Total */}
             <div className="dline mt-2"></div>
             <div className="flex justify-between items-center py-2">
-                <div className="font-bold text-[14px]">ยอดสุทธิ</div>
-                <div className="text-[18px] font-bold">฿ {fmt(txn.amount)}</div>
+                <div className={`font-bold ${isCompact ? 'text-[12px]' : 'text-[14px]'}`}>ยอดสุทธิ</div>
+                <div className={`${isCompact ? 'text-[15px]' : 'text-[18px]'} font-bold`}>฿ {fmt(txn.amount)}</div>
             </div>
             <div className="dline mb-2"></div>
 
             {/* Signatures (Show clearly for credit transactions) */}
-            {isCredit && (
-                <div className="py-4 mt-2 flex justify-between gap-4">
+            {isCreditDocument && (
+                <div className={`${isCompact ? 'py-3 gap-2' : 'py-4 gap-4'} mt-2 flex justify-between`}>
                     <div className="text-center flex-1">
-                        <div className="h-10 border-b border-black mb-2 relative">
+                        <div className={`${isCompact ? 'h-8' : 'h-10'} border-b border-black mb-2 relative`}>
                             {/* Line for signature */}
                         </div>
-                        <div className="text-[11px]">ผู้รับสินค้า / ลูกค้า</div>
+                        <div className={isCompact ? 'text-[9px]' : 'text-[11px]'}>ผู้รับสินค้า / ลูกค้า</div>
                     </div>
                     <div className="text-center flex-1">
-                        <div className="h-10 border-b border-black mb-2 relative">
+                        <div className={`${isCompact ? 'h-8' : 'h-10'} border-b border-black mb-2 relative`}>
                             {/* Line for signature */}
                         </div>
-                        <div className="text-[11px]">ผู้ส่งสินค้า / ผู้ขาย</div>
+                        <div className={isCompact ? 'text-[9px]' : 'text-[11px]'}>ผู้ส่งสินค้า / ผู้ขาย</div>
                     </div>
                 </div>
             )}
 
             {/* Date line for signature validation */}
-            {isCredit && (
-                <div className="pb-2 text-center text-[11px]">
+            {isCreditDocument && (
+                <div className={`pb-2 text-center ${isCompact ? 'text-[9px]' : 'text-[11px]'}`}>
                     วันที่ลงนาม: _____/_____/_____
                 </div>
             )}
 
             {/* Footer */}
             <div className="line"></div>
-            <div className="text-center py-2 text-[12px]">
+            <div className={`text-center py-2 ${isCompact ? 'text-[10px]' : 'text-[12px]'}`}>
                 <div className="font-bold">ขอบคุณที่ใช้บริการครับ 😊</div>
-                <div className="text-[9px] text-gray-500 mt-2">Ref: {txn.id.slice(0, 8).toUpperCase()}</div>
+                <div className={`${isCompact ? 'text-[8px]' : 'text-[9px]'} text-gray-500 mt-2`}>Ref: {txn.id.slice(0, 8).toUpperCase()}</div>
             </div>
         </div>
     );
@@ -225,12 +237,17 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
     const searchParams = useSearchParams();
     const transactionId = searchParams.get('txn');
     const autoPrint = searchParams.get('autoPrint') === 'true';
+    const initialDocType: ReceiptDocType = searchParams.get('docType') === 'credit' ? 'credit' : 'receipt';
+    const initialPaperSize: PaperSize = searchParams.get('paper') === '58' ? '58' : '80';
     
     const stationId = `station-${id}`;
     const config = RECEIPT_CONFIG[stationId] || RECEIPT_CONFIG['station-1'];
 
     const [txn, setTxn] = useState<Transaction | null>(null);
     const [loading, setLoading] = useState(true);
+    const [docType, setDocType] = useState<ReceiptDocType>(initialDocType);
+    const [paperSize, setPaperSize] = useState<PaperSize>(initialPaperSize);
+    const paperWidthMm = paperSize === '58' ? 58 : 80;
 
     // Fetch Transaction
     useEffect(() => {
@@ -284,7 +301,7 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
             <style jsx global>{`
                 @media print {
                     @page { 
-                        size: 80mm 297mm; /* Ensure continuous roll length logic */
+                        size: ${paperWidthMm}mm 297mm; /* Ensure continuous roll length logic */
                         margin: 0; 
                     }
                     body { 
@@ -297,9 +314,9 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
                     .no-print { display: none !important; }
                     /* Make sure scaling doesn't truncate the receipt */
                     .receipt-container { 
-                        width: 80mm !important; 
-                        padding: 2mm !important; 
-                        margin: 0 !important; 
+                        width: ${paperWidthMm}mm !important;
+                        padding: 0 !important;
+                        margin: 0 !important;
                         background: none !important;
                     }
                     /* Force page breaks properly if multiple receipts */
@@ -313,8 +330,8 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
             `}</style>
 
             {/* Floating Action Menu Data (Desktop/Mobile Non-Print View) */}
-            <div className="no-print fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md shadow-sm z-50 p-3 flex justify-between items-center sm:px-6">
-                <div className="flex gap-2">
+            <div className="no-print fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-md shadow-sm z-50 p-3 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center sm:px-6">
+                <div className="flex flex-wrap gap-2">
                     <button onClick={() => window.history.back()} className="p-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg flex items-center gap-1 font-medium transition-colors">
                         <ArrowLeft size={18} /> <span className="hidden sm:inline">ย้อนกลับ</span>
                     </button>
@@ -325,16 +342,50 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
                         <Home size={18} /> <span className="hidden sm:inline">หน้าแรก</span>
                     </Link>
                 </div>
-                <button 
-                    onClick={() => window.print()} 
-                    className="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md rounded-lg font-bold flex items-center gap-2 transform active:scale-95 transition-all"
-                >
-                    <Printer size={18} /> พิมพ์บิล
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex rounded-xl bg-gray-100 p-1">
+                        <button
+                            type="button"
+                            onClick={() => setDocType('receipt')}
+                            className={`rounded-lg px-3 py-1.5 text-sm font-bold transition-all ${docType === 'receipt' ? 'bg-white text-orange-600 shadow' : 'text-gray-500'}`}
+                        >
+                            ใบเสร็จ
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setDocType('credit')}
+                            className={`rounded-lg px-3 py-1.5 text-sm font-bold transition-all ${docType === 'credit' ? 'bg-white text-orange-600 shadow' : 'text-gray-500'}`}
+                        >
+                            บิลเงินเชื่อ
+                        </button>
+                    </div>
+                    <div className="flex rounded-xl bg-gray-100 p-1">
+                        <button
+                            type="button"
+                            onClick={() => setPaperSize('58')}
+                            className={`rounded-lg px-3 py-1.5 text-sm font-bold transition-all ${paperSize === '58' ? 'bg-white text-blue-600 shadow' : 'text-gray-500'}`}
+                        >
+                            58mm
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setPaperSize('80')}
+                            className={`rounded-lg px-3 py-1.5 text-sm font-bold transition-all ${paperSize === '80' ? 'bg-white text-blue-600 shadow' : 'text-gray-500'}`}
+                        >
+                            80mm
+                        </button>
+                    </div>
+                    <button
+                        onClick={() => window.print()}
+                        className="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md rounded-lg font-bold flex items-center gap-2 transform active:scale-95 transition-all"
+                    >
+                        <Printer size={18} /> พิมพ์บิล
+                    </button>
+                </div>
             </div>
 
             {/* Receipt Preview Area */}
-            <div className="min-h-screen bg-gray-200 flex flex-col items-center pt-20 pb-12 gap-6">
+            <div className="min-h-screen bg-gray-200 flex flex-col items-center pt-44 sm:pt-24 pb-12 gap-6">
                 {autoPrint && (
                     <div className="no-print bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 mb-2 animate-pulse">
                         <Printer size={16} /> กำลังเริ่มพิมพ์บิลอัตโนมัติ...
@@ -343,7 +394,7 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
                 
                 {/* ต้นฉบับ (Original) */}
                 <div className="receipt-container receipt-item bg-white shadow-xl rounded-sm">
-                    <ReceiptContent txn={txn} config={config} docNo={docNo} copyType="ต้นฉบับ" />
+                    <ReceiptContent txn={txn} config={config} docNo={docNo} copyType="ต้นฉบับ" docType={docType} paperSize={paperSize} />
                 </div>
 
                 {/* Separator for screen view */}
@@ -355,7 +406,7 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
 
                 {/* สำเนา (Copy) */}
                 <div className="receipt-container receipt-item bg-white shadow-xl rounded-sm">
-                    <ReceiptContent txn={txn} config={config} docNo={docNo} copyType="สำเนา" />
+                    <ReceiptContent txn={txn} config={config} docNo={docNo} copyType="สำเนา" docType={docType} paperSize={paperSize} />
                 </div>
             </div>
         </>

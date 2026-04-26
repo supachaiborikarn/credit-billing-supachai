@@ -5,6 +5,9 @@ import { ArrowLeft, Trash2, Calendar, Edit, Printer, X, Image as ImageIcon, Down
 import { STATIONS, PAYMENT_TYPES, FUEL_TYPES } from '@/constants';
 import Link from 'next/link';
 
+type PrintDocType = 'receipt' | 'credit';
+type PrintPaperSize = '58' | '80';
+
 interface Transaction {
     id: string;
     licensePlate: string;
@@ -57,6 +60,8 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
 
     // Print Modal State
     const [printingTxn, setPrintingTxn] = useState<Transaction | null>(null);
+    const [printDocType, setPrintDocType] = useState<PrintDocType>('receipt');
+    const [printPaperSize, setPrintPaperSize] = useState<PrintPaperSize>('80');
 
     // Image Upload State
     const [imageUploadTxn, setImageUploadTxn] = useState<Transaction | null>(null);
@@ -114,8 +119,24 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
     const formatCurrency = (num: number) =>
         new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2 }).format(num);
 
-    const canPrintReceipt = (paymentType: string) =>
+    const isCreditLikePayment = (paymentType: string) =>
         paymentType === 'CREDIT' || paymentType === 'BOX_TRUCK' || paymentType === 'OIL_TRUCK_SUPACHAI';
+
+    const openPrintModal = (txn: Transaction) => {
+        setPrintDocType(isCreditLikePayment(txn.paymentType) ? 'credit' : 'receipt');
+        setPrintPaperSize('80');
+        setPrintingTxn(txn);
+    };
+
+    const buildReceiptHref = (txn: Transaction, autoPrint = false) => {
+        const params = new URLSearchParams({
+            txn: txn.id,
+            docType: printDocType,
+            paper: printPaperSize,
+        });
+        if (autoPrint) params.set('autoPrint', 'true');
+        return `/simple-station/${id}/new/receipt?${params.toString()}`;
+    };
 
     const formatTime = (dateStr: string) => {
         if (!dateStr) return '-';
@@ -228,11 +249,6 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
             setUploadingImage(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
         }
-    };
-
-    // Print Bill
-    const handlePrint = () => {
-        window.print();
     };
 
     // Export to Excel/CSV
@@ -472,15 +488,14 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                                         <p className={`text-lg font-bold ${isTankLoyStation ? 'text-emerald-300' : 'text-green-600'}`}>{formatCurrency(txn.amount)} ฿</p>
                                         <p className={`text-sm ${isTankLoyStation ? 'text-slate-400' : 'text-gray-500'}`}>{txn.liters} ลิตร</p>
                                         <div className="flex items-center justify-end gap-1 mt-2">
-                                            {canPrintReceipt(txn.paymentType) && (
-                                                <Link
-                                                    href={`/simple-station/${id}/new/receipt?txn=${txn.id}`}
-                                                    className="p-2 text-purple-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                                                    title="พิมพ์ใบส่งของ"
-                                                >
-                                                    <Printer size={16} />
-                                                </Link>
-                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() => openPrintModal(txn)}
+                                                className="p-2 text-purple-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                                                title="พิมพ์ใบเสร็จหรือบิลเงินเชื่อ"
+                                            >
+                                                <Printer size={16} />
+                                            </button>
                                             {txn.transferProofUrl && (
                                                 <button
                                                     onClick={() => window.open(txn.transferProofUrl || '', '_blank', 'noopener,noreferrer')}
@@ -610,27 +625,81 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
             {/* Print Modal */}
             {printingTxn && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl print:shadow-none">
-                        <div className="flex items-center justify-between p-4 border-b print:hidden">
-                            <h2 className="text-lg font-bold text-gray-800">บิลเงินเชื่อ</h2>
+                    <div className={`${isTankLoyStation ? 'bg-slate-950 text-slate-100 border border-white/10' : 'bg-white text-gray-800'} rounded-2xl w-full max-w-sm shadow-xl`}>
+                        <div className={`flex items-center justify-between p-4 border-b ${isTankLoyStation ? 'border-white/10' : 'border-gray-100'}`}>
+                            <h2 className="text-lg font-bold">พิมพ์รายการ</h2>
                             <button onClick={() => setPrintingTxn(null)} className="p-2 rounded-lg hover:bg-gray-100">
                                 <X size={20} />
                             </button>
                         </div>
-                        <div className="p-6 space-y-3 text-center">
-                            <h3 className="font-bold text-xl">{station.name}</h3>
-                            <p className="text-gray-500 text-sm">วันที่: {selectedDate}</p>
-                            <div className="border-t border-b py-4 my-4 text-left space-y-2">
-                                <p><span className="text-gray-500">เล่ม/เลขที่:</span> {printingTxn.billBookNo || '-'}/{printingTxn.billNo || '-'}</p>
-                                <p><span className="text-gray-500">ทะเบียน:</span> {printingTxn.licensePlate || '-'}</p>
-                                <p><span className="text-gray-500">ลูกค้า:</span> {printingTxn.ownerName || '-'}</p>
-                                <p><span className="text-gray-500">จำนวน:</span> {printingTxn.liters} ลิตร x {printingTxn.pricePerLiter} บาท</p>
+                        <div className="p-5 space-y-4">
+                            <div className={`rounded-2xl p-4 ${isTankLoyStation ? 'bg-white/5 border border-white/10' : 'bg-gray-50'}`}>
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <h3 className="font-bold text-xl">{printingTxn.licensePlate || 'ไม่ระบุทะเบียน'}</h3>
+                                        <p className={`text-sm ${isTankLoyStation ? 'text-slate-400' : 'text-gray-500'}`}>{printingTxn.ownerName || '-'}</p>
+                                    </div>
+                                    <p className="text-right text-lg font-bold text-emerald-500">{formatCurrency(printingTxn.amount)} ฿</p>
+                                </div>
+                                <p className={`mt-3 text-sm ${isTankLoyStation ? 'text-slate-400' : 'text-gray-500'}`}>
+                                    {printingTxn.billBookNo || '-'}/{printingTxn.billNo || '-'} • {getFuelLabel(printingTxn.fuelType)} • {printingTxn.liters} ลิตร
+                                </p>
                             </div>
-                            <p className="text-2xl font-bold text-green-600">{formatCurrency(printingTxn.amount)} บาท</p>
+
+                            <div>
+                                <p className={`mb-2 text-sm font-semibold ${isTankLoyStation ? 'text-slate-300' : 'text-gray-600'}`}>ประเภทเอกสาร</p>
+                                <div className={`grid grid-cols-2 gap-2 rounded-2xl p-1 ${isTankLoyStation ? 'bg-slate-900' : 'bg-gray-100'}`}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPrintDocType('receipt')}
+                                        className={`rounded-xl px-3 py-2 text-sm font-bold transition-all ${printDocType === 'receipt' ? 'bg-orange-500 text-white shadow' : isTankLoyStation ? 'text-slate-300' : 'text-gray-600'}`}
+                                    >
+                                        ใบเสร็จรับเงิน
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPrintDocType('credit')}
+                                        className={`rounded-xl px-3 py-2 text-sm font-bold transition-all ${printDocType === 'credit' ? 'bg-orange-500 text-white shadow' : isTankLoyStation ? 'text-slate-300' : 'text-gray-600'}`}
+                                    >
+                                        บิลเงินเชื่อ
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <p className={`mb-2 text-sm font-semibold ${isTankLoyStation ? 'text-slate-300' : 'text-gray-600'}`}>ขนาดกระดาษเครื่องพิมพ์ความร้อน</p>
+                                <div className={`grid grid-cols-2 gap-2 rounded-2xl p-1 ${isTankLoyStation ? 'bg-slate-900' : 'bg-gray-100'}`}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPrintPaperSize('58')}
+                                        className={`rounded-xl px-3 py-2 text-sm font-bold transition-all ${printPaperSize === '58' ? 'bg-blue-500 text-white shadow' : isTankLoyStation ? 'text-slate-300' : 'text-gray-600'}`}
+                                    >
+                                        58 มม.
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPrintPaperSize('80')}
+                                        className={`rounded-xl px-3 py-2 text-sm font-bold transition-all ${printPaperSize === '80' ? 'bg-blue-500 text-white shadow' : isTankLoyStation ? 'text-slate-300' : 'text-gray-600'}`}
+                                    >
+                                        80 มม.
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div className="p-4 border-t flex gap-2 print:hidden">
-                            <button onClick={() => setPrintingTxn(null)} className="flex-1 py-2 rounded-xl border text-gray-600 hover:bg-gray-50">ปิด</button>
-                            <button onClick={handlePrint} className="flex-1 py-2 rounded-xl bg-purple-500 text-white hover:bg-purple-600">พิมพ์</button>
+                        <div className={`p-4 border-t grid grid-cols-2 gap-2 ${isTankLoyStation ? 'border-white/10' : 'border-gray-100'}`}>
+                            <button onClick={() => setPrintingTxn(null)} className={`py-2 rounded-xl border ${isTankLoyStation ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'text-gray-600 hover:bg-gray-50'}`}>ปิด</button>
+                            <Link
+                                href={buildReceiptHref(printingTxn, true)}
+                                className="py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-center font-bold text-white shadow hover:from-orange-600 hover:to-amber-600"
+                            >
+                                พิมพ์ทันที
+                            </Link>
+                            <Link
+                                href={buildReceiptHref(printingTxn)}
+                                className={`col-span-2 py-2 rounded-xl text-center font-bold ${isTankLoyStation ? 'bg-white/10 text-slate-100 hover:bg-white/15' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                            >
+                                เปิดหน้าตัวอย่างก่อนพิมพ์
+                            </Link>
                         </div>
                     </div>
                 </div>

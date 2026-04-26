@@ -206,3 +206,8 @@
   - ขยาย `daily-report-print` ให้รายงาน A4 landscape ใบเดียวมีเลขเปิด-ปิดมิเตอร์, รายการเติมทั้งหมด, และยอดเงินทั้งหมดที่ได้
   - ส่ง `meters` จากหน้า `simple-station/[id]/new/shift-end` และ `station/[id]/new/shift-end` เข้า report helper
   - verification: targeted eslint ผ่าน; `tsc --noEmit` ยังล้มจาก `scratch/*` เท่านั้น
+- 🧾 เปิดให้ transaction ทุกอันพิมพ์เป็นใบเสร็จรับเงินหรือบิลเงินเชื่อได้
+  - เปลี่ยนหน้า `simple-station/[id]/new/summary` ให้ปุ่มพิมพ์ขึ้นทุกรายการ ไม่จำกัดแค่ payment type แบบเงินเชื่อ
+  - เพิ่ม modal เลือกประเภทเอกสาร `ใบเสร็จรับเงิน`/`บิลเงินเชื่อ` และขนาดกระดาษ thermal `58 มม.`/`80 มม.`
+  - ปรับหน้า `simple-station/[id]/new/receipt` ให้รับ `docType`/`paper` ผ่าน query, เปลี่ยนหัวเอกสารตามที่เลือก, และตั้ง `@page`/layout ตาม 58mm หรือ 80mm
+  - verification: targeted eslint ผ่าน; `npm run build` compile source หลักผ่าน แต่ TypeScript หยุดที่ไฟล์ untracked เดิม `scratch/new_gauges.tsx` (`Gauge` ไม่ถูก import)
