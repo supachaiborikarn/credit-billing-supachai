@@ -211,3 +211,9 @@
   - เพิ่ม modal เลือกประเภทเอกสาร `ใบเสร็จรับเงิน`/`บิลเงินเชื่อ` และขนาดกระดาษ thermal `58 มม.`/`80 มม.`
   - ปรับหน้า `simple-station/[id]/new/receipt` ให้รับ `docType`/`paper` ผ่าน query, เปลี่ยนหัวเอกสารตามที่เลือก, และตั้ง `@page`/layout ตาม 58mm หรือ 80mm
   - verification: targeted eslint ผ่าน; `npm run build` compile source หลักผ่าน แต่ TypeScript หยุดที่ไฟล์ untracked เดิม `scratch/new_gauges.tsx` (`Gauge` ไม่ถูก import)
+- 🧭 Consolidate route แท๊งลอยให้เหลือ staff UI เดียว + classic admin
+  - กำหนด staff route เดียวเป็น `simple-station/1/new/*` และคง classic/admin ไว้ที่ `station/1`
+  - ลด `station/1/new/home|record|list|summary|meters|shift-end` ให้เป็น redirect ไป staff UI ที่ตรงกัน และให้ `station/1/v2` redirect กลับ classic
+  - ปรับ login, middleware, Sidebar, dashboard quick action และ bottom nav เก่าไม่ให้ชี้ไป route แท๊งลอยที่เลิกใช้แล้ว
+  - ทำปุ่มพิมพ์ใน `simple-station/[id]/new/summary` ให้เป็นปุ่มมีข้อความ “พิมพ์” เพื่อให้พนักงานมองเห็นชัด
+  - verification: targeted eslint ผ่าน 0 errors (เหลือ warning legacy เดิม); `npm run build` compile source หลักผ่าน แต่หยุดที่ไฟล์ untracked เดิม `scratch/new_gauges.tsx`

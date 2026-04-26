@@ -3,6 +3,7 @@
      รอบเดียวกันยังแก้แท๊งลอยให้ใช้ shift-scoped transactions, anomaly preview จากค่าปัจจุบัน, flow ปิดกะเก่าที่ไม่ต้องพึ่ง admin route,
      เพิ่ม post-close daily report printing ที่ต้องอิง station-wide `/daily` แทน `/transactions`,
      เพิ่ม per-transaction thermal print flow ที่เลือกใบเสร็จรับเงิน/บิลเงินเชื่อและขนาด 58/80mm ได้ทุกรายการ,
+     consolidate route แท๊งลอยให้เหลือ staff UI เดียว `/simple-station/1/new/*` และ classic admin `/station/1`,
      และ fix หน้าใหม่ของแท๊งลอยให้เชื่อมทั้ง daily price, transaction contract, receipt/slip flow กับ backend/source ชุดเดียวกับหน้าเก่า;
      audit ปั๊มแก๊ส 2026-04-23 พบ route/API ซ้อนกันและกะ GAS ค้างจำนวนมาก; hardening รอบเดียวกันเติม v2 gauge route,
      auth/ownership guard, shift-scoped v2 sell/summary, payment type `CREDIT_CARD`, product guard เฉพาะ station-5, admin stale-shift cleanup tool,
@@ -89,6 +90,12 @@
 - **ปัญหา**: หน้า `new/summary` ของแท๊งลอยแสดงปุ่มพิมพ์เฉพาะ payment type แบบ credit-like ทำให้รายการเงินสด/โอน/บัตรพิมพ์ใบเสร็จไม่ได้ และหน้า receipt ล็อกกระดาษ 80mm + ชื่อเอกสารอิง payment type โดยไม่มีตัวเลือกบิลเงินเชื่อ/ใบเสร็จต่อรายการ
 - **แก้ไข**: เปลี่ยนปุ่มพิมพ์ให้ขึ้นกับ transaction ทุกอัน, เปิด modal เลือก `ใบเสร็จรับเงิน` หรือ `บิลเงินเชื่อ` พร้อมขนาดกระดาษ thermal `58 มม.`/`80 มม.`, ส่งผ่าน query `docType`/`paper` ไปหน้า receipt, และให้หน้า receipt ปรับ `@page`/ความกว้าง/ฟอนต์ตามขนาดที่เลือก
 - **ไฟล์ที่แก้**: `simple-station/[id]/new/summary`, `simple-station/[id]/new/receipt`
+- **สถานะ**: ✅ แก้แล้ว
+
+### 🐛 Tank Loy Duplicate UI Route Drift (Apr 2026)
+- **ปัญหา**: แท๊งลอยมีหลาย UI route (`simple-station/1/new/*`, `station/1/new/*`, `station/1/v2`, และ classic `station/1`) ทำให้แก้ปุ่มพิมพ์/flow ในหน้าหนึ่งแล้วพนักงานอาจเปิดอีกหน้าที่ไม่มีฟีเจอร์ล่าสุด
+- **แก้ไข**: กำหนด canonical staff UI เป็น `simple-station/1/new/*`, คง classic admin ที่ `station/1`, เปลี่ยน login/sidebar/quick action ให้ชี้ canonical route, ลด `station/1/new/*` เป็น redirect page ไป staff UI ที่ตรงกัน, และให้ `station/1/v2` redirect กลับ classic admin
+- **ไฟล์ที่แก้**: `middleware`, `login`, `Sidebar`, dashboard quick action, `station/[id]/new/*`, `station/[id]/v2`, `station/[id]`, `simple-station/[id]`, `simple-station/[id]/new/summary`
 - **สถานะ**: ✅ แก้แล้ว
 
 ## 🔎 Current Findings
@@ -205,25 +212,26 @@
 10. **Tank Loy Transaction UI Contract**: ถ้าหน้าใหม่ของแท๊งลอยใช้ transaction data จาก station API ให้ preserve alias/shape ที่ UI ใช้ (`billBookNo` + `bookNo`, `date` + `createdAt`, `transferProofUrl`) และการแนบสลิปต้องวิ่งผ่าน `/api/upload/transfer-proof`; ห้ามอ้าง `/api/upload/slip` เพราะไม่มี route จริง
 11. **Tank Loy Sell Entry Pages Need ShiftGuard**: หน้า `new/sell` และ `new/oil-sell` ของแท๊งลอยต้องครอบ `ShiftGuard` เหมือนหน้า `home`; ถ้าเผลอถอด guard ออก พนักงานจะเข้าไปกรอกบิลได้ทั้งที่ยังไม่เปิดกะ แล้วโดน block ตอนกดบันทึกโดยไม่มีปุ่มเปิดกะบนหน้าเดียวกัน
 12. **Tank Loy Transaction Printing**: ทุก transaction ใน `new/summary` ต้องพิมพ์ได้ ไม่ควรผูกปุ่มพิมพ์กับ payment type; หน้า receipt ต้องรับ `docType=receipt|credit` และ `paper=58|80` เพื่อรองรับเครื่องพิมพ์ความร้อน
-13. **GAS Route Consolidation**: `/gas` v2 มี gauge/auth/shift/payment hardening แล้ว แต่ยังเป็น route stack แยกจาก `/gas-station/[id]/new`; งานต่อไปควรเลือก source of truth ระยะยาวก่อนเพิ่ม feature ใหญ่
-14. **GAS Stale Open Shifts**: กะ GAS ค้างเก่าถูกปิดจริงแล้วเมื่อ 2026-04-23 พร้อม audit log; งานต่อไปถ้าเจอกะค้างใหม่ให้ใช้ `/api/admin/gas/stale-shifts` เพื่อ preview/close แบบมี confirmation และ audit log
-15. **GAS Price Source**: flow หลักของ GAS v2 (`open`/`sell`/`summary`/`close`) ต้องยึด `dailyRecord.gasPrice` เป็น source เดียวต่อ station/day; global settings ใช้ได้แค่เป็น default ตอนสร้างวันใหม่หรือเติม record ที่ยังไม่มีราคา
-16. **GAS Shift Open Atomicity**: route เปิดกะ GAS ถูกห่อ transaction แล้ว; งานต่อไปห้ามดึงการสร้าง dailyRecord/shift/meters/gauges ออกมานอก transaction เดียว
-17. **GAS Start Reading Immutability**: start meter/start gauge ของ GAS v2 ถูกล็อกหลังกะเริ่มถูกใช้งาน (มี sale/end/reconciliation) แล้ว; ถ้าจำเป็นต้องแก้ย้อนหลังควรเปิดเป็น admin flow ที่มี audit ชัดเจนเท่านั้น
-18. **GAS Route-Level Tests**: งานที่แตะ price source/open shift/baseline guard ของ GAS v2 ต้องอัปเดต route-level tests ควบคู่กับ helper tests ไม่พึ่ง mock-only assertions อย่างเดียว
-19. **GAS Admin Analytics Source of Truth**: daily/shift/reconciliation/executive ของ GAS ควรอ่านผ่าน `src/lib/gas/admin-analytics.ts` เท่านั้น; ถ้าจะเพิ่ม metric ใหม่ให้เพิ่มใน fact layer ก่อน ไม่คำนวณซ้ำใน route/page แต่ละตัว
-20. **GAS Card Received Storage**: ตอนนี้ `cardReceived` ของ reconciliation ยังเก็บแฝงใน `shift.varianceNote` และรวมอยู่ใน `shift_reconciliations.transferReceived`; ทุก flow read/write ต้อง parse/build ผ่าน helper กลาง ห้ามแยก encode/decode เอง
-21. **GAS Meter Reports**: `api/v2/gas/admin/reports/meters` ต้องอิง shift facts ชุดเดียวกับ daily/shift/reconciliation เพื่อให้ยอดมิเตอร์, transaction liters, และ liters variance ตรงกันทุกหน้า
-22. **GAS Legacy Empty Open Shift**: ห้ามให้ `/gas-station/[id]/new/home` หรือ legacy `/api/gas-station/[id]/shifts` เปิดกะ GAS โดยไม่มี meter/gauge; ถ้าเจอ `OPEN` shift ที่ `meterRows=0` ให้ถือเป็น partial/corrupt row และ repair ผ่าน admin-confirmed flow ก่อนใช้งานต่อ
-23. **GAS Daily Price Edits**: การแก้ราคาขายประจำวันของพนักงานต้องผ่าน `/api/v2/gas/[stationId]/price` เพื่อ update `dailyRecord.gasPrice/retailPrice/wholesalePrice` พร้อม audit; ห้ามแก้ผ่าน local state อย่างเดียว และต้องถือว่ารายการขายเดิมคง `pricePerLiter` เดิมไว้
-24. **GAS Credit Bill Required Fields**: GAS `CREDIT` transaction ต้องมี `ownerId`, `truckId`, `billBookNo`, `billNo` และ backend ต้อง verify truck-owner relation ก่อนสร้าง transaction; ห้ามพึ่ง validation ฝั่งหน้าอย่างเดียว
-25. **GAS Received Amount Validation**: ยอด `cashReceived`/`creditReceived`/`cardReceived`/`transferReceived` ตอนปิดกะต้องเป็นเลขไม่ติดลบทุกครั้ง; schema ยังไม่มี field `cardReceived` แยก จึงต้อง parse/build ผ่าน `buildGasVarianceNote`/fact layer กลางเท่านั้น
-26. **GAS Open Shift Date Scope**: guard เปิดกะต้องเช็ก `OPEN` shift เฉพาะ station/day เดียวกับ `dateKey`; ห้ามให้กะค้างวันก่อนบล็อกการเปิดกะวันใหม่ ให้ใช้ `/api/admin/gas/stale-shifts` สำหรับ cleanup แบบมี audit
-27. **GAS Orphan Transactions**: admin analytics ต้องไม่ทิ้ง transaction ที่ `shiftId=null` หรือ match shift window ไม่ได้; ให้แสดงเป็น `UNASSIGNED`/“ไม่ผูกกะ” เพื่อให้ผู้จัดการเห็นยอดจริง และ legacy sell route ต้อง block/auto-link ก่อนสร้างรายการใหม่
-28. **GAS Amount-Based Sales**: หน้า GAS sell ต้องให้พนักงานกรอกยอดเงินเป็นหลัก และ backend ต้องคำนวณลิตรจาก `dailyRecord.gasPrice`; ห้ามเชื่อ `liters`/`pricePerLiter` จาก client เมื่อมี `amount` ส่งมา เพื่อไม่ให้ยอดขายกับราคาประจำวัน drift กัน
-29. **GAS Single Source Entry Flow**: หน้า legacy `/gas-station/[id]` และทุกหน้า `/gas-station/[id]/new/*` ต้อง redirect ไป `/gas` v2; ห้ามเพิ่ม logic บันทึกขาย/มิเตอร์/สินค้า/สรุปใน legacy pages เพราะจะกลับไปสร้าง orphan/duplicate daily records และทำให้พนักงานสับสนระหว่างหน้าขาวกับหน้าดำ
-30. **GAS Admin Data Entry Sales**: หน้า admin data-entry ต้องสร้าง/replace เฉพาะ synthetic transactions ที่ notes ขึ้นต้น `admin-data-entry:` และผูก `dailyRecordId` + `shiftId`; ห้ามเก็บยอดขายเป็นตัวเลขลอยในหน้าโดยไม่สร้าง transaction
-31. **GAS Legacy Login Redirects**: middleware/login ต้อง normalize redirect target ของ `/gas-station/[id]/new/*` เป็น `/gas/[id]` ก่อนเสมอ; ไม่งั้น user ที่เปิด bookmark เก่าตอนยังไม่ login จะยังเห็น redirect chain ผ่าน URL เก่า
+13. **Tank Loy Single Staff UI**: ห้ามเพิ่มฟีเจอร์แท๊งลอยใน `station/1/new/*` หรือ `station/1/v2`; staff route เดียวคือ `simple-station/1/new/*` ส่วน `station/1` เก็บไว้เป็น classic/admin เท่านั้น
+14. **GAS Route Consolidation**: `/gas` v2 มี gauge/auth/shift/payment hardening แล้ว แต่ยังเป็น route stack แยกจาก `/gas-station/[id]/new`; งานต่อไปควรเลือก source of truth ระยะยาวก่อนเพิ่ม feature ใหญ่
+15. **GAS Stale Open Shifts**: กะ GAS ค้างเก่าถูกปิดจริงแล้วเมื่อ 2026-04-23 พร้อม audit log; งานต่อไปถ้าเจอกะค้างใหม่ให้ใช้ `/api/admin/gas/stale-shifts` เพื่อ preview/close แบบมี confirmation และ audit log
+16. **GAS Price Source**: flow หลักของ GAS v2 (`open`/`sell`/`summary`/`close`) ต้องยึด `dailyRecord.gasPrice` เป็น source เดียวต่อ station/day; global settings ใช้ได้แค่เป็น default ตอนสร้างวันใหม่หรือเติม record ที่ยังไม่มีราคา
+17. **GAS Shift Open Atomicity**: route เปิดกะ GAS ถูกห่อ transaction แล้ว; งานต่อไปห้ามดึงการสร้าง dailyRecord/shift/meters/gauges ออกมานอก transaction เดียว
+18. **GAS Start Reading Immutability**: start meter/start gauge ของ GAS v2 ถูกล็อกหลังกะเริ่มถูกใช้งาน (มี sale/end/reconciliation) แล้ว; ถ้าจำเป็นต้องแก้ย้อนหลังควรเปิดเป็น admin flow ที่มี audit ชัดเจนเท่านั้น
+19. **GAS Route-Level Tests**: งานที่แตะ price source/open shift/baseline guard ของ GAS v2 ต้องอัปเดต route-level tests ควบคู่กับ helper tests ไม่พึ่ง mock-only assertions อย่างเดียว
+20. **GAS Admin Analytics Source of Truth**: daily/shift/reconciliation/executive ของ GAS ควรอ่านผ่าน `src/lib/gas/admin-analytics.ts` เท่านั้น; ถ้าจะเพิ่ม metric ใหม่ให้เพิ่มใน fact layer ก่อน ไม่คำนวณซ้ำใน route/page แต่ละตัว
+21. **GAS Card Received Storage**: ตอนนี้ `cardReceived` ของ reconciliation ยังเก็บแฝงใน `shift.varianceNote` และรวมอยู่ใน `shift_reconciliations.transferReceived`; ทุก flow read/write ต้อง parse/build ผ่าน helper กลาง ห้ามแยก encode/decode เอง
+22. **GAS Meter Reports**: `api/v2/gas/admin/reports/meters` ต้องอิง shift facts ชุดเดียวกับ daily/shift/reconciliation เพื่อให้ยอดมิเตอร์, transaction liters, และ liters variance ตรงกันทุกหน้า
+23. **GAS Legacy Empty Open Shift**: ห้ามให้ `/gas-station/[id]/new/home` หรือ legacy `/api/gas-station/[id]/shifts` เปิดกะ GAS โดยไม่มี meter/gauge; ถ้าเจอ `OPEN` shift ที่ `meterRows=0` ให้ถือเป็น partial/corrupt row และ repair ผ่าน admin-confirmed flow ก่อนใช้งานต่อ
+24. **GAS Daily Price Edits**: การแก้ราคาขายประจำวันของพนักงานต้องผ่าน `/api/v2/gas/[stationId]/price` เพื่อ update `dailyRecord.gasPrice/retailPrice/wholesalePrice` พร้อม audit; ห้ามแก้ผ่าน local state อย่างเดียว และต้องถือว่ารายการขายเดิมคง `pricePerLiter` เดิมไว้
+25. **GAS Credit Bill Required Fields**: GAS `CREDIT` transaction ต้องมี `ownerId`, `truckId`, `billBookNo`, `billNo` และ backend ต้อง verify truck-owner relation ก่อนสร้าง transaction; ห้ามพึ่ง validation ฝั่งหน้าอย่างเดียว
+26. **GAS Received Amount Validation**: ยอด `cashReceived`/`creditReceived`/`cardReceived`/`transferReceived` ตอนปิดกะต้องเป็นเลขไม่ติดลบทุกครั้ง; schema ยังไม่มี field `cardReceived` แยก จึงต้อง parse/build ผ่าน `buildGasVarianceNote`/fact layer กลางเท่านั้น
+27. **GAS Open Shift Date Scope**: guard เปิดกะต้องเช็ก `OPEN` shift เฉพาะ station/day เดียวกับ `dateKey`; ห้ามให้กะค้างวันก่อนบล็อกการเปิดกะวันใหม่ ให้ใช้ `/api/admin/gas/stale-shifts` สำหรับ cleanup แบบมี audit
+28. **GAS Orphan Transactions**: admin analytics ต้องไม่ทิ้ง transaction ที่ `shiftId=null` หรือ match shift window ไม่ได้; ให้แสดงเป็น `UNASSIGNED`/“ไม่ผูกกะ” เพื่อให้ผู้จัดการเห็นยอดจริง และ legacy sell route ต้อง block/auto-link ก่อนสร้างรายการใหม่
+29. **GAS Amount-Based Sales**: หน้า GAS sell ต้องให้พนักงานกรอกยอดเงินเป็นหลัก และ backend ต้องคำนวณลิตรจาก `dailyRecord.gasPrice`; ห้ามเชื่อ `liters`/`pricePerLiter` จาก client เมื่อมี `amount` ส่งมา เพื่อไม่ให้ยอดขายกับราคาประจำวัน drift กัน
+30. **GAS Single Source Entry Flow**: หน้า legacy `/gas-station/[id]` และทุกหน้า `/gas-station/[id]/new/*` ต้อง redirect ไป `/gas` v2; ห้ามเพิ่ม logic บันทึกขาย/มิเตอร์/สินค้า/สรุปใน legacy pages เพราะจะกลับไปสร้าง orphan/duplicate daily records และทำให้พนักงานสับสนระหว่างหน้าขาวกับหน้าดำ
+31. **GAS Admin Data Entry Sales**: หน้า admin data-entry ต้องสร้าง/replace เฉพาะ synthetic transactions ที่ notes ขึ้นต้น `admin-data-entry:` และผูก `dailyRecordId` + `shiftId`; ห้ามเก็บยอดขายเป็นตัวเลขลอยในหน้าโดยไม่สร้าง transaction
+32. **GAS Legacy Login Redirects**: middleware/login ต้อง normalize redirect target ของ `/gas-station/[id]/new/*` เป็น `/gas/[id]` ก่อนเสมอ; ไม่งั้น user ที่เปิด bookmark เก่าตอนยังไม่ login จะยังเห็น redirect chain ผ่าน URL เก่า
 
 ## Changelog
 - 2026-02-24: สร้างไฟล์ brain topic นี้จากประวัติ conversations
@@ -238,6 +246,7 @@
 - 2026-04-26: ปรับหน้าใหม่ของแท๊งลอยให้โทน UI ไปทางเดียวกับหน้า `home` และตัด flow น้ำมันเครื่อง/สินค้าออกจาก nav, `oil-sell`, `sell`, และ `shift-end` สำหรับ `station-1`
 - 2026-04-26: แก้ bottom nav หน้าใหม่แท๊งลอยไม่ให้บังปุ่มท้ายหน้า และปรับรายงานหลังปิดกะให้รวมเลขเปิด-ปิดมิเตอร์, รายการเติมทั้งหมด, และยอดเงินรวมในหน้าเดียว
 - 2026-04-26: เปิดให้ transaction ทุกประเภทในหน้า summary พิมพ์เป็นใบเสร็จรับเงินหรือบิลเงินเชื่อได้ พร้อมเลือกระหว่างกระดาษ thermal 58mm/80mm
+- 2026-04-26: consolidate route แท๊งลอยให้เหลือ staff UI เดียวที่ `simple-station/1/new/*` และ classic admin ที่ `station/1`; route เก่า `station/1/new/*`/`station/1/v2` เป็น redirect เท่านั้น
 - 2026-04-23: audit ปั๊มแก๊สทั้ง 2 สาขา พบ route/API ซ้อนกัน, `/api/v2/gas/[stationId]/gauge` ขาด, auth/ownership gaps ใน GAS v2/legacy routes, payment type drift, transaction ไม่ผูก `shiftId` ใน v2 sell, station-5 `hasProducts` config/DB ไม่ตรง, และ DB จริงมีกะ GAS ค้างจำนวนมาก
 - 2026-04-23: implement GAS hardening ตาม audit: เพิ่ม v2 gauge route, helper guard กลาง, station ownership checks, v2 sell/summary shift scope, payment normalize `CREDIT_CARD`/`TRANSFER`, product guard เฉพาะ station-5 พร้อม sync DB, admin stale-shift cleanup endpoint, eslint ignore สำหรับ ad hoc scripts, และ tests เฉพาะ GAS
 - 2026-04-23: ปิด GAS `OPEN` shifts ค้างใน DB จริงครบ 70 กะ (`station-5` 57, `station-6` 13), เติม end meter ที่ว่าง 16 จุดด้วยค่า start เดิม, ปิด daily records ที่ไม่มี open shift เหลือ 67 records, และสร้าง audit log ครบ 70 รายการ

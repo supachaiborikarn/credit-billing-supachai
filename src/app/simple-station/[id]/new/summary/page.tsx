@@ -491,10 +491,14 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                                             <button
                                                 type="button"
                                                 onClick={() => openPrintModal(txn)}
-                                                className="p-2 text-purple-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                                                className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-bold transition-colors ${isTankLoyStation
+                                                    ? 'bg-orange-500/10 text-orange-300 hover:bg-orange-500/20'
+                                                    : 'text-purple-500 hover:bg-purple-50 hover:text-purple-700'
+                                                    }`}
                                                 title="พิมพ์ใบเสร็จหรือบิลเงินเชื่อ"
                                             >
                                                 <Printer size={16} />
+                                                <span>พิมพ์</span>
                                             </button>
                                             {txn.transferProofUrl && (
                                                 <button

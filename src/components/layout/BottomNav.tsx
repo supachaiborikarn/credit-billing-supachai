@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 const navItems = [
     { icon: Home, label: "หน้าหลัก", path: "/m" },
     { icon: Users, label: "ลูกค้า", path: "/owners" },
-    { icon: Plus, label: "เพิ่ม", path: "/station/cm9qx0d2v0001qnfnm3w0qx5e", isFab: true },
+    { icon: Plus, label: "เพิ่ม", path: "/simple-station/1/new/sell", isFab: true },
     { icon: FileText, label: "บิล", path: "/invoices" },
     { icon: Settings, label: "ตั้งค่า", path: "/dashboard" },
 ];

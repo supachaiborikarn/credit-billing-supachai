@@ -111,9 +111,9 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                     const data = await res.json();
                     setCurrentUser(data.user);
 
-                    // Force redirect staff to V2 (non-admin users)
+                    // Staff should use the single Tank Loy staff UI. Keep this classic page for admins only.
                     if (data.user && data.user.role !== 'ADMIN') {
-                        window.location.href = `/station/${id}/v2`;
+                        window.location.href = `/simple-station/${id}/new/home`;
                         return;
                     }
                 }
@@ -711,10 +711,10 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                 <Sparkles size={14} className="text-purple-400" />
                                 {isFullStation ? 'ระบบเต็ม (FULL)' : 'ระบบลงบิล (SIMPLE)'}
                                 <a
-                                    href={`/station/${id}/new/home`}
+                                    href={`/simple-station/${id}/new/home`}
                                     className="ml-2 px-3 py-1 rounded-full text-xs font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors"
                                 >
-                                    📱 ใช้ UI ใหม่
+                                    📱 ไปหน้าใช้งานพนักงาน
                                 </a>
                             </p>
                         </div>
@@ -1177,7 +1177,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                         </>
                                                     ) : !searchLoading && licensePlate.length >= 2 ? (
                                                         <div className="px-4 py-3 text-center">
-                                                            <p className="text-gray-400 mb-2">ไม่พบทะเบียน "{licensePlate}"</p>
+                                                            <p className="text-gray-400 mb-2">ไม่พบทะเบียน &quot;{licensePlate}&quot;</p>
                                                         </div>
                                                     ) : null}
 
@@ -1190,7 +1190,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                                 className="w-full btn btn-success text-sm py-2 px-4 flex items-center justify-center gap-2"
                                                             >
                                                                 <Plus size={16} />
-                                                                เพิ่มทะเบียน "{licensePlate.toUpperCase()}" เป็นของเจ้าของใหม่
+                                                                เพิ่มทะเบียน &quot;{licensePlate.toUpperCase()}&quot; เป็นของเจ้าของใหม่
                                                             </button>
                                                         </div>
                                                     )}

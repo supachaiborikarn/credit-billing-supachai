@@ -31,10 +31,38 @@ function getGasV2RedirectPath(pathname: string) {
     return `/gas/${stationId}`;
 }
 
+function getTankLoyRedirectPath(pathname: string) {
+    if (pathname === '/simple-station/1') return '/simple-station/1/new/home';
+    if (pathname === '/simple-station/1/new/oil-sell' || pathname === '/simple-station/1/new/products') {
+        return '/simple-station/1/new/home';
+    }
+
+    const legacyNewMatch = pathname.match(/^\/station\/1\/new(?:\/([^/]+))?/);
+    if (legacyNewMatch) {
+        const page = legacyNewMatch[1] || 'home';
+        const pageMap: Record<string, string> = {
+            home: 'home',
+            record: 'sell',
+            list: 'summary',
+            summary: 'summary',
+            meters: 'shift-end',
+            'shift-end': 'shift-end',
+        };
+        return `/simple-station/1/new/${pageMap[page] || 'home'}`;
+    }
+
+    if (pathname === '/station/1/v2' || pathname.startsWith('/station/1/v2/')) {
+        return '/station/1';
+    }
+
+    return null;
+}
+
 export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
     const sessionCookie = request.cookies.get('session');
     const gasV2RedirectPath = getGasV2RedirectPath(pathname);
+    const tankLoyRedirectPath = getTankLoyRedirectPath(pathname);
 
     // Check if route is protected
     const isProtectedRoute = protectedRoutes.some(route =>
@@ -44,12 +72,16 @@ export function middleware(request: NextRequest) {
     // If protected route and no session, redirect to login
     if (isProtectedRoute && !sessionCookie) {
         const loginUrl = new URL('/login', request.url);
-        loginUrl.searchParams.set('redirect', gasV2RedirectPath || pathname);
+        loginUrl.searchParams.set('redirect', gasV2RedirectPath || tankLoyRedirectPath || pathname);
         return NextResponse.redirect(loginUrl);
     }
 
     if (gasV2RedirectPath) {
         return NextResponse.redirect(new URL(gasV2RedirectPath, request.url));
+    }
+
+    if (tankLoyRedirectPath) {
+        return NextResponse.redirect(new URL(tankLoyRedirectPath, request.url));
     }
 
     return NextResponse.next();

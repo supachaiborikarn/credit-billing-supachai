@@ -23,15 +23,19 @@ interface Transaction {
     billNo: string;
 }
 
+interface StaffTransaction {
+    recordedByName?: string | null;
+}
+
 export default function SimpleStationPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const stationIndex = parseInt(id) - 1;
     const station = STATIONS[stationIndex];
     const router = useRouter();
 
-    // Auto redirect to new UI for SIMPLE stations
+    // Auto redirect to the single active staff UI for SIMPLE stations and Tank Loy.
     useEffect(() => {
-        if (station && station.type === 'SIMPLE') {
+        if (station && (station.type === 'SIMPLE' || station.id === 'station-1')) {
             router.replace(`/simple-station/${id}/new/home`);
         }
     }, [station, id, router]);
@@ -118,11 +122,11 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
             try {
                 const res = await fetch(`/api/station/${id}/transactions?date=${selectedDate}`);
                 if (res.ok) {
-                    const data = await res.json();
-                    const uniqueStaff = Array.from(new Set(data.map((t: any) => t.recordedByName)))
+                    const data: StaffTransaction[] = await res.json();
+                    const uniqueStaff = Array.from(new Set(data.map((t) => t.recordedByName)))
                         .filter(Boolean)
-                        .map((name: any) => ({ name, id: name }));
-                    setStaffList(uniqueStaff as any);
+                        .map((name) => ({ name: String(name), id: String(name) }));
+                    setStaffList(uniqueStaff);
                 }
             } catch (e) { /* ignore */ }
         };

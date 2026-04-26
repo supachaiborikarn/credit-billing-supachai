@@ -145,7 +145,9 @@ export default function Sidebar({ children }: SidebarProps) {
 
     // Filter stations for staff - only show their assigned station
     const getStationPath = (station: typeof STATIONS[number], index: number) => {
-        if (station.type === 'FULL') return `/station/${index + 1}/v2`; // Default to V2
+        if (station.type === 'FULL') {
+            return isAdmin ? `/station/${index + 1}` : `/simple-station/${index + 1}/new/home`;
+        }
         if (station.type === 'GAS') return `/gas/${index + 1}`;
         return `/simple-station/${index + 1}`;
     };
@@ -314,23 +316,9 @@ export default function Sidebar({ children }: SidebarProps) {
                                                         <span className={`flex-1 ${isStationActive ? 'text-white font-medium' : 'text-gray-400'}`}>
                                                             {station.name}
                                                         </span>
-                                                        {station.type === 'FULL' && <span className="text-xs text-purple-400">V2</span>}
+                                                        {station.type === 'FULL' && <span className="text-xs text-purple-400">{isAdmin ? 'Classic' : 'Staff'}</span>}
                                                         {station.type === 'GAS' && <span className={`text-xs ${color.text}`}>แก๊ส</span>}
                                                     </Link>
-                                                    {/* Admin: Show V1 (Classic) option for FULL stations */}
-                                                    {station.type === 'FULL' && isAdmin && (
-                                                        <Link
-                                                            href={`/station/${index + 1}`}
-                                                            className={`flex items-center gap-3 px-4 py-2 ml-5 rounded-lg text-xs transition-all duration-300 ${isActive(`/station/${index + 1}`) && !pathname.includes('/v2')
-                                                                ? 'bg-white/10 text-white'
-                                                                : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
-                                                                }`}
-                                                            onClick={() => setIsMobileMenuOpen(false)}
-                                                        >
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-gray-500" />
-                                                            <span>Classic (V1)</span>
-                                                        </Link>
-                                                    )}
                                                 </div>
                                             );
                                         })}

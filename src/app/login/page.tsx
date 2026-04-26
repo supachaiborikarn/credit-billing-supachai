@@ -18,6 +18,33 @@ function normalizeGasRedirectPath(path: string) {
     return `/gas/${stationNum}`;
 }
 
+function normalizeTankLoyRedirectPath(path: string) {
+    if (path === '/simple-station/1') return '/simple-station/1/new/home';
+    if (path === '/simple-station/1/new/oil-sell' || path === '/simple-station/1/new/products') {
+        return '/simple-station/1/new/home';
+    }
+    if (path === '/station/1/v2' || path.startsWith('/station/1/v2/')) return '/station/1';
+
+    const match = path.match(/^\/station\/1\/new(?:\/([^/?#]+))?/);
+    if (!match) return path;
+
+    const legacyPage = match[1] || 'home';
+    const pageMap: Record<string, string> = {
+        home: 'home',
+        record: 'sell',
+        list: 'summary',
+        summary: 'summary',
+        meters: 'shift-end',
+        'shift-end': 'shift-end',
+    };
+
+    return `/simple-station/1/new/${pageMap[legacyPage] || 'home'}`;
+}
+
+function normalizeRedirectPath(path: string) {
+    return normalizeTankLoyRedirectPath(normalizeGasRedirectPath(path));
+}
+
 function LoginContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -52,7 +79,7 @@ function LoginContent() {
 
                             if (stationNum > 0) {
                                 if (data.user.stationType === 'FULL') {
-                                    router.push(`/station/${stationNum}`);
+                                    router.push(`/simple-station/${stationNum}/new/home`);
                                 } else if (data.user.stationType === 'GAS') {
                                     router.push(`/gas/${stationNum}`);
                                 } else {
@@ -135,7 +162,7 @@ function LoginContent() {
 
                 // Redirect based on role or redirect param
                 if (redirectTo && !redirectTo.startsWith('/login')) {
-                    router.push(normalizeGasRedirectPath(redirectTo));
+                    router.push(normalizeRedirectPath(redirectTo));
                 } else if (data.user?.role === 'STAFF' && data.user?.stationId) {
                     const stationId = data.user.stationId;
                     const stationType = data.user.stationType;
@@ -147,7 +174,7 @@ function LoginContent() {
                     // Use stationType to determine the correct path
                     if (stationNum > 0) {
                         if (stationType === 'FULL') {
-                            router.push(`/station/${stationNum}`);
+                            router.push(`/simple-station/${stationNum}/new/home`);
                         } else if (stationType === 'GAS') {
                             router.push(`/gas/${stationNum}`);
                         } else {

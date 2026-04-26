@@ -1,5 +1,5 @@
-<!-- SUMMARY: 6 สถานี: แท๊งลอยวัชรเกียรติ (FULL), วัชรเกียรติออยล์/พงษ์อนันต์/ศุภชัยบริการ (SIMPLE),
-     ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS), แต่ละแบบมี route และ features ต่างกัน -->
+<!-- SUMMARY: 6 สถานี: แท๊งลอยวัชรเกียรติ (FULL) ใช้ staff route เดียว `/simple-station/1/new/*` และคง classic admin ที่ `/station/1`;
+     วัชรเกียรติออยล์/พงษ์อนันต์/ศุภชัยบริการ (SIMPLE), ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS), แต่ละแบบมี route และ features ต่างกัน -->
 
 # Station Types
 
@@ -25,7 +25,9 @@
 - Meter reading (มิเตอร์เริ่มต้น/สิ้นสุด)
 - Daily anomaly detection
 - Shift reconciliation (ตรวจยอดปิดกะ)
-- Tab navigation: บันทึก → รายการ → มิเตอร์ → สรุป
+- Staff canonical route: `/simple-station/1/new/*`
+- Admin classic route: `/station/1`
+- Legacy `/station/1/new/*` และ `/station/1/v2` ต้อง redirect ออก ห้ามเพิ่มฟีเจอร์ใหม่ใน route ชุดนั้น
 
 ### SIMPLE Station
 - บันทึกบิลอย่างเดียว
@@ -47,3 +49,4 @@
 - 2026-02-24: สร้างไฟล์ brain topic นี้
 - 2026-01: แยกมิเตอร์ตามกะ, แก้ shift filter, fuel price sync
 - 2026-04-23: Modernized GAS UI (Linear-inspired, card-based layout) for /gas-station/[id]
+- 2026-04-26: Consolidate Tank Loy routes ให้เหลือ staff UI เดียวที่ `/simple-station/1/new/*` และ classic admin ที่ `/station/1`; route `/station/1/new/*` กับ `/station/1/v2` เป็น redirect เท่านั้น
