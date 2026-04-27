@@ -88,6 +88,8 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
     const [amount, setAmount] = useState(0);
     const [bookNo, setBookNo] = useState('');
     const [billNo, setBillNo] = useState('');
+    const [nextBillLoading, setNextBillLoading] = useState(false);
+    const [nextBillMessage, setNextBillMessage] = useState('');
 
     // Product selection
     const [products, setProducts] = useState<Product[]>([]);
@@ -124,6 +126,34 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
     const ABNORMAL_THRESHOLD = 20000; // อะเลิร์ตเมื่อยอดเกิน 20,000 บาท
     const isCreditLikePayment = (type: string) =>
         type === 'CREDIT' || type === 'BOX_TRUCK' || type === 'OIL_TRUCK_SUPACHAI';
+
+    const fillNextBillNumber = async (force = false) => {
+        if (!force && billNo.trim()) return;
+
+        setNextBillLoading(true);
+        setNextBillMessage('');
+        try {
+            const params = new URLSearchParams({ next: 'true' });
+            if (bookNo.trim()) params.set('bookNo', bookNo.trim());
+
+            const res = await fetch(`/api/station/${id}/check-bill?${params.toString()}`);
+            if (!res.ok) throw new Error('next_bill_failed');
+
+            const data = await res.json();
+            if (data.billBookNo) setBookNo(data.billBookNo);
+            if (data.billNo) {
+                setBillNo(data.billNo);
+                setNextBillMessage(`ระบบเติมเลขบิลถัดไปให้แล้ว: ${data.billBookNo || bookNo || '-'} / ${data.billNo}`);
+            } else {
+                setNextBillMessage('ยังไม่มีเล่มบิลล่าสุด กรุณาใส่เล่มที่ก่อน แล้วระบบจะสร้างเลขที่ถัดไปให้');
+            }
+        } catch (error) {
+            console.error('Next bill lookup error:', error);
+            setNextBillMessage('สร้างเลขบิลอัตโนมัติไม่สำเร็จ สามารถกรอกเองได้');
+        } finally {
+            setNextBillLoading(false);
+        }
+    };
 
     // Load products for this station
     useEffect(() => {
@@ -444,7 +474,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                 setLiters('');
                 setPricePerLiter('');
                 setPriceDisplay('');
-                setBookNo('');
+                setBookNo(data.transaction.billBookNo || '');
                 setBillNo('');
                 setPaymentType('CASH');
                 setSelectedProducts([]);
@@ -503,14 +533,30 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
             <div className="p-4 pb-24 space-y-4">
                 {/* Book & Bill Number */}
                 <div className={cardClass}>
-                    <label className={`block text-sm font-medium mb-2 ${labelClass}`}>
-                        📝 เล่ม/เลขที่บิล
-                    </label>
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                        <label className={`text-sm font-medium ${labelClass}`}>
+                            📝 เล่ม/เลขที่บิล
+                        </label>
+                        {isCreditLikePayment(paymentType) && (
+                            <button
+                                type="button"
+                                onClick={() => fillNextBillNumber(true)}
+                                disabled={nextBillLoading}
+                                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${isTankLoyStation ? 'bg-orange-500/10 text-orange-200 hover:bg-orange-500/20' : 'bg-orange-50 text-orange-700 hover:bg-orange-100'}`}
+                            >
+                                {nextBillLoading ? 'กำลังสร้าง...' : 'เลขถัดไป'}
+                            </button>
+                        )}
+                    </div>
                     <div className="grid grid-cols-2 gap-3">
                         <input
                             type="text"
                             value={bookNo}
-                            onChange={(e) => setBookNo(e.target.value)}
+                            onChange={(e) => {
+                                setBookNo(e.target.value);
+                                setBillNo('');
+                                setNextBillMessage('');
+                            }}
                             placeholder="เล่มที่"
                             className={`px-4 py-3 rounded-xl border ${fieldClass}`}
                         />
@@ -522,6 +568,11 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                             className={`px-4 py-3 rounded-xl border ${fieldClass}`}
                         />
                     </div>
+                    {isCreditLikePayment(paymentType) && (
+                        <p className={`mt-2 text-xs ${nextBillMessage ? isTankLoyStation ? 'text-emerald-300' : 'text-green-600' : subtleTextClass}`}>
+                            {nextBillMessage || 'ระบบจะช่วยเติมเลขที่บิลถัดไปให้ ถ้าไม่ต้องการใช้สามารถแก้เองได้'}
+                        </p>
+                    )}
                 </div>
 
                 {/* License Plate Search */}
@@ -609,7 +660,14 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                         {PAYMENT_TYPES.map((type) => (
                             <button
                                 key={type.value}
-                                onClick={() => setPaymentType(type.value)}
+                                onClick={() => {
+                                    setPaymentType(type.value);
+                                    if (isCreditLikePayment(type.value)) {
+                                        void fillNextBillNumber(false);
+                                    } else {
+                                        setNextBillMessage('');
+                                    }
+                                }}
                                 className={`rounded-xl border-2 px-2 py-3 text-sm font-medium transition-all ${paymentType === type.value
                                     ? optionSelectedClass
                                     : optionIdleClass

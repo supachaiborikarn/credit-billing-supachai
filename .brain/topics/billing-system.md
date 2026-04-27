@@ -3,7 +3,8 @@
      ใบวางบิล/ใบแจ้งหนี้ยึด ownerId เป็นหลัก ส่วน ownerName เป็น snapshot/legacy fallback,
      external integration ต้อง map ลูกค้าให้ได้ ownerId ให้ชัดก่อนรวมบิล,
      และ audit 2026-04-25 patch ให้ invoice/pending/debt report รวม `OIL_TRUCK_SUPACHAI`,
-     lock search APIs ด้วย session, และบังคับ credit-like sale ต้องมี owner/truck/book/bill -->
+     lock search APIs ด้วย session, บังคับ credit-like sale ต้องมี owner/truck/book/bill,
+     และ 2026-04-27 เติมเลขที่บิลถัดไปอัตโนมัติให้ Tank Loy credit-like sale จากเล่มล่าสุด/เล่มที่เลือก -->
 
 # Billing System
 
@@ -92,6 +93,7 @@
 - Patch ให้ invoice queue/create และ debt report ใช้ `CREDIT_PAYMENT_TYPES` กลาง (`CREDIT`, `BOX_TRUCK`, `OIL_TRUCK_SUPACHAI`) และกรอง `deletedAt=null`, `isVoided=false`
 - เพิ่ม session guard ให้ `/api/owners/search`, `/api/owners/check-duplicate`, `/api/trucks/search` เพราะ endpoint เหล่านี้เปิดเผยรายชื่อลูกค้า/ทะเบียนรถ
 - Patch `BillEntryForm` และ station transaction APIs ให้ credit-like payment ต้องมี owner/truck/book/bill ครบ และตรวจว่า truck อยู่กับ owner ที่เลือกก่อนบันทึก
+- Patch Tank Loy station transaction API ให้ credit-like sale ที่ไม่ส่ง `billNo` สามารถดึงเลขที่ถัดไปจาก `billBookNo` ที่เลือกได้ และถ้าไม่ส่งเล่มจะใช้เล่มล่าสุดของ station เป็น default; ถ้าไม่มีประวัติเล่มเลยยังต้องให้พนักงานกรอกเล่มครั้งแรก
 - Patch `/api/invoices/[id]/payments` ให้ validate amount > 0, ห้ามจ่ายเกินยอดคงค้าง, และ create payment + update invoice ใน transaction เดียว
 - Patch billing collection payment slip verify/delete ให้ recalc paid/status ใน transaction เดียว และเช็กว่า slipId อยู่ใต้ collectionId นั้นจริงก่อน delete
 
@@ -101,6 +103,7 @@
 - **Truck**: ผูกกับ Owner ผ่าน `ownerId`
 
 ## Changelog
+- 2026-04-27: เพิ่ม helper เลขบิลถัดไปสำหรับ station transactions และ Tank Loy UI เติมเลขที่บิลอัตโนมัติจากเล่มล่าสุด/เล่มที่เลือก
 - 2026-04-25: audit ระบบบิลเงินเชื่อและ connection จริง พบ invoice/pending/debt report ตก `OIL_TRUCK_SUPACHAI`, search APIs ไม่มี auth, credit-like entry ยังพึ่ง ownerName/ทะเบียนแบบไม่ enforce, `owners.currentCredit` drift จากยอดค้างจริง 168 owners, และ patch hardening หลักโดยไม่แก้ข้อมูลเก่า
 - 2026-04-21: บันทึกว่าใบวางบิล/ใบแจ้งหนี้ยึด `ownerId` เป็นหลัก, เพิ่มผล audit live DB เรื่อง missing `ownerId`, duplicate owner names, duplicate owner codes, `venderCode` ที่ยังว่าง, และย้ำว่าการเชื่อม external system ต้อง map ลูกค้าด้วย stable key ก่อน
 - 2026-02-24: สร้างไฟล์ brain topic นี้จากประวัติการทำงานจริง

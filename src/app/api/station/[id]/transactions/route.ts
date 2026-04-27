@@ -6,6 +6,7 @@ import { HttpErrors, getErrorMessage } from '@/lib/api-error';
 import { requireStationAccessApi } from '@/lib/api-auth';
 import { PaymentType } from '@prisma/client';
 import { CREDIT_PAYMENT_TYPES } from '@/constants/payment-types';
+import { suggestNextStationBill } from '@/lib/station-bill-number';
 
 interface TransactionInput {
     date: string;
@@ -146,6 +147,14 @@ export async function POST(
         } = body;
         const isCreditLikePayment = creditPaymentTypeSet.has(paymentType);
         const trimmedTransferProofUrl = transferProofUrl?.trim();
+        let resolvedBillBookNo = billBookNo?.trim() || null;
+        let resolvedBillNo = billNo?.trim() || null;
+
+        if (isCreditLikePayment && (!resolvedBillBookNo || !resolvedBillNo)) {
+            const suggestedBill = await suggestNextStationBill(stationId, resolvedBillBookNo);
+            resolvedBillBookNo = resolvedBillBookNo || suggestedBill.bookNo;
+            resolvedBillNo = resolvedBillNo || suggestedBill.billNo;
+        }
 
         // Use fuelType if provided, fallback to productType
         const actualProductType = fuelType || productType;
@@ -157,8 +166,8 @@ export async function POST(
         if (isCreditLikePayment && !ownerName?.trim() && !body.ownerId) {
             return HttpErrors.badRequest('รายการเงินเชื่อต้องระบุชื่อลูกค้า');
         }
-        if (isCreditLikePayment && (!billBookNo?.trim() || !billNo?.trim())) {
-            return HttpErrors.badRequest('รายการเงินเชื่อต้องระบุเล่มที่และเลขที่บิล');
+        if (isCreditLikePayment && (!resolvedBillBookNo || !resolvedBillNo)) {
+            return HttpErrors.badRequest('รายการเงินเชื่อต้องระบุเล่มที่บิลอย่างน้อยหนึ่งครั้ง เพื่อให้ระบบสร้างเลขที่บิลถัดไปได้');
         }
         if (isCreditLikePayment && !licensePlate?.trim()) {
             return HttpErrors.badRequest('รายการเงินเชื่อต้องระบุทะเบียนรถ');
@@ -216,12 +225,12 @@ export async function POST(
         const endOfDay = getEndOfDayBangkok(dateStr);
 
         // Bill duplicate logging (informational only)
-        if (billBookNo && billNo) {
+        if (resolvedBillBookNo && resolvedBillNo) {
             const billDuplicate = await prisma.transaction.findFirst({
                 where: {
                     stationId,
-                    billBookNo: billBookNo,
-                    billNo: billNo,
+                    billBookNo: resolvedBillBookNo,
+                    billNo: resolvedBillNo,
                     deletedAt: null,
                 }
             });
@@ -247,9 +256,9 @@ export async function POST(
 
             // If bill info is provided, add to duplicate check
             // This allows same plate/amount/date if bill is different (e.g., red plate vehicles)
-            if (billBookNo && billNo) {
-                duplicateWhere.billBookNo = billBookNo;
-                duplicateWhere.billNo = billNo;
+            if (resolvedBillBookNo && resolvedBillNo) {
+                duplicateWhere.billBookNo = resolvedBillBookNo;
+                duplicateWhere.billNo = resolvedBillNo;
             }
 
             const plateDuplicate = await prisma.transaction.findFirst({
@@ -258,7 +267,7 @@ export async function POST(
 
             if (plateDuplicate) {
                 return HttpErrors.conflict(
-                    `รายการซ้ำ: พบรายการ ${paymentType} ทะเบียน ${licensePlate} ยอด ${amount} บาท${billBookNo ? ` เล่ม ${billBookNo}/${billNo}` : ''} ในวันที่ ${dateStr} แล้ว`
+                    `รายการซ้ำ: พบรายการ ${paymentType} ทะเบียน ${licensePlate} ยอด ${amount} บาท${resolvedBillBookNo ? ` เล่ม ${resolvedBillBookNo}/${resolvedBillNo}` : ''} ในวันที่ ${dateStr} แล้ว`
                 );
             }
         }
@@ -326,8 +335,8 @@ export async function POST(
                 liters,
                 pricePerLiter,
                 amount,
-                billBookNo,
-                billNo,
+                billBookNo: resolvedBillBookNo,
+                billNo: resolvedBillNo,
                 productType: actualProductType,
                 transferProofUrl: trimmedTransferProofUrl || null,
                 recordedById: userId,

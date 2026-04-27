@@ -53,6 +53,8 @@ export default function RefillModal({
     );
     const [billBookNo, setBillBookNo] = useState('');
     const [billNo, setBillNo] = useState('');
+    const [nextBillLoading, setNextBillLoading] = useState(false);
+    const [nextBillMessage, setNextBillMessage] = useState('');
 
     // Transfer proof state
     const [transferProofFile, setTransferProofFile] = useState<File | null>(null);
@@ -79,6 +81,34 @@ export default function RefillModal({
     const isTransferPayment = paymentType === 'TRANSFER';
     const isCreditPayment = CREDIT_PAYMENT_TYPES.some(type => type === paymentType);
 
+    const fillNextBillNumber = async (force = false) => {
+        if (!force && billNo.trim()) return;
+
+        setNextBillLoading(true);
+        setNextBillMessage('');
+        try {
+            const params = new URLSearchParams({ next: 'true' });
+            if (billBookNo.trim()) params.set('bookNo', billBookNo.trim());
+
+            const res = await fetch(`/api/station/${stationId}/check-bill?${params.toString()}`);
+            if (!res.ok) throw new Error('next_bill_failed');
+
+            const data = await res.json();
+            if (data.billBookNo) setBillBookNo(data.billBookNo);
+            if (data.billNo) {
+                setBillNo(data.billNo);
+                setNextBillMessage(`ระบบเติมเลขบิลถัดไปให้แล้ว: ${data.billBookNo || billBookNo || '-'} / ${data.billNo}`);
+            } else {
+                setNextBillMessage('ยังไม่มีเล่มบิลล่าสุด กรุณาใส่เล่มที่ก่อน แล้วระบบจะสร้างเลขที่ถัดไปให้');
+            }
+        } catch (error) {
+            console.error('Next bill lookup error:', error);
+            setNextBillMessage('สร้างเลขบิลอัตโนมัติไม่สำเร็จ สามารถกรอกเองได้');
+        } finally {
+            setNextBillLoading(false);
+        }
+    };
+
     // Update price based on payment type
     // CASH and CREDIT use retail price, others use wholesale
     useEffect(() => {
@@ -88,6 +118,16 @@ export default function RefillModal({
             setPricePerLiter(wholesalePrice.toString());
         }
     }, [paymentType, retailPrice, wholesalePrice]);
+
+    useEffect(() => {
+        if (isCreditPayment) {
+            void fillNextBillNumber(false);
+        } else {
+            setNextBillMessage('');
+        }
+        // Run only when the modal switches payment category; manual book changes use the "เลขถัดไป" button.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isCreditPayment]);
 
     // Fetch owners on mount
     useEffect(() => {
@@ -350,7 +390,14 @@ export default function RefillModal({
                             <button
                                 key={pt.value}
                                 type="button"
-                                onClick={() => setPaymentType(pt.value)}
+                                onClick={() => {
+                                    setPaymentType(pt.value);
+                                    if (CREDIT_PAYMENT_TYPES.some(type => type === pt.value)) {
+                                        void fillNextBillNumber(false);
+                                    } else {
+                                        setNextBillMessage('');
+                                    }
+                                }}
                                 className={`px-4 py-2 rounded-xl font-medium transition ${paymentType === pt.value
                                     ? `${pt.color} text-white`
                                     : 'bg-white border border-gray-200 text-gray-700'
@@ -530,14 +577,28 @@ export default function RefillModal({
                 {/* Bill Numbers (for CREDIT, OIL_TRUCK_SUPACHAI, BOX_TRUCK) */}
                 {(paymentType === 'CREDIT' || paymentType === 'OIL_TRUCK_SUPACHAI' || paymentType === 'BOX_TRUCK') && (
                     <div className="bg-gray-50 rounded-xl p-4">
-                        <label className="text-sm text-gray-600 block mb-2">เลขบิล</label>
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                            <label className="text-sm text-gray-600">เลขบิล</label>
+                            <button
+                                type="button"
+                                onClick={() => fillNextBillNumber(true)}
+                                disabled={nextBillLoading}
+                                className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 transition hover:bg-blue-100 disabled:opacity-50"
+                            >
+                                {nextBillLoading ? 'กำลังสร้าง...' : 'เลขถัดไป'}
+                            </button>
+                        </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className="text-xs text-gray-500">เล่มที่</label>
                                 <input
                                     type="text"
                                     value={billBookNo}
-                                    onChange={e => setBillBookNo(e.target.value)}
+                                    onChange={e => {
+                                        setBillBookNo(e.target.value);
+                                        setBillNo('');
+                                        setNextBillMessage('');
+                                    }}
                                     placeholder="เล่ม..."
                                     className={inputBaseClass}
                                 />
@@ -553,6 +614,9 @@ export default function RefillModal({
                                 />
                             </div>
                         </div>
+                        <p className={`mt-2 text-xs ${nextBillMessage ? 'text-green-600' : 'text-gray-500'}`}>
+                            {nextBillMessage || 'ระบบจะช่วยเติมเลขที่บิลถัดไปให้ ถ้าไม่ต้องการใช้สามารถแก้เองได้'}
+                        </p>
                     </div>
                 )}
 

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireStationAccessApi } from '@/lib/api-auth';
+import { suggestNextStationBill } from '@/lib/station-bill-number';
 
 // Check if bill number already exists for a station
 export async function GET(
@@ -12,6 +14,20 @@ export async function GET(
         const { searchParams } = new URL(request.url);
         const bookNo = searchParams.get('bookNo');
         const billNo = searchParams.get('billNo');
+        const wantsNextBill = searchParams.get('next') === 'true';
+
+        const auth = await requireStationAccessApi(stationId);
+        if (auth.response) return auth.response;
+
+        if (wantsNextBill) {
+            const suggestion = await suggestNextStationBill(stationId, bookNo);
+            return NextResponse.json({
+                bookNo: suggestion.bookNo,
+                billBookNo: suggestion.bookNo,
+                billNo: suggestion.billNo,
+                source: suggestion.bookNo ? 'latest-station-book' : 'none',
+            });
+        }
 
         if (!bookNo || !billNo) {
             return NextResponse.json({ exists: false });

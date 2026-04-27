@@ -8,7 +8,7 @@
 
 | Topic | สรุป | ไฟล์ |
 |-------|------|------|
-| **Billing System** | ระบบออกบิลน้ำมัน/แก๊ส, book/number sorting แบบ numeric, 7 ประเภทการชำระ, การรวมบิลยึด `ownerId` เป็นหลัก, และ hardening เงินเชื่อ 2026-04-25 ให้ invoice/pending รวม `OIL_TRUCK_SUPACHAI` + บังคับ owner/truck/book/bill | [→ billing-system.md](topics/billing-system.md) |
+| **Billing System** | ระบบออกบิลน้ำมัน/แก๊ส, book/number sorting แบบ numeric, 7 ประเภทการชำระ, การรวมบิลยึด `ownerId` เป็นหลัก, hardening เงินเชื่อ 2026-04-25 ให้ invoice/pending รวม `OIL_TRUCK_SUPACHAI` + บังคับ owner/truck/book/bill, และเติมเลขบิลถัดไปอัตโนมัติให้ Tank Loy 2026-04-27 | [→ billing-system.md](topics/billing-system.md) |
 | **Database** | Prisma + PostgreSQL (Neon), 30+ models, migration, backup | [→ database.md](topics/database.md) |
 | **Deployment** | Vercel auto-deploy จาก main, Cloudinary สำหรับรูป | [→ deployment.md](topics/deployment.md) |
 | **Station Types** | 6 สถานี: แท๊งลอยใช้ staff UI `/station/1/new/*`, classic admin `/station/1`, และ V2 live route `/station/1/v2` ยังรองรับชั่วคราว; SIMPLE ใช้ `/simple-station`, GAS ใช้ `/gas` | [→ station-types.md](topics/station-types.md) |

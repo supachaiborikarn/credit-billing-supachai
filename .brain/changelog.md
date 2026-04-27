@@ -231,6 +231,11 @@
   - verification: targeted eslint ผ่าน 0 errors (เหลือ warning `<img>`/hook legacy เดิม); `git diff --check` ผ่าน
 
 ## 2026-04-27
+- 🧾 ปรับที่อยู่ใบเสร็จวัชรเกียรติออยล์และเติมเลขบิลถัดไปอัตโนมัติ
+  - เปลี่ยนที่อยู่ thermal receipt ของ `station-1` เป็น 657 ถ.เจริญสุข ต.ในเมือง อ.เมือง จ.กำแพงเพชร 62000
+  - เพิ่ม helper เลขบิลถัดไปและ `GET /api/station/[id]/check-bill?next=true` ให้เติม `billNo` จากเล่มล่าสุด/เล่มที่เลือก
+  - หน้า Tank Loy new sell และ V2 refill modal เติมเลขบิลให้เมื่อเลือก credit-like payment พร้อมปุ่ม “เลขถัดไป”
+  - verification: targeted eslint + `git diff --check` ผ่าน
 - 🧾 เปิด flow พิมพ์ซ้ำบิลเงินเชื่อแท๊งลอยให้ชัดเจน
   - รายการ credit-like ที่บันทึกใหม่จะเปิดหน้า thermal receipt ด้วย `docType=credit` อัตโนมัติ
   - หน้า receipt แสดงปุ่ม/ข้อความ “พิมพ์ซ้ำ” หลัง auto print และ summary/V2 transaction modal ระบุว่ารายการเดิมพิมพ์ซ้ำได้โดยไม่แก้ยอดหรือเลขบิล
