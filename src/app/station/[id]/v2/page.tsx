@@ -29,6 +29,7 @@ interface Transaction {
     id: string;
     date: string;
     licensePlate: string;
+    ownerId?: string | null;
     ownerName: string;
     ownerCode?: string | null;
     paymentType: string;

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireApiSession } from '@/lib/api-auth';
 import { canAccessStation } from '@/lib/auth-utils';
+import { CREDIT_PAYMENT_TYPES } from '@/constants/payment-types';
+
+const creditPaymentTypeSet = new Set<string>(CREDIT_PAYMENT_TYPES);
 
 // GET single transaction
 export async function GET(
@@ -119,12 +122,33 @@ export async function PUT(
             }
         }
 
+        const nextPaymentType = paymentType ?? oldTransaction.paymentType;
+        const nextOwnerName = typeof ownerName === 'string' ? ownerName.trim() : oldTransaction.ownerName;
+        const nextOwnerId = ownerId ?? oldTransaction.ownerId;
+        const nextTransferProofUrl = typeof transferProofUrl === 'string'
+            ? transferProofUrl.trim()
+            : oldTransaction.transferProofUrl;
+
+        if (nextPaymentType === 'TRANSFER' && !nextTransferProofUrl) {
+            return NextResponse.json(
+                { error: 'รายการโอนเงินต้องแนบรูปหลักฐานการโอน' },
+                { status: 400 }
+            );
+        }
+
+        if (creditPaymentTypeSet.has(nextPaymentType) && !nextOwnerName && !nextOwnerId) {
+            return NextResponse.json(
+                { error: 'รายการเงินเชื่อต้องระบุชื่อลูกค้า' },
+                { status: 400 }
+            );
+        }
+
         const transaction = await prisma.$transaction(async (tx) => {
             const updated = await tx.transaction.update({
                 where: { id: transactionId },
                 data: {
                     licensePlate,
-                    ownerName,
+                    ownerName: nextOwnerName || null,
                     ownerId,
                     paymentType,
                     nozzleNumber,
@@ -133,7 +157,7 @@ export async function PUT(
                     amount,
                     billBookNo: billBookNo ?? bookNo,
                     billNo,
-                    transferProofUrl,
+                    transferProofUrl: nextTransferProofUrl || null,
                 }
             });
 

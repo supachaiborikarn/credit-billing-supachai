@@ -231,6 +231,11 @@
   - verification: targeted eslint ผ่าน 0 errors (เหลือ warning `<img>`/hook legacy เดิม); `git diff --check` ผ่าน
 
 ## 2026-04-27
+- 🧾 Harden Tank Loy V2 required evidence rules
+  - บังคับ `TRANSFER` ต้องมีสลิปโอนทั้ง UI/API และปุ่มดูสลิปอ่าน URL ที่มีอยู่ได้ชัดเจน
+  - บังคับบันทึกมิเตอร์เปิด/ปิดต้องมีรูปทุกหัวจ่ายที่บันทึก พร้อมให้ API เขียน URL ลง `startPhoto/endPhoto`
+  - บังคับ credit-like payment ต้องมีลูกค้า และแก้ truck search owner id mapping ใน V2 refill form
+  - verification: targeted eslint ผ่าน 0 errors (เหลือ warning legacy `<img>`/hook เดิม); `npm run build` compile ผ่านก่อนหยุดที่ untracked `scratch/new_gauges.tsx` ที่ไม่อยู่ใน deploy tree
 - ⛽ เพิ่มยอดขายอื่น/ค่าใช้จ่ายอื่นใน GAS v2 close-shift
   - เพิ่มช่อง “ยอดขายอื่นที่ไม่ใช่แก๊ส” และ “ค่าใช้จ่ายอื่นๆ” ในหน้า `/gas/[stationId]/shift/close`
   - API ปิดกะคำนวณ `expectedOtherAmount = nonGasSalesAmount - otherExpensesAmount`, รวมเข้ายอดที่ควรได้สุทธิ และเก็บ gross detail ผ่าน `buildGasVarianceNote`

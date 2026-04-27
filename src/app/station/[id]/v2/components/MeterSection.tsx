@@ -9,9 +9,14 @@ interface MeterReading {
     endReading: number | null;
     startPhoto?: string | null;
     endPhoto?: string | null;
+    startPhotoUrl?: string | null;
+    endPhotoUrl?: string | null;
 }
 
 type DayStatus = 'not_started' | 'recording' | 'closed';
+
+const firstUrl = (...urls: Array<string | null | undefined>) =>
+    urls.find(url => typeof url === 'string' && url.trim())?.trim() || null;
 
 interface MeterSectionProps {
     stationId: string;
@@ -47,6 +52,8 @@ export default function MeterSection({
                 return {
                     ...existing,
                     endReading: existing.endReading || 0,
+                    startPhoto: firstUrl(existing.startPhoto, existing.startPhotoUrl),
+                    endPhoto: firstUrl(existing.endPhoto, existing.endPhotoUrl),
                 };
             }
             return {
@@ -146,7 +153,9 @@ export default function MeterSection({
 
     // Get photo URL for current nozzle and tab
     const getPhotoUrl = (meter: typeof meters[0]) => {
-        return activeTab === 'start' ? meter.startPhoto : meter.endPhoto;
+        return activeTab === 'start'
+            ? firstUrl(meter.startPhoto)
+            : firstUrl(meter.endPhoto);
     };
 
     const getPhotoLabel = (type: 'start' | 'end') =>
@@ -169,6 +178,18 @@ export default function MeterSection({
     };
 
     const handleSave = async () => {
+        const missingPhotoNozzles = meters
+            .filter(m => !getPhotoUrl(m))
+            .map(m => m.nozzleNumber);
+
+        if (missingPhotoNozzles.length > 0) {
+            const label = activeTab === 'start' ? 'มิเตอร์เริ่มต้น' : 'มิเตอร์สิ้นสุด';
+            const message = `กรุณาแนบรูป${label} หัวจ่าย ${missingPhotoNozzles.join(', ')}`;
+            setValidationErrors([message]);
+            alert(message);
+            return;
+        }
+
         // Validate end meters before saving
         if (activeTab === 'end' && !validateEndMeters()) {
             return;
@@ -311,6 +332,8 @@ export default function MeterSection({
                         const key = `${activeTab}-${m.nozzleNumber}`;
                         const isUploading = uploading[key];
                         const photoUrl = getPhotoUrl(m);
+                        const startPhotoUrl = firstUrl(m.startPhoto);
+                        const endPhotoUrl = firstUrl(m.endPhoto);
 
                         return (
                             <div key={m.nozzleNumber} className={`bg-gray-50 rounded-xl p-4 ${isCurrentTabLocked && !isAdmin ? 'opacity-70' : ''}`}>
@@ -353,10 +376,11 @@ export default function MeterSection({
                                         // Has photo - show view button
                                         <button
                                             onClick={() => setShowImageModal({ url: photoUrl, nozzle: m.nozzleNumber, type: activeTab })}
-                                            className="p-3 bg-green-100 text-green-600 rounded-xl hover:bg-green-200 transition flex items-center gap-1"
+                                            className="px-3 py-3 bg-green-100 text-green-700 rounded-xl hover:bg-green-200 transition flex items-center gap-1.5 font-semibold"
                                             title="ดูรูป"
                                         >
                                             <ImageIcon size={20} />
+                                            <span className="text-sm">ดูรูป</span>
                                         </button>
                                     ) : (
                                         // No photo - show upload button
@@ -375,22 +399,22 @@ export default function MeterSection({
                                     )}
                                 </div>
 
-                                {(m.startPhoto || m.endPhoto) && (
+                                {(startPhotoUrl || endPhotoUrl) && (
                                     <div className="mt-3 rounded-xl border border-gray-200 bg-white p-2">
                                         <p className="mb-2 text-xs font-semibold text-gray-500">รูปที่บันทึกไว้</p>
                                         <div className="flex flex-wrap gap-2">
-                                            {m.startPhoto && (
+                                            {startPhotoUrl && (
                                                 <button
-                                                    onClick={() => setShowImageModal({ url: m.startPhoto!, nozzle: m.nozzleNumber, type: 'start' })}
+                                                    onClick={() => setShowImageModal({ url: startPhotoUrl, nozzle: m.nozzleNumber, type: 'start' })}
                                                     className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
                                                 >
                                                     <ImageIcon size={14} />
                                                     ดูรูปเปิด
                                                 </button>
                                             )}
-                                            {m.endPhoto && (
+                                            {endPhotoUrl && (
                                                 <button
-                                                    onClick={() => setShowImageModal({ url: m.endPhoto!, nozzle: m.nozzleNumber, type: 'end' })}
+                                                    onClick={() => setShowImageModal({ url: endPhotoUrl, nozzle: m.nozzleNumber, type: 'end' })}
                                                     className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"
                                                 >
                                                     <ImageIcon size={14} />

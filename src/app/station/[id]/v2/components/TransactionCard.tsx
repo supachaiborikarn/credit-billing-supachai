@@ -21,6 +21,10 @@ interface Transaction {
     billNo?: string;
     recordedByName?: string;
     transferProofUrl?: string | null;
+    transferSlipUrl?: string | null;
+    slipUrl?: string | null;
+    proofUrl?: string | null;
+    paymentProofUrl?: string | null;
 }
 
 interface TransactionCardProps {
@@ -48,8 +52,15 @@ export default function TransactionCard({
     const paymentLabel = paymentConfig?.label || transaction.paymentType;
     const paymentColor = paymentConfig?.color || 'bg-gray-500';
 
-    const isTransfer = transaction.paymentType === 'TRANSFER';
-    const hasTransferProof = !!transaction.transferProofUrl;
+    const transferProofUrl =
+        transaction.transferProofUrl ||
+        transaction.transferSlipUrl ||
+        transaction.slipUrl ||
+        transaction.proofUrl ||
+        transaction.paymentProofUrl ||
+        null;
+    const hasTransferProof = !!transferProofUrl;
+    const isTransfer = transaction.paymentType === 'TRANSFER' || hasTransferProof;
     const stationId = pathname.match(/^\/station\/(\d+)/)?.[1] || '1';
 
     const formatCurrency = (num: number) =>
@@ -163,28 +174,28 @@ export default function TransactionCard({
                     </div>
                 </div>
 
-                {/* Transfer Image Button - Show for TRANSFER type */}
-                {isTransfer && (
+                {/* Transfer status - the actual view action is in the action row for consistency. */}
+                {isTransfer && !hasTransferProof && (
                     <div className="mt-3 pt-3 border-t border-gray-100">
-                        {hasTransferProof ? (
-                            <button
-                                onClick={() => setShowImageModal(true)}
-                                className="flex items-center gap-2 text-sm bg-blue-50 text-blue-600 px-3 py-2 rounded-lg hover:bg-blue-100 transition"
-                            >
-                                <ImageIcon size={16} />
-                                <span>ดูหลักฐานการโอน</span>
-                            </button>
-                        ) : (
-                            <span className="flex items-center gap-2 text-sm text-orange-500">
-                                <ImageIcon size={16} />
-                                <span>ไม่มีหลักฐานการโอน</span>
-                            </span>
-                        )}
+                        <span className="flex items-center gap-2 text-sm text-orange-500">
+                            <ImageIcon size={16} />
+                            <span>ไม่มีหลักฐานการโอน</span>
+                        </span>
                     </div>
                 )}
 
                 {/* Action Buttons */}
                 <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-gray-100">
+                    {hasTransferProof && (
+                        <button
+                            onClick={() => setShowImageModal(true)}
+                            className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-100"
+                            title="ดูสลิปโอนเงิน"
+                        >
+                            <ImageIcon size={18} />
+                            <span>ดูสลิป</span>
+                        </button>
+                    )}
                     <button
                         onClick={() => setShowPrintModal(true)}
                         className="flex items-center gap-1.5 rounded-lg bg-orange-50 px-3 py-2 text-sm font-semibold text-orange-600 transition hover:bg-orange-100"
@@ -278,7 +289,7 @@ export default function TransactionCard({
             )}
 
             {/* Image Modal */}
-            {showImageModal && hasTransferProof && (
+            {showImageModal && transferProofUrl && (
                 <div
                     className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
                     onClick={() => setShowImageModal(false)}
@@ -300,7 +311,7 @@ export default function TransactionCard({
                                 </p>
                             </div>
                             <img
-                                src={transaction.transferProofUrl!}
+                                src={transferProofUrl}
                                 alt="หลักฐานการโอน"
                                 className="w-full max-h-[70vh] object-contain"
                             />

@@ -124,6 +124,7 @@ export async function GET(
                     id: t.id,
                     date: t.date.toISOString(),
                     licensePlate: plate,
+                    ownerId: t.ownerId || null,
                     ownerName: t.owner?.name || t.ownerName || '',
                     ownerCode: t.truck?.code || findCodeByPlate(plate, truckCodeMap) || t.owner?.code || null,
                     paymentType: t.paymentType,

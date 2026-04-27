@@ -94,6 +94,7 @@ export async function GET(
                 id: t.id,
                 date: t.date.toISOString(),
                 licensePlate: plate,
+                ownerId: t.ownerId || null,
                 ownerName: t.owner?.name || t.ownerName || '',
                 ownerCode: t.truck?.code || findCodeByPlate(plate, truckCodeMap) || t.owner?.code || null,
                 paymentType: t.paymentType,
@@ -144,13 +145,17 @@ export async function POST(
             transferProofUrl,
         } = body;
         const isCreditLikePayment = creditPaymentTypeSet.has(paymentType);
+        const trimmedTransferProofUrl = transferProofUrl?.trim();
 
         // Use fuelType if provided, fallback to productType
         const actualProductType = fuelType || productType;
 
         // Credit-like transactions require stable customer/bill identity.
-        if (isCreditLikePayment && !ownerName && !body.ownerId) {
-            return HttpErrors.badRequest('รายการเงินเชื่อต้องระบุชื่อเจ้าของ');
+        if (paymentType === 'TRANSFER' && !trimmedTransferProofUrl) {
+            return HttpErrors.badRequest('รายการโอนเงินต้องแนบรูปหลักฐานการโอน');
+        }
+        if (isCreditLikePayment && !ownerName?.trim() && !body.ownerId) {
+            return HttpErrors.badRequest('รายการเงินเชื่อต้องระบุชื่อลูกค้า');
         }
         if (isCreditLikePayment && (!billBookNo?.trim() || !billNo?.trim())) {
             return HttpErrors.badRequest('รายการเงินเชื่อต้องระบุเล่มที่และเลขที่บิล');
@@ -313,7 +318,7 @@ export async function POST(
                 dailyRecordId,
                 date: createTransactionDate(dateStr),
                 licensePlate: hasValidPlateForTruck ? licensePlate.trim().toUpperCase() : licensePlate,
-                ownerName,
+                ownerName: ownerName?.trim() || null,
                 ownerId,
                 truckId,
                 paymentType: paymentType as PaymentType,
@@ -324,7 +329,7 @@ export async function POST(
                 billBookNo,
                 billNo,
                 productType: actualProductType,
-                transferProofUrl,
+                transferProofUrl: trimmedTransferProofUrl || null,
                 recordedById: userId,
                 shiftId,
             }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { X, Save, Loader2, Search, ChevronDown } from 'lucide-react';
-import { PAYMENT_TYPES } from '@/constants';
+import { CREDIT_PAYMENT_TYPES, PAYMENT_TYPES } from '@/constants';
 
 interface Transaction {
     id: string;
@@ -18,6 +18,7 @@ interface Transaction {
     amount: number;
     billBookNo?: string;
     billNo?: string;
+    transferProofUrl?: string | null;
 }
 
 interface Owner {
@@ -58,7 +59,9 @@ export default function EditTransactionModal({
         nozzleNumber: transaction.nozzleNumber.toString(),
         billBookNo: transaction.billBookNo || '',
         billNo: transaction.billNo || '',
+        transferProofUrl: (transaction.transferProofUrl || null) as string | null,
     });
+    const isCreditPayment = CREDIT_PAYMENT_TYPES.some(type => type === formData.paymentType);
 
     // Fetch owners on mount
     useEffect(() => {
@@ -122,6 +125,17 @@ export default function EditTransactionModal({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (isCreditPayment && !formData.ownerName.trim() && !formData.ownerId) {
+            alert('กรุณาเลือกลูกค้า/ระบุชื่อลูกค้าสำหรับเงินเชื่อ');
+            return;
+        }
+
+        if (formData.paymentType === 'TRANSFER' && !formData.transferProofUrl) {
+            alert('รายการโอนเงินต้องมีรูปหลักฐานการโอน');
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -131,7 +145,7 @@ export default function EditTransactionModal({
                 body: JSON.stringify({
                     licensePlate: formData.licensePlate,
                     ownerName: formData.ownerName,
-                    ownerId: formData.ownerId,
+                    ownerId: formData.ownerId || undefined,
                     liters: parseFloat(formData.liters),
                     pricePerLiter: parseFloat(formData.pricePerLiter),
                     amount: parseFloat(formData.amount),
@@ -139,6 +153,7 @@ export default function EditTransactionModal({
                     nozzleNumber: parseInt(formData.nozzleNumber),
                     billBookNo: formData.billBookNo || null,
                     billNo: formData.billNo || null,
+                    transferProofUrl: formData.transferProofUrl,
                 }),
             });
 
@@ -326,7 +341,7 @@ export default function EditTransactionModal({
                     </div>
 
                     {/* Bill Info (for CREDIT) */}
-                    {formData.paymentType === 'CREDIT' && (
+                    {isCreditPayment && (
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className="text-sm font-medium text-gray-700 block mb-1">
@@ -375,4 +390,3 @@ export default function EditTransactionModal({
         </div>
     );
 }
-

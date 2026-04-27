@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { X, Check, Upload, Search, ChevronDown } from 'lucide-react';
-import { PAYMENT_TYPES } from '@/constants';
+import { CREDIT_PAYMENT_TYPES, PAYMENT_TYPES } from '@/constants';
 
 interface Owner {
     id: string;
@@ -14,6 +14,7 @@ interface Owner {
 interface TruckSearchResult {
     id: string;
     licensePlate: string;
+    ownerId?: string;
     ownerName: string;
     ownerCode?: string;
 }
@@ -76,6 +77,7 @@ export default function RefillModal({
 
     // Check if transfer proof is required
     const isTransferPayment = paymentType === 'TRANSFER';
+    const isCreditPayment = CREDIT_PAYMENT_TYPES.some(type => type === paymentType);
 
     // Update price based on payment type
     // CASH and CREDIT use retail price, others use wholesale
@@ -205,7 +207,7 @@ export default function RefillModal({
         setLicensePlate(truck.licensePlate);
         setOwnerName(truck.ownerName);
         setOwnerCode(truck.ownerCode || '');
-        setOwnerId(truck.id);
+        setOwnerId(truck.ownerId || null);
         setSearchResults([]);
     };
 
@@ -223,13 +225,21 @@ export default function RefillModal({
     };
 
     const inputBaseClass = "w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white";
-    const inputNumberClass = `${inputBaseClass} text-right text-xl font-mono font-semibold`;
 
     const handleSubmit = async () => {
-        // Only CREDIT requires license plate. CASH and TRANSFER don't.
-        const isCreditPayment = paymentType === 'CREDIT';
-        if ((isCreditPayment && !licensePlate) || !liters || parseFloat(liters) <= 0) {
-            alert(isCreditPayment ? 'กรุณากรอกทะเบียนและจำนวนลิตร' : 'กรุณากรอกจำนวนลิตร');
+        // Only CREDIT requires customer and license plate. CASH and TRANSFER don't.
+        if (!liters || parseFloat(liters) <= 0) {
+            alert('กรุณากรอกจำนวนลิตร');
+            return;
+        }
+
+        if (isCreditPayment && !ownerName.trim() && !ownerId) {
+            alert('กรุณาเลือกลูกค้า/ระบุชื่อลูกค้าสำหรับเงินเชื่อ');
+            return;
+        }
+
+        if (isCreditPayment && !licensePlate.trim()) {
+            alert('กรุณากรอกทะเบียนรถสำหรับเงินเชื่อ');
             return;
         }
 
@@ -266,7 +276,7 @@ export default function RefillModal({
                     nozzleNumber: nozzle,
                     paymentType,
                     licensePlate,
-                    ownerName,
+                    ownerName: ownerName.trim(),
                     ownerCode,
                     ownerId,
                     liters: parseFloat(liters),
@@ -585,7 +595,13 @@ export default function RefillModal({
             <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4">
                 <button
                     onClick={handleSubmit}
-                    disabled={submitting || uploadingImage || (paymentType === 'CREDIT' && (!licensePlate || !billBookNo || !billNo)) || !liters || (isTransferPayment && !transferProofFile)}
+                    disabled={
+                        submitting ||
+                        uploadingImage ||
+                        (isCreditPayment && (!ownerName.trim() || !licensePlate.trim() || !billBookNo || !billNo)) ||
+                        !liters ||
+                        (isTransferPayment && !transferProofFile)
+                    }
                     className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-lg rounded-xl disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                     {submitting || uploadingImage ? (
