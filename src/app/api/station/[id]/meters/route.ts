@@ -3,6 +3,15 @@ import { prisma } from '@/lib/prisma';
 import { getStartOfDayBangkok } from '@/lib/date-utils';
 import { requireStationAccessApi } from '@/lib/api-auth';
 
+type MeterPayload = {
+    nozzleNumber: number;
+    reading: number;
+    photo?: string | null;
+    photoUrl?: string | null;
+    startPhoto?: string | null;
+    endPhoto?: string | null;
+};
+
 export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -23,6 +32,7 @@ export async function POST(
         if (!Array.isArray(meters) || meters.length === 0) {
             return NextResponse.json({ error: 'ไม่พบข้อมูลมิเตอร์' }, { status: 400 });
         }
+        const meterPayloads = meters as MeterPayload[];
 
         const date = getStartOfDayBangkok(dateStr);
 
@@ -43,25 +53,20 @@ export async function POST(
             where: { dailyRecordId: dailyRecord.id },
         });
         const existingByNozzle = new Map(existingMeters.map(m => [m.nozzleNumber, m]));
-        const getIncomingPhoto = (meter: {
-            photo?: string | null;
-            photoUrl?: string | null;
-            startPhoto?: string | null;
-            endPhoto?: string | null;
-        }) => {
+        const getIncomingPhoto = (meter: MeterPayload) => {
             if (typeof meter.photo === 'string' && meter.photo.trim()) return meter.photo.trim();
             if (typeof meter.photoUrl === 'string' && meter.photoUrl.trim()) return meter.photoUrl.trim();
             const typedPhoto = type === 'start' ? meter.startPhoto : meter.endPhoto;
             return typeof typedPhoto === 'string' && typedPhoto.trim() ? typedPhoto.trim() : null;
         };
 
-        const missingPhotoNozzles = meters
-            .filter((meter: { nozzleNumber: number }) => {
+        const missingPhotoNozzles = meterPayloads
+            .filter((meter) => {
                 const existing = existingByNozzle.get(Number(meter.nozzleNumber));
                 const existingPhoto = type === 'start' ? existing?.startPhoto : existing?.endPhoto;
                 return !getIncomingPhoto(meter) && !existingPhoto;
             })
-            .map((meter: { nozzleNumber: number }) => Number(meter.nozzleNumber))
+            .map((meter) => Number(meter.nozzleNumber))
             .sort((a: number, b: number) => a - b);
 
         if (missingPhotoNozzles.length > 0) {
@@ -72,7 +77,7 @@ export async function POST(
         }
 
         // Update meter readings
-        for (const meter of meters) {
+        for (const meter of meterPayloads) {
             const incomingPhoto = getIncomingPhoto(meter);
             await prisma.meterReading.upsert({
                 where: {
