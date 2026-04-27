@@ -15,6 +15,7 @@ import AuditTrail from './components/AuditTrail';
 import EditTransactionModal from './components/EditTransactionModal';
 import TimeBasedReminder from '@/components/TimeBasedReminder';
 import PreviousDayBlocker from './components/PreviousDayBlocker';
+import OperationsCommandPanel from './components/OperationsCommandPanel';
 import { Settings } from 'lucide-react';
 
 interface MeterReading {
@@ -196,6 +197,17 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
                             formatDate={formatDate}
                         />
 
+                        <OperationsCommandPanel
+                            dayStatus={dayStatus}
+                            meters={dailyRecord?.meters || []}
+                            transactions={transactions}
+                            meterTotal={meterTotal}
+                            transactionTotal={transactionTotal}
+                            meterDiff={meterDiff}
+                            onGoToMeter={() => setActiveTab('meter')}
+                            onGoToList={() => setActiveTab('list')}
+                        />
+
                         {dayStatus === 'not_started' && (
                             <StartMeterPrompt onGoToMeter={() => setActiveTab('meter')} />
                         )}
@@ -355,16 +367,16 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
                 date={selectedDate}
             />
 
-            <header className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-5 sticky top-0 z-30">
+            <header className="sticky top-0 z-30 bg-gradient-to-br from-slate-950 via-slate-900 to-orange-700 px-4 py-5 text-white shadow-lg shadow-slate-950/20">
                 <div className="flex items-center justify-between mb-3">
                     <div>
                         <h1 className="text-xl font-bold">{station.name}</h1>
-                        <p className="text-blue-100 text-sm">⛽ สถานีบริการน้ำมัน (V2)</p>
+                        <p className="text-orange-100 text-sm">⛽ ระบบพนักงานแท๊งลอย</p>
                     </div>
                     {isAdmin && (
                         <button
                             onClick={() => setShowSettings(true)}
-                            className="flex flex-col items-center gap-1 p-2.5 bg-white/20 rounded-xl hover:bg-white/30 transition"
+                            className="flex flex-col items-center gap-1 p-2.5 bg-white/15 rounded-xl hover:bg-white/25 transition"
                         >
                             <Settings size={20} />
                             <span className="text-[10px] font-medium">ตั้งราคาน้ำมัน</span>
@@ -375,7 +387,7 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
                     type="date"
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
-                    className="w-full bg-white/20 px-4 py-2.5 rounded-xl text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50"
+                    className="w-full rounded-xl bg-white/15 px-4 py-2.5 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-orange-200"
                 />
             </header>
 

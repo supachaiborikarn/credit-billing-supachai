@@ -231,6 +231,12 @@
   - verification: targeted eslint ผ่าน 0 errors (เหลือ warning `<img>`/hook legacy เดิม); `git diff --check` ผ่าน
 
 ## 2026-04-27
+- 🧭 ยกระดับหน้าใช้งานแท๊งลอยและเชื่อมข้อมูลเข้าแอดมิน
+  - เพิ่ม `OperationsCommandPanel` ใน `/station/1/v2` ให้พนักงานเห็นยอดขาย, จำนวนรายการ, ผลต่างมิเตอร์, ความครบถ้วนรูปมิเตอร์, สลิปโอน และข้อมูลเงินเชื่อก่อนปิดวัน
+  - ปรับ header V2 เป็น operational console โทน slate/orange ตาม `DESIGN.md`
+  - เพิ่ม `Admin Data Health` panel ใน classic admin `/station/1` เพื่อรวมรูปมิเตอร์, สลิปโอน, ลูกค้า/เลขบิลเงินเชื่อ, หัวจ่าย, ผู้บันทึก, ยอดเงิน/ลิตร และผลต่างมิเตอร์ในหน้าเดียว
+  - เพิ่ม column หัวจ่าย/หลักฐานในตาราง transaction แอดมิน พร้อม image viewer ที่ตั้งชื่อรูปมิเตอร์หรือสลิปถูกต้อง
+  - verification: targeted eslint ผ่าน 0 errors (เหลือ warning legacy เดิม); `git diff --check` ผ่าน
 - 🧭 ปิดทางเข้าหน้าดำแท๊งลอยและกำหนด V2 เป็น staff UI หลัก
   - เปลี่ยน canonical staff route ของ Tank Loy เป็น `/station/1/v2`
   - ปรับปุ่มจาก classic admin, login redirect, Sidebar, dashboard quick action และ bottom nav เก่าให้เข้า V2

@@ -29,7 +29,7 @@ import {
     Eye,
     Image as ImageIcon
 } from 'lucide-react';
-import { PAYMENT_TYPES, DEFAULT_RETAIL_PRICE, DEFAULT_WHOLESALE_PRICE, STATIONS } from '@/constants';
+import { CREDIT_PAYMENT_TYPES, PAYMENT_TYPES, DEFAULT_RETAIL_PRICE, DEFAULT_WHOLESALE_PRICE, STATIONS } from '@/constants';
 
 interface DailyRecord {
     id: string;
@@ -74,6 +74,9 @@ interface TruckSearchResult {
     ownerPhone: string | null;
     ownerGroup: string;
 }
+
+const isCreditLikePayment = (paymentType: string) =>
+    CREDIT_PAYMENT_TYPES.includes(paymentType as (typeof CREDIT_PAYMENT_TYPES)[number]);
 
 export default function StationPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -207,8 +210,12 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
     } | null>(null);
     const [checkingBill, setCheckingBill] = useState(false);
 
-    // Slip image view modal
-    const [selectedSlipUrl, setSelectedSlipUrl] = useState<string | null>(null);
+    // Evidence image view modal (meter photos and transfer slips share the same viewer)
+    const [selectedImagePreview, setSelectedImagePreview] = useState<{
+        url: string;
+        title: string;
+        subtitle?: string;
+    } | null>(null);
 
     useEffect(() => {
         if (station) {
@@ -678,6 +685,23 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
 
     const formatNumber = (num: number) => new Intl.NumberFormat('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(num);
     const formatCurrency = (num: number) => new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+    const totalRevenue = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
+    const transferTransactions = transactions.filter(t => t.paymentType === 'TRANSFER');
+    const transferProofCount = transferTransactions.filter(t => !!t.transferProofUrl).length;
+    const creditTransactions = transactions.filter(t => isCreditLikePayment(t.paymentType));
+    const creditCompleteCount = creditTransactions.filter(t =>
+        !!t.ownerName?.trim() && !!t.billBookNo?.trim() && !!t.billNo?.trim()
+    ).length;
+    const startPhotoCount = meters.filter(m => !!m.startPhoto).length;
+    const endPhotoCount = meters.filter(m => !!m.endPhoto).length;
+    const dataHealthIssues = [
+        startPhotoCount < 4 ? `รูปมิเตอร์เปิดยังไม่ครบ ${startPhotoCount}/4` : null,
+        dailyRecord?.status === 'CLOSED' && endPhotoCount < 4 ? `รูปมิเตอร์ปิดยังไม่ครบ ${endPhotoCount}/4` : null,
+        transferProofCount < transferTransactions.length ? `สลิปเงินโอนยังไม่ครบ ${transferProofCount}/${transferTransactions.length}` : null,
+        creditCompleteCount < creditTransactions.length ? `เงินเชื่อยังขาดลูกค้า/เลขบิล ${creditCompleteCount}/${creditTransactions.length}` : null,
+        Math.abs(meterDiff) > 1 ? `ผลต่างมิเตอร์ ${meterDiff > 0 ? '+' : ''}${formatNumber(meterDiff)} ลิตร` : null,
+    ].filter(Boolean) as string[];
+    const dataHealthOk = dataHealthIssues.length === 0;
 
     if (!station) {
         return (
@@ -751,6 +775,150 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                     </div>
                 ) : (
                     <>
+                        {isFullStation && (
+                            <section className="mb-6 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/20">
+                                <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-orange-950 p-5">
+                                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                        <div>
+                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-200">
+                                                Admin Data Health
+                                            </p>
+                                            <h2 className="mt-1 text-2xl font-extrabold text-white">ศูนย์ตรวจสอบข้อมูลแท๊งลอย</h2>
+                                            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-300">
+                                                เชื่อมข้อมูลจากหน้าใช้งานพนักงาน V2: มิเตอร์, รูปถ่าย, สลิปเงินโอน, ลูกค้าเงินเชื่อ, เลขบิล, ยอดลิตร และยอดเงิน รวมไว้ให้ตรวจบัญชีในหน้าเดียว
+                                            </p>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            <a
+                                                href={staffRoute}
+                                                className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-orange-600"
+                                            >
+                                                เปิดหน้าใช้งานพนักงาน
+                                            </a>
+                                            <button
+                                                onClick={() => setShowDailySummary(true)}
+                                                className="rounded-xl border border-white/15 bg-white/10 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/15"
+                                            >
+                                                พิมพ์สรุปวัน
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-5 grid gap-3 md:grid-cols-4">
+                                        <div className="rounded-2xl bg-white/10 p-4">
+                                            <p className="text-xs text-slate-300">ยอดเงินรวม</p>
+                                            <p className="mt-1 text-2xl font-extrabold text-emerald-200">฿{formatCurrency(totalRevenue)}</p>
+                                        </div>
+                                        <div className="rounded-2xl bg-white/10 p-4">
+                                            <p className="text-xs text-slate-300">รายการ / ลิตรขาย</p>
+                                            <p className="mt-1 text-2xl font-extrabold text-blue-200">{transactions.length} รายการ</p>
+                                            <p className="text-xs text-slate-400">{formatNumber(transactionsTotal)} ลิตร</p>
+                                        </div>
+                                        <div className="rounded-2xl bg-white/10 p-4">
+                                            <p className="text-xs text-slate-300">ผลต่างมิเตอร์</p>
+                                            <p className={`mt-1 text-2xl font-extrabold ${Math.abs(meterDiff) <= 1 ? 'text-emerald-200' : 'text-red-200'}`}>
+                                                {meterDiff > 0 ? '+' : ''}{formatNumber(meterDiff)}
+                                            </p>
+                                            <p className="text-xs text-slate-400">มิเตอร์ {formatNumber(meterTotal)} ลิตร</p>
+                                        </div>
+                                        <div className={`rounded-2xl p-4 ${dataHealthOk ? 'bg-emerald-400/15' : 'bg-amber-400/15'}`}>
+                                            <p className={dataHealthOk ? 'text-emerald-100' : 'text-amber-100'}>ความครบถ้วนข้อมูล</p>
+                                            <p className={`mt-1 text-2xl font-extrabold ${dataHealthOk ? 'text-emerald-200' : 'text-amber-200'}`}>
+                                                {dataHealthOk ? 'พร้อมตรวจ' : `${dataHealthIssues.length} จุด`}
+                                            </p>
+                                            <p className="text-xs text-slate-300">หลักฐาน + เอกสารสำคัญ</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid gap-4 p-5 lg:grid-cols-[1.1fr_0.9fr]">
+                                    <div className="rounded-2xl border border-white/10 bg-slate-950/35 p-4">
+                                        <div className="mb-3 flex items-center justify-between">
+                                            <h3 className="font-bold text-white">รูปมิเตอร์และตัวเลขหัวจ่าย</h3>
+                                            <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-300">
+                                                เปิด {startPhotoCount}/4 • ปิด {endPhotoCount}/4
+                                            </span>
+                                        </div>
+                                        <div className="grid gap-2">
+                                            {meters.map(m => (
+                                                <div key={m.nozzle} className="grid grid-cols-[72px_1fr_auto] items-center gap-3 rounded-xl bg-white/5 p-3">
+                                                    <div className="text-sm font-bold text-orange-200">หัว {m.nozzle}</div>
+                                                    <div className="grid grid-cols-3 gap-2 text-xs text-slate-300">
+                                                        <span>เปิด <strong className="font-mono text-white">{formatNumber(m.start)}</strong></span>
+                                                        <span>ปิด <strong className="font-mono text-white">{formatNumber(m.end)}</strong></span>
+                                                        <span>ขาย <strong className="font-mono text-emerald-300">{formatNumber(m.end - m.start)}</strong></span>
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                        {m.startPhoto ? (
+                                                            <button
+                                                                onClick={() => setSelectedImagePreview({
+                                                                    url: m.startPhoto || '',
+                                                                    title: `รูปมิเตอร์เปิด หัวจ่าย ${m.nozzle}`,
+                                                                    subtitle: new Date(selectedDate).toLocaleDateString('th-TH'),
+                                                                })}
+                                                                className="rounded-lg bg-emerald-500/20 px-2 py-1 text-xs font-bold text-emerald-200"
+                                                            >
+                                                                รูปเปิด
+                                                            </button>
+                                                        ) : (
+                                                            <span className="rounded-lg bg-red-500/15 px-2 py-1 text-xs font-bold text-red-200">ขาดรูปเปิด</span>
+                                                        )}
+                                                        {m.endPhoto ? (
+                                                            <button
+                                                                onClick={() => setSelectedImagePreview({
+                                                                    url: m.endPhoto || '',
+                                                                    title: `รูปมิเตอร์ปิด หัวจ่าย ${m.nozzle}`,
+                                                                    subtitle: new Date(selectedDate).toLocaleDateString('th-TH'),
+                                                                })}
+                                                                className="rounded-lg bg-blue-500/20 px-2 py-1 text-xs font-bold text-blue-200"
+                                                            >
+                                                                รูปปิด
+                                                            </button>
+                                                        ) : (
+                                                            <span className="rounded-lg bg-white/10 px-2 py-1 text-xs font-bold text-slate-400">ยังไม่มีรูปปิด</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div className="rounded-2xl border border-white/10 bg-slate-950/35 p-4">
+                                            <h3 className="mb-3 font-bold text-white">หลักฐานรายการขาย</h3>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div className="rounded-xl bg-blue-500/10 p-3">
+                                                    <p className="text-xs text-blue-200">สลิปเงินโอน</p>
+                                                    <p className="text-xl font-extrabold text-blue-100">{transferProofCount}/{transferTransactions.length}</p>
+                                                </div>
+                                                <div className="rounded-xl bg-purple-500/10 p-3">
+                                                    <p className="text-xs text-purple-200">ข้อมูลเงินเชื่อ</p>
+                                                    <p className="text-xl font-extrabold text-purple-100">{creditCompleteCount}/{creditTransactions.length}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className={`rounded-2xl border p-4 ${dataHealthOk ? 'border-emerald-400/25 bg-emerald-400/10' : 'border-amber-400/25 bg-amber-400/10'}`}>
+                                            <h3 className={`font-bold ${dataHealthOk ? 'text-emerald-100' : 'text-amber-100'}`}>
+                                                {dataHealthOk ? 'ข้อมูลครบพร้อมตรวจบัญชี' : 'รายการที่ควรตรวจต่อ'}
+                                            </h3>
+                                            {dataHealthIssues.length > 0 ? (
+                                                <div className="mt-3 space-y-2">
+                                                    {dataHealthIssues.map(issue => (
+                                                        <p key={issue} className="rounded-xl bg-black/15 px-3 py-2 text-sm text-amber-100">
+                                                            {issue}
+                                                        </p>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="mt-2 text-sm text-emerald-100">รูป, สลิป, เลขบิล และยอดมิเตอร์อยู่ในเกณฑ์ครบถ้วน</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                        )}
+
                         {/* FULL Station: Price Settings & Meters */}
                         {isFullStation && (
                             <>
@@ -867,7 +1035,11 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                     />
                                                     {m.startPhoto && (
                                                         <button
-                                                            onClick={() => setSelectedSlipUrl(m.startPhoto || null)}
+                                                            onClick={() => m.startPhoto && setSelectedImagePreview({
+                                                                url: m.startPhoto,
+                                                                title: `รูปมิเตอร์เปิด หัวจ่าย ${m.nozzle}`,
+                                                                subtitle: new Date(selectedDate).toLocaleDateString('th-TH'),
+                                                            })}
                                                             className="flex items-center gap-1 text-xs text-green-400 mt-1 hover:text-green-300"
                                                         >
                                                             <Eye size={12} />
@@ -939,7 +1111,11 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                     />
                                                     {m.endPhoto && (
                                                         <button
-                                                            onClick={() => setSelectedSlipUrl(m.endPhoto || null)}
+                                                            onClick={() => m.endPhoto && setSelectedImagePreview({
+                                                                url: m.endPhoto,
+                                                                title: `รูปมิเตอร์ปิด หัวจ่าย ${m.nozzle}`,
+                                                                subtitle: new Date(selectedDate).toLocaleDateString('th-TH'),
+                                                            })}
                                                             className="flex items-center gap-1 text-xs text-green-400 mt-1 hover:text-green-300"
                                                         >
                                                             <Eye size={12} />
@@ -1382,23 +1558,27 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                             <th>เจ้าของ</th>
                                             <th>C-Code</th>
                                             <th>ประเภท</th>
+                                            <th>หัวจ่าย</th>
                                             <th>ลิตร</th>
                                             <th>ราคา/ลิตร</th>
                                             <th>รวมเงิน</th>
                                             <th>ผู้บันทึก</th>
+                                            <th>หลักฐาน</th>
                                             <th>จัดการ</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {filteredTransactions.length === 0 ? (
                                             <tr>
-                                                <td colSpan={isFullStation ? 11 : 10} className="text-center py-8 text-gray-400">
+                                                <td colSpan={14} className="text-center py-8 text-gray-400">
                                                     ไม่มีรายการ
                                                 </td>
                                             </tr>
                                         ) : (
                                             filteredTransactions.map((t, i) => {
                                                 const paymentInfo = PAYMENT_TYPES.find(pt => pt.value === t.paymentType);
+                                                const creditLike = isCreditLikePayment(t.paymentType);
+                                                const creditComplete = !creditLike || (!!t.ownerName?.trim() && !!t.billBookNo?.trim() && !!t.billNo?.trim());
                                                 return (
                                                     <tr key={t.id}>
                                                         <td>{i + 1}</td>
@@ -1414,6 +1594,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                                 {paymentInfo?.label}
                                                             </span>
                                                         </td>
+                                                        <td className="font-mono text-orange-300">{t.nozzleNumber ? `หัว ${t.nozzleNumber}` : '-'}</td>
                                                         <td className="font-mono">{formatNumber(Number(t.liters))}</td>
                                                         <td className="font-mono">{Number(t.pricePerLiter).toFixed(2)}</td>
                                                         <td className="font-mono text-green-400">{formatCurrency(Number(t.amount))}</td>
@@ -1423,16 +1604,39 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                             </span>
                                                         </td>
                                                         <td>
-                                                            <div className="flex gap-1">
-                                                                {t.transferProofUrl && (
-                                                                    <button
-                                                                        onClick={() => setSelectedSlipUrl(t.transferProofUrl || null)}
-                                                                        className="p-1.5 rounded-lg bg-green-500/20 hover:bg-green-500/40 text-green-400 transition-colors"
-                                                                        title="ดูสลิปโอนเงิน"
-                                                                    >
-                                                                        <Eye size={14} />
-                                                                    </button>
+                                                            <div className="flex flex-wrap gap-1">
+                                                                {t.paymentType === 'TRANSFER' && (
+                                                                    t.transferProofUrl ? (
+                                                                        <button
+                                                                            onClick={() => setSelectedImagePreview({
+                                                                                url: t.transferProofUrl || '',
+                                                                                title: 'สลิปโอนเงิน',
+                                                                                subtitle: `${t.licensePlate || 'ไม่ระบุ'} • ${formatCurrency(Number(t.amount))} บาท`,
+                                                                            })}
+                                                                            className="rounded-lg bg-emerald-500/20 px-2 py-1 text-xs font-bold text-emerald-300 hover:bg-emerald-500/30"
+                                                                        >
+                                                                            ดูสลิป
+                                                                        </button>
+                                                                    ) : (
+                                                                        <span className="rounded-lg bg-red-500/20 px-2 py-1 text-xs font-bold text-red-300">
+                                                                            ขาดสลิป
+                                                                        </span>
+                                                                    )
                                                                 )}
+                                                                {creditLike && (
+                                                                    <span className={`rounded-lg px-2 py-1 text-xs font-bold ${creditComplete ? 'bg-purple-500/20 text-purple-300' : 'bg-red-500/20 text-red-300'}`}>
+                                                                        {creditComplete ? 'บิลครบ' : 'บิล/ลูกค้าไม่ครบ'}
+                                                                    </span>
+                                                                )}
+                                                                {t.paymentType !== 'TRANSFER' && !creditLike && (
+                                                                    <span className="rounded-lg bg-white/10 px-2 py-1 text-xs font-bold text-slate-400">
+                                                                        ไม่ต้องแนบ
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <div className="flex gap-1">
                                                                 <button
                                                                     onClick={() => openEditModal(t)}
                                                                     className="p-1.5 rounded-lg bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-400 transition-colors"
@@ -1824,17 +2028,17 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
             />
 
             {/* Slip Image Modal */}
-            {selectedSlipUrl && (
+            {selectedImagePreview && (
                 <div
                     className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-                    onClick={() => setSelectedSlipUrl(null)}
+                    onClick={() => setSelectedImagePreview(null)}
                 >
                     <div
                         className="relative max-w-4xl max-h-[90vh] animate-fade-in"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <button
-                            onClick={() => setSelectedSlipUrl(null)}
+                            onClick={() => setSelectedImagePreview(null)}
                             className="absolute -top-12 right-0 p-2 text-white/80 hover:text-white transition-colors"
                         >
                             <X size={32} />
@@ -1842,12 +2046,17 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                         <div className="bg-white rounded-xl overflow-hidden shadow-2xl">
                             <div className="bg-gradient-to-r from-green-600 to-emerald-500 px-4 py-3 flex items-center gap-2">
                                 <ImageIcon className="text-white" size={20} />
-                                <span className="text-white font-medium">สลิปโอนเงิน</span>
+                                <div>
+                                    <span className="text-white font-medium">{selectedImagePreview.title}</span>
+                                    {selectedImagePreview.subtitle && (
+                                        <p className="text-xs text-white/80">{selectedImagePreview.subtitle}</p>
+                                    )}
+                                </div>
                             </div>
                             <div className="p-2">
                                 <img
-                                    src={selectedSlipUrl}
-                                    alt="สลิปโอนเงิน"
+                                    src={selectedImagePreview.url}
+                                    alt={selectedImagePreview.title}
                                     className="max-w-full max-h-[75vh] object-contain mx-auto"
                                 />
                             </div>
