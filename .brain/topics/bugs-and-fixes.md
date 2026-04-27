@@ -125,6 +125,12 @@
 - **ไฟล์ที่แก้**: `middleware`, `login`, `Sidebar`, `dashboard`, `BottomNav`, `station/[id]`, `simple-station/[id]`, brain topics
 - **สถานะ**: ✅ แก้แล้ว
 
+### 🐛 Tank Loy Stale Staff Sessions (Apr 2026)
+- **ปัญหา**: แม้ route/link จะชี้ V2 แล้ว แต่พนักงานบางคนยังมี session เก่าและเปิดหน้า classic/หน้าดำค้างอยู่ ทำให้ยังทำงานจาก UI เดิมหรือไม่เห็นฟีเจอร์ล่าสุด
+- **แก้ไข**: เพิ่ม session cutoff สำหรับพนักงาน `station-1` ที่สร้างก่อน `2026-04-27 18:36 +07` ใน `session-policy`, ให้ `/api/auth/me` และ auth helper กลางลบ session เก่า, redirect classic/V2 ไป login เมื่อโดน 401, และลบ production sessions ที่เข้าเงื่อนไขแล้ว 92 รายการ
+- **ไฟล์ที่แก้**: `session-policy`, `auth-utils`, `api/auth/me`, `station/[id]`, `station/[id]/v2`
+- **สถานะ**: ✅ แก้แล้ว
+
 ### 🐛 Tank Loy V2/Admin Data Visibility Gap (Apr 2026)
 - **ปัญหา**: หน้า V2 เก็บข้อมูลครบขึ้นแล้ว แต่พนักงานยังต้องเดาเองว่าวันนี้พร้อมปิดงานหรือยัง และหน้า classic admin แสดงข้อมูลสำคัญแบบกระจาย ทำให้แอดมินต้องไล่ดูหลายจุดเพื่อเช็กมิเตอร์, รูปถ่าย, สลิปโอน, ลูกค้าเงินเชื่อ, เลขบิล และผลต่างลิตร
 - **แก้ไข**: เพิ่ม `OperationsCommandPanel` ใน V2 เพื่อสรุปยอดขาย, รายการ, ผลต่างมิเตอร์, รูปมิเตอร์เปิด/ปิด, สลิปโอน, และความครบถ้วนเงินเชื่อ พร้อม next-action; เพิ่ม `Admin Data Health` panel ใน classic admin ที่อ่านจาก data source เดียวกันและเพิ่มหลักฐาน/หัวจ่ายใน transaction table พร้อม image viewer ที่แยกชื่อรูปมิเตอร์กับสลิปถูกต้อง

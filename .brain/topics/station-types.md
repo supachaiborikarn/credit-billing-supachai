@@ -55,3 +55,4 @@
 - 2026-04-27: เปิด `/station/1/v2` กลับเป็น supported live mobile flow ชั่วคราวหลังพบ production ยังใช้หน้านี้จริง; เพิ่มปุ่มพิมพ์ transaction และปุ่มดูรูปมิเตอร์เปิด/ปิดใน V2
 - 2026-04-27: เปลี่ยน canonical staff route ของแท๊งลอยเป็น `/station/1/v2`; ปุ่มจาก admin/login/sidebar/dashboard ชี้ V2 และ legacy `/station/1/new/*` redirect เข้า V2 ยกเว้น receipt
 - 2026-04-27: ยกระดับ V2 เป็น operational command UI และเพิ่ม admin data health panel ให้แอดมินเห็นข้อมูลจาก V2 ครบในหน้าเดียว
+- 2026-04-27: บังคับ logout session พนักงาน `station-1` ที่สร้างก่อน 18:36 +07 เพื่อปิดหน้าเดิมที่เปิดค้าง และให้ login ใหม่เข้า `/station/1/v2`

@@ -120,6 +120,9 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                         window.location.href = staffRoute;
                         return;
                     }
+                } else if (res.status === 401) {
+                    window.location.href = `/login?reason=relogin&redirect=${encodeURIComponent(staffRoute)}`;
+                    return;
                 }
             } catch (error) {
                 console.error('Error fetching user:', error);

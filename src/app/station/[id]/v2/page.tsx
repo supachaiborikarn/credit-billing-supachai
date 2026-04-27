@@ -81,6 +81,9 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
                 if (res.ok) {
                     const data = await res.json();
                     setCurrentUser(data.user);
+                } else if (res.status === 401) {
+                    window.location.href = `/login?reason=relogin&redirect=${encodeURIComponent(`/station/${id}/v2`)}`;
+                    return;
                 }
             } catch (error) {
                 console.error('Error fetching user:', error);

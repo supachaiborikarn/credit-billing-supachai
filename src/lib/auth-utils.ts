@@ -5,6 +5,7 @@
 
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
+import { getForcedReloginReason } from '@/lib/session-policy';
 
 export interface SessionUser {
     id: string;
@@ -33,12 +34,23 @@ export async function getSessionUser(): Promise<SessionUser | null> {
             where: { id: sessionId },
             include: {
                 user: {
-                    select: { id: true, role: true, name: true, stationId: true }
+                    select: {
+                        id: true,
+                        role: true,
+                        name: true,
+                        stationId: true,
+                        station: { select: { type: true } },
+                    }
                 }
             }
         });
 
         if (!session || session.expiresAt < new Date()) return null;
+
+        if (getForcedReloginReason(session)) {
+            await prisma.session.deleteMany({ where: { id: sessionId } });
+            return null;
+        }
 
         return {
             id: session.user.id,
@@ -69,7 +81,13 @@ export async function getSessionWithError(): Promise<SessionResult> {
             where: { id: sessionId },
             include: {
                 user: {
-                    select: { id: true, role: true, name: true, stationId: true }
+                    select: {
+                        id: true,
+                        role: true,
+                        name: true,
+                        stationId: true,
+                        station: { select: { type: true } },
+                    }
                 }
             }
         });
@@ -80,6 +98,12 @@ export async function getSessionWithError(): Promise<SessionResult> {
 
         if (session.expiresAt < new Date()) {
             return { user: null, error: 'Session หมดอายุ กรุณาเข้าสู่ระบบใหม่' };
+        }
+
+        const forcedReloginReason = getForcedReloginReason(session);
+        if (forcedReloginReason) {
+            await prisma.session.deleteMany({ where: { id: sessionId } });
+            return { user: null, error: 'กรุณาเข้าสู่ระบบใหม่เพื่อใช้หน้าแท๊งลอยเวอร์ชั่นล่าสุด' };
         }
 
         return {

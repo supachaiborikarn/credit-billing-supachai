@@ -270,3 +270,9 @@
   - ขยาย admin analytics, shift report, reconciliation report และ admin reconciliation edit route ให้ดู/แก้ค่าใหม่ได้จาก source เดียวกัน
   - แก้ type guard เล็กๆ ใน `simple-station/[id]/new/sell` ที่บล็อก clean TypeScript/build อยู่เดิมโดยไม่เปลี่ยน behavior
   - verification: `npm run test` ผ่าน 58 tests, targeted eslint ผ่าน, clean `npx tsc --noEmit --pretty false` ผ่าน, clean `npx next build --webpack` ผ่าน; workspace `npm run build` ยังติด untracked `scratch/new_gauges.tsx` ที่ไม่อยู่ใน deploy tree
+- 🔐 บังคับพนักงานแท๊งลอยที่ค้าง session หน้าเดิม logout
+  - เพิ่ม `session-policy` กลางเพื่อตัด session พนักงาน `station-1` ที่สร้างก่อน `2026-04-27 18:36 +07` โดยไม่กระทบ admin
+  - ให้ `/api/auth/me` ลบ cookie/session และให้ auth helper กลางของ API ลบ session เก่าจาก DB เพื่อบล็อกหน้าเดิมที่เปิดค้าง
+  - หน้า classic `/station/1` และ staff V2 redirect ไป login เมื่อ auth ถูกตัด เพื่อให้ login ใหม่เข้า `/station/1/v2`
+  - ลบ production sessions ที่เข้าเงื่อนไขจริงแล้ว 92 รายการ เหลือ 0
+  - verification: targeted eslint ผ่าน 0 errors (เหลือ warning legacy เดิม); `git diff --check` ผ่าน

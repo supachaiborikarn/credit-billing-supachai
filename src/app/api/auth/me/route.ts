@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
+import { getForcedReloginReason } from '@/lib/session-policy';
 
 export async function GET() {
     try {
@@ -24,13 +25,15 @@ export async function GET() {
             return NextResponse.json({ user: null }, { status: 401 });
         }
 
-        // Force re-login for GAS station staff for sessions created before 2026-01-11 (V2 migration)
-        const v2MigrationDate = new Date('2026-01-11T00:00:00+07:00');
-        const isGasStation = session.user.station?.type === 'GAS';
-        if (isGasStation && session.createdAt < v2MigrationDate) {
-            // Delete old session and force re-login
-            await prisma.session.delete({ where: { id: sessionId } });
-            return NextResponse.json({ user: null, reason: 'session_expired_v2_migration' }, { status: 401 });
+        const forcedReloginReason = getForcedReloginReason(session);
+        if (forcedReloginReason) {
+            await prisma.session.deleteMany({ where: { id: sessionId } });
+            const response = NextResponse.json(
+                { user: null, reason: forcedReloginReason },
+                { status: 401 }
+            );
+            response.cookies.delete('session');
+            return response;
         }
 
         return NextResponse.json({
