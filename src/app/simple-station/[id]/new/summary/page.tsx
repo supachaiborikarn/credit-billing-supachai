@@ -500,7 +500,7 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                                                     ? 'bg-orange-500/10 text-orange-300 hover:bg-orange-500/20'
                                                     : 'text-purple-500 hover:bg-purple-50 hover:text-purple-700'
                                                     }`}
-                                                title="พิมพ์ใบเสร็จหรือบิลเงินเชื่อ"
+                                                title="พิมพ์/พิมพ์ซ้ำใบเสร็จหรือบิลเงินเชื่อ"
                                             >
                                                 <Printer size={16} />
                                                 <span>พิมพ์</span>
@@ -636,7 +636,7 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                     <div className={`${isTankLoyStation ? 'bg-slate-950 text-slate-100 border border-white/10' : 'bg-white text-gray-800'} rounded-2xl w-full max-w-sm shadow-xl`}>
                         <div className={`flex items-center justify-between p-4 border-b ${isTankLoyStation ? 'border-white/10' : 'border-gray-100'}`}>
-                            <h2 className="text-lg font-bold">พิมพ์รายการ</h2>
+                            <h2 className="text-lg font-bold">พิมพ์ / พิมพ์ซ้ำรายการ</h2>
                             <button onClick={() => setPrintingTxn(null)} className="p-2 rounded-lg hover:bg-gray-100">
                                 <X size={20} />
                             </button>
@@ -673,6 +673,9 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                                         บิลเงินเชื่อ
                                     </button>
                                 </div>
+                                <p className={`mt-2 text-xs ${isTankLoyStation ? 'text-slate-400' : 'text-gray-500'}`}>
+                                    รายการเดิมสามารถเปิดพิมพ์ซ้ำได้ ไม่แก้ยอดเงินหรือเลขบิล
+                                </p>
                             </div>
 
                             <div>
@@ -701,7 +704,7 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                                 href={buildReceiptHref(printingTxn, true)}
                                 className="py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-center font-bold text-white shadow hover:from-orange-600 hover:to-amber-600"
                             >
-                                พิมพ์ทันที
+                                พิมพ์ทันที / พิมพ์ซ้ำ
                             </Link>
                             <Link
                                 href={buildReceiptHref(printingTxn)}

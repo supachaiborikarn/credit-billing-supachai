@@ -122,6 +122,8 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
     // Abnormal value warning
     const [showAbnormalWarning, setShowAbnormalWarning] = useState(false);
     const ABNORMAL_THRESHOLD = 20000; // อะเลิร์ตเมื่อยอดเกิน 20,000 บาท
+    const isCreditLikePayment = (type: string) =>
+        type === 'CREDIT' || type === 'BOX_TRUCK' || type === 'OIL_TRUCK_SUPACHAI';
 
     // Load products for this station
     useEffect(() => {
@@ -449,8 +451,16 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
                 setSearchResults([]);
                 setShowResults(false);
                 
-                // Redirect to receipt for auto-print
-                window.location.href = `${routeBase}/receipt?txn=${data.transaction.id}&autoPrint=true`;
+                const receiptParams = new URLSearchParams({
+                    txn: data.transaction.id,
+                    autoPrint: 'true',
+                    docType: isCreditLikePayment(paymentType) ? 'credit' : 'receipt',
+                    paper: '80',
+                });
+
+                // Redirect to the printable document. Credit-like sales open as credit bills by default,
+                // but the receipt page still lets staff reprint or switch document type later.
+                window.location.href = `${routeBase}/receipt?${receiptParams.toString()}`;
             } else {
                 const err = await res.json();
                 alert(err.error || 'บันทึกไม่สำเร็จ');

@@ -231,6 +231,10 @@
   - verification: targeted eslint ผ่าน 0 errors (เหลือ warning `<img>`/hook legacy เดิม); `git diff --check` ผ่าน
 
 ## 2026-04-27
+- 🧾 เปิด flow พิมพ์ซ้ำบิลเงินเชื่อแท๊งลอยให้ชัดเจน
+  - รายการ credit-like ที่บันทึกใหม่จะเปิดหน้า thermal receipt ด้วย `docType=credit` อัตโนมัติ
+  - หน้า receipt แสดงปุ่ม/ข้อความ “พิมพ์ซ้ำ” หลัง auto print และ summary/V2 transaction modal ระบุว่ารายการเดิมพิมพ์ซ้ำได้โดยไม่แก้ยอดหรือเลขบิล
+  - verification: targeted eslint + `git diff --check` ผ่าน
 - 🧾 เปลี่ยนหัวใบเสร็จแท๊งลอยเป็น “วัชรเกียรติออยล์”
   - ปรับ thermal receipt route ที่ V2 ใช้ (`station/1/new/receipt`) ให้ `station-1` แสดงชื่อหัวเอกสารเป็น `วัชรเกียรติออยล์`
   - ปรับ print path เก่าใน classic/full station และ legacy simple print เฉพาะ station-1 ให้ใช้ชื่อเดียวกัน

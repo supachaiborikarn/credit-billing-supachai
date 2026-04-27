@@ -199,7 +199,7 @@ export default function TransactionCard({
                     <button
                         onClick={() => setShowPrintModal(true)}
                         className="flex items-center gap-1.5 rounded-lg bg-orange-50 px-3 py-2 text-sm font-semibold text-orange-600 transition hover:bg-orange-100"
-                        title="พิมพ์ใบเสร็จ/บิล"
+                        title="พิมพ์/พิมพ์ซ้ำใบเสร็จหรือบิลเงินเชื่อ"
                     >
                         <Printer size={18} />
                         <span>พิมพ์</span>
@@ -240,7 +240,7 @@ export default function TransactionCard({
                     <div className="w-full max-w-sm rounded-2xl bg-white p-4 shadow-xl" onClick={e => e.stopPropagation()}>
                         <div className="mb-4 flex items-center justify-between">
                             <div>
-                                <h3 className="font-bold text-gray-900">พิมพ์เอกสารรายการนี้</h3>
+                                <h3 className="font-bold text-gray-900">พิมพ์ / พิมพ์ซ้ำเอกสารรายการนี้</h3>
                                 <p className="text-xs text-gray-500">
                                     {transaction.licensePlate || 'ไม่ระบุ'} • {formatCurrency(transaction.amount)}
                                 </p>
@@ -254,6 +254,9 @@ export default function TransactionCard({
                         </div>
 
                         <div className="space-y-3">
+                            <p className="rounded-xl bg-gray-50 px-3 py-2 text-xs font-medium text-gray-500">
+                                รายการเดิมสามารถเปิดพิมพ์ซ้ำได้ ไม่แก้ยอดเงินหรือเลขบิล
+                            </p>
                             <div>
                                 <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700">
                                     <Printer size={16} className="text-orange-500" />

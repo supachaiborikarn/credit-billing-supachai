@@ -251,6 +251,7 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
     const [loading, setLoading] = useState(true);
     const [docType, setDocType] = useState<ReceiptDocType>(initialDocType);
     const [paperSize, setPaperSize] = useState<PaperSize>(initialPaperSize);
+    const [autoPrintStarted, setAutoPrintStarted] = useState(false);
     const paperWidthMm = paperSize === '58' ? 58 : 80;
 
     // Fetch Transaction
@@ -271,6 +272,7 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
         if (!loading && txn && autoPrint) {
             // Slight delay to ensure fonts and layout are fully rendered
             const timer = setTimeout(() => {
+                setAutoPrintStarted(true);
                 window.print();
             }, 800);
             return () => clearTimeout(timer);
@@ -383,7 +385,7 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
                         onClick={() => window.print()}
                         className="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md rounded-lg font-bold flex items-center gap-2 transform active:scale-95 transition-all"
                     >
-                        <Printer size={18} /> พิมพ์บิล
+                        <Printer size={18} /> {autoPrint ? 'พิมพ์ซ้ำ' : 'พิมพ์บิล'}
                     </button>
                 </div>
             </div>
@@ -391,8 +393,11 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
             {/* Receipt Preview Area */}
             <div className="min-h-screen bg-gray-200 flex flex-col items-center pt-44 sm:pt-24 pb-12 gap-6">
                 {autoPrint && (
-                    <div className="no-print bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 mb-2 animate-pulse">
-                        <Printer size={16} /> กำลังเริ่มพิมพ์บิลอัตโนมัติ...
+                    <div className="no-print bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 mb-2">
+                        <Printer size={16} />
+                        {autoPrintStarted
+                            ? 'พิมพ์อัตโนมัติแล้ว ถ้าต้องการออกบิลซ้ำให้กด “พิมพ์ซ้ำ” ด้านบนได้'
+                            : 'กำลังเริ่มพิมพ์บิลอัตโนมัติ...'}
                     </div>
                 )}
                 

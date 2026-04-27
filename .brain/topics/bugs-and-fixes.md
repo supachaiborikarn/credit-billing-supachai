@@ -2,7 +2,7 @@
      push-hardening 2026-04-18 ปิด `/admin`, high-risk API, และ legacy write API auth gap ตาม static scan แล้ว;
      รอบเดียวกันยังแก้แท๊งลอยให้ใช้ shift-scoped transactions, anomaly preview จากค่าปัจจุบัน, flow ปิดกะเก่าที่ไม่ต้องพึ่ง admin route,
      เพิ่ม post-close daily report printing ที่ต้องอิง station-wide `/daily` แทน `/transactions`,
-     เพิ่ม per-transaction thermal print flow ที่เลือกใบเสร็จรับเงิน/บิลเงินเชื่อและขนาด 58/80mm ได้ทุกรายการ,
+     เพิ่ม per-transaction thermal print/reprint flow ที่เลือกใบเสร็จรับเงิน/บิลเงินเชื่อและขนาด 58/80mm ได้ทุกรายการ,
      consolidate route แท๊งลอยให้เหลือ staff UI เดียว `/station/1/new/*` และ classic admin `/station/1`,
      ใบเสร็จแท๊งลอยต้องใช้หัวเอกสาร “วัชรเกียรติออยล์”,
      รองรับ V2 live route ชั่วคราวพร้อมบังคับสลิปโอน/รูปมิเตอร์/ลูกค้าเงินเชื่อทั้ง UI และ API,
@@ -232,7 +232,7 @@
 9. **Tank Loy Daily Price Source**: ราคาน้ำมันประจำวันของหน้าใหม่ต้องใช้ `dailyRecord.retailPrice/wholesalePrice` ผ่าน `/api/station/[id]/daily` เท่านั้น; ห้ามเพิ่ม source แยกใน `localStorage` หรือ route เฉพาะอย่าง `/fuel-prices`
 10. **Tank Loy Transaction UI Contract**: ถ้าหน้าใหม่ของแท๊งลอยใช้ transaction data จาก station API ให้ preserve alias/shape ที่ UI ใช้ (`billBookNo` + `bookNo`, `date` + `createdAt`, `transferProofUrl`) และการแนบสลิปต้องวิ่งผ่าน `/api/upload/transfer-proof`; ห้ามอ้าง `/api/upload/slip` เพราะไม่มี route จริง
 11. **Tank Loy Sell Entry Pages Need ShiftGuard**: หน้า `new/sell` และ `new/oil-sell` ของแท๊งลอยต้องครอบ `ShiftGuard` เหมือนหน้า `home`; ถ้าเผลอถอด guard ออก พนักงานจะเข้าไปกรอกบิลได้ทั้งที่ยังไม่เปิดกะ แล้วโดน block ตอนกดบันทึกโดยไม่มีปุ่มเปิดกะบนหน้าเดียวกัน
-12. **Tank Loy Transaction Printing**: ทุก transaction ใน `new/summary` ต้องพิมพ์ได้ ไม่ควรผูกปุ่มพิมพ์กับ payment type; หน้า receipt ต้องรับ `docType=receipt|credit` และ `paper=58|80` เพื่อรองรับเครื่องพิมพ์ความร้อน
+12. **Tank Loy Transaction Printing**: ทุก transaction ใน `new/summary` และ V2 transaction card ต้องพิมพ์/พิมพ์ซ้ำได้ ไม่ควรผูกปุ่มพิมพ์กับ payment type หรือสถานะล็อกวัน; หน้า receipt ต้องรับ `docType=receipt|credit` และ `paper=58|80` เพื่อรองรับเครื่องพิมพ์ความร้อน และรายการ credit-like ที่เพิ่งบันทึกควรเปิด `docType=credit` อัตโนมัติ
 13. **Tank Loy Receipt Header**: ใบเสร็จ/บิลเงินเชื่อของ `station-1` ต้องขึ้นหัวเอกสารเป็น `วัชรเกียรติออยล์` แม้ชื่อ station ในระบบจะแสดงเป็นแท๊งลอยวัชรเกียรติ; ต้องครอบทั้ง thermal receipt, classic print และ legacy print
 14. **Tank Loy Single Staff UI**: ฟีเจอร์พนักงานแท๊งลอยต้องอยู่บน route canonical `station/1/new/*` เท่านั้น โดยใช้ shared implementation จาก `simple-station/[id]/new/*` ได้ แต่ URL ที่พนักงานใช้จริงต้องเป็น `/station/1/new/home`; `station/1` เก็บไว้เป็น classic/admin และ `simple-station/1/new/*` เป็น legacy redirect เท่านั้น
 15. **Tank Loy Required Evidence**: ใน V2/หน้าแท๊งลอย ห้ามบันทึก `TRANSFER` โดยไม่มี `transferProofUrl`, ห้ามบันทึก meter start/end โดยไม่มีรูปใน `startPhoto/endPhoto`, และ credit-like payment ต้องมีลูกค้า; ต้อง enforce ทั้ง client และ API ไม่ใช่แค่ปุ่ม disabled
