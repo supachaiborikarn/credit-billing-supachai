@@ -1,4 +1,4 @@
-<!-- SUMMARY: 6 สถานี: แท๊งลอยวัชรเกียรติ (FULL) ใช้ staff route เดียว `/station/1/new/*` และคง classic admin ที่ `/station/1`;
+<!-- SUMMARY: 6 สถานี: แท๊งลอยวัชรเกียรติ (FULL) ใช้ staff route เดียว `/station/1/v2` และคง classic admin ที่ `/station/1`;
      วัชรเกียรติออยล์/พงษ์อนันต์/ศุภชัยบริการ (SIMPLE), ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS), แต่ละแบบมี route และ features ต่างกัน -->
 
 # Station Types
@@ -10,7 +10,7 @@
 
 | # | สถานี | ประเภท | Route | คุณสมบัติ |
 |---|-------|--------|-------|-----------|
-| 1 | แท๊งลอยวัชรเกียรติ | FULL | `/station/1/new/home` | มิเตอร์ 4 หัวจ่าย + บันทึกบิล + สรุปยอด |
+| 1 | แท๊งลอยวัชรเกียรติ | FULL | `/station/1/v2` | มิเตอร์ 4 หัวจ่าย + บันทึกบิล + สรุปยอด |
 | 2 | วัชรเกียรติออยล์ | SIMPLE | `/simple-station/[id]` | บันทึกบิลอย่างเดียว |
 | 3 | พงษ์อนันต์ปิโตรเลียม | SIMPLE | `/simple-station/[id]` | บันทึกบิลอย่างเดียว |
 | 4 | ศุภชัยบริการ | SIMPLE | `/simple-station/[id]` | บันทึกบิลอย่างเดียว |
@@ -25,10 +25,9 @@
 - Meter reading (มิเตอร์เริ่มต้น/สิ้นสุด)
 - Daily anomaly detection
 - Shift reconciliation (ตรวจยอดปิดกะ)
-- Staff canonical route: `/station/1/new/*`
+- Staff canonical route: `/station/1/v2`
 - Admin classic route: `/station/1`
-- Legacy `/simple-station/1/new/*` ต้อง redirect เข้า `/station/1/new/*`
-- Current live V2 mobile flow: `/station/1/v2` ยังต้องรองรับ เพราะพนักงาน/แอดมินยังเห็นหน้านี้ใน production; อย่าปิด route นี้โดยไม่ยืนยัน migration อีกครั้ง
+- Legacy `/station/1/new/*` และ `/simple-station/1/new/*` ต้อง redirect เข้า `/station/1/v2` เพื่อปิดทางเข้าหน้าดำ ยกเว้น `/station/1/new/receipt` ที่ V2 ยังใช้เป็น thermal print surface
 
 ### SIMPLE Station
 - บันทึกบิลอย่างเดียว
@@ -42,7 +41,8 @@
 - บางสถานีมี Products (สินค้าเสริม)
 
 ## Key Files
-- **FULL shared staff UI implementation**: `/src/app/simple-station/[id]/new/home/page.tsx` (re-exported by `/src/app/station/[id]/new/*` for Tank Loy)
+- **FULL staff UI implementation**: `/src/app/station/[id]/v2/page.tsx` และ components ใต้ `/src/app/station/[id]/v2/components`
+- **FULL thermal receipt implementation**: `/src/app/station/[id]/new/receipt/page.tsx` (re-export จาก simple receipt สำหรับ V2 print)
 - **GAS UI**: `/src/app/gas-station/[id]/page.tsx`
 - **Constants**: `/src/constants/index.ts`
 
@@ -52,3 +52,4 @@
 - 2026-04-23: Modernized GAS UI (Linear-inspired, card-based layout) for /gas-station/[id]
 - 2026-04-26: Consolidate Tank Loy routes ให้เหลือ staff UI เดียวที่ `/station/1/new/*` และ classic admin ที่ `/station/1`; route legacy `/simple-station/1/new/*` redirect เข้าหน้า staff จริง
 - 2026-04-27: เปิด `/station/1/v2` กลับเป็น supported live mobile flow ชั่วคราวหลังพบ production ยังใช้หน้านี้จริง; เพิ่มปุ่มพิมพ์ transaction และปุ่มดูรูปมิเตอร์เปิด/ปิดใน V2
+- 2026-04-27: เปลี่ยน canonical staff route ของแท๊งลอยเป็น `/station/1/v2`; ปุ่มจาก admin/login/sidebar/dashboard ชี้ V2 และ legacy `/station/1/new/*` redirect เข้า V2 ยกเว้น receipt

@@ -231,6 +231,11 @@
   - verification: targeted eslint ผ่าน 0 errors (เหลือ warning `<img>`/hook legacy เดิม); `git diff --check` ผ่าน
 
 ## 2026-04-27
+- 🧭 ปิดทางเข้าหน้าดำแท๊งลอยและกำหนด V2 เป็น staff UI หลัก
+  - เปลี่ยน canonical staff route ของ Tank Loy เป็น `/station/1/v2`
+  - ปรับปุ่มจาก classic admin, login redirect, Sidebar, dashboard quick action และ bottom nav เก่าให้เข้า V2
+  - เพิ่ม middleware/login normalize ให้ legacy `/station/1/new/*` และ `/simple-station/1/new/*` redirect เข้า V2 โดยยกเว้น `/station/1/new/receipt` ที่ยังเป็นหน้า print thermal ของ V2
+  - verification: targeted eslint ผ่าน 0 errors (เหลือ warning legacy เดิม); `git diff --check` ผ่าน; `npm run build` compile source หลักผ่านแต่หยุดที่ untracked `scratch/new_gauges.tsx`
 - 🖨️ ตั้ง thermal receipt preset สำหรับ Epson TM-m30III
   - ระบุ 80mm เป็นตัวเลือกแนะนำใน summary/V2 print modal
   - ปรับ receipt CSS ให้หน้า 80mm ใช้ printable width 72mm และ 58mm ใช้ 52.5mm เพื่อลดโอกาสตัดขอบ

@@ -36,7 +36,7 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
     // Auto redirect to the active staff UI for SIMPLE stations and Tank Loy.
     useEffect(() => {
         if (station?.id === 'station-1') {
-            router.replace(`/station/${id}/new/home`);
+            router.replace('/station/1/v2');
             return;
         }
 

@@ -80,6 +80,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
     const stationIndex = parseInt(id) - 1;
     const station = STATIONS[stationIndex];
     const isFullStation = station?.type === 'FULL';
+    const staffRoute = id === '1' ? `/station/${id}/v2` : `/station/${id}/new/home`;
 
     const [loading, setLoading] = useState(true);
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -113,7 +114,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
 
                     // Staff should use the single Tank Loy staff UI. Keep this classic page for admins only.
                     if (data.user && data.user.role !== 'ADMIN') {
-                        window.location.href = `/station/${id}/new/home`;
+                        window.location.href = staffRoute;
                         return;
                     }
                 }
@@ -122,7 +123,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
             }
         };
         fetchCurrentUser();
-    }, [id]);
+    }, [id, staffRoute]);
 
     // Helper: determines if section should be visible based on tab
     // Before mount, show all sections to avoid flash. After mount, use tab logic on mobile.
@@ -712,7 +713,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                 <Sparkles size={14} className="text-purple-400" />
                                 {isFullStation ? 'ระบบเต็ม (FULL)' : 'ระบบลงบิล (SIMPLE)'}
                                 <a
-                                    href={`/station/${id}/new/home`}
+                                    href={staffRoute}
                                     className="ml-2 px-3 py-1 rounded-full text-xs font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors"
                                 >
                                     📱 ไปหน้าใช้งานพนักงาน

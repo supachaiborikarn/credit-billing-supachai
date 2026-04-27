@@ -3,7 +3,7 @@
      รอบเดียวกันยังแก้แท๊งลอยให้ใช้ shift-scoped transactions, anomaly preview จากค่าปัจจุบัน, flow ปิดกะเก่าที่ไม่ต้องพึ่ง admin route,
      เพิ่ม post-close daily report printing ที่ต้องอิง station-wide `/daily` แทน `/transactions`,
      เพิ่ม per-transaction thermal print/reprint flow ที่เลือกใบเสร็จรับเงิน/บิลเงินเชื่อและขนาด 58/80mm ได้ทุกรายการ โดยปรับ preset ให้ Epson TM-m30III ใช้ 80mm เป็นค่าแนะนำ,
-     consolidate route แท๊งลอยให้เหลือ staff UI เดียว `/station/1/new/*` และ classic admin `/station/1`,
+     consolidate route แท๊งลอยให้เหลือ staff UI เดียว `/station/1/v2` และ classic admin `/station/1`,
      ใบเสร็จแท๊งลอยต้องใช้หัวเอกสาร “วัชรเกียรติออยล์” พร้อมที่อยู่ 657,
      รองรับ V2 live route ชั่วคราวพร้อมบังคับสลิปโอน/รูปมิเตอร์/ลูกค้าเงินเชื่อทั้ง UI และ API,
      และ fix หน้าใหม่ของแท๊งลอยให้เชื่อมทั้ง daily price, transaction contract, receipt/slip flow กับ backend/source ชุดเดียวกับหน้าเก่า;
@@ -117,6 +117,12 @@
 - **ปัญหา**: หน้า V2 ยังพึ่ง validation ฝั่ง client บางจุดและ API ยังยอมรับข้อมูลสำคัญไม่ครบได้ เช่นโอนเงินไม่มีสลิป, บันทึกมิเตอร์ไม่มีรูป, หรือเงินเชื่อไม่มีชื่อลูกค้า ทำให้รายการในสรุปมีไฟล์แนบ/ลูกค้าไม่ครบและปุ่มดูรูปไม่ขึ้น
 - **แก้ไข**: บังคับ `TRANSFER` ต้องมี `transferProofUrl` ทั้ง create/edit API, บังคับ credit-like payment ต้องมีลูกค้า, บังคับ `POST /api/station/[id]/meters` ต้องมีรูปตามประเภทมิเตอร์ที่บันทึกพร้อมเขียนลง `startPhoto/endPhoto`, และปรับ V2 UI ให้เตือน/disable ก่อน submit
 - **ไฟล์ที่แก้**: `station/[id]/v2/components/RefillModal`, `EditTransactionModal`, `MeterSection`, `TransactionCard`, `api/station/[id]/transactions*`, `api/station/[id]/meters`, `api/station/[id]/daily`
+- **สถานะ**: ✅ แก้แล้ว
+
+### 🐛 Tank Loy Staff Route Confusion (Apr 2026)
+- **ปัญหา**: หลังเพิ่มฟีเจอร์ใน V2 แล้ว พนักงานยังเข้า “หน้าดำ” ผ่าน `/station/1/new/home` จากปุ่มใน classic admin/login/sidebar/dashboard ทำให้ไม่เห็นปุ่มพิมพ์/ดูรูป/validation ที่เพิ่งแก้ในหน้าขาว V2
+- **แก้ไข**: เปลี่ยน canonical staff UI ของแท๊งลอยเป็น `/station/1/v2`, ให้ entrypoint หลักทั้งหมดชี้ V2, และให้ middleware/login normalize legacy `/station/1/new/*` กับ `/simple-station/1/new/*` เข้า V2 โดยยกเว้น `/station/1/new/receipt` เพื่อให้ V2 ยังพิมพ์ thermal receipt ได้
+- **ไฟล์ที่แก้**: `middleware`, `login`, `Sidebar`, `dashboard`, `BottomNav`, `station/[id]`, `simple-station/[id]`, brain topics
 - **สถานะ**: ✅ แก้แล้ว
 
 ## 🔎 Current Findings
@@ -234,7 +240,7 @@
 11. **Tank Loy Sell Entry Pages Need ShiftGuard**: หน้า `new/sell` และ `new/oil-sell` ของแท๊งลอยต้องครอบ `ShiftGuard` เหมือนหน้า `home`; ถ้าเผลอถอด guard ออก พนักงานจะเข้าไปกรอกบิลได้ทั้งที่ยังไม่เปิดกะ แล้วโดน block ตอนกดบันทึกโดยไม่มีปุ่มเปิดกะบนหน้าเดียวกัน
 12. **Tank Loy Transaction Printing**: ทุก transaction ใน `new/summary` และ V2 transaction card ต้องพิมพ์/พิมพ์ซ้ำได้ ไม่ควรผูกปุ่มพิมพ์กับ payment type หรือสถานะล็อกวัน; หน้า receipt ต้องรับ `docType=receipt|credit` และ `paper=58|80` เพื่อรองรับเครื่องพิมพ์ความร้อน, รายการ credit-like ที่เพิ่งบันทึกควรเปิด `docType=credit` อัตโนมัติ, และ printer preset หลักคือ Epson TM-m30III 80mm โดยใช้ printable width 72mm (58mm ใช้ได้เมื่อเครื่องใส่ guide/ตั้งค่าเป็น 58mm แล้ว)
 13. **Tank Loy Receipt Header**: ใบเสร็จ/บิลเงินเชื่อของ `station-1` ต้องขึ้นหัวเอกสารเป็น `วัชรเกียรติออยล์` และที่อยู่ 657 ถ.เจริญสุข แม้ชื่อ station ในระบบจะแสดงเป็นแท๊งลอยวัชรเกียรติ; ต้องครอบทั้ง thermal receipt, classic print และ legacy print
-14. **Tank Loy Single Staff UI**: ฟีเจอร์พนักงานแท๊งลอยต้องอยู่บน route canonical `station/1/new/*` เท่านั้น โดยใช้ shared implementation จาก `simple-station/[id]/new/*` ได้ แต่ URL ที่พนักงานใช้จริงต้องเป็น `/station/1/new/home`; `station/1` เก็บไว้เป็น classic/admin และ `simple-station/1/new/*` เป็น legacy redirect เท่านั้น
+14. **Tank Loy Single Staff UI**: ฟีเจอร์พนักงานแท๊งลอยต้องอยู่บน route canonical `/station/1/v2` เท่านั้น; `station/1` เก็บไว้เป็น classic/admin, legacy `/station/1/new/*` และ `/simple-station/1/new/*` ต้อง redirect เข้า V2, แต่ต้องยกเว้น `/station/1/new/receipt` เพราะ V2 ใช้ route นี้สำหรับพิมพ์ใบเสร็จ/บิลเงินเชื่อ
 15. **Tank Loy Required Evidence**: ใน V2/หน้าแท๊งลอย ห้ามบันทึก `TRANSFER` โดยไม่มี `transferProofUrl`, ห้ามบันทึก meter start/end โดยไม่มีรูปใน `startPhoto/endPhoto`, และ credit-like payment ต้องมีลูกค้า; ต้อง enforce ทั้ง client และ API ไม่ใช่แค่ปุ่ม disabled
 16. **GAS Route Consolidation**: `/gas` v2 มี gauge/auth/shift/payment hardening แล้ว แต่ยังเป็น route stack แยกจาก `/gas-station/[id]/new`; งานต่อไปควรเลือก source of truth ระยะยาวก่อนเพิ่ม feature ใหญ่
 17. **GAS Stale Open Shifts**: กะ GAS ค้างเก่าถูกปิดจริงแล้วเมื่อ 2026-04-23 พร้อม audit log; งานต่อไปถ้าเจอกะค้างใหม่ให้ใช้ `/api/admin/gas/stale-shifts` เพื่อ preview/close แบบมี confirmation และ audit log
@@ -274,6 +280,7 @@
 - 2026-04-27: harden bottom nav เก่าของแท๊งลอย (`StationBottomNav`, v2 `BottomTabBar`, classic `.bottom-tab-bar`) ด้วย spacer/safe-area เพื่อไม่ให้ทับปุ่มท้ายหน้าแม้ผู้ใช้เปิด entrypoint เก่าหรือ cache เก่า
 - 2026-04-27: เปิด `/station/1/v2` กลับเป็น supported live route ชั่วคราว, เพิ่มปุ่มพิมพ์ transaction ทุกใบใน V2 และปุ่มดูรูปมิเตอร์เปิด/ปิดที่แนบไว้
 - 2026-04-27: harden Tank Loy V2 ให้บังคับสลิปโอน, รูปมิเตอร์, และลูกค้าเงินเชื่อทั้งฝั่ง UI/API พร้อมปรับปุ่มดูสลิป/ดูรูปให้เห็นชัดขึ้น
+- 2026-04-27: เปลี่ยน canonical staff UI ของแท๊งลอยเป็น `/station/1/v2`, ปิดทางเข้าหน้าดำ `/station/1/new/*` ด้วย redirect เข้า V2 ยกเว้น receipt และเปลี่ยน admin/login/sidebar/dashboard ให้ชี้ V2
 - 2026-04-23: audit ปั๊มแก๊สทั้ง 2 สาขา พบ route/API ซ้อนกัน, `/api/v2/gas/[stationId]/gauge` ขาด, auth/ownership gaps ใน GAS v2/legacy routes, payment type drift, transaction ไม่ผูก `shiftId` ใน v2 sell, station-5 `hasProducts` config/DB ไม่ตรง, และ DB จริงมีกะ GAS ค้างจำนวนมาก
 - 2026-04-23: implement GAS hardening ตาม audit: เพิ่ม v2 gauge route, helper guard กลาง, station ownership checks, v2 sell/summary shift scope, payment normalize `CREDIT_CARD`/`TRANSFER`, product guard เฉพาะ station-5 พร้อม sync DB, admin stale-shift cleanup endpoint, eslint ignore สำหรับ ad hoc scripts, และ tests เฉพาะ GAS
 - 2026-04-23: ปิด GAS `OPEN` shifts ค้างใน DB จริงครบ 70 กะ (`station-5` 57, `station-6` 13), เติม end meter ที่ว่าง 16 จุดด้วยค่า start เดิม, ปิด daily records ที่ไม่มี open shift เหลือ 67 records, และสร้าง audit log ครบ 70 รายการ

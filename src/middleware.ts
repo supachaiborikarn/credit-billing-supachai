@@ -32,18 +32,19 @@ function getGasV2RedirectPath(pathname: string) {
 }
 
 function getTankLoyRedirectPath(pathname: string) {
-    if (pathname === '/simple-station/1') return '/station/1/new/home';
-    if (pathname === '/simple-station/1/new/oil-sell' || pathname === '/simple-station/1/new/products') {
-        return '/station/1/new/home';
-    }
+    if (pathname === '/simple-station/1') return '/station/1/v2';
     const simpleNewMatch = pathname.match(/^\/simple-station\/1\/new(?:\/([^/]+))?/);
     if (simpleNewMatch) {
         const page = simpleNewMatch[1] || 'home';
-        return `/station/1/new/${page}`;
+        if (page === 'receipt') return '/station/1/new/receipt';
+        return '/station/1/v2';
     }
 
-    if (pathname === '/station/1/new/oil-sell' || pathname === '/station/1/new/products') {
-        return '/station/1/new/home';
+    const stationNewMatch = pathname.match(/^\/station\/1\/new(?:\/([^/]+))?/);
+    if (stationNewMatch) {
+        const page = stationNewMatch[1] || 'home';
+        if (page === 'receipt') return null;
+        return '/station/1/v2';
     }
 
     return null;
