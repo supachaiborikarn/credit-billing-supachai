@@ -638,6 +638,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
     };
 
     const handlePrintTransaction = (t: Transaction) => {
+        const receiptHeaderName = id === '1' ? 'วัชรเกียรติออยล์' : station?.name;
         const printWindow = window.open('', '_blank');
         if (printWindow) {
             printWindow.document.write(`
@@ -653,7 +654,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                 </head>
                 <body>
                     <div class="header">
-                        <h2>${station?.name}</h2>
+                        <h2>${receiptHeaderName}</h2>
                         <p>${new Date(t.date).toLocaleDateString('th-TH')}</p>
                     </div>
                     <div class="detail">ทะเบียน: ${t.licensePlate}</div>

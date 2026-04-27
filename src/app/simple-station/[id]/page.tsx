@@ -1214,7 +1214,7 @@ export default function SimpleStationPage({ params }: { params: Promise<{ id: st
                                                     <div class="receipt">
                                                         <div class="header">
                                                             <div style="font-size:24px">⛽</div>
-                                                            <div class="station-name">${station?.name}</div>
+                                                            <div class="station-name">${id === '1' ? 'วัชรเกียรติออยล์' : station?.name}</div>
                                                             <div style="font-size:12px;color:#666">ใบส่งน้ำมันเชื่อ</div>
                                                         </div>
                                                         <div class="divider"></div>

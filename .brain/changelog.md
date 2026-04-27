@@ -231,6 +231,10 @@
   - verification: targeted eslint ผ่าน 0 errors (เหลือ warning `<img>`/hook legacy เดิม); `git diff --check` ผ่าน
 
 ## 2026-04-27
+- 🧾 เปลี่ยนหัวใบเสร็จแท๊งลอยเป็น “วัชรเกียรติออยล์”
+  - ปรับ thermal receipt route ที่ V2 ใช้ (`station/1/new/receipt`) ให้ `station-1` แสดงชื่อหัวเอกสารเป็น `วัชรเกียรติออยล์`
+  - ปรับ print path เก่าใน classic/full station และ legacy simple print เฉพาะ station-1 ให้ใช้ชื่อเดียวกัน
+  - verification: targeted eslint ผ่าน 0 errors (เหลือ warning legacy เดิมในไฟล์เก่า); `git diff --check` ผ่าน
 - 🧾 Harden Tank Loy V2 required evidence rules
   - บังคับ `TRANSFER` ต้องมีสลิปโอนทั้ง UI/API และปุ่มดูสลิปอ่าน URL ที่มีอยู่ได้ชัดเจน
   - บังคับบันทึกมิเตอร์เปิด/ปิดต้องมีรูปทุกหัวจ่ายที่บันทึก พร้อมให้ API เขียน URL ลง `startPhoto/endPhoto`
