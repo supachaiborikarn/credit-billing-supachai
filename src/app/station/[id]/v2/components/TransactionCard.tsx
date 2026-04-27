@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Edit, Trash2, Lock, Image as ImageIcon, X } from 'lucide-react';
+import { Edit, Trash2, Lock, Image as ImageIcon, X, Printer, FileText } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import { PAYMENT_TYPES } from '@/constants';
 import ConfirmModal from '@/components/ConfirmModal';
 
@@ -37,8 +38,10 @@ export default function TransactionCard({
     showActions = false,
     isLocked = false,
 }: TransactionCardProps) {
+    const pathname = usePathname();
     const [showImageModal, setShowImageModal] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showPrintModal, setShowPrintModal] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
     const paymentConfig = PAYMENT_TYPES.find(p => p.value === transaction.paymentType);
@@ -47,6 +50,7 @@ export default function TransactionCard({
 
     const isTransfer = transaction.paymentType === 'TRANSFER';
     const hasTransferProof = !!transaction.transferProofUrl;
+    const stationId = pathname.match(/^\/station\/(\d+)/)?.[1] || '1';
 
     const formatCurrency = (num: number) =>
         new Intl.NumberFormat('th-TH', {
@@ -89,6 +93,17 @@ export default function TransactionCard({
         } finally {
             setDeleting(false);
         }
+    };
+
+    const openPrintableDocument = (docType: 'receipt' | 'credit', paper: '58' | '80') => {
+        const params = new URLSearchParams({
+            txn: transaction.id,
+            docType,
+            paper,
+            autoPrint: 'true',
+        });
+        window.open(`/station/${stationId}/new/receipt?${params.toString()}`, '_blank');
+        setShowPrintModal(false);
     };
 
     return (
@@ -169,31 +184,98 @@ export default function TransactionCard({
                 )}
 
                 {/* Action Buttons */}
-                {showActions && !isLocked && (
-                    <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-gray-100">
-                        <button
-                            onClick={onEdit}
-                            className="p-2 text-gray-400 hover:text-blue-500 transition"
-                        >
-                            <Edit size={18} />
-                        </button>
-                        <button
-                            onClick={handleDeleteClick}
-                            className="p-2 text-gray-400 hover:text-red-500 transition"
-                        >
-                            <Trash2 size={18} />
-                        </button>
-                    </div>
-                )}
+                <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-gray-100">
+                    <button
+                        onClick={() => setShowPrintModal(true)}
+                        className="flex items-center gap-1.5 rounded-lg bg-orange-50 px-3 py-2 text-sm font-semibold text-orange-600 transition hover:bg-orange-100"
+                        title="พิมพ์ใบเสร็จ/บิล"
+                    >
+                        <Printer size={18} />
+                        <span>พิมพ์</span>
+                    </button>
+                    {showActions && !isLocked && (
+                        <>
+                            <button
+                                onClick={onEdit}
+                                className="p-2 text-gray-400 hover:text-blue-500 transition"
+                            >
+                                <Edit size={18} />
+                            </button>
+                            <button
+                                onClick={handleDeleteClick}
+                                className="p-2 text-gray-400 hover:text-red-500 transition"
+                            >
+                                <Trash2 size={18} />
+                            </button>
+                        </>
+                    )}
 
-                {/* Locked indicator for actions */}
-                {showActions && isLocked && (
-                    <div className="flex justify-end items-center gap-2 mt-3 pt-3 border-t border-gray-100 text-xs text-gray-400">
-                        <Lock size={12} />
-                        <span>ล็อคแล้ว</span>
-                    </div>
-                )}
+                    {/* Locked indicator for actions */}
+                    {showActions && isLocked && (
+                        <div className="flex items-center gap-2 text-xs text-gray-400">
+                            <Lock size={12} />
+                            <span>ล็อคแล้ว</span>
+                        </div>
+                    )}
+                </div>
             </div>
+
+            {/* Print Modal */}
+            {showPrintModal && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                    onClick={() => setShowPrintModal(false)}
+                >
+                    <div className="w-full max-w-sm rounded-2xl bg-white p-4 shadow-xl" onClick={e => e.stopPropagation()}>
+                        <div className="mb-4 flex items-center justify-between">
+                            <div>
+                                <h3 className="font-bold text-gray-900">พิมพ์เอกสารรายการนี้</h3>
+                                <p className="text-xs text-gray-500">
+                                    {transaction.licensePlate || 'ไม่ระบุ'} • {formatCurrency(transaction.amount)}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowPrintModal(false)}
+                                className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-3">
+                            <div>
+                                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700">
+                                    <Printer size={16} className="text-orange-500" />
+                                    ใบเสร็จรับเงิน
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button onClick={() => openPrintableDocument('receipt', '58')} className="rounded-xl border border-orange-200 bg-orange-50 px-3 py-3 text-sm font-bold text-orange-700 hover:bg-orange-100">
+                                        58 มม.
+                                    </button>
+                                    <button onClick={() => openPrintableDocument('receipt', '80')} className="rounded-xl border border-orange-200 bg-orange-50 px-3 py-3 text-sm font-bold text-orange-700 hover:bg-orange-100">
+                                        80 มม.
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700">
+                                    <FileText size={16} className="text-blue-500" />
+                                    บิลเงินเชื่อ
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button onClick={() => openPrintableDocument('credit', '58')} className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 text-sm font-bold text-blue-700 hover:bg-blue-100">
+                                        58 มม.
+                                    </button>
+                                    <button onClick={() => openPrintableDocument('credit', '80')} className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 text-sm font-bold text-blue-700 hover:bg-blue-100">
+                                        80 มม.
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Image Modal */}
             {showImageModal && hasTransferProof && (
@@ -242,4 +324,3 @@ export default function TransactionCard({
         </>
     );
 }
-

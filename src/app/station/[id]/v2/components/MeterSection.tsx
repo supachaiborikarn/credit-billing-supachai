@@ -61,7 +61,7 @@ export default function MeterSection({
 
     // Photo upload state
     const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
-    const [showImageModal, setShowImageModal] = useState<{ url: string; nozzle: number } | null>(null);
+    const [showImageModal, setShowImageModal] = useState<{ url: string; nozzle: number; type: 'start' | 'end' } | null>(null);
     const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
     // Validation errors
@@ -148,6 +148,9 @@ export default function MeterSection({
     const getPhotoUrl = (meter: typeof meters[0]) => {
         return activeTab === 'start' ? meter.startPhoto : meter.endPhoto;
     };
+
+    const getPhotoLabel = (type: 'start' | 'end') =>
+        type === 'start' ? 'มิเตอร์เริ่มต้น' : 'มิเตอร์สิ้นสุด';
 
     // Validate end meter readings
     const validateEndMeters = (): boolean => {
@@ -349,7 +352,7 @@ export default function MeterSection({
                                     {photoUrl ? (
                                         // Has photo - show view button
                                         <button
-                                            onClick={() => setShowImageModal({ url: photoUrl, nozzle: m.nozzleNumber })}
+                                            onClick={() => setShowImageModal({ url: photoUrl, nozzle: m.nozzleNumber, type: activeTab })}
                                             className="p-3 bg-green-100 text-green-600 rounded-xl hover:bg-green-200 transition flex items-center gap-1"
                                             title="ดูรูป"
                                         >
@@ -371,6 +374,32 @@ export default function MeterSection({
                                         </button>
                                     )}
                                 </div>
+
+                                {(m.startPhoto || m.endPhoto) && (
+                                    <div className="mt-3 rounded-xl border border-gray-200 bg-white p-2">
+                                        <p className="mb-2 text-xs font-semibold text-gray-500">รูปที่บันทึกไว้</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {m.startPhoto && (
+                                                <button
+                                                    onClick={() => setShowImageModal({ url: m.startPhoto!, nozzle: m.nozzleNumber, type: 'start' })}
+                                                    className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                                                >
+                                                    <ImageIcon size={14} />
+                                                    ดูรูปเปิด
+                                                </button>
+                                            )}
+                                            {m.endPhoto && (
+                                                <button
+                                                    onClick={() => setShowImageModal({ url: m.endPhoto!, nozzle: m.nozzleNumber, type: 'end' })}
+                                                    className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                                                >
+                                                    <ImageIcon size={14} />
+                                                    ดูรูปปิด
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Photo indicator */}
                                 {photoUrl && (
@@ -451,7 +480,7 @@ export default function MeterSection({
                                     📷 รูปมิเตอร์หัวจ่าย {showImageModal.nozzle}
                                 </h3>
                                 <p className="text-xs text-blue-600 text-center mt-1">
-                                    {activeTab === 'start' ? 'มิเตอร์เริ่มต้น' : 'มิเตอร์สิ้นสุด'}
+                                    {getPhotoLabel(showImageModal.type)}
                                 </p>
                             </div>
                             <img

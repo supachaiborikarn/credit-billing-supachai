@@ -46,10 +46,6 @@ function getTankLoyRedirectPath(pathname: string) {
         return '/station/1/new/home';
     }
 
-    if (pathname === '/station/1/v2' || pathname.startsWith('/station/1/v2/')) {
-        return '/station/1';
-    }
-
     return null;
 }
 

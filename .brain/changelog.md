@@ -223,3 +223,9 @@
   - ปรับ `StationBottomNav` ให้ชี้ route canonical ใหม่ (`sell`, `shift-end`, `summary`) และใช้ accent orange เหมือน design guide
   - ปรับ `SimpleBottomNav` ให้มี min-height รวม safe-area และ active indicator อยู่ใน item จริง
   - verification: targeted eslint ผ่าน 0 errors (เหลือ warning legacy เดิมใน classic station page); `git diff --check` ผ่าน
+- 🧾 เติมปุ่มพิมพ์รายการและปุ่มดูรูปมิเตอร์ใน Tank Loy V2
+  - เปิด `/station/[id]/v2` กลับเป็นหน้า V2 จริงหลังพบ production ยังใช้งานหน้านี้อยู่
+  - เพิ่มปุ่ม “พิมพ์” บน `TransactionCard` ทุกใบ พร้อม modal เลือกใบเสร็จรับเงิน/บิลเงินเชื่อ และกระดาษ 58mm/80mm โดยส่งต่อไป receipt route เดียวกับหน้าใหม่
+  - เพิ่ม section “รูปที่บันทึกไว้” ใน `MeterSection` ให้ดูรูปมิเตอร์เริ่มต้น/สิ้นสุดที่เคยถ่ายไว้หรือแนบไว้ได้จากทุกแท็บ
+  - เอา redirect `/station/1/v2 -> /station/1` ออกจาก middleware/login เพื่อไม่ปิดหน้าที่ production ยังใช้จริง
+  - verification: targeted eslint ผ่าน 0 errors (เหลือ warning `<img>`/hook legacy เดิม); `git diff --check` ผ่าน

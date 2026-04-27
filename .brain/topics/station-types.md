@@ -27,7 +27,8 @@
 - Shift reconciliation (ตรวจยอดปิดกะ)
 - Staff canonical route: `/station/1/new/*`
 - Admin classic route: `/station/1`
-- Legacy `/simple-station/1/new/*` ต้อง redirect เข้า `/station/1/new/*`; `/station/1/v2` ต้อง redirect กลับ classic admin
+- Legacy `/simple-station/1/new/*` ต้อง redirect เข้า `/station/1/new/*`
+- Current live V2 mobile flow: `/station/1/v2` ยังต้องรองรับ เพราะพนักงาน/แอดมินยังเห็นหน้านี้ใน production; อย่าปิด route นี้โดยไม่ยืนยัน migration อีกครั้ง
 
 ### SIMPLE Station
 - บันทึกบิลอย่างเดียว
@@ -49,4 +50,5 @@
 - 2026-02-24: สร้างไฟล์ brain topic นี้
 - 2026-01: แยกมิเตอร์ตามกะ, แก้ shift filter, fuel price sync
 - 2026-04-23: Modernized GAS UI (Linear-inspired, card-based layout) for /gas-station/[id]
-- 2026-04-26: Consolidate Tank Loy routes ให้เหลือ staff UI เดียวที่ `/station/1/new/*` และ classic admin ที่ `/station/1`; route legacy `/simple-station/1/new/*` redirect เข้าหน้า staff จริง ส่วน `/station/1/v2` redirect กลับ classic
+- 2026-04-26: Consolidate Tank Loy routes ให้เหลือ staff UI เดียวที่ `/station/1/new/*` และ classic admin ที่ `/station/1`; route legacy `/simple-station/1/new/*` redirect เข้าหน้า staff จริง
+- 2026-04-27: เปิด `/station/1/v2` กลับเป็น supported live mobile flow ชั่วคราวหลังพบ production ยังใช้หน้านี้จริง; เพิ่มปุ่มพิมพ์ transaction และปุ่มดูรูปมิเตอร์เปิด/ปิดใน V2

@@ -26,8 +26,6 @@ function normalizeTankLoyRedirectPath(path: string) {
     const simpleMatch = path.match(/^\/simple-station\/1\/new(?:\/([^/?#]+))?/);
     if (simpleMatch) return `/station/1/new/${simpleMatch[1] || 'home'}`;
 
-    if (path === '/station/1/v2' || path.startsWith('/station/1/v2/')) return '/station/1';
-
     const match = path.match(/^\/station\/1\/new(?:\/([^/?#]+))?/);
     if (!match) return path;
 

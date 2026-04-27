@@ -104,6 +104,12 @@
 - **ไฟล์ที่แก้**: `station/[id]/components/StationBottomNav`, `station/[id]/v2/components/BottomTabBar`, `station/[id]/page`, `globals.css`, `simple-station/[id]/components/SimpleBottomNav`
 - **สถานะ**: ✅ แก้แล้ว
 
+### 🐛 Tank Loy V2 Missing Print and Meter Photo Review (Apr 2026)
+- **ปัญหา**: Production ยังแสดงหน้า V2 ของแท๊งลอย (`/station/1/v2`) แต่ transaction cards ใน “รายการล่าสุด/รายการวันนี้” ไม่มีปุ่มพิมพ์ต่อรายการ และหน้า “มิเตอร์ประจำวัน” เห็นปุ่มถ่าย/แนบรูปแต่ไม่มีปุ่มให้ดูรูปเปิด/ปิดที่เคยบันทึกไว้ครบทุกแท็บ
+- **แก้ไข**: เปิด route V2 กลับเป็น page จริง, เอา redirect `/station/1/v2 -> /station/1` ออกจาก middleware/login, เพิ่มปุ่ม “พิมพ์” ต่อ transaction พร้อม modal เลือกใบเสร็จ/บิลเงินเชื่อและกระดาษ 58/80mm โดยวิ่งเข้า receipt route เดียวกับหน้าใหม่, และเพิ่มปุ่มดูรูปเปิด/ดูรูปปิดในแต่ละหัวจ่ายของ `MeterSection`
+- **ไฟล์ที่แก้**: `station/[id]/v2/page`, `station/[id]/v2/components/TransactionCard`, `station/[id]/v2/components/MeterSection`, `middleware`, `login`
+- **สถานะ**: ✅ แก้แล้ว
+
 ## 🔎 Current Findings
 
 ### Gas Station Audit (Apr 23, 2026)
@@ -252,8 +258,9 @@
 - 2026-04-26: ปรับหน้าใหม่ของแท๊งลอยให้โทน UI ไปทางเดียวกับหน้า `home` และตัด flow น้ำมันเครื่อง/สินค้าออกจาก nav, `oil-sell`, `sell`, และ `shift-end` สำหรับ `station-1`
 - 2026-04-26: แก้ bottom nav หน้าใหม่แท๊งลอยไม่ให้บังปุ่มท้ายหน้า และปรับรายงานหลังปิดกะให้รวมเลขเปิด-ปิดมิเตอร์, รายการเติมทั้งหมด, และยอดเงินรวมในหน้าเดียว
 - 2026-04-26: เปิดให้ transaction ทุกประเภทในหน้า summary พิมพ์เป็นใบเสร็จรับเงินหรือบิลเงินเชื่อได้ พร้อมเลือกระหว่างกระดาษ thermal 58mm/80mm
-- 2026-04-26: consolidate route แท๊งลอยให้เหลือ staff UI เดียวที่ `station/1/new/*` และ classic admin ที่ `station/1`; route legacy `simple-station/1/new/*` redirect เข้า staff UI จริง ส่วน `station/1/v2` redirect กลับ classic
+- 2026-04-26: consolidate route แท๊งลอยให้เหลือ staff UI เดียวที่ `station/1/new/*` และ classic admin ที่ `station/1`; route legacy `simple-station/1/new/*` redirect เข้า staff UI จริง
 - 2026-04-27: harden bottom nav เก่าของแท๊งลอย (`StationBottomNav`, v2 `BottomTabBar`, classic `.bottom-tab-bar`) ด้วย spacer/safe-area เพื่อไม่ให้ทับปุ่มท้ายหน้าแม้ผู้ใช้เปิด entrypoint เก่าหรือ cache เก่า
+- 2026-04-27: เปิด `/station/1/v2` กลับเป็น supported live route ชั่วคราว, เพิ่มปุ่มพิมพ์ transaction ทุกใบใน V2 และปุ่มดูรูปมิเตอร์เปิด/ปิดที่แนบไว้
 - 2026-04-23: audit ปั๊มแก๊สทั้ง 2 สาขา พบ route/API ซ้อนกัน, `/api/v2/gas/[stationId]/gauge` ขาด, auth/ownership gaps ใน GAS v2/legacy routes, payment type drift, transaction ไม่ผูก `shiftId` ใน v2 sell, station-5 `hasProducts` config/DB ไม่ตรง, และ DB จริงมีกะ GAS ค้างจำนวนมาก
 - 2026-04-23: implement GAS hardening ตาม audit: เพิ่ม v2 gauge route, helper guard กลาง, station ownership checks, v2 sell/summary shift scope, payment normalize `CREDIT_CARD`/`TRANSFER`, product guard เฉพาะ station-5 พร้อม sync DB, admin stale-shift cleanup endpoint, eslint ignore สำหรับ ad hoc scripts, และ tests เฉพาะ GAS
 - 2026-04-23: ปิด GAS `OPEN` shifts ค้างใน DB จริงครบ 70 กะ (`station-5` 57, `station-6` 13), เติม end meter ที่ว่าง 16 จุดด้วยค่า start เดิม, ปิด daily records ที่ไม่มี open shift เหลือ 67 records, และสร้าง audit log ครบ 70 รายการ
