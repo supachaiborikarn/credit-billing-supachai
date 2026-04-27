@@ -28,4 +28,4 @@
 | 2026-02-19 | เพิ่ม overlap detection ในระบบลาหยุด | [→ decisions/](decisions/) |
 
 ## 📅 Last Updated
-2026-04-26
+2026-04-27

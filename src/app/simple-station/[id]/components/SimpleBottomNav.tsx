@@ -29,7 +29,10 @@ export default function SimpleBottomNav({ stationId }: SimpleBottomNavProps) {
     return (
         <nav
             className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white shadow-lg"
-            style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+            style={{
+                minHeight: 'calc(64px + env(safe-area-inset-bottom))',
+                paddingBottom: 'env(safe-area-inset-bottom)',
+            }}
         >
             <div className="mx-auto flex h-16 max-w-lg items-center justify-around">
                 {navItems.map((item) => {
@@ -41,7 +44,7 @@ export default function SimpleBottomNav({ stationId }: SimpleBottomNavProps) {
                         <Link
                             key={item.href}
                             href={href}
-                            className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${isActive
+                            className={`relative flex h-full flex-1 flex-col items-center justify-center transition-colors ${isActive
                                 ? 'text-orange-500'
                                 : 'text-gray-500 hover:text-gray-700'
                                 }`}
@@ -51,7 +54,7 @@ export default function SimpleBottomNav({ stationId }: SimpleBottomNavProps) {
                                 {item.label}
                             </span>
                             {isActive && (
-                                <div className="absolute bottom-[env(safe-area-inset-bottom)] h-0.5 w-12 rounded-t-full bg-orange-500" />
+                                <div className="absolute bottom-0 h-0.5 w-12 rounded-t-full bg-orange-500" />
                             )}
                         </Link>
                     );

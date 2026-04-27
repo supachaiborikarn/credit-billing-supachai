@@ -20,29 +20,35 @@ export default function BottomTabBar({ activeTab, onTabChange, showHistory = fal
     ];
 
     return (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
-            <div className="flex items-center justify-around py-2 pb-[env(safe-area-inset-bottom)]">
-                {tabs.map(tab => {
-                    const Icon = tab.icon;
-                    const isActive = activeTab === tab.id;
+        <>
+            <div aria-hidden="true" style={{ height: 'calc(104px + env(safe-area-inset-bottom))' }} />
+            <nav
+                className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white"
+                style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+            >
+                <div className="mx-auto flex h-16 max-w-lg items-center justify-around">
+                    {tabs.map(tab => {
+                        const Icon = tab.icon;
+                        const isActive = activeTab === tab.id;
 
-                    return (
-                        <button
-                            key={tab.id}
-                            onClick={() => onTabChange(tab.id)}
-                            className={`flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl transition ${isActive
-                                    ? 'text-blue-600'
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => onTabChange(tab.id)}
+                                className={`flex h-full flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-3 py-1 transition ${isActive
+                                    ? 'text-orange-500'
                                     : 'text-gray-400 hover:text-gray-600'
-                                }`}
-                        >
-                            <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
-                            <span className={`text-[10px] ${isActive ? 'font-bold' : ''}`}>
-                                {tab.label}
-                            </span>
-                        </button>
-                    );
-                })}
-            </div>
-        </nav>
+                                    }`}
+                            >
+                                <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+                                <span className={`text-[10px] ${isActive ? 'font-bold' : ''}`}>
+                                    {tab.label}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+            </nav>
+        </>
     );
 }

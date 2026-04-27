@@ -1774,6 +1774,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
             )}
 
             {/* Mobile Bottom Tab Bar */}
+            <div aria-hidden="true" className="bottom-tab-spacer" />
             <div className="bottom-tab-bar">
                 <button
                     onClick={() => setActiveTab('record')}

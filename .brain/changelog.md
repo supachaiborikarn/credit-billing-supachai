@@ -218,3 +218,8 @@
   - ทำ route/link ภายในหน้า shared ให้ path-aware เพื่อไม่พากลับไป `/simple-station/1/new/*` ระหว่างกดปิดกะ/สรุป/พิมพ์ใบเสร็จ
   - ทำปุ่มพิมพ์ใน summary ให้เป็นปุ่มมีข้อความ “พิมพ์” เพื่อให้พนักงานมองเห็นชัด
   - verification: targeted eslint ผ่าน 0 errors (เหลือ warning legacy เดิม); `npm run build` compile source หลักผ่าน แต่หยุดที่ไฟล์ untracked เดิม `scratch/new_gauges.tsx`
+- 🧭 Hardening bottom nav แท๊งลอยหลังพบ nav เก่าทับปุ่มท้ายหน้า
+  - เพิ่ม reserved spacer + safe-area handling ให้ `StationBottomNav` เก่า, `BottomTabBar` v2, และ classic `.bottom-tab-bar`
+  - ปรับ `StationBottomNav` ให้ชี้ route canonical ใหม่ (`sell`, `shift-end`, `summary`) และใช้ accent orange เหมือน design guide
+  - ปรับ `SimpleBottomNav` ให้มี min-height รวม safe-area และ active indicator อยู่ใน item จริง
+  - verification: targeted eslint ผ่าน 0 errors (เหลือ warning legacy เดิมใน classic station page); `git diff --check` ผ่าน
