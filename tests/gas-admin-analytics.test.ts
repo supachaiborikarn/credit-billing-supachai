@@ -10,12 +10,19 @@ import {
 
 describe('gas admin analytics helpers', () => {
     it('extracts and rebuilds card amounts stored in variance notes', () => {
-        expect(parseGasVarianceNote('นับเงินใหม่ | cardReceived=123.45')).toEqual({
+        expect(parseGasVarianceNote('นับเงินใหม่ | cardReceived=123.45 | nonGasSalesAmount=50 | otherExpensesAmount=12.5')).toEqual({
             cardReceived: 123.45,
+            nonGasSalesAmount: 50,
+            otherExpensesAmount: 12.5,
             cleanNote: 'นับเงินใหม่',
         });
 
-        expect(buildGasVarianceNote('หมายเหตุเดิม', 88)).toBe('หมายเหตุเดิม | cardReceived=88.00');
+        expect(buildGasVarianceNote('หมายเหตุเดิม', 88, {
+            nonGasSalesAmount: 50,
+            otherExpensesAmount: 12.5,
+        })).toBe('หมายเหตุเดิม | cardReceived=88.00 | nonGasSalesAmount=50.00 | otherExpensesAmount=12.50');
+        expect(buildGasVarianceNote('ขายอื่นเดิม | nonGasSalesAmount=40.00 | otherExpensesAmount=5.00', 0))
+            .toBe('ขายอื่นเดิม | nonGasSalesAmount=40.00 | otherExpensesAmount=5.00');
         expect(buildGasVarianceNote('cardReceived=12.00', 0)).toBeNull();
     });
 
@@ -27,7 +34,7 @@ describe('gas admin analytics helpers', () => {
                 status: 'CLOSED',
                 createdAt: new Date('2026-04-23T01:00:00.000Z'),
                 closedAt: new Date('2026-04-23T08:00:00.000Z'),
-                varianceNote: 'เงินขาดเล็กน้อย | cardReceived=50',
+                varianceNote: 'เงินขาดเล็กน้อย | cardReceived=50 | nonGasSalesAmount=100 | otherExpensesAmount=30',
                 staff: { name: 'กุ้ง' },
                 dailyRecord: {
                     id: 'daily-1',
@@ -42,8 +49,8 @@ describe('gas admin analytics helpers', () => {
                 ],
                 reconciliation: {
                     expectedFuelAmount: 1190,
-                    expectedOtherAmount: 0,
-                    totalExpected: 1190,
+                    expectedOtherAmount: 70,
+                    totalExpected: 1260,
                     totalReceived: 1200,
                     cashReceived: 1000,
                     creditReceived: 100,
@@ -111,6 +118,9 @@ describe('gas admin analytics helpers', () => {
         expect(shifts[0].sales.card).toBe(510);
         expect(shifts[0].reconciliation?.cardReceived).toBe(50);
         expect(shifts[0].reconciliation?.transferReceived).toBe(50);
+        expect(shifts[0].reconciliation?.nonGasSalesAmount).toBe(100);
+        expect(shifts[0].reconciliation?.otherExpensesAmount).toBe(30);
+        expect(shifts[0].reconciliation?.expectedOtherAmount).toBe(70);
         expect(shifts[1].sales.transactions).toBe(1);
         expect(shifts[1].sales.transfer).toBe(170);
 

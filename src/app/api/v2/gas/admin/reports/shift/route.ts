@@ -65,6 +65,10 @@ export async function GET(request: NextRequest) {
                 expectedPayments: shift.sales.expectedPayments,
             },
             reconciliation: shift.reconciliation?.hasRecord ? {
+                expectedFuelAmount: shift.reconciliation.expectedFuelAmount,
+                expectedOtherAmount: shift.reconciliation.expectedOtherAmount,
+                nonGasSalesAmount: shift.reconciliation.nonGasSalesAmount,
+                otherExpensesAmount: shift.reconciliation.otherExpensesAmount,
                 expected: shift.reconciliation.expected,
                 received: shift.reconciliation.received,
                 variance: shift.reconciliation.variance,

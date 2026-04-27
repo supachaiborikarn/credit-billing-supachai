@@ -106,30 +106,40 @@ export async function POST(
             cardReceived: rawCardReceived,
             transferReceived: rawTransferReceived,
             expectedOtherAmount: rawExpectedOtherAmount = 0,
+            nonGasSalesAmount: rawNonGasSalesAmount = rawExpectedOtherAmount,
+            otherSalesAmount: rawOtherSalesAmount,
+            otherExpensesAmount: rawOtherExpensesAmount = 0,
             varianceNote,
         } = reconciliation || {};
         const cashReceived = toNonNegativeAmount(rawCashReceived);
         const creditReceived = toNonNegativeAmount(rawCreditReceived);
         const cardReceived = toNonNegativeAmount(rawCardReceived);
         const transferReceived = toNonNegativeAmount(rawTransferReceived);
-        const expectedOtherAmount = toNonNegativeAmount(rawExpectedOtherAmount);
+        const nonGasSalesAmount = toNonNegativeAmount(rawOtherSalesAmount ?? rawNonGasSalesAmount);
+        const otherExpensesAmount = toNonNegativeAmount(rawOtherExpensesAmount);
 
         if (
             cashReceived === null
             || creditReceived === null
             || cardReceived === null
             || transferReceived === null
-            || expectedOtherAmount === null
+            || nonGasSalesAmount === null
+            || otherExpensesAmount === null
         ) {
             return NextResponse.json({
-                error: 'ยอดรับจริงทุกประเภทต้องเป็นจำนวนไม่ติดลบ',
+                error: 'ยอดรับจริง ยอดขายอื่น และค่าใช้จ่ายต้องเป็นจำนวนไม่ติดลบ',
             }, { status: 400 });
         }
 
+        const expectedOtherAmount = Number((nonGasSalesAmount - otherExpensesAmount).toFixed(2));
         const combinedTransferReceived = Number((transferReceived + cardReceived).toFixed(2));
         const normalizedVarianceNote = buildGasVarianceNote(
             varianceNote,
-            cardReceived
+            cardReceived,
+            {
+                nonGasSalesAmount,
+                otherExpensesAmount,
+            }
         );
 
         const totalExpected = Number((expectedFuelAmount + expectedOtherAmount).toFixed(2));
@@ -187,6 +197,10 @@ export async function POST(
             message: 'ปิดกะสำเร็จ',
             summary: {
                 liters: totalLiters,
+                expectedFuel: Number(expectedFuelAmount.toFixed(2)),
+                expectedOther: expectedOtherAmount,
+                nonGasSalesAmount,
+                otherExpensesAmount,
                 expected: totalExpected,
                 received: totalReceived,
                 variance

@@ -30,6 +30,10 @@ interface ShiftReport {
         averageTicket: number;
     };
     reconciliation: {
+        expectedFuelAmount: number;
+        expectedOtherAmount: number;
+        nonGasSalesAmount: number;
+        otherExpensesAmount: number;
         expected: number;
         received: number;
         variance: number;
@@ -104,6 +108,8 @@ export default function ShiftReportPage() {
         creditReceived: string;
         cardReceived: string;
         transferReceived: string;
+        nonGasSalesAmount: string;
+        otherExpensesAmount: string;
     } | null>(null);
 
     // Fetch stations
@@ -137,7 +143,9 @@ export default function ShiftReportPage() {
             cashReceived: String(shift.reconciliation?.cashReceived ?? shift.sales.cash),
             creditReceived: String(shift.reconciliation?.creditReceived ?? shift.sales.credit),
             cardReceived: String(shift.reconciliation?.cardReceived ?? shift.sales.card),
-            transferReceived: String(shift.reconciliation?.transferReceived ?? shift.sales.transfer)
+            transferReceived: String(shift.reconciliation?.transferReceived ?? shift.sales.transfer),
+            nonGasSalesAmount: String(shift.reconciliation?.nonGasSalesAmount ?? 0),
+            otherExpensesAmount: String(shift.reconciliation?.otherExpensesAmount ?? 0),
         });
     };
 
@@ -152,7 +160,9 @@ export default function ShiftReportPage() {
                     cashReceived: parseFloat(editForm.cashReceived) || 0,
                     creditReceived: parseFloat(editForm.creditReceived) || 0,
                     cardReceived: parseFloat(editForm.cardReceived) || 0,
-                    transferReceived: parseFloat(editForm.transferReceived) || 0
+                    transferReceived: parseFloat(editForm.transferReceived) || 0,
+                    nonGasSalesAmount: parseFloat(editForm.nonGasSalesAmount) || 0,
+                    otherExpensesAmount: parseFloat(editForm.otherExpensesAmount) || 0,
                 })
             });
 
@@ -451,6 +461,24 @@ export default function ShiftReportPage() {
                                                 className="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 mt-1"
                                             />
                                         </div>
+                                        <div>
+                                            <label className="text-sm text-amber-400">ยอดขายอื่น (ไม่ใช่แก๊ส)</label>
+                                            <input
+                                                type="number"
+                                                value={editForm.nonGasSalesAmount}
+                                                onChange={(e) => setEditForm({ ...editForm, nonGasSalesAmount: e.target.value })}
+                                                className="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 mt-1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-sm text-red-300">ค่าใช้จ่ายอื่นๆ</label>
+                                            <input
+                                                type="number"
+                                                value={editForm.otherExpensesAmount}
+                                                onChange={(e) => setEditForm({ ...editForm, otherExpensesAmount: e.target.value })}
+                                                className="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 mt-1"
+                                            />
+                                        </div>
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-4 gap-2">
@@ -489,6 +517,10 @@ export default function ShiftReportPage() {
                                         <div className="rounded-lg border border-white/10 p-3">
                                             <div className="text-gray-400 mb-2">ยอดคาดหวัง</div>
                                             <div className="space-y-1">
+                                                <div className="flex justify-between"><span>แก๊สจากมิเตอร์</span><span className="font-mono">฿{formatCurrency(selectedShift.reconciliation.expectedFuelAmount)}</span></div>
+                                                <div className="flex justify-between"><span>ขายอื่น</span><span className="font-mono text-amber-300">฿{formatCurrency(selectedShift.reconciliation.nonGasSalesAmount)}</span></div>
+                                                <div className="flex justify-between"><span>หักค่าใช้จ่าย</span><span className="font-mono text-red-300">฿{formatCurrency(selectedShift.reconciliation.otherExpensesAmount)}</span></div>
+                                                <div className="my-2 border-t border-white/10" />
                                                 <div className="flex justify-between"><span>เงินสด</span><span className="font-mono">฿{formatCurrency(selectedShift.reconciliation.cashExpected)}</span></div>
                                                 <div className="flex justify-between"><span>เงินเชื่อ</span><span className="font-mono">฿{formatCurrency(selectedShift.reconciliation.creditExpected)}</span></div>
                                                 <div className="flex justify-between"><span>บัตร</span><span className="font-mono">฿{formatCurrency(selectedShift.reconciliation.cardExpected)}</span></div>

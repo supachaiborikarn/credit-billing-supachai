@@ -25,6 +25,10 @@ interface ReconciliationRecord {
     cardReceived: number;
     transferExpected: number;
     transferReceived: number;
+    expectedFuelAmount: number;
+    expectedOtherAmount: number;
+    nonGasSalesAmount: number;
+    otherExpensesAmount: number;
     totalExpected: number;
     totalReceived: number;
     variance: number;
@@ -253,6 +257,7 @@ export default function ReconciliationPage() {
                                     <th className="text-center px-4 py-3 font-medium text-gray-400">กะ</th>
                                     <th className="text-left px-4 py-3 font-medium text-gray-400">พนักงาน</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">ลิตรต่าง</th>
+                                    <th className="text-right px-4 py-3 font-medium text-gray-400">รายการอื่นสุทธิ</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">คาดหวัง</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">รับจริง</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">ส่วนต่าง</th>
@@ -272,6 +277,9 @@ export default function ReconciliationPage() {
                                         <td className="px-4 py-3">{r.staffName || '-'}</td>
                                         <td className={`px-4 py-3 text-right font-mono ${r.litersVariance >= 0 ? 'text-yellow-400' : 'text-red-400'}`}>
                                             {r.litersVariance >= 0 ? '+' : ''}{r.litersVariance.toLocaleString()} L
+                                        </td>
+                                        <td className={`px-4 py-3 text-right font-mono ${r.expectedOtherAmount >= 0 ? 'text-amber-300' : 'text-red-300'}`}>
+                                            {r.expectedOtherAmount >= 0 ? '+' : '-'}฿{formatCurrency(Math.abs(r.expectedOtherAmount))}
                                         </td>
                                         <td className="px-4 py-3 text-right font-mono text-gray-400">
                                             ฿{formatCurrency(r.totalExpected)}

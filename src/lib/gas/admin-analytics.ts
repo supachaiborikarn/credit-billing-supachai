@@ -106,6 +106,10 @@ export interface GasShiftAnalytics {
     };
     reconciliation: {
         hasRecord: boolean;
+        expectedFuelAmount: number;
+        expectedOtherAmount: number;
+        nonGasSalesAmount: number;
+        otherExpensesAmount: number;
         expected: number;
         received: number;
         variance: number;
@@ -320,6 +324,8 @@ export function parseGasVarianceNote(
     varianceNote: string | null | undefined
 ): {
     cardReceived: number;
+    nonGasSalesAmount: number;
+    otherExpensesAmount: number;
     cleanNote: string | null;
 } {
     const segments = (varianceNote ?? '')
@@ -328,12 +334,26 @@ export function parseGasVarianceNote(
         .filter(Boolean);
 
     let cardReceived = 0;
+    let nonGasSalesAmount = 0;
+    let otherExpensesAmount = 0;
     const cleanSegments: string[] = [];
 
     for (const segment of segments) {
-        const match = segment.match(/^cardReceived=(-?\d+(?:\.\d+)?)$/i);
-        if (match) {
-            cardReceived = toNumber(match[1]);
+        const cardMatch = segment.match(/^cardReceived=(-?\d+(?:\.\d+)?)$/i);
+        if (cardMatch) {
+            cardReceived = toNumber(cardMatch[1]);
+            continue;
+        }
+
+        const nonGasSalesMatch = segment.match(/^nonGasSalesAmount=(-?\d+(?:\.\d+)?)$/i);
+        if (nonGasSalesMatch) {
+            nonGasSalesAmount = toNumber(nonGasSalesMatch[1]);
+            continue;
+        }
+
+        const otherExpensesMatch = segment.match(/^otherExpensesAmount=(-?\d+(?:\.\d+)?)$/i);
+        if (otherExpensesMatch) {
+            otherExpensesAmount = toNumber(otherExpensesMatch[1]);
             continue;
         }
 
@@ -342,20 +362,41 @@ export function parseGasVarianceNote(
 
     return {
         cardReceived: roundGasCurrency(Math.max(cardReceived, 0)),
+        nonGasSalesAmount: roundGasCurrency(Math.max(nonGasSalesAmount, 0)),
+        otherExpensesAmount: roundGasCurrency(Math.max(otherExpensesAmount, 0)),
         cleanNote: cleanSegments.length > 0 ? cleanSegments.join(' | ') : null,
     };
 }
 
 export function buildGasVarianceNote(
     varianceNote: string | null | undefined,
-    cardReceived: number
+    cardReceived: number,
+    adjustments: {
+        nonGasSalesAmount?: number | null;
+        otherExpensesAmount?: number | null;
+    } = {}
 ): string | null {
-    const { cleanNote } = parseGasVarianceNote(varianceNote);
+    const parsed = parseGasVarianceNote(varianceNote);
+    const { cleanNote } = parsed;
     const normalizedCardReceived = roundGasCurrency(Math.max(cardReceived, 0));
+    const normalizedNonGasSalesAmount = roundGasCurrency(Math.max(
+        adjustments.nonGasSalesAmount ?? parsed.nonGasSalesAmount,
+        0
+    ));
+    const normalizedOtherExpensesAmount = roundGasCurrency(Math.max(
+        adjustments.otherExpensesAmount ?? parsed.otherExpensesAmount,
+        0
+    ));
     const parts = [
         cleanNote,
         normalizedCardReceived > 0
             ? `cardReceived=${normalizedCardReceived.toFixed(2)}`
+            : null,
+        normalizedNonGasSalesAmount > 0
+            ? `nonGasSalesAmount=${normalizedNonGasSalesAmount.toFixed(2)}`
+            : null,
+        normalizedOtherExpensesAmount > 0
+            ? `otherExpensesAmount=${normalizedOtherExpensesAmount.toFixed(2)}`
             : null,
     ].filter(Boolean);
 
@@ -539,6 +580,7 @@ export function buildGasShiftAnalytics(
         })();
 
         const reconciliation = shift.reconciliation;
+        const parsedVarianceNote = parseGasVarianceNote(shift.varianceNote);
         const receivedPayments = getReconciliationReceivedPayments(
             reconciliation,
             shift.varianceNote
@@ -553,6 +595,12 @@ export function buildGasShiftAnalytics(
         const expectedOtherAmount = reconciliation
             ? toNumber(reconciliation.expectedOtherAmount)
             : 0;
+        const nonGasSalesAmount = parsedVarianceNote.nonGasSalesAmount > 0
+            ? parsedVarianceNote.nonGasSalesAmount
+            : Math.max(expectedOtherAmount, 0);
+        const otherExpensesAmount = parsedVarianceNote.otherExpensesAmount > 0
+            ? parsedVarianceNote.otherExpensesAmount
+            : Math.max(-expectedOtherAmount, 0);
 
         const totalExpected = reconciliation
             ? toNumber(reconciliation.totalExpected)
@@ -584,8 +632,6 @@ export function buildGasShiftAnalytics(
         const averageTicket = assignedTransactions.length > 0
             ? roundGasCurrency(transactionAmount / assignedTransactions.length)
             : 0;
-
-        const parsedVarianceNote = parseGasVarianceNote(shift.varianceNote);
 
         return {
             id: shift.id,
@@ -620,6 +666,10 @@ export function buildGasShiftAnalytics(
             },
             reconciliation: {
                 hasRecord: Boolean(reconciliation),
+                expectedFuelAmount: roundGasCurrency(expectedFuelAmount),
+                expectedOtherAmount: roundGasCurrency(expectedOtherAmount),
+                nonGasSalesAmount: roundGasCurrency(nonGasSalesAmount),
+                otherExpensesAmount: roundGasCurrency(otherExpensesAmount),
                 expected: roundGasCurrency(totalExpected),
                 received: roundGasCurrency(totalReceived),
                 variance: roundGasCurrency(variance),
@@ -700,6 +750,10 @@ export function buildGasShiftAnalytics(
             },
             reconciliation: {
                 hasRecord: false,
+                expectedFuelAmount: transactionAmount,
+                expectedOtherAmount: 0,
+                nonGasSalesAmount: 0,
+                otherExpensesAmount: 0,
                 expected: transactionAmount,
                 received: transactionAmount,
                 variance: 0,

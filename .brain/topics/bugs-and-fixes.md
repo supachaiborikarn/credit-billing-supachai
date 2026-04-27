@@ -13,7 +13,8 @@
      ปิด gap เงินเชื่อ GAS ที่ไม่บังคับเลขบิล/รถ พร้อม validate ยอดรับจริงตอนปิดกะไม่ให้ติดลบ;
      patch stale open shift date guard หลัง smoke test พบกะค้างวันก่อนบล็อกการเปิดกะวันนี้;
      patch orphan GAS transactions ให้รายงาน admin แสดงรายการไม่ผูกกะ พร้อมกัน legacy sell ไม่ให้บันทึกขายถ้าไม่มีกะเปิด;
-     และปรับ GAS sale entry 2026-04-25 ให้กรอกยอดเงินเป็นหลัก โดย server คำนวณลิตรจาก `dailyRecord.gasPrice` พร้อมแยก orphan rows ใน meter report ไม่ให้ดูเป็นกะ 0/ส่วนต่างมิเตอร์จริง -->
+     ปรับ GAS sale entry 2026-04-25 ให้กรอกยอดเงินเป็นหลัก โดย server คำนวณลิตรจาก `dailyRecord.gasPrice` พร้อมแยก orphan rows ใน meter report ไม่ให้ดูเป็นกะ 0/ส่วนต่างมิเตอร์จริง;
+     และ 2026-04-27 เพิ่มช่องยอดขายอื่น/ค่าใช้จ่ายอื่นตอนปิดกะ GAS v2 โดยเก็บ gross detail ผ่าน variance note helper กลางและใช้ `expectedOtherAmount` เป็นยอดสุทธิ -->
 
 # Bugs & Fixes
 
@@ -244,6 +245,7 @@
 30. **GAS Single Source Entry Flow**: หน้า legacy `/gas-station/[id]` และทุกหน้า `/gas-station/[id]/new/*` ต้อง redirect ไป `/gas` v2; ห้ามเพิ่ม logic บันทึกขาย/มิเตอร์/สินค้า/สรุปใน legacy pages เพราะจะกลับไปสร้าง orphan/duplicate daily records และทำให้พนักงานสับสนระหว่างหน้าขาวกับหน้าดำ
 31. **GAS Admin Data Entry Sales**: หน้า admin data-entry ต้องสร้าง/replace เฉพาะ synthetic transactions ที่ notes ขึ้นต้น `admin-data-entry:` และผูก `dailyRecordId` + `shiftId`; ห้ามเก็บยอดขายเป็นตัวเลขลอยในหน้าโดยไม่สร้าง transaction
 32. **GAS Legacy Login Redirects**: middleware/login ต้อง normalize redirect target ของ `/gas-station/[id]/new/*` เป็น `/gas/[id]` ก่อนเสมอ; ไม่งั้น user ที่เปิด bookmark เก่าตอนยังไม่ login จะยังเห็น redirect chain ผ่าน URL เก่า
+33. **GAS Other Sales/Expenses Storage**: ช่อง “ยอดขายอื่นที่ไม่ใช่แก๊ส” และ “ค่าใช้จ่ายอื่นๆ” ตอนปิดกะ GAS v2 ต้องส่งผ่าน `/api/v2/gas/[stationId]/shift/close`; backend เก็บ `expectedOtherAmount = nonGasSalesAmount - otherExpensesAmount` และเก็บ gross detail ใน `shift.varianceNote` ผ่าน `buildGasVarianceNote`/`parseGasVarianceNote` เพื่อให้ admin reports/edit อ่านชุดเดียวกัน ห้าม encode เองในหน้า UI
 
 ## Changelog
 - 2026-02-24: สร้างไฟล์ brain topic นี้จากประวัติ conversations
@@ -277,3 +279,4 @@
 - 2026-04-25: consolidate GAS legacy entrypoints ไป `/gas` v2, patch legacy APIs ให้ใช้ Bangkok day range, เพิ่ม previous-shift compat route, กันเปิดกะเลขซ้ำ, และทำ admin data-entry สร้าง synthetic transactions สำหรับยอดขายย้อนหลังจริง
 - 2026-04-25: ปิด GAS staff UI หน้าขาว legacy ให้สนิท โดย redirect ทุก `/gas-station/[id]/new/*` ไป v2 และเปลี่ยน login/sidebar/admin history/back button ให้เข้า `/gas/[id]` โดยตรง
 - 2026-04-25: verification รอบปิดหน้าขาวพบ middleware ยังตั้ง login redirect เป็น URL legacy ตอนยังไม่ login; patch middleware/login ให้ normalize redirect ไป `/gas/[id]` ตั้งแต่ต้น
+- 2026-04-27: เพิ่มช่องยอดขายอื่นที่ไม่ใช่แก๊สและค่าใช้จ่ายอื่นๆ ในหน้า `/gas/[stationId]/shift/close`, API ปิดกะ, admin reconciliation edit/report และ fact layer โดยใช้ `expectedOtherAmount` เป็นยอดสุทธิพร้อมเก็บ gross detail ใน variance note helper กลาง; verification ผ่าน full tests, lint, clean TypeScript และ clean webpack build

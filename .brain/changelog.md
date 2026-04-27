@@ -229,3 +229,11 @@
   - เพิ่ม section “รูปที่บันทึกไว้” ใน `MeterSection` ให้ดูรูปมิเตอร์เริ่มต้น/สิ้นสุดที่เคยถ่ายไว้หรือแนบไว้ได้จากทุกแท็บ
   - เอา redirect `/station/1/v2 -> /station/1` ออกจาก middleware/login เพื่อไม่ปิดหน้าที่ production ยังใช้จริง
   - verification: targeted eslint ผ่าน 0 errors (เหลือ warning `<img>`/hook legacy เดิม); `git diff --check` ผ่าน
+
+## 2026-04-27
+- ⛽ เพิ่มยอดขายอื่น/ค่าใช้จ่ายอื่นใน GAS v2 close-shift
+  - เพิ่มช่อง “ยอดขายอื่นที่ไม่ใช่แก๊ส” และ “ค่าใช้จ่ายอื่นๆ” ในหน้า `/gas/[stationId]/shift/close`
+  - API ปิดกะคำนวณ `expectedOtherAmount = nonGasSalesAmount - otherExpensesAmount`, รวมเข้ายอดที่ควรได้สุทธิ และเก็บ gross detail ผ่าน `buildGasVarianceNote`
+  - ขยาย admin analytics, shift report, reconciliation report และ admin reconciliation edit route ให้ดู/แก้ค่าใหม่ได้จาก source เดียวกัน
+  - แก้ type guard เล็กๆ ใน `simple-station/[id]/new/sell` ที่บล็อก clean TypeScript/build อยู่เดิมโดยไม่เปลี่ยน behavior
+  - verification: `npm run test` ผ่าน 58 tests, targeted eslint ผ่าน, clean `npx tsc --noEmit --pretty false` ผ่าน, clean `npx next build --webpack` ผ่าน; workspace `npm run build` ยังติด untracked `scratch/new_gauges.tsx` ที่ไม่อยู่ใน deploy tree

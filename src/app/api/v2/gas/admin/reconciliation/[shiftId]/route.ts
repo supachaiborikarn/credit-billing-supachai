@@ -5,6 +5,7 @@ import {
     buildGasShiftAnalytics,
     buildGasVarianceNote,
     getGasAnalyticsStationIds,
+    parseGasVarianceNote,
 } from '@/lib/gas/admin-analytics';
 import {
     getEndOfDayBangkokUTC,
@@ -19,6 +20,14 @@ function toNonNegativeNumber(value: unknown): number | null {
     }
 
     return Number(parsed.toFixed(2));
+}
+
+function toOptionalNonNegativeNumber(value: unknown, fallback: number): number | null {
+    if (value === undefined || value === null || value === '') {
+        return fallback;
+    }
+
+    return toNonNegativeNumber(value);
 }
 
 function getVarianceSeverity(variance: number): 'GREEN' | 'YELLOW' | 'RED' {
@@ -119,12 +128,35 @@ export async function PUT(
             return NextResponse.json({ error: 'Unable to build analytics for shift' }, { status: 500 });
         }
 
+        const parsedVarianceNote = parseGasVarianceNote(shift.varianceNote);
+        const currentExpectedOtherAmount = shift.reconciliation
+            ? Number(shift.reconciliation.expectedOtherAmount)
+            : 0;
+        const currentNonGasSalesAmount = parsedVarianceNote.nonGasSalesAmount > 0
+            ? parsedVarianceNote.nonGasSalesAmount
+            : Math.max(currentExpectedOtherAmount, 0);
+        const currentOtherExpensesAmount = parsedVarianceNote.otherExpensesAmount > 0
+            ? parsedVarianceNote.otherExpensesAmount
+            : Math.max(-currentExpectedOtherAmount, 0);
+        const nonGasSalesAmount = toOptionalNonNegativeNumber(
+            body.nonGasSalesAmount ?? body.otherSalesAmount,
+            currentNonGasSalesAmount
+        );
+        const otherExpensesAmount = toOptionalNonNegativeNumber(
+            body.otherExpensesAmount,
+            currentOtherExpensesAmount
+        );
+
+        if (nonGasSalesAmount === null || otherExpensesAmount === null) {
+            return NextResponse.json({
+                error: 'ยอดขายอื่นและค่าใช้จ่ายต้องเป็นจำนวนไม่ติดลบ',
+            }, { status: 400 });
+        }
+
         const expectedFuelAmount = shift.reconciliation
             ? Number(shift.reconciliation.expectedFuelAmount)
             : analytics.sales.total;
-        const expectedOtherAmount = shift.reconciliation
-            ? Number(shift.reconciliation.expectedOtherAmount)
-            : 0;
+        const expectedOtherAmount = Number((nonGasSalesAmount - otherExpensesAmount).toFixed(2));
         const totalExpected = Number((expectedFuelAmount + expectedOtherAmount).toFixed(2));
         const combinedTransferReceived = Number((transferReceived + cardReceived).toFixed(2));
         const totalReceived = Number((
@@ -135,7 +167,11 @@ export async function PUT(
         const variance = Number((totalReceived - totalExpected).toFixed(2));
         const varianceNote = buildGasVarianceNote(
             body.varianceNote ?? analytics.reconciliation?.varianceNote ?? shift.varianceNote,
-            cardReceived
+            cardReceived,
+            {
+                nonGasSalesAmount,
+                otherExpensesAmount,
+            }
         );
 
         await prisma.$transaction([
@@ -177,6 +213,10 @@ export async function PUT(
             success: true,
             reconciliation: {
                 expected: totalExpected,
+                expectedFuelAmount,
+                expectedOtherAmount,
+                nonGasSalesAmount,
+                otherExpensesAmount,
                 received: totalReceived,
                 variance,
                 varianceStatus: getVarianceDirection(variance),

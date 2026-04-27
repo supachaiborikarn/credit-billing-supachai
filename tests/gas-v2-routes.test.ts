@@ -618,10 +618,77 @@ describe('gas v2 route guards', () => {
 
         expect(response.status).toBe(400);
         await expect(response.json()).resolves.toMatchObject({
-            error: 'ยอดรับจริงทุกประเภทต้องเป็นจำนวนไม่ติดลบ',
+            error: 'ยอดรับจริง ยอดขายอื่น และค่าใช้จ่ายต้องเป็นจำนวนไม่ติดลบ',
         });
         expect(prismaMock.shiftReconciliation.upsert).not.toHaveBeenCalled();
         expect(prismaMock.shift.update).not.toHaveBeenCalled();
+    });
+
+    it('stores non-gas sales and other expenses when closing a gas shift', async () => {
+        prismaMock.shift.findUnique.mockResolvedValue({
+            id: 'shift-1',
+            status: 'OPEN',
+            dailyRecordId: 'daily-1',
+            shiftNumber: 1,
+            dailyRecord: { stationId: 'station-5', gasPrice: 18.5 },
+            meters: [
+                { nozzleNumber: 1, startReading: 1000, endReading: 1010, soldQty: null },
+                { nozzleNumber: 2, startReading: 2000, endReading: 2010, soldQty: null },
+                { nozzleNumber: 3, startReading: 3000, endReading: 3010, soldQty: null },
+                { nozzleNumber: 4, startReading: 4000, endReading: 4010, soldQty: null },
+            ],
+        });
+        prismaMock.gaugeReading.count.mockResolvedValue(3);
+        prismaMock.shiftReconciliation.upsert.mockResolvedValue({});
+        prismaMock.shift.update.mockResolvedValue({});
+
+        const { POST } = await import('../src/app/api/v2/gas/[stationId]/shift/close/route');
+        const response = await POST(buildJsonRequest({
+            shiftId: 'shift-1',
+            reconciliation: {
+                cashReceived: 800,
+                creditReceived: 20,
+                cardReceived: 30,
+                transferReceived: 40,
+                nonGasSalesAmount: 100,
+                otherExpensesAmount: 25,
+                varianceNote: 'ตรวจยอดแล้ว',
+            },
+        }) as never, {
+            params: Promise.resolve({ stationId: 'station-5' }),
+        });
+
+        expect(response.status).toBe(200);
+        expect(prismaMock.shiftReconciliation.upsert).toHaveBeenCalledWith(expect.objectContaining({
+            update: expect.objectContaining({
+                expectedFuelAmount: 740,
+                expectedOtherAmount: 75,
+                totalExpected: 815,
+                transferReceived: 70,
+                totalReceived: 890,
+                variance: 75,
+            }),
+        }));
+        expect(prismaMock.shift.update).toHaveBeenCalledWith({
+            where: { id: 'shift-1' },
+            data: expect.objectContaining({
+                status: 'CLOSED',
+                closedById: 'user-1',
+                varianceNote: 'ตรวจยอดแล้ว | cardReceived=30.00 | nonGasSalesAmount=100.00 | otherExpensesAmount=25.00',
+            }),
+        });
+        await expect(response.json()).resolves.toMatchObject({
+            success: true,
+            summary: {
+                expectedFuel: 740,
+                expectedOther: 75,
+                nonGasSalesAmount: 100,
+                otherExpensesAmount: 25,
+                expected: 815,
+                received: 890,
+                variance: 75,
+            },
+        });
     });
 
     it('blocks start-meter edits once the shift already has sales', async () => {

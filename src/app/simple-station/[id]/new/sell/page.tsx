@@ -45,7 +45,7 @@ export default function SimpleStationSellPage({ params }: { params: Promise<{ id
     const showOilFeatures = !isTankLoyStation;
     const availableFuelTypes = isTankLoyStation
         ? FUEL_TYPES.filter((type) => type.value === 'DIESEL')
-        : FUEL_TYPES.filter((type) => !type.isProduct);
+        : FUEL_TYPES.filter((type) => !('isProduct' in type && type.isProduct));
     const pageClass = isTankLoyStation
         ? 'min-h-screen bg-slate-950 text-slate-100'
         : 'min-h-screen bg-gray-100';

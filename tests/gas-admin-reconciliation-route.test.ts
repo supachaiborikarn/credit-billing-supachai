@@ -115,6 +115,8 @@ describe('gas admin reconciliation update route', () => {
                 creditReceived: 100,
                 cardReceived: 50,
                 transferReceived: 140,
+                nonGasSalesAmount: 120,
+                otherExpensesAmount: 20,
                 varianceNote: 'ทบทวนรอบบิล',
             }),
         }) as never, {
@@ -124,23 +126,28 @@ describe('gas admin reconciliation update route', () => {
         expect(response.status).toBe(200);
         expect(prismaMock.shiftReconciliation.upsert).toHaveBeenCalledWith(expect.objectContaining({
             update: expect.objectContaining({
+                expectedOtherAmount: 100,
+                totalExpected: 1290,
                 transferReceived: 190,
                 totalReceived: 1190,
-                variance: 0,
+                variance: -100,
             }),
         }));
         expect(prismaMock.shift.update).toHaveBeenCalledWith({
             where: { id: 'shift-1' },
             data: {
-                varianceNote: 'ทบทวนรอบบิล | cardReceived=50.00',
+                varianceNote: 'ทบทวนรอบบิล | cardReceived=50.00 | nonGasSalesAmount=120.00 | otherExpensesAmount=20.00',
             },
         });
         await expect(response.json()).resolves.toMatchObject({
             success: true,
             reconciliation: {
+                expectedOtherAmount: 100,
+                nonGasSalesAmount: 120,
+                otherExpensesAmount: 20,
                 cardReceived: 50,
                 transferReceived: 140,
-                varianceStatus: 'BALANCED',
+                varianceStatus: 'SHORT',
             },
         });
     });

@@ -14,7 +14,9 @@ import {
     CreditCard,
     FuelIcon,
     Smartphone,
-    AlertTriangle
+    AlertTriangle,
+    ReceiptText,
+    ShoppingBag
 } from 'lucide-react';
 import {
     formatCurrency,
@@ -65,6 +67,8 @@ export default function ShiftClosePage() {
     const [creditReceived, setCreditReceived] = useState<string>('');
     const [cardReceived, setCardReceived] = useState<string>('');
     const [transferReceived, setTransferReceived] = useState<string>('');
+    const [nonGasSalesAmount, setNonGasSalesAmount] = useState<string>('');
+    const [otherExpensesAmount, setOtherExpensesAmount] = useState<string>('');
     const [varianceNote, setVarianceNote] = useState<string>('');
 
     const [errors, setErrors] = useState<string[]>([]);
@@ -109,6 +113,10 @@ export default function ShiftClosePage() {
         return totalLiters * (shift.gasPrice || 16.09);
     };
 
+    const calculateExpectedOtherAmount = (): number => Number((
+        parsePreviewAmount(nonGasSalesAmount) - parsePreviewAmount(otherExpensesAmount)
+    ).toFixed(2));
+
     // Validate before closing
     const validate = (): boolean => {
         const newErrors: string[] = [];
@@ -130,24 +138,35 @@ export default function ShiftClosePage() {
         const parsedCreditReceived = parseAmount(creditReceived);
         const parsedCardReceived = parseAmount(cardReceived);
         const parsedTransferReceived = parseAmount(transferReceived);
+        const parsedNonGasSalesAmount = parseAmount(nonGasSalesAmount);
+        const parsedOtherExpensesAmount = parseAmount(otherExpensesAmount);
         const parsedAmounts = [
             parsedCashReceived,
             parsedCreditReceived,
             parsedCardReceived,
             parsedTransferReceived,
+            parsedNonGasSalesAmount,
+            parsedOtherExpensesAmount,
         ];
 
         if (parsedAmounts.some((amount) => !Number.isFinite(amount) || amount < 0)) {
-            newErrors.push('ยอดเงินรับจริงต้องเป็นตัวเลขไม่ติดลบ');
+            newErrors.push('ยอดเงินรับจริง ยอดขายอื่น และค่าใช้จ่ายต้องเป็นตัวเลขไม่ติดลบ');
         }
 
         // Validate amounts
-        if (parsedAmounts.every((amount) => amount === 0)) {
+        if ([
+            parsedCashReceived,
+            parsedCreditReceived,
+            parsedCardReceived,
+            parsedTransferReceived,
+        ].every((amount) => amount === 0)) {
             newErrors.push('ต้องกรอกยอดเงินอย่างน้อย 1 ช่อง');
         }
 
         // Calculate variance
-        const expected = calculateExpected();
+        const expected = calculateExpected()
+            + (Number.isFinite(parsedNonGasSalesAmount) ? parsedNonGasSalesAmount : 0)
+            - (Number.isFinite(parsedOtherExpensesAmount) ? parsedOtherExpensesAmount : 0);
         const received = parsedAmounts.every((amount) => Number.isFinite(amount))
             ? parsedCashReceived + parsedCreditReceived + parsedCardReceived + parsedTransferReceived
             : 0;
@@ -183,7 +202,9 @@ export default function ShiftClosePage() {
                         cardReceived: parseAmount(cardReceived),
                         transferReceived: parseAmount(transferReceived),
                         expectedFuelAmount: calculateExpected(),
-                        expectedOtherAmount: 0,
+                        expectedOtherAmount: calculateExpectedOtherAmount(),
+                        nonGasSalesAmount: parseAmount(nonGasSalesAmount),
+                        otherExpensesAmount: parseAmount(otherExpensesAmount),
                         varianceNote
                     }
                 })
@@ -213,8 +234,11 @@ export default function ShiftClosePage() {
         cardReceived: parsePreviewAmount(cardReceived),
         transferReceived: parsePreviewAmount(transferReceived),
         expectedFuelAmount: calculateExpected(),
-        expectedOtherAmount: 0
+        expectedOtherAmount: calculateExpectedOtherAmount()
     });
+    const expectedFuelAmount = calculateExpected();
+    const previewNonGasSalesAmount = parsePreviewAmount(nonGasSalesAmount);
+    const previewOtherExpensesAmount = parsePreviewAmount(otherExpensesAmount);
 
     if (loading) {
         return (
@@ -327,6 +351,9 @@ export default function ShiftClosePage() {
                         </div>
                         <input
                             type="number"
+                            min="0"
+                            step="0.01"
+                            inputMode="decimal"
                             value={cashReceived}
                             onChange={(e) => setCashReceived(e.target.value)}
                             className="flex-1 bg-gray-800 border border-white/10 rounded-lg px-4 py-2 text-right font-mono focus:border-orange-500 focus:outline-none"
@@ -341,6 +368,9 @@ export default function ShiftClosePage() {
                         </div>
                         <input
                             type="number"
+                            min="0"
+                            step="0.01"
+                            inputMode="decimal"
                             value={creditReceived}
                             onChange={(e) => setCreditReceived(e.target.value)}
                             className="flex-1 bg-gray-800 border border-white/10 rounded-lg px-4 py-2 text-right font-mono focus:border-orange-500 focus:outline-none"
@@ -355,6 +385,9 @@ export default function ShiftClosePage() {
                         </div>
                         <input
                             type="number"
+                            min="0"
+                            step="0.01"
+                            inputMode="decimal"
                             value={cardReceived}
                             onChange={(e) => setCardReceived(e.target.value)}
                             className="flex-1 bg-gray-800 border border-white/10 rounded-lg px-4 py-2 text-right font-mono focus:border-orange-500 focus:outline-none"
@@ -369,10 +402,53 @@ export default function ShiftClosePage() {
                         </div>
                         <input
                             type="number"
+                            min="0"
+                            step="0.01"
+                            inputMode="decimal"
                             value={transferReceived}
                             onChange={(e) => setTransferReceived(e.target.value)}
                             className="flex-1 bg-gray-800 border border-white/10 rounded-lg px-4 py-2 text-right font-mono focus:border-orange-500 focus:outline-none"
                         />
+                    </div>
+
+                    <div className="border-t border-white/10 pt-4 space-y-4">
+                        <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                            รายการเพิ่มเติม
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <div className="w-32 flex items-center gap-2 text-amber-400">
+                                <ShoppingBag size={18} />
+                                <span>ขายอื่น</span>
+                            </div>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                inputMode="decimal"
+                                value={nonGasSalesAmount}
+                                onChange={(e) => setNonGasSalesAmount(e.target.value)}
+                                placeholder="0"
+                                className="flex-1 bg-gray-800 border border-white/10 rounded-lg px-4 py-2 text-right font-mono focus:border-orange-500 focus:outline-none"
+                            />
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <div className="w-32 flex items-center gap-2 text-red-300">
+                                <ReceiptText size={18} />
+                                <span>ค่าใช้จ่าย</span>
+                            </div>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                inputMode="decimal"
+                                value={otherExpensesAmount}
+                                onChange={(e) => setOtherExpensesAmount(e.target.value)}
+                                placeholder="0"
+                                className="flex-1 bg-gray-800 border border-white/10 rounded-lg px-4 py-2 text-right font-mono focus:border-orange-500 focus:outline-none"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -381,12 +457,27 @@ export default function ShiftClosePage() {
             <div className="bg-gradient-to-r from-gray-800 to-gray-900 rounded-xl p-4 mb-4 border border-white/10">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                        <div className="text-gray-400">ยอดที่ควรได้ (มิเตอร์)</div>
+                        <div className="text-gray-400">ยอดที่ควรได้สุทธิ</div>
                         <div className="text-xl font-bold">฿{formatCurrency(reconciliationPreview.totalExpected)}</div>
                     </div>
                     <div className="text-right">
                         <div className="text-gray-400">ยอดที่รับจริง</div>
                         <div className="text-xl font-bold">฿{formatCurrency(reconciliationPreview.totalReceived)}</div>
+                    </div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 gap-1 border-t border-white/10 pt-3 text-xs text-gray-400">
+                    <div className="flex justify-between">
+                        <span>ยอดแก๊สจากมิเตอร์</span>
+                        <span className="font-mono text-gray-200">฿{formatCurrency(expectedFuelAmount)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span>+ ยอดขายอื่นที่ไม่ใช่แก๊ส</span>
+                        <span className="font-mono text-amber-300">฿{formatCurrency(previewNonGasSalesAmount)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span>- ค่าใช้จ่ายอื่นๆ</span>
+                        <span className="font-mono text-red-300">฿{formatCurrency(previewOtherExpensesAmount)}</span>
                     </div>
                 </div>
 
