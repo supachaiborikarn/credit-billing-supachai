@@ -231,6 +231,10 @@
   - verification: targeted eslint ผ่าน 0 errors (เหลือ warning `<img>`/hook legacy เดิม); `git diff --check` ผ่าน
 
 ## 2026-04-27
+- 🖨️ ตั้ง thermal receipt preset สำหรับ Epson TM-m30III
+  - ระบุ 80mm เป็นตัวเลือกแนะนำใน summary/V2 print modal
+  - ปรับ receipt CSS ให้หน้า 80mm ใช้ printable width 72mm และ 58mm ใช้ 52.5mm เพื่อลดโอกาสตัดขอบ
+  - verification: targeted eslint + `git diff --check` ผ่าน
 - 🧾 ปรับที่อยู่ใบเสร็จวัชรเกียรติออยล์และเติมเลขบิลถัดไปอัตโนมัติ
   - เปลี่ยนที่อยู่ thermal receipt ของ `station-1` เป็น 657 ถ.เจริญสุข ต.ในเมือง อ.เมือง จ.กำแพงเพชร 62000
   - เพิ่ม helper เลขบิลถัดไปและ `GET /api/station/[id]/check-bill?next=true` ให้เติม `billNo` จากเล่มล่าสุด/เล่มที่เลือก

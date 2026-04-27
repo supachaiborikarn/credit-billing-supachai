@@ -693,9 +693,12 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                                         onClick={() => setPrintPaperSize('80')}
                                         className={`rounded-xl px-3 py-2 text-sm font-bold transition-all ${printPaperSize === '80' ? 'bg-blue-500 text-white shadow' : isTankLoyStation ? 'text-slate-300' : 'text-gray-600'}`}
                                     >
-                                        80 มม.
+                                        80 มม. Epson
                                     </button>
                                 </div>
+                                <p className={`mt-2 text-xs ${isTankLoyStation ? 'text-slate-400' : 'text-gray-500'}`}>
+                                    ตั้งค่าเริ่มต้นสำหรับ Epson TM-m30III เป็น 80 มม.
+                                </p>
                             </div>
                         </div>
                         <div className={`p-4 border-t grid grid-cols-2 gap-2 ${isTankLoyStation ? 'border-white/10' : 'border-gray-100'}`}>

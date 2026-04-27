@@ -267,7 +267,7 @@ export default function TransactionCard({
                                         58 มม.
                                     </button>
                                     <button onClick={() => openPrintableDocument('receipt', '80')} className="rounded-xl border border-orange-200 bg-orange-50 px-3 py-3 text-sm font-bold text-orange-700 hover:bg-orange-100">
-                                        80 มม.
+                                        80 มม. Epson
                                     </button>
                                 </div>
                             </div>
@@ -282,10 +282,13 @@ export default function TransactionCard({
                                         58 มม.
                                     </button>
                                     <button onClick={() => openPrintableDocument('credit', '80')} className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 text-sm font-bold text-blue-700 hover:bg-blue-100">
-                                        80 มม.
+                                        80 มม. Epson
                                     </button>
                                 </div>
                             </div>
+                            <p className="text-center text-xs font-medium text-gray-500">
+                                Epson TM-m30III แนะนำกระดาษ 80 มม.
+                            </p>
                         </div>
                     </div>
                 </div>

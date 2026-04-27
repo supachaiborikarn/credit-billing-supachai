@@ -9,6 +9,13 @@ import { Printer, ArrowLeft, Home, FileText } from 'lucide-react';
 type ReceiptDocType = 'receipt' | 'credit';
 type PaperSize = '58' | '80';
 
+const PRINTER_PROFILE = {
+    model: 'Epson TM-m30III',
+    recommendedPaper: '80' as PaperSize,
+    paperWidthMm: { '58': 58, '80': 80 } as Record<PaperSize, number>,
+    printableWidthMm: { '58': 52.5, '80': 72 } as Record<PaperSize, number>,
+};
+
 interface Transaction {
     id: string;
     date: string;
@@ -75,14 +82,14 @@ function ReceiptContent({ txn, config, docNo, copyType, docType, paperSize }: {
     const paymentLabel = PAYMENT_LABELS[txn.paymentType] || txn.paymentType;
     const isCreditDocument = docType === 'credit';
     const isCompact = paperSize === '58';
-    const paperWidthMm = paperSize === '58' ? 58 : 80;
+    const printableWidthMm = PRINTER_PROFILE.printableWidthMm[paperSize];
     const receiptDate = txn.createdAt || txn.date;
     const documentTitle = isCreditDocument ? 'บิลเงินเชื่อ / ใบส่งของ' : 'ใบเสร็จรับเงิน';
 
     return (
         <div
             className={`receipt bg-white text-black mx-auto overflow-hidden ${isCompact ? 'p-2' : 'p-3'}`}
-            style={{ width: `${paperWidthMm}mm`, boxSizing: 'border-box' }}
+            style={{ width: `${printableWidthMm}mm`, boxSizing: 'border-box' }}
         >
             <style jsx>{`
                 @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
@@ -252,7 +259,8 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
     const [docType, setDocType] = useState<ReceiptDocType>(initialDocType);
     const [paperSize, setPaperSize] = useState<PaperSize>(initialPaperSize);
     const [autoPrintStarted, setAutoPrintStarted] = useState(false);
-    const paperWidthMm = paperSize === '58' ? 58 : 80;
+    const paperWidthMm = PRINTER_PROFILE.paperWidthMm[paperSize];
+    const printableWidthMm = PRINTER_PROFILE.printableWidthMm[paperSize];
 
     // Fetch Transaction
     useEffect(() => {
@@ -325,6 +333,11 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
                         margin: 0 !important;
                         background: none !important;
                     }
+                    .receipt {
+                        width: ${printableWidthMm}mm !important;
+                        margin-left: auto !important;
+                        margin-right: auto !important;
+                    }
                     /* Force page breaks properly if multiple receipts */
                     .receipt-item {
                         page-break-after: always;
@@ -380,6 +393,9 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
                         >
                             80mm
                         </button>
+                    </div>
+                    <div className="text-xs font-medium text-gray-500">
+                        โปรไฟล์: {PRINTER_PROFILE.model} • แนะนำ 80mm
                     </div>
                     <button
                         onClick={() => window.print()}
