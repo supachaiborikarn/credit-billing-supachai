@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getStartOfDayBangkok } from '@/lib/date-utils';
 import { requireStationAccessApi } from '@/lib/api-auth';
+import { ensureOpenFullStationShiftForDailyRecord } from '@/lib/full-station-shift-sync';
 
 type MeterPayload = {
     nozzleNumber: number;
@@ -105,6 +106,11 @@ export async function POST(
                 }
             });
         }
+
+        await ensureOpenFullStationShiftForDailyRecord({
+            dailyRecordId: dailyRecord.id,
+            userId: auth.user.id,
+        });
 
         return NextResponse.json({ success: true });
     } catch (error) {

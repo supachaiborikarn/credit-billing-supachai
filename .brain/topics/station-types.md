@@ -28,6 +28,7 @@
 - Staff canonical route: `/station/1/v2`
 - Admin classic route: `/station/1`
 - Legacy `/station/1/new/*` และ `/simple-station/1/new/*` ต้อง redirect เข้า `/station/1/v2` เพื่อปิดทางเข้าหน้าดำ ยกเว้น `/station/1/new/receipt` ที่ V2 ยังใช้เป็น thermal print surface
+- V2 meter start ต้องสร้าง/ผูก `Shift OPEN` ด้วยเสมอ เพราะ transaction API ต้องผูก `shiftId`; ถ้ามี daily meter start แล้วแต่ shift หาย ให้ auto-repair ผ่าน `full-station-shift-sync`
 
 ### SIMPLE Station
 - บันทึกบิลอย่างเดียว
@@ -58,3 +59,4 @@
 - 2026-04-27: ยกระดับ V2 เป็น operational command UI และเพิ่ม admin data health panel ให้แอดมินเห็นข้อมูลจาก V2 ครบในหน้าเดียว
 - 2026-04-27: บังคับ logout session พนักงาน `station-1` ที่สร้างก่อน 18:36 +07 เพื่อปิดหน้าเดิมที่เปิดค้าง และให้ login ใหม่เข้า `/station/1/v2`
 - 2026-04-28: อัปเดต route note ของ GAS ให้ใช้ `/gas/[id]` เป็น staff UI หลัก และเพิ่ม admin operations page สำหรับแก้ราคาหลัก/จัดการกะค้าง
+- 2026-04-28: ซ่อม V2 meter-start/no-shift incident และเพิ่ม auto shift sync ให้ transaction ไม่เจอ false “กรุณาเปิดกะก่อน”

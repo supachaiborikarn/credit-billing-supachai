@@ -278,6 +278,11 @@
   - verification: targeted eslint ผ่าน 0 errors (เหลือ warning legacy เดิม); `git diff --check` ผ่าน
 
 ## 2026-04-28
+- 🛢️ ซ่อม incident แท๊งลอย V2 บันทึกรายการไม่ได้หลังบันทึกมิเตอร์เริ่มต้น
+  - production วันที่ 2026-04-28 มี `DailyRecord` และรูป/เลขมิเตอร์เริ่มต้นครบ 4 หัว แต่ไม่มี `Shift OPEN` ทำให้ transaction API ตอบ “กรุณาเปิดกะก่อนบันทึกรายการของแท๊งลอย”
+  - ซ่อมข้อมูลจริงโดยสร้าง shift กะ 1 ให้ daily record วันนี้และผูก meter readings ทั้ง 4 หัวเข้า shift แล้ว
+  - เพิ่ม helper `full-station-shift-sync` ให้ V2 สร้าง/ผูก `Shift OPEN` อัตโนมัติเมื่อบันทึกมิเตอร์ และให้ transaction/bulk transaction auto-repair ถ้ามีมิเตอร์เริ่มต้นแล้วแต่ shift หาย
+  - verification: targeted eslint ผ่าน 0 errors; `git diff --check` ผ่าน
 - ⛽ ทำ GAS price edit ให้เป็นราคาหลักถาวรจนกว่าจะเปลี่ยนครั้งถัดไป
   - patch `PUT /api/v2/gas/[stationId]/price` และ `POST /api/v2/gas/[stationId]/shift/open` ให้ sync ราคาใหม่เข้า `Station.gasPrice` พร้อม audit log นอกเหนือจาก `DailyRecord`
   - เพิ่ม `/api/v2/gas/admin/operations` และหน้า `/admin/gas/operations` ให้แอดมินแก้ราคาหลัก/ราคาวันที่เลือก, เห็นกะที่เปิดค้าง, เข้า flow ปิดกะปกติ, ปิดเฉพาะกะว่างอย่างปลอดภัย และเปิดกะถัดไปจากหน้าเว็บได้

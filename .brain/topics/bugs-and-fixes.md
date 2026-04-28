@@ -139,6 +139,12 @@
 - **ไฟล์ที่แก้**: `station/[id]/v2/page`, `station/[id]/v2/components/OperationsCommandPanel`, `station/[id]/page`
 - **สถานะ**: ✅ แก้แล้ว
 
+### 🐛 Tank Loy V2 Meter-Started But No Open Shift (Apr 2026)
+- **ปัญหา**: หน้า V2 ใช้การบันทึกมิเตอร์เริ่มต้นเป็นจุดเริ่มงาน แต่ `POST /api/station/[id]/meters` เดิมสร้าง/อัปเดต `DailyRecord` + `MeterReading` เท่านั้น ไม่สร้าง `Shift OPEN`; วันที่ 2026-04-28 production จึงมีมิเตอร์เริ่มต้นครบ 4 หัวแต่ `shifts=[]` และ transaction API ตอบ “กรุณาเปิดกะก่อนบันทึกรายการของแท๊งลอย”
+- **แก้ไข**: ซ่อม production วันที่ 2026-04-28 โดยสร้าง shift กะ 1 และผูกมิเตอร์ 4 หัวเข้า shift; เพิ่ม helper `full-station-shift-sync` ให้ V2 สร้าง/ผูก shift หลังบันทึกมิเตอร์ และให้ transaction/bulk transaction auto-repair กรณีมีมิเตอร์เริ่มต้นแล้วแต่ shift หาย
+- **ไฟล์ที่แก้**: `full-station-shift-sync`, `api/station/[id]/meters`, `api/station/[id]/transactions`, `api/station/[id]/transactions/bulk`
+- **สถานะ**: ✅ แก้แล้ว
+
 ## 🔎 Current Findings
 
 ### Gas Station Audit (Apr 23, 2026)

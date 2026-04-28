@@ -4,6 +4,7 @@ import { getStartOfDayBangkok, getEndOfDayBangkok, createTransactionDate } from 
 import { requireStationAccessApi } from '@/lib/api-auth';
 import { PaymentType } from '@prisma/client';
 import { CREDIT_PAYMENT_TYPES } from '@/constants/payment-types';
+import { ensureOpenFullStationShiftForDailyRecord } from '@/lib/full-station-shift-sync';
 
 interface TransactionLine {
     fuelType: string;
@@ -91,13 +92,20 @@ export async function POST(
             });
             dailyRecordId = dailyRecord.id;
 
-            const openShift = await prisma.shift.findFirst({
+            let openShift = await prisma.shift.findFirst({
                 where: {
                     dailyRecordId: dailyRecord.id,
                     status: 'OPEN',
                 },
                 orderBy: { shiftNumber: 'desc' },
             });
+
+            if (!openShift) {
+                openShift = await ensureOpenFullStationShiftForDailyRecord({
+                    dailyRecordId: dailyRecord.id,
+                    userId,
+                });
+            }
 
             if (!openShift) {
                 return NextResponse.json(
