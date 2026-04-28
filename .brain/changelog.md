@@ -276,3 +276,11 @@
   - หน้า classic `/station/1` และ staff V2 redirect ไป login เมื่อ auth ถูกตัด เพื่อให้ login ใหม่เข้า `/station/1/v2`
   - ลบ production sessions ที่เข้าเงื่อนไขจริงแล้ว 92 รายการ เหลือ 0
   - verification: targeted eslint ผ่าน 0 errors (เหลือ warning legacy เดิม); `git diff --check` ผ่าน
+
+## 2026-04-28
+- ⛽ ทำ GAS price edit ให้เป็นราคาหลักถาวรจนกว่าจะเปลี่ยนครั้งถัดไป
+  - patch `PUT /api/v2/gas/[stationId]/price` และ `POST /api/v2/gas/[stationId]/shift/open` ให้ sync ราคาใหม่เข้า `Station.gasPrice` พร้อม audit log นอกเหนือจาก `DailyRecord`
+  - เพิ่ม `/api/v2/gas/admin/operations` และหน้า `/admin/gas/operations` ให้แอดมินแก้ราคาหลัก/ราคาวันที่เลือก, เห็นกะที่เปิดค้าง, เข้า flow ปิดกะปกติ, ปิดเฉพาะกะว่างอย่างปลอดภัย และเปิดกะถัดไปจากหน้าเว็บได้
+  - ตรวจ production DB พบ `station-5` วันที่ 2026-04-28 กะ 1 ยัง `OPEN` และมี transaction จึงต้องปิดผ่าน flow ปิดกะ ไม่ force-close
+  - backfill production `stations.gasPrice` ของ `station-5` และ `station-6` จาก 16.09 เป็น 16.49 ตามราคาล่าสุด พร้อม audit log
+  - verification: `npm run test` ผ่าน 61 tests, targeted eslint และ targeted TypeScript ผ่าน; full workspace lint/build ยังติดไฟล์ untracked `scratch/*` และ legacy lint errors นอก scope

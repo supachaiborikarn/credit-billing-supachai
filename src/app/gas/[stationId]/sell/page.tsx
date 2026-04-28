@@ -153,7 +153,7 @@ export default function SellPage() {
             setGasPrice(savedPrice);
             setPriceInput(savedPrice.toFixed(2));
             setEditingPrice(false);
-            setPriceNotice({ type: 'success', text: 'อัปเดตราคาขายวันนี้แล้ว' });
+            setPriceNotice({ type: 'success', text: 'อัปเดตราคาขายและตั้งเป็นราคาหลักแล้ว' });
         } catch (error) {
             setPriceNotice({
                 type: 'error',
@@ -300,7 +300,7 @@ export default function SellPage() {
             {/* Daily Gas Price Editor */}
             {editingPrice && (
                 <div className="bg-[#1a1a24] rounded-xl p-4 mb-4 border border-amber-500/30">
-                    <label className="block text-sm text-amber-200 mb-2">ราคาขายแก๊สวันนี้</label>
+                    <label className="block text-sm text-amber-200 mb-2">ราคาขายแก๊สหลัก</label>
                     <div className="flex gap-2">
                         <input
                             type="number"
@@ -328,7 +328,7 @@ export default function SellPage() {
                         </button>
                     </div>
                     <p className="mt-2 text-xs text-amber-200/80">
-                        ราคานี้จะใช้กับรายการขายใหม่ รายการเดิมจะคงราคาเดิม
+                        ราคานี้จะใช้กับรายการขายใหม่และเป็นราคาหลักจนกว่าจะเปลี่ยนครั้งถัดไป รายการเดิมจะคงราคาเดิม
                     </p>
                 </div>
             )}

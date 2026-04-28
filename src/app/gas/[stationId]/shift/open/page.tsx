@@ -191,13 +191,25 @@ export default function ShiftOpenPage() {
                 <div className="bg-green-900/30 rounded-2xl p-8 border border-green-500/30">
                     <CheckCircle className="mx-auto text-green-400 mb-4" size={60} />
                     <h2 className="text-2xl font-bold mb-2">มีกะที่เปิดอยู่แล้ว</h2>
-                    <p className="text-gray-400 mb-6">กรุณาปิดกะปัจจุบันก่อนเปิดกะใหม่</p>
-                    <button
-                        onClick={() => router.push(`/gas/${stationId}`)}
-                        className="bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-xl font-medium"
-                    >
-                        กลับหน้าหลัก
-                    </button>
+                    <p className="text-gray-400 mb-6">
+                        {existingShift.shiftNumber === 1
+                            ? 'ต้องปิดกะเช้าให้สำเร็จก่อนจึงจะเปิดกะบ่ายได้'
+                            : 'กรุณาปิดกะปัจจุบันก่อนเปิดกะใหม่'}
+                    </p>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+                        <button
+                            onClick={() => router.push(`/gas/${stationId}/shift/close`)}
+                            className="bg-red-600 hover:bg-red-500 text-white px-6 py-3 rounded-xl font-medium"
+                        >
+                            ไปปิดกะปัจจุบัน
+                        </button>
+                        <button
+                            onClick={() => router.push(`/gas/${stationId}`)}
+                            className="bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-xl font-medium"
+                        >
+                            กลับหน้าหลัก
+                        </button>
+                    </div>
                 </div>
             </div>
         );
@@ -262,7 +274,7 @@ export default function ShiftOpenPage() {
                     className="w-full bg-gray-800 border border-white/10 rounded-lg px-4 py-3 text-white font-mono text-xl focus:border-orange-500 focus:outline-none"
                 />
                 <p className="mt-2 text-xs text-gray-500">
-                    ราคานี้จะถูกบันทึกเป็นราคาประจำวันและใช้คำนวณยอดขายของกะนี้
+                    ราคานี้จะถูกบันทึกเป็นราคาหลักของปั๊มจนกว่าจะเปลี่ยนครั้งถัดไป และใช้คำนวณยอดขายของกะนี้
                 </p>
             </div>
 

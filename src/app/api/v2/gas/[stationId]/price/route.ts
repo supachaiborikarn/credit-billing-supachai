@@ -66,7 +66,7 @@ export async function PUT(
         const startOfDay = getStartOfDayBangkokUTC(dateKey);
         const endOfDay = getEndOfDayBangkokUTC(dateKey);
 
-        const dailyRecord = await prisma.$transaction(async (tx) => {
+        const result = await prisma.$transaction(async (tx) => {
             const existingRecord = await tx.dailyRecord.findFirst({
                 where: {
                     stationId: station.dbId,
@@ -82,6 +82,14 @@ export async function PUT(
                     gasPrice: true,
                     retailPrice: true,
                     wholesalePrice: true,
+                },
+            });
+
+            const existingStation = await tx.station.findUnique({
+                where: { id: station.dbId },
+                select: {
+                    id: true,
+                    gasPrice: true,
                 },
             });
 
@@ -114,6 +122,11 @@ export async function PUT(
                     },
                 });
 
+            await tx.station.update({
+                where: { id: station.dbId },
+                data: { gasPrice },
+            });
+
             await tx.auditLog.create({
                 data: {
                     userId: user.id,
@@ -133,19 +146,42 @@ export async function PUT(
                         stationId: station.dbId,
                         gasPrice,
                         source: 'gas-staff-price-update',
+                        persistsAsStationDefault: true,
                     },
                 },
             });
 
-            return savedRecord;
+            await tx.auditLog.create({
+                data: {
+                    userId: user.id,
+                    action: 'UPDATE',
+                    model: 'Station',
+                    recordId: station.dbId,
+                    oldData: {
+                        gasPrice: numberOrNull(existingStation?.gasPrice),
+                    },
+                    newData: {
+                        gasPrice,
+                        dateKey,
+                        source: 'gas-staff-price-update',
+                    },
+                },
+            });
+
+            return {
+                dailyRecord: savedRecord,
+                previousStationGasPrice: numberOrNull(existingStation?.gasPrice),
+            };
         });
 
         return NextResponse.json({
             success: true,
-            gasPrice: Number(dailyRecord.gasPrice),
-            dailyRecordId: dailyRecord.id,
+            gasPrice: Number(result.dailyRecord.gasPrice),
+            stationGasPrice: gasPrice,
+            previousStationGasPrice: result.previousStationGasPrice,
+            dailyRecordId: result.dailyRecord.id,
             dateKey,
-            message: 'อัปเดตราคาขายแก๊สประจำวันแล้ว',
+            message: 'อัปเดตราคาขายแก๊สและตั้งเป็นราคาหลักแล้ว',
         });
     } catch (error) {
         console.error('[Gas Price Update]:', error);

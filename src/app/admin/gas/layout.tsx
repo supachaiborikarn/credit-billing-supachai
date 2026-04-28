@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -10,6 +10,7 @@ import {
     Gauge,
     Scale,
     Settings,
+    Wrench,
     ChevronLeft,
     Menu,
     X
@@ -31,6 +32,7 @@ export default function AdminGasLayout({
         { href: '/admin/gas/reports/meters', icon: Calculator, label: 'รายงานมิเตอร์' },
         { href: '/admin/gas/gauge', icon: Gauge, label: 'ประวัติเกจ' },
         { href: '/admin/gas/reconciliation', icon: Scale, label: 'กระทบยอด' },
+        { href: '/admin/gas/operations', icon: Wrench, label: 'จัดการกะ/ราคา' },
         { href: '/admin/gas/settings', icon: Settings, label: 'ตั้งค่า' },
     ];
 

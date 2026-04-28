@@ -138,7 +138,7 @@ export default function GasStationHomePage() {
             setGasPrice(savedPrice);
             setPriceInput(savedPrice.toFixed(2));
             setEditingPrice(false);
-            setPriceMessage({ type: 'success', text: 'อัปเดตราคาขายวันนี้แล้ว' });
+            setPriceMessage({ type: 'success', text: 'อัปเดตราคาขายและตั้งเป็นราคาหลักแล้ว' });
         } catch (error) {
             setPriceMessage({
                 type: 'error',
@@ -205,7 +205,7 @@ export default function GasStationHomePage() {
                         <div>
                             <h3 className="text-lg font-medium">ราคาขายแก๊สวันนี้</h3>
                             <p className="text-sm text-gray-400">
-                                ใช้คำนวณรายการขายใหม่ของกะปัจจุบัน
+                                ใช้คำนวณรายการขายใหม่ และเป็นราคาหลักจนกว่าจะเปลี่ยนครั้งถัดไป
                             </p>
                         </div>
                     </div>

@@ -22,6 +22,7 @@ const txMock = {
     },
     station: {
         findUnique: vi.fn(),
+        update: vi.fn(),
     },
     auditLog: {
         create: vi.fn(),
@@ -227,6 +228,9 @@ describe('gas v2 route guards', () => {
             date: new Date('2026-04-22T17:00:00.000Z'),
             gasPrice: 18.75,
         });
+        txMock.station.findUnique.mockResolvedValue({ gasPrice: 16.09 });
+        txMock.station.update.mockResolvedValue({});
+        txMock.auditLog.create.mockResolvedValue({});
         txMock.shift.create.mockResolvedValue({ id: 'shift-1' });
         txMock.meterReading.create.mockResolvedValue({});
         txMock.gaugeReading.create.mockResolvedValue({});
@@ -256,8 +260,26 @@ describe('gas v2 route guards', () => {
             success: true,
             shiftId: 'shift-1',
             gasPrice: 18.75,
+            stationGasPrice: 18.75,
         });
-        expect(txMock.station.findUnique).not.toHaveBeenCalled();
+        expect(txMock.station.findUnique).toHaveBeenCalledWith({
+            where: { id: 'station-5' },
+            select: { gasPrice: true },
+        });
+        expect(txMock.station.update).toHaveBeenCalledWith({
+            where: { id: 'station-5' },
+            data: { gasPrice: 18.75 },
+        });
+        expect(txMock.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({
+                model: 'Station',
+                recordId: 'station-5',
+                newData: expect.objectContaining({
+                    gasPrice: 18.75,
+                    source: 'gas-shift-open-price-update',
+                }),
+            }),
+        }));
         expect(txMock.gasSettings.findUnique).not.toHaveBeenCalled();
         expect(txMock.dailyRecord.create).toHaveBeenCalledWith(expect.objectContaining({
             data: expect.objectContaining({
@@ -367,6 +389,8 @@ describe('gas v2 route guards', () => {
             date: new Date('2026-04-22T17:00:00.000Z'),
             gasPrice: 18.25,
         });
+        txMock.station.findUnique.mockResolvedValue({ id: 'station-5', gasPrice: 16.09 });
+        txMock.station.update.mockResolvedValue({});
         txMock.auditLog.create.mockResolvedValue({});
 
         const { PUT } = await import('../src/app/api/v2/gas/[stationId]/price/route');
@@ -381,6 +405,7 @@ describe('gas v2 route guards', () => {
             success: true,
             dailyRecordId: 'daily-1',
             gasPrice: 18.25,
+            stationGasPrice: 18.25,
         });
         expect(txMock.dailyRecord.update).toHaveBeenCalledWith(expect.objectContaining({
             where: { id: 'daily-1' },
@@ -390,12 +415,29 @@ describe('gas v2 route guards', () => {
                 wholesalePrice: 18.25,
             },
         }));
+        expect(txMock.station.update).toHaveBeenCalledWith({
+            where: { id: 'station-5' },
+            data: { gasPrice: 18.25 },
+        });
         expect(txMock.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
             data: expect.objectContaining({
                 userId: 'user-1',
                 action: 'UPDATE',
                 model: 'DailyRecord',
                 recordId: 'daily-1',
+                newData: expect.objectContaining({
+                    gasPrice: 18.25,
+                    source: 'gas-staff-price-update',
+                    persistsAsStationDefault: true,
+                }),
+            }),
+        }));
+        expect(txMock.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({
+                userId: 'user-1',
+                action: 'UPDATE',
+                model: 'Station',
+                recordId: 'station-5',
                 newData: expect.objectContaining({
                     gasPrice: 18.25,
                     source: 'gas-staff-price-update',

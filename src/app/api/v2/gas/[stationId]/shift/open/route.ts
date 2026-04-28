@@ -105,6 +105,35 @@ export async function POST(
                 });
             }
 
+            if (submittedGasPrice !== null) {
+                const existingStation = await tx.station.findUnique({
+                    where: { id: station.dbId },
+                    select: { gasPrice: true },
+                });
+
+                await tx.station.update({
+                    where: { id: station.dbId },
+                    data: { gasPrice: dailyGasPrice },
+                });
+
+                await tx.auditLog.create({
+                    data: {
+                        userId,
+                        action: 'UPDATE',
+                        model: 'Station',
+                        recordId: station.dbId,
+                        oldData: {
+                            gasPrice: existingStation?.gasPrice ? Number(existingStation.gasPrice) : null,
+                        },
+                        newData: {
+                            gasPrice: dailyGasPrice,
+                            dateKey,
+                            source: 'gas-shift-open-price-update',
+                        },
+                    },
+                });
+            }
+
             const existingShiftNumber = await tx.shift.findUnique({
                 where: {
                     dailyRecordId_shiftNumber: {
@@ -162,6 +191,7 @@ export async function POST(
                 success: true,
                 shiftId: shift.id,
                 gasPrice: Number(dailyRecord.gasPrice || dailyGasPrice),
+                stationGasPrice: Number(dailyGasPrice),
                 message: 'เปิดกะสำเร็จ',
             });
         });

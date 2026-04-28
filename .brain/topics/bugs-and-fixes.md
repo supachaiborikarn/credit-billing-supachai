@@ -16,7 +16,8 @@
      patch stale open shift date guard หลัง smoke test พบกะค้างวันก่อนบล็อกการเปิดกะวันนี้;
      patch orphan GAS transactions ให้รายงาน admin แสดงรายการไม่ผูกกะ พร้อมกัน legacy sell ไม่ให้บันทึกขายถ้าไม่มีกะเปิด;
      ปรับ GAS sale entry 2026-04-25 ให้กรอกยอดเงินเป็นหลัก โดย server คำนวณลิตรจาก `dailyRecord.gasPrice` พร้อมแยก orphan rows ใน meter report ไม่ให้ดูเป็นกะ 0/ส่วนต่างมิเตอร์จริง;
-     และ 2026-04-27 เพิ่มช่องยอดขายอื่น/ค่าใช้จ่ายอื่นตอนปิดกะ GAS v2 โดยเก็บ gross detail ผ่าน variance note helper กลางและใช้ `expectedOtherAmount` เป็นยอดสุทธิ -->
+     และ 2026-04-27 เพิ่มช่องยอดขายอื่น/ค่าใช้จ่ายอื่นตอนปิดกะ GAS v2 โดยเก็บ gross detail ผ่าน variance note helper กลางและใช้ `expectedOtherAmount` เป็นยอดสุทธิ;
+     2026-04-28 ทำ GAS price persistence ให้ staff/admin price edit sync `Station.gasPrice`, เพิ่ม admin operations page สำหรับแก้ราคาหลัก/จัดการกะค้าง และ backfill production gasPrice ล่าสุดเป็น 16.49 -->
 
 # Bugs & Fixes
 
@@ -238,6 +239,13 @@
 - **Verification**: `npm run test` ผ่าน 57 tests; targeted eslint ไฟล์ routing ที่แตะไม่มี error; `npx tsc --noEmit` ผ่านบน clean tracked tree + patch
 - **สถานะ**: ✅ พนักงาน GAS ควรเห็น v2 สีดำเป็น UI หลักเดียวแล้ว; legacy API compatibility ยังเก็บไว้สำหรับ read/repair/ข้อมูลเก่าเท่านั้น
 
+### GAS Persistent Price and Admin Operations (Apr 28, 2026)
+- **ปัญหา**: พนักงานแก้ราคาขายรายวันแล้ว `dailyRecord.gasPrice` เปลี่ยน แต่ `stations.gasPrice` ยังเป็นค่าเดิม ทำให้วันถัดไป/วันใหม่มีโอกาส fallback กลับราคาเก่า; เมื่อกะเช้ายังเปิดใน DB พนักงานเปิดกะบ่ายไม่ได้ และแอดมินไม่มีหน้าเว็บกลางสำหรับดู/ช่วยแก้ราคา/กะค้าง
+- **แก้ไข**: ให้ `PUT /api/v2/gas/[stationId]/price` และ `POST /api/v2/gas/[stationId]/shift/open` เมื่อส่งราคาใหม่ sync ไป `Station.gasPrice` พร้อม audit log; เพิ่ม `/api/v2/gas/admin/operations` และหน้า `/admin/gas/operations` ให้แอดมินแก้ราคาหลักของสถานี/วันที่เลือก, เห็นกะที่เปิดค้าง, เข้า flow ปิดกะปกติ, ปิดได้เฉพาะกะว่างที่ไม่มีรายการขาย/มิเตอร์ปิด/กระทบยอด และเห็นปุ่มเปิดกะถัดไปเมื่อปลอดภัย
+- **Production repair**: อ่าน DB จริงวันที่ 2026-04-28 พบ `station-5` shift 1 ยัง `OPEN` และมี transaction จึงไม่ force-close; backfill `stations.gasPrice` ของ `station-5` และ `station-6` จาก 16.09 เป็น 16.49 พร้อม audit log source `codex-backfill-latest-gas-price`
+- **Verification**: `npm run test` ผ่าน 61 tests; targeted eslint ไฟล์ที่แตะผ่าน; targeted TypeScript ผ่านด้วย `/tmp/credit-billing-gas-tsconfig.json`; full workspace lint/build ยังหยุดที่ไฟล์ untracked `scratch/*`/legacy lint errors ที่ไม่อยู่ใน commit scope
+- **สถานะ**: ✅ code patch + production price backfill แล้ว; กะที่มีรายการขายต้องปิดผ่านปิดกะปกติเพื่อเก็บยอดกระทบยอดให้ครบ
+
 ## ⚠️ Known Gotchas
 1. **String vs Numeric Sort**: ทุก sort ที่เกี่ยวกับตัวเลข (book, number) ต้องใช้ parseInt
 2. **Neon Data Transfer**: free tier จำกัด 5GB/month → ระวัง polling ถี่เกินไป
@@ -257,7 +265,7 @@
 16. **Tank Loy Admin Visibility**: ข้อมูลที่ V2 บังคับเก็บต้องมองเห็นใน classic admin ในหน้าเดียวเสมอ ได้แก่ รูปมิเตอร์เปิด/ปิด, สลิปโอน, หัวจ่าย, ลูกค้า, เลขบิล, ผู้บันทึก, ยอดลิตร/เงิน, และผลต่างมิเตอร์; ถ้าเพิ่ม field ใหม่ใน V2 ให้ต่อเข้าทั้ง `OperationsCommandPanel` และ `Admin Data Health`
 17. **GAS Route Consolidation**: `/gas` v2 มี gauge/auth/shift/payment hardening แล้ว แต่ยังเป็น route stack แยกจาก `/gas-station/[id]/new`; งานต่อไปควรเลือก source of truth ระยะยาวก่อนเพิ่ม feature ใหญ่
 18. **GAS Stale Open Shifts**: กะ GAS ค้างเก่าถูกปิดจริงแล้วเมื่อ 2026-04-23 พร้อม audit log; งานต่อไปถ้าเจอกะค้างใหม่ให้ใช้ `/api/admin/gas/stale-shifts` เพื่อ preview/close แบบมี confirmation และ audit log
-19. **GAS Price Source**: flow หลักของ GAS v2 (`open`/`sell`/`summary`/`close`) ต้องยึด `dailyRecord.gasPrice` เป็น source เดียวต่อ station/day; global settings ใช้ได้แค่เป็น default ตอนสร้างวันใหม่หรือเติม record ที่ยังไม่มีราคา
+19. **GAS Price Source**: flow หลักของ GAS v2 (`open`/`sell`/`summary`/`close`) ต้องยึด `dailyRecord.gasPrice` เป็น source เดียวต่อ station/day; global settings ใช้ได้แค่เป็น default ตอนสร้างวันใหม่หรือเติม record ที่ยังไม่มีราคา และทุก price edit ของ staff/admin ต้อง sync ไป `Station.gasPrice` เพื่อเป็น default หลักจนกว่าจะมีการเปลี่ยนครั้งถัดไป
 20. **GAS Shift Open Atomicity**: route เปิดกะ GAS ถูกห่อ transaction แล้ว; งานต่อไปห้ามดึงการสร้าง dailyRecord/shift/meters/gauges ออกมานอก transaction เดียว
 21. **GAS Start Reading Immutability**: start meter/start gauge ของ GAS v2 ถูกล็อกหลังกะเริ่มถูกใช้งาน (มี sale/end/reconciliation) แล้ว; ถ้าจำเป็นต้องแก้ย้อนหลังควรเปิดเป็น admin flow ที่มี audit ชัดเจนเท่านั้น
 22. **GAS Route-Level Tests**: งานที่แตะ price source/open shift/baseline guard ของ GAS v2 ต้องอัปเดต route-level tests ควบคู่กับ helper tests ไม่พึ่ง mock-only assertions อย่างเดียว
@@ -275,6 +283,7 @@
 34. **GAS Admin Data Entry Sales**: หน้า admin data-entry ต้องสร้าง/replace เฉพาะ synthetic transactions ที่ notes ขึ้นต้น `admin-data-entry:` และผูก `dailyRecordId` + `shiftId`; ห้ามเก็บยอดขายเป็นตัวเลขลอยในหน้าโดยไม่สร้าง transaction
 35. **GAS Legacy Login Redirects**: middleware/login ต้อง normalize redirect target ของ `/gas-station/[id]/new/*` เป็น `/gas/[id]` ก่อนเสมอ; ไม่งั้น user ที่เปิด bookmark เก่าตอนยังไม่ login จะยังเห็น redirect chain ผ่าน URL เก่า
 36. **GAS Other Sales/Expenses Storage**: ช่อง “ยอดขายอื่นที่ไม่ใช่แก๊ส” และ “ค่าใช้จ่ายอื่นๆ” ตอนปิดกะ GAS v2 ต้องส่งผ่าน `/api/v2/gas/[stationId]/shift/close`; backend เก็บ `expectedOtherAmount = nonGasSalesAmount - otherExpensesAmount` และเก็บ gross detail ใน `shift.varianceNote` ผ่าน `buildGasVarianceNote`/`parseGasVarianceNote` เพื่อให้ admin reports/edit อ่านชุดเดียวกัน ห้าม encode เองในหน้า UI
+37. **GAS Admin Operations Safety**: หน้า `/admin/gas/operations` ปิดกะค้างได้เฉพาะกะ `OPEN` ที่ไม่มี transaction, ไม่มี end meter, และไม่มี reconciliation เท่านั้น; ถ้ากะมีข้อมูลขายแล้วต้องพาเข้าหน้าปิดกะปกติ ไม่ force-close ผ่าน admin shortcut เพราะจะทำให้ยอดรับจริง/กระทบยอดหาย
 
 ## Changelog
 - 2026-02-24: สร้างไฟล์ brain topic นี้จากประวัติ conversations
@@ -295,6 +304,7 @@
 - 2026-04-27: harden Tank Loy V2 ให้บังคับสลิปโอน, รูปมิเตอร์, และลูกค้าเงินเชื่อทั้งฝั่ง UI/API พร้อมปรับปุ่มดูสลิป/ดูรูปให้เห็นชัดขึ้น
 - 2026-04-27: เปลี่ยน canonical staff UI ของแท๊งลอยเป็น `/station/1/v2`, ปิดทางเข้าหน้าดำ `/station/1/new/*` ด้วย redirect เข้า V2 ยกเว้น receipt และเปลี่ยน admin/login/sidebar/dashboard ให้ชี้ V2
 - 2026-04-27: ยกระดับ Tank Loy V2 ด้วย operations command panel และเพิ่ม Admin Data Health panel ให้แอดมินเห็นข้อมูลจาก V2 ครบในหน้าเดียว
+- 2026-04-28: patch GAS price persistence/admin operations: staff/admin price edit sync `Station.gasPrice`, เพิ่ม `/admin/gas/operations` สำหรับแก้ราคาหลักและจัดการกะค้างอย่างปลอดภัย, และ backfill production GAS station default price เป็น 16.49 ตามราคาล่าสุด
 - 2026-04-23: audit ปั๊มแก๊สทั้ง 2 สาขา พบ route/API ซ้อนกัน, `/api/v2/gas/[stationId]/gauge` ขาด, auth/ownership gaps ใน GAS v2/legacy routes, payment type drift, transaction ไม่ผูก `shiftId` ใน v2 sell, station-5 `hasProducts` config/DB ไม่ตรง, และ DB จริงมีกะ GAS ค้างจำนวนมาก
 - 2026-04-23: implement GAS hardening ตาม audit: เพิ่ม v2 gauge route, helper guard กลาง, station ownership checks, v2 sell/summary shift scope, payment normalize `CREDIT_CARD`/`TRANSFER`, product guard เฉพาะ station-5 พร้อม sync DB, admin stale-shift cleanup endpoint, eslint ignore สำหรับ ad hoc scripts, และ tests เฉพาะ GAS
 - 2026-04-23: ปิด GAS `OPEN` shifts ค้างใน DB จริงครบ 70 กะ (`station-5` 57, `station-6` 13), เติม end meter ที่ว่าง 16 จุดด้วยค่า start เดิม, ปิด daily records ที่ไม่มี open shift เหลือ 67 records, และสร้าง audit log ครบ 70 รายการ

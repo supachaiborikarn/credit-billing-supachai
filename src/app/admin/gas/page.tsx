@@ -308,6 +308,15 @@ export default function AdminGasDashboardPage() {
                     <div className="font-medium">ใส่ข้อมูลย้อนหลัง</div>
                     <div className="text-sm text-gray-400">บันทึกมิเตอร์/เกจ/ยอดขาย</div>
                 </Link>
+
+                <Link
+                    href="/admin/gas/operations"
+                    className="bg-[#1a1a24] rounded-xl p-4 border border-amber-500/30 hover:border-amber-500/50 transition-colors group"
+                >
+                    <div className="text-amber-400 group-hover:text-amber-300 mb-2">🛠️</div>
+                    <div className="font-medium">จัดการกะ/ราคา</div>
+                    <div className="text-sm text-gray-400">แก้ราคาหลักและช่วยปิดกะค้าง</div>
+                </Link>
             </div>
         </div>
     );

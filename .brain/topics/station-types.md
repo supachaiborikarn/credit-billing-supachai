@@ -1,5 +1,5 @@
 <!-- SUMMARY: 6 สถานี: แท๊งลอยวัชรเกียรติ (FULL) ใช้ staff route เดียว `/station/1/v2` และคง classic admin ที่ `/station/1`;
-     วัชรเกียรติออยล์/พงษ์อนันต์/ศุภชัยบริการ (SIMPLE), ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS), แต่ละแบบมี route และ features ต่างกัน -->
+     วัชรเกียรติออยล์/พงษ์อนันต์/ศุภชัยบริการ (SIMPLE), ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS) ใช้ staff route หลัก `/gas/[id]` และ admin `/admin/gas/*`, แต่ละแบบมี route และ features ต่างกัน -->
 
 # Station Types
 
@@ -14,8 +14,8 @@
 | 2 | วัชรเกียรติออยล์ | SIMPLE | `/simple-station/[id]` | บันทึกบิลอย่างเดียว |
 | 3 | พงษ์อนันต์ปิโตรเลียม | SIMPLE | `/simple-station/[id]` | บันทึกบิลอย่างเดียว |
 | 4 | ศุภชัยบริการ | SIMPLE | `/simple-station/[id]` | บันทึกบิลอย่างเดียว |
-| 5 | ปั๊มแก๊สพงษ์อนันต์ | GAS | `/gas-station/[id]` | แก๊ส + สินค้า |
-| 6 | ปั๊มแก๊สศุภชัย | GAS | `/gas-station/[id]` | แก๊สอย่างเดียว |
+| 5 | ปั๊มแก๊สพงษ์อนันต์ | GAS | `/gas/[id]` | แก๊ส + สินค้า |
+| 6 | ปั๊มแก๊สศุภชัย | GAS | `/gas/[id]` | แก๊สอย่างเดียว |
 
 ## Station Type Features
 
@@ -44,7 +44,8 @@
 - **FULL staff UI implementation**: `/src/app/station/[id]/v2/page.tsx` และ components ใต้ `/src/app/station/[id]/v2/components` โดยมี `OperationsCommandPanel` เป็น command center สำหรับสถานะมิเตอร์/หลักฐาน/ยอดขาย
 - **FULL admin health implementation**: `/src/app/station/[id]/page.tsx` มี `Admin Data Health` panel เพื่อแสดงข้อมูลจาก V2 ครบทั้งรูปมิเตอร์, สลิปโอน, เลขบิล, ลูกค้าเงินเชื่อ, ยอดลิตร/เงิน และผลต่างมิเตอร์
 - **FULL thermal receipt implementation**: `/src/app/station/[id]/new/receipt/page.tsx` (re-export จาก simple receipt สำหรับ V2 print)
-- **GAS UI**: `/src/app/gas-station/[id]/page.tsx`
+- **GAS staff UI**: `/src/app/gas/[stationId]/page.tsx`
+- **GAS admin operations**: `/src/app/admin/gas/operations/page.tsx`
 - **Constants**: `/src/constants/index.ts`
 
 ## Changelog
@@ -56,3 +57,4 @@
 - 2026-04-27: เปลี่ยน canonical staff route ของแท๊งลอยเป็น `/station/1/v2`; ปุ่มจาก admin/login/sidebar/dashboard ชี้ V2 และ legacy `/station/1/new/*` redirect เข้า V2 ยกเว้น receipt
 - 2026-04-27: ยกระดับ V2 เป็น operational command UI และเพิ่ม admin data health panel ให้แอดมินเห็นข้อมูลจาก V2 ครบในหน้าเดียว
 - 2026-04-27: บังคับ logout session พนักงาน `station-1` ที่สร้างก่อน 18:36 +07 เพื่อปิดหน้าเดิมที่เปิดค้าง และให้ login ใหม่เข้า `/station/1/v2`
+- 2026-04-28: อัปเดต route note ของ GAS ให้ใช้ `/gas/[id]` เป็น staff UI หลัก และเพิ่ม admin operations page สำหรับแก้ราคาหลัก/จัดการกะค้าง
