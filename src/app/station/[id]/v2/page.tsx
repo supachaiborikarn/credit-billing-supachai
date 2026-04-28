@@ -17,7 +17,7 @@ import TimeBasedReminder from '@/components/TimeBasedReminder';
 import PreviousDayBlocker from './components/PreviousDayBlocker';
 import OperationsCommandPanel from './components/OperationsCommandPanel';
 import { Printer, Settings } from 'lucide-react';
-import { printDailyWorkReport } from '@/lib/daily-report-print';
+import { printDailyWorkReport, printThermalDailyWorkReport } from '@/lib/daily-report-print';
 
 interface MeterReading {
     nozzleNumber: number;
@@ -178,25 +178,31 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
         fetchDailyData();
     };
 
-    const handlePrintDailyReport = () => {
+    const getPrintableDailyMeters = () => (dailyRecord?.meters || []).map((meter) => ({
+        nozzleNumber: meter.nozzleNumber,
+        startReading: Number(meter.startReading || 0),
+        endReading: meter.endReading == null ? null : Number(meter.endReading),
+        liters: meter.endReading == null
+            ? 0
+            : Math.max(Number(meter.endReading || 0) - Number(meter.startReading || 0), 0),
+    }));
+
+    const handlePrintDailyReport = (paper: 'a4' | '58' | '80') => {
         if (!station) {
             alert('ไม่พบข้อมูลสถานีสำหรับพิมพ์รายงาน');
             return;
         }
 
-        const opened = printDailyWorkReport({
+        const reportPayload = {
             stationName: station.name,
             reportDate: selectedDate,
             transactions,
-            meters: (dailyRecord?.meters || []).map((meter) => ({
-                nozzleNumber: meter.nozzleNumber,
-                startReading: Number(meter.startReading || 0),
-                endReading: meter.endReading == null ? null : Number(meter.endReading),
-                liters: meter.endReading == null
-                    ? 0
-                    : Math.max(Number(meter.endReading || 0) - Number(meter.startReading || 0), 0),
-            })),
-        });
+            meters: getPrintableDailyMeters(),
+        };
+
+        const opened = paper === 'a4'
+            ? printDailyWorkReport(reportPayload)
+            : printThermalDailyWorkReport({ ...reportPayload, paperSize: paper });
 
         if (!opened) {
             alert('กรุณาอนุญาตให้เปิด popup เพื่อพิมพ์รายงาน');
@@ -418,13 +424,35 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
                     onChange={(e) => setSelectedDate(e.target.value)}
                     className="w-full rounded-xl bg-white/15 px-4 py-2.5 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-orange-200"
                 />
-                <button
-                    onClick={handlePrintDailyReport}
-                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 font-bold text-slate-900 shadow-sm transition active:scale-[0.98]"
-                >
-                    <Printer size={18} />
-                    พิมพ์สรุปวัน + กระทบยอดมิเตอร์
-                </button>
+                <div className="mt-3 rounded-2xl bg-white/12 p-2 ring-1 ring-white/15">
+                    <div className="mb-2 flex items-center gap-2 px-1 text-sm font-bold text-white">
+                        <Printer size={16} />
+                        พิมพ์สรุปวัน
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                        <button
+                            onClick={() => handlePrintDailyReport('80')}
+                            className="rounded-xl bg-white px-2 py-3 text-sm font-extrabold text-slate-900 shadow-sm transition active:scale-[0.98]"
+                        >
+                            80mm
+                            <span className="block text-[10px] font-semibold text-orange-600">TM-m30III</span>
+                        </button>
+                        <button
+                            onClick={() => handlePrintDailyReport('58')}
+                            className="rounded-xl bg-white/90 px-2 py-3 text-sm font-extrabold text-slate-900 shadow-sm transition active:scale-[0.98]"
+                        >
+                            58mm
+                            <span className="block text-[10px] font-semibold text-slate-500">ใบยาว</span>
+                        </button>
+                        <button
+                            onClick={() => handlePrintDailyReport('a4')}
+                            className="rounded-xl bg-slate-900/70 px-2 py-3 text-sm font-extrabold text-white ring-1 ring-white/20 transition active:scale-[0.98]"
+                        >
+                            A4
+                            <span className="block text-[10px] font-semibold text-slate-300">เต็มหน้า</span>
+                        </button>
+                    </div>
+                </div>
             </header>
 
             <main className="p-4 space-y-4 pb-52">

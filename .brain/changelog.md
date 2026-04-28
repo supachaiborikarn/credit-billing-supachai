@@ -278,6 +278,11 @@
   - verification: targeted eslint ผ่าน 0 errors (เหลือ warning legacy เดิม); `git diff --check` ผ่าน
 
 ## 2026-04-28
+- 🖨️ เพิ่ม thermal daily summary สำหรับ Epson TM-m30III
+  - เพิ่มตัวเลือกพิมพ์สรุปวัน `80mm`, `58mm`, และ `A4` ในหน้า `/station/1/v2`
+  - เพิ่ม `printThermalDailyWorkReport` สำหรับกระดาษใบยาว 58/80mm โดยใช้ printable width 52.5mm/72mm ตาม preset Epson TM-m30III
+  - รายงาน thermal มียอดรวม, สรุปชำระ, กระทบยอดลิตร, เลขเปิด-ปิดมิเตอร์ และรายการเติมทั้งหมดในรูปแบบแคบอ่านง่าย
+  - verification: targeted eslint ผ่าน 0 errors (เหลือ warning hook legacy เดิมใน V2 page); `git diff --check` ผ่าน
 - 🖨️ เพิ่มพิมพ์สรุปวันใน Tank Loy V2 พร้อมกระทบยอดมิเตอร์
   - เพิ่มปุ่ม “พิมพ์สรุปวัน + กระทบยอดมิเตอร์” ใน header `/station/1/v2`
   - ใช้ `printDailyWorkReport` จากข้อมูล V2 ปัจจุบัน: รายการเติมทั้งวัน, เลขเปิด-ปิดมิเตอร์ 4 หัว, ยอดรวมลิตร/เงิน และผลต่างลิตรระหว่างรายการเติมกับมิเตอร์

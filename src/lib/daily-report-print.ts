@@ -31,6 +31,14 @@ interface PrintDailyWorkReportInput {
     meters?: PrintableDailyMeter[];
 }
 
+type ThermalPaperSize = '58' | '80';
+
+const THERMAL_DAILY_PRINTER_PROFILE = {
+    model: 'Epson TM-m30III',
+    paperWidthMm: { '58': 58, '80': 80 } as Record<ThermalPaperSize, number>,
+    printableWidthMm: { '58': 52.5, '80': 72 } as Record<ThermalPaperSize, number>,
+};
+
 const PAYMENT_LABELS: Record<string, string> = {
     CASH: 'เงินสด',
     CREDIT: 'เงินเชื่อ',
@@ -90,17 +98,7 @@ function getFuelLabel(fuelType?: string | null): string {
     return fuelLabelMap[fuelType] || fuelType;
 }
 
-export function printDailyWorkReport({
-    stationName,
-    reportDate,
-    transactions,
-    meters = [],
-}: PrintDailyWorkReportInput): boolean {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-        return false;
-    }
-
+function buildDailyReportModel(transactions: PrintableDailyTransaction[], meters: PrintableDailyMeter[]) {
     const sortedTransactions = [...transactions].sort((a, b) => {
         return new Date(a.date).getTime() - new Date(b.date).getTime();
     });
@@ -132,14 +130,57 @@ export function printDailyWorkReport({
     const hasMeterAmount = normalizedMeters.some((meter) => meter.amount !== null);
     const litersDiff = totalLiters - totalMeterLiters;
     const diffOk = Math.abs(litersDiff) <= 1;
-    const paymentTotals = sortedTransactions.reduce<Record<string, number>>((totals, transaction) => {
-        totals[transaction.paymentType] = (totals[transaction.paymentType] || 0) + Number(transaction.amount || 0);
+    const paymentTotals = sortedTransactions.reduce<Record<string, { amount: number; liters: number; count: number }>>((totals, transaction) => {
+        const current = totals[transaction.paymentType] || { amount: 0, liters: 0, count: 0 };
+        totals[transaction.paymentType] = {
+            amount: current.amount + Number(transaction.amount || 0),
+            liters: current.liters + Number(transaction.liters || 0),
+            count: current.count + 1,
+        };
         return totals;
     }, {});
 
+    return {
+        sortedTransactions,
+        totalLiters,
+        totalAmount,
+        normalizedMeters,
+        totalMeterLiters,
+        totalMeterAmount,
+        hasMeterAmount,
+        litersDiff,
+        diffOk,
+        paymentTotals,
+    };
+}
+
+export function printDailyWorkReport({
+    stationName,
+    reportDate,
+    transactions,
+    meters = [],
+}: PrintDailyWorkReportInput): boolean {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        return false;
+    }
+
+    const {
+        sortedTransactions,
+        totalLiters,
+        totalAmount,
+        normalizedMeters,
+        totalMeterLiters,
+        totalMeterAmount,
+        hasMeterAmount,
+        litersDiff,
+        diffOk,
+        paymentTotals,
+    } = buildDailyReportModel(transactions, meters);
+
     const paymentSummaryText = Object.entries(paymentTotals)
         .sort(([left], [right]) => getPaymentLabel(left).localeCompare(getPaymentLabel(right), 'th'))
-        .map(([paymentType, amount]) => `${getPaymentLabel(paymentType)} ${formatCurrency(amount)}`)
+        .map(([paymentType, total]) => `${getPaymentLabel(paymentType)} ${formatCurrency(total.amount)}`)
         .join(' | ');
 
     const meterRows = normalizedMeters.length > 0
@@ -418,6 +459,241 @@ export function printDailyWorkReport({
     <div class="footer">พิมพ์เมื่อ ${escapeHtml(new Date().toLocaleString('th-TH'))}</div>
     </div>
 
+    <script>
+        window.onload = function () {
+            window.print();
+        };
+    </script>
+</body>
+</html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+    return true;
+}
+
+export function printThermalDailyWorkReport({
+    stationName,
+    reportDate,
+    transactions,
+    meters = [],
+    paperSize,
+}: PrintDailyWorkReportInput & { paperSize: ThermalPaperSize }): boolean {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        return false;
+    }
+
+    const {
+        sortedTransactions,
+        totalLiters,
+        totalAmount,
+        normalizedMeters,
+        totalMeterLiters,
+        litersDiff,
+        diffOk,
+        paymentTotals,
+    } = buildDailyReportModel(transactions, meters);
+
+    const paperWidthMm = THERMAL_DAILY_PRINTER_PROFILE.paperWidthMm[paperSize];
+    const printableWidthMm = THERMAL_DAILY_PRINTER_PROFILE.printableWidthMm[paperSize];
+    const isCompact = paperSize === '58';
+
+    const paymentRows = Object.entries(paymentTotals)
+        .sort(([left], [right]) => getPaymentLabel(left).localeCompare(getPaymentLabel(right), 'th'))
+        .map(([paymentType, total]) => `
+            <div class="line-row">
+                <span>${escapeHtml(getPaymentLabel(paymentType))} (${escapeHtml(total.count)})</span>
+                <span>${escapeHtml(formatCurrency(total.amount))}</span>
+            </div>
+        `).join('');
+
+    const meterRows = normalizedMeters.length > 0
+        ? normalizedMeters.map((meter) => `
+            <div class="meter-row">
+                <div class="row-title">หัว ${escapeHtml(meter.nozzleNumber)} ${escapeHtml(meter.fuelType || 'ดีเซล B7')}</div>
+                <div class="line-row small"><span>เปิด</span><span>${escapeHtml(formatCurrency(meter.startReading))}</span></div>
+                <div class="line-row small"><span>ปิด</span><span>${meter.endReading === null ? '-' : escapeHtml(formatCurrency(meter.endReading))}</span></div>
+                <div class="line-row small"><span>ลิตร</span><span>${escapeHtml(formatCurrency(meter.liters))}</span></div>
+            </div>
+        `).join('')
+        : '<div class="empty">ไม่พบเลขมิเตอร์</div>';
+
+    const transactionRows = sortedTransactions.length > 0
+        ? sortedTransactions.map((transaction, index) => {
+            const billText = transaction.billBookNo || transaction.billNo
+                ? `${transaction.billBookNo || '-'} / ${transaction.billNo || '-'}`
+                : '-';
+            return `
+                <div class="txn-row">
+                    <div class="txn-head">
+                        <span>${index + 1}. ${escapeHtml(formatTime(transaction.date))}</span>
+                        <strong>${escapeHtml(formatCurrency(Number(transaction.amount || 0)))}</strong>
+                    </div>
+                    <div class="small muted">${escapeHtml(transaction.licensePlate || '-')} • ${escapeHtml(transaction.ownerName || '-')}</div>
+                    <div class="line-row small">
+                        <span>${escapeHtml(formatCurrency(Number(transaction.liters || 0)))} ลิตร</span>
+                        <span>${escapeHtml(getPaymentLabel(transaction.paymentType))}</span>
+                    </div>
+                    <div class="small muted">บิล ${escapeHtml(billText)}</div>
+                </div>
+            `;
+        }).join('')
+        : '<div class="empty">ไม่พบรายการเติม</div>';
+
+    const html = `
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8" />
+    <title>สรุปวัน Thermal ${paperSize}mm - ${escapeHtml(stationName)}</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 0;
+            background: #fff;
+            color: #000;
+            font-family: 'Sarabun', 'Tahoma', sans-serif;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .receipt {
+            width: ${printableWidthMm}mm;
+            margin: 0 auto;
+            padding: ${isCompact ? '2.5mm 1.2mm' : '3.5mm 2mm'};
+            font-size: ${isCompact ? '9px' : '11px'};
+            line-height: 1.25;
+        }
+        .center { text-align: center; }
+        .brand {
+            font-weight: 800;
+            font-size: ${isCompact ? '13px' : '16px'};
+            line-height: 1.15;
+        }
+        .doc-title {
+            margin-top: 2px;
+            font-weight: 800;
+            font-size: ${isCompact ? '11px' : '13px'};
+        }
+        .muted { color: #444; }
+        .small { font-size: ${isCompact ? '8px' : '9.5px'}; }
+        .dline {
+            border-top: 3px double #000;
+            margin: ${isCompact ? '5px' : '7px'} 0;
+        }
+        .line {
+            border-top: 1px solid #000;
+            margin: ${isCompact ? '5px' : '7px'} 0;
+        }
+        .dash {
+            border-top: 1px dashed #000;
+            margin: ${isCompact ? '5px' : '7px'} 0;
+        }
+        .line-row,
+        .txn-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 6px;
+        }
+        .line-row span:last-child,
+        .txn-head strong {
+            text-align: right;
+            white-space: nowrap;
+        }
+        .total-box {
+            padding: ${isCompact ? '5px 0' : '7px 0'};
+        }
+        .total-value {
+            font-size: ${isCompact ? '15px' : '19px'};
+            font-weight: 900;
+        }
+        .section-title {
+            font-weight: 800;
+            margin-bottom: 3px;
+        }
+        .reconcile {
+            padding: 4px 0;
+            font-weight: 800;
+        }
+        .meter-row,
+        .txn-row {
+            padding: ${isCompact ? '4px 0' : '5px 0'};
+            border-bottom: 1px dashed #777;
+        }
+        .row-title {
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+        .empty {
+            text-align: center;
+            color: #555;
+            padding: 8px 0;
+        }
+        .footer {
+            margin-top: 8px;
+            text-align: center;
+            font-size: ${isCompact ? '8px' : '9px'};
+        }
+        @media print {
+            @page {
+                size: ${paperWidthMm}mm 297mm;
+                margin: 0;
+            }
+            body { width: ${paperWidthMm}mm; }
+            .receipt {
+                width: ${printableWidthMm}mm !important;
+                margin-left: auto !important;
+                margin-right: auto !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="receipt">
+        <div class="center">
+            <div class="brand">${escapeHtml(stationName)}</div>
+            <div class="doc-title">รายงานสรุปวัน</div>
+            <div class="small muted">${escapeHtml(formatReportDate(reportDate))}</div>
+            <div class="small muted">${escapeHtml(THERMAL_DAILY_PRINTER_PROFILE.model)} • ${escapeHtml(paperSize)}mm</div>
+        </div>
+
+        <div class="dline"></div>
+        <div class="total-box center">
+            <div class="small muted">ยอดเงินทั้งหมด</div>
+            <div class="total-value">฿ ${escapeHtml(formatCurrency(totalAmount))}</div>
+        </div>
+        <div class="line-row"><span>จำนวนรายการ</span><strong>${escapeHtml(sortedTransactions.length)}</strong></div>
+        <div class="line-row"><span>ลิตรจากรายการเติม</span><strong>${escapeHtml(formatCurrency(totalLiters))}</strong></div>
+        <div class="line-row"><span>ลิตรจากมิเตอร์</span><strong>${escapeHtml(formatCurrency(totalMeterLiters))}</strong></div>
+        <div class="reconcile">
+            ผลต่าง: ${litersDiff > 0 ? '+' : ''}${escapeHtml(formatCurrency(litersDiff))} ลิตร ${diffOk ? '(ตรง)' : '(ตรวจสอบ)'}
+        </div>
+
+        <div class="dash"></div>
+        <div class="section-title">สรุปชำระ</div>
+        ${paymentRows || '<div class="empty">ไม่มีรายการชำระ</div>'}
+
+        <div class="dash"></div>
+        <div class="section-title">เลขเปิด-ปิดมิเตอร์</div>
+        ${meterRows}
+
+        <div class="dash"></div>
+        <div class="section-title">รายการเติมทั้งหมด</div>
+        ${transactionRows}
+
+        <div class="dline"></div>
+        <div class="line-row">
+            <span>รวมลิตร</span>
+            <strong>${escapeHtml(formatCurrency(totalLiters))}</strong>
+        </div>
+        <div class="line-row">
+            <span>รวมเงิน</span>
+            <strong>${escapeHtml(formatCurrency(totalAmount))}</strong>
+        </div>
+        <div class="footer">พิมพ์เมื่อ ${escapeHtml(new Date().toLocaleString('th-TH'))}</div>
+    </div>
     <script>
         window.onload = function () {
             window.print();

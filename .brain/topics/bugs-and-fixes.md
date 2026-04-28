@@ -151,6 +151,12 @@
 - **ไฟล์ที่แก้**: `station/[id]/v2/page`, `daily-report-print`
 - **สถานะ**: ✅ แก้แล้ว
 
+### 🐛 Tank Loy Thermal Daily Summary Print Gap (Apr 2026)
+- **ปัญหา**: รายงานสรุปวันเดิมเป็น A4 landscape เท่านั้น ยังไม่เหมาะกับเครื่องพิมพ์ความร้อน Epson TM-m30III ที่หน้างานใช้กับกระดาษ 80mm/58mm
+- **แก้ไข**: เพิ่ม `printThermalDailyWorkReport` สำหรับ 80mm/58mm พร้อม printable width 72mm/52.5mm, และเปลี่ยน V2 ให้เลือกพิมพ์ `80mm`, `58mm`, หรือ `A4` ได้จาก header โดยรายงาน thermal ยังมี summary, payment totals, meter reconciliation และรายการเติมทั้งหมด
+- **ไฟล์ที่แก้**: `daily-report-print`, `station/[id]/v2/page`
+- **สถานะ**: ✅ แก้แล้ว
+
 ## 🔎 Current Findings
 
 ### Gas Station Audit (Apr 23, 2026)
