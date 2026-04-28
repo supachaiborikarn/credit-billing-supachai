@@ -16,7 +16,8 @@ import EditTransactionModal from './components/EditTransactionModal';
 import TimeBasedReminder from '@/components/TimeBasedReminder';
 import PreviousDayBlocker from './components/PreviousDayBlocker';
 import OperationsCommandPanel from './components/OperationsCommandPanel';
-import { Settings } from 'lucide-react';
+import { Printer, Settings } from 'lucide-react';
+import { printDailyWorkReport } from '@/lib/daily-report-print';
 
 interface MeterReading {
     nozzleNumber: number;
@@ -175,6 +176,31 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
         setLastNozzle(nozzle);
         setShowRefillModal(false);
         fetchDailyData();
+    };
+
+    const handlePrintDailyReport = () => {
+        if (!station) {
+            alert('ไม่พบข้อมูลสถานีสำหรับพิมพ์รายงาน');
+            return;
+        }
+
+        const opened = printDailyWorkReport({
+            stationName: station.name,
+            reportDate: selectedDate,
+            transactions,
+            meters: (dailyRecord?.meters || []).map((meter) => ({
+                nozzleNumber: meter.nozzleNumber,
+                startReading: Number(meter.startReading || 0),
+                endReading: meter.endReading == null ? null : Number(meter.endReading),
+                liters: meter.endReading == null
+                    ? 0
+                    : Math.max(Number(meter.endReading || 0) - Number(meter.startReading || 0), 0),
+            })),
+        });
+
+        if (!opened) {
+            alert('กรุณาอนุญาตให้เปิด popup เพื่อพิมพ์รายงาน');
+        }
     };
 
     if (!station) {
@@ -392,6 +418,13 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
                     onChange={(e) => setSelectedDate(e.target.value)}
                     className="w-full rounded-xl bg-white/15 px-4 py-2.5 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-orange-200"
                 />
+                <button
+                    onClick={handlePrintDailyReport}
+                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 font-bold text-slate-900 shadow-sm transition active:scale-[0.98]"
+                >
+                    <Printer size={18} />
+                    พิมพ์สรุปวัน + กระทบยอดมิเตอร์
+                </button>
             </header>
 
             <main className="p-4 space-y-4 pb-52">

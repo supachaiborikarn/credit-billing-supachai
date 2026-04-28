@@ -111,10 +111,12 @@ export function printDailyWorkReport({
         .sort((a, b) => a.nozzleNumber - b.nozzleNumber)
         .map((meter) => {
             const startReading = Number(meter.startReading || 0);
-            const endReading = Number(meter.endReading || 0);
-            const liters = Number(meter.liters ?? Math.max(endReading - startReading, 0));
+            const hasEndReading = meter.endReading !== null && meter.endReading !== undefined && Number(meter.endReading) > 0;
+            const endReading = hasEndReading ? Number(meter.endReading) : null;
+            const liters = Number(meter.liters ?? (endReading === null ? 0 : Math.max(endReading - startReading, 0)));
             const price = Number(meter.price || 0);
-            const amount = Number(meter.amount ?? liters * price);
+            const hasAmount = (meter.amount !== null && meter.amount !== undefined) || price > 0;
+            const amount = hasAmount ? Number(meter.amount ?? liters * price) : null;
 
             return {
                 ...meter,
@@ -126,7 +128,10 @@ export function printDailyWorkReport({
             };
         });
     const totalMeterLiters = normalizedMeters.reduce((sum, meter) => sum + meter.liters, 0);
-    const totalMeterAmount = normalizedMeters.reduce((sum, meter) => sum + meter.amount, 0);
+    const totalMeterAmount = normalizedMeters.reduce((sum, meter) => sum + (meter.amount || 0), 0);
+    const hasMeterAmount = normalizedMeters.some((meter) => meter.amount !== null);
+    const litersDiff = totalLiters - totalMeterLiters;
+    const diffOk = Math.abs(litersDiff) <= 1;
     const paymentTotals = sortedTransactions.reduce<Record<string, number>>((totals, transaction) => {
         totals[transaction.paymentType] = (totals[transaction.paymentType] || 0) + Number(transaction.amount || 0);
         return totals;
@@ -143,10 +148,10 @@ export function printDailyWorkReport({
                 <td class="text-center">${escapeHtml(meter.nozzleNumber)}</td>
                 <td>${escapeHtml(meter.fuelType || 'ดีเซล B7')}</td>
                 <td class="text-right">${escapeHtml(formatCurrency(meter.startReading))}</td>
-                <td class="text-right">${escapeHtml(formatCurrency(meter.endReading))}</td>
+                <td class="text-right">${meter.endReading === null ? '-' : escapeHtml(formatCurrency(meter.endReading))}</td>
                 <td class="text-right">${escapeHtml(formatCurrency(meter.liters))}</td>
                 <td class="text-right">${escapeHtml(meter.price > 0 ? formatCurrency(meter.price) : '-')}</td>
-                <td class="text-right">${escapeHtml(formatCurrency(meter.amount))}</td>
+                <td class="text-right">${meter.amount === null ? '-' : escapeHtml(formatCurrency(meter.amount))}</td>
             </tr>
         `).join('')
         : `
@@ -226,7 +231,7 @@ export function printDailyWorkReport({
         }
         .summary-grid {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(5, minmax(0, 1fr));
             gap: 6px;
             margin-bottom: 8px;
         }
@@ -249,6 +254,23 @@ export function printDailyWorkReport({
             margin: 4px 0 8px;
             color: #374151;
             font-size: 9px;
+        }
+        .reconcile-line {
+            margin: 0 0 8px;
+            padding: 5px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+        .reconcile-line.ok {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #a7f3d0;
+        }
+        .reconcile-line.warn {
+            background: #fef2f2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
         }
         .section-title {
             margin: 8px 0 4px;
@@ -328,11 +350,18 @@ export function printDailyWorkReport({
         </div>
         <div class="summary-card">
             <div class="label">ยอดเงินตามมิเตอร์</div>
-            <div class="value">${escapeHtml(formatCurrency(totalMeterAmount))} บาท</div>
+            <div class="value">${hasMeterAmount ? `${escapeHtml(formatCurrency(totalMeterAmount))} บาท` : '-'}</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">ผลต่างลิตร</div>
+            <div class="value">${litersDiff > 0 ? '+' : ''}${escapeHtml(formatCurrency(litersDiff))}</div>
         </div>
     </div>
 
     <div class="payment-line">สรุปชำระ: ${escapeHtml(paymentSummaryText || '-')}</div>
+    <div class="reconcile-line ${diffOk ? 'ok' : 'warn'}">
+        กระทบยอดมิเตอร์: รายการเติม ${escapeHtml(formatCurrency(totalLiters))} ลิตร - มิเตอร์ ${escapeHtml(formatCurrency(totalMeterLiters))} ลิตร = ${litersDiff > 0 ? '+' : ''}${escapeHtml(formatCurrency(litersDiff))} ลิตร ${diffOk ? '(ตรงกัน)' : '(มีผลต่าง)'}
+    </div>
 
     <div class="avoid-break">
     <div class="section-title">เลขเปิด-ปิดมิเตอร์</div>
@@ -354,7 +383,7 @@ export function printDailyWorkReport({
                 <td colspan="4">รวมมิเตอร์</td>
                 <td class="text-right">${escapeHtml(formatCurrency(totalMeterLiters))}</td>
                 <td></td>
-                <td class="text-right">${escapeHtml(formatCurrency(totalMeterAmount))}</td>
+                <td class="text-right">${hasMeterAmount ? escapeHtml(formatCurrency(totalMeterAmount)) : '-'}</td>
             </tr>
         </tbody>
     </table>

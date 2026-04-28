@@ -145,6 +145,12 @@
 - **ไฟล์ที่แก้**: `full-station-shift-sync`, `api/station/[id]/meters`, `api/station/[id]/transactions`, `api/station/[id]/transactions/bulk`
 - **สถานะ**: ✅ แก้แล้ว
 
+### 🐛 Tank Loy V2 Daily Print Reconciliation Gap (Apr 2026)
+- **ปัญหา**: หน้า `/station/1/v2` มีสรุปบนจอแต่ยังไม่มีปุ่มพิมพ์รายงานสรุปวันจากหน้าใช้งานจริง และรายงาน print เดิมยังไม่โชว์ผลต่างลิตรระหว่างมิเตอร์กับรายการเติมชัดพอ
+- **แก้ไข**: เพิ่มปุ่มพิมพ์สรุปวันใน V2 ที่ส่ง transactions + meters เข้า `printDailyWorkReport`, ปรับรายงานให้มี summary card/บรรทัด “กระทบยอดมิเตอร์” และแสดงรายการเติมทั้งหมดพร้อมเลขเปิด-ปิดมิเตอร์ในใบเดียว
+- **ไฟล์ที่แก้**: `station/[id]/v2/page`, `daily-report-print`
+- **สถานะ**: ✅ แก้แล้ว
+
 ## 🔎 Current Findings
 
 ### Gas Station Audit (Apr 23, 2026)

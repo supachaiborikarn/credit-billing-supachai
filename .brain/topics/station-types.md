@@ -44,6 +44,7 @@
 ## Key Files
 - **FULL staff UI implementation**: `/src/app/station/[id]/v2/page.tsx` และ components ใต้ `/src/app/station/[id]/v2/components` โดยมี `OperationsCommandPanel` เป็น command center สำหรับสถานะมิเตอร์/หลักฐาน/ยอดขาย
 - **FULL admin health implementation**: `/src/app/station/[id]/page.tsx` มี `Admin Data Health` panel เพื่อแสดงข้อมูลจาก V2 ครบทั้งรูปมิเตอร์, สลิปโอน, เลขบิล, ลูกค้าเงินเชื่อ, ยอดลิตร/เงิน และผลต่างมิเตอร์
+- **FULL daily print report**: `/src/lib/daily-report-print.ts` ใช้กับ V2 เพื่อพิมพ์สรุปวันพร้อมเลขเปิด-ปิดมิเตอร์, รายการเติมทั้งหมด, ยอดเงินรวม และผลต่างลิตรระหว่างมิเตอร์กับรายการเติม
 - **FULL thermal receipt implementation**: `/src/app/station/[id]/new/receipt/page.tsx` (re-export จาก simple receipt สำหรับ V2 print)
 - **GAS staff UI**: `/src/app/gas/[stationId]/page.tsx`
 - **GAS admin operations**: `/src/app/admin/gas/operations/page.tsx`
@@ -60,3 +61,4 @@
 - 2026-04-27: บังคับ logout session พนักงาน `station-1` ที่สร้างก่อน 18:36 +07 เพื่อปิดหน้าเดิมที่เปิดค้าง และให้ login ใหม่เข้า `/station/1/v2`
 - 2026-04-28: อัปเดต route note ของ GAS ให้ใช้ `/gas/[id]` เป็น staff UI หลัก และเพิ่ม admin operations page สำหรับแก้ราคาหลัก/จัดการกะค้าง
 - 2026-04-28: ซ่อม V2 meter-start/no-shift incident และเพิ่ม auto shift sync ให้ transaction ไม่เจอ false “กรุณาเปิดกะก่อน”
+- 2026-04-28: เพิ่มปุ่มพิมพ์สรุปวันใน V2 พร้อมกระทบยอดมิเตอร์เทียบรายการเติมในรายงานเดียว
