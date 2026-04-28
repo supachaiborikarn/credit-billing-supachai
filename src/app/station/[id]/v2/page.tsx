@@ -332,6 +332,42 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
             case 'summary':
                 return (
                     <>
+                        <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
+                            <div className="mb-3 flex items-start gap-3">
+                                <div className="rounded-xl bg-orange-100 p-2 text-orange-600">
+                                    <Printer size={20} />
+                                </div>
+                                <div>
+                                    <h2 className="font-bold text-gray-900">พิมพ์สรุปวัน</h2>
+                                    <p className="text-sm text-gray-500">
+                                        เลือกขนาดกระดาษสำหรับรายงานกระทบยอดมิเตอร์และรายการเติม
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                                <button
+                                    onClick={() => handlePrintDailyReport('80')}
+                                    className="rounded-xl bg-orange-500 px-3 py-3 text-sm font-extrabold text-white shadow-sm transition active:scale-[0.98]"
+                                >
+                                    80mm
+                                    <span className="block text-[10px] font-semibold text-orange-50">TM-m30III</span>
+                                </button>
+                                <button
+                                    onClick={() => handlePrintDailyReport('58')}
+                                    className="rounded-xl bg-gray-100 px-3 py-3 text-sm font-extrabold text-gray-900 transition active:scale-[0.98]"
+                                >
+                                    58mm
+                                    <span className="block text-[10px] font-semibold text-gray-500">ใบยาว</span>
+                                </button>
+                                <button
+                                    onClick={() => handlePrintDailyReport('a4')}
+                                    className="rounded-xl bg-slate-900 px-3 py-3 text-sm font-extrabold text-white transition active:scale-[0.98]"
+                                >
+                                    A4
+                                    <span className="block text-[10px] font-semibold text-slate-300">เต็มหน้า</span>
+                                </button>
+                            </div>
+                        </section>
                         <DailySummary
                             meterTotal={meterTotal}
                             transactionTotal={transactionTotal}
@@ -424,32 +460,6 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
                     onChange={(e) => setSelectedDate(e.target.value)}
                     className="w-full rounded-xl bg-white/15 px-4 py-2.5 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-orange-200"
                 />
-                <div className="mt-2 flex items-center gap-2 rounded-xl bg-white/12 p-1.5 ring-1 ring-white/15">
-                    <div className="flex shrink-0 items-center gap-1 px-1 text-xs font-bold text-white">
-                        <Printer size={14} />
-                        สรุปวัน
-                    </div>
-                    <div className="grid flex-1 grid-cols-3 gap-1.5">
-                        <button
-                            onClick={() => handlePrintDailyReport('80')}
-                            className="rounded-lg bg-white px-2 py-1.5 text-xs font-extrabold text-slate-900 shadow-sm transition active:scale-[0.98]"
-                        >
-                            80mm
-                        </button>
-                        <button
-                            onClick={() => handlePrintDailyReport('58')}
-                            className="rounded-lg bg-white/90 px-2 py-1.5 text-xs font-extrabold text-slate-900 shadow-sm transition active:scale-[0.98]"
-                        >
-                            58mm
-                        </button>
-                        <button
-                            onClick={() => handlePrintDailyReport('a4')}
-                            className="rounded-lg bg-slate-900/70 px-2 py-1.5 text-xs font-extrabold text-white ring-1 ring-white/20 transition active:scale-[0.98]"
-                        >
-                            A4
-                        </button>
-                    </div>
-                </div>
             </header>
 
             <main className="p-4 space-y-4 pb-28">

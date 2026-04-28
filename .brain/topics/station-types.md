@@ -63,5 +63,5 @@
 - 2026-04-28: ซ่อม V2 meter-start/no-shift incident และเพิ่ม auto shift sync ให้ transaction ไม่เจอ false “กรุณาเปิดกะก่อน”
 - 2026-04-28: เพิ่มปุ่มพิมพ์สรุปวันใน V2 พร้อมกระทบยอดมิเตอร์เทียบรายการเติมในรายงานเดียว
 - 2026-04-28: เพิ่ม thermal daily summary 58/80mm สำหรับ Epson TM-m30III ในหน้า V2
-- 2026-04-28: ปรับ Tank Loy V2 layout ให้แผงพิมพ์สรุปวันเป็น compact header control และย้ายปุ่มบันทึกการเติมเข้า content flow แทน fixed overlay เพื่อไม่บังหน้าทำงาน
+- 2026-04-28: ปรับ Tank Loy V2 layout ให้แผงพิมพ์สรุปวันอยู่เฉพาะแท็บ `สรุป` และย้ายปุ่มบันทึกการเติมเข้า content flow แทน fixed overlay เพื่อไม่บังหน้าทำงาน
 - 2026-04-28: harden GAS staff open-shift ให้ไม่กดแล้วเงียบ, รองรับตัวเลขแบบ comma/เลขไทย, auto-scroll error, และให้เลือกกะบ่ายได้เมื่อยังไม่มีกะของวันนั้นในระบบ

@@ -338,7 +338,7 @@
 - 2026-04-27: harden Tank Loy V2 ให้บังคับสลิปโอน, รูปมิเตอร์, และลูกค้าเงินเชื่อทั้งฝั่ง UI/API พร้อมปรับปุ่มดูสลิป/ดูรูปให้เห็นชัดขึ้น
 - 2026-04-27: เปลี่ยน canonical staff UI ของแท๊งลอยเป็น `/station/1/v2`, ปิดทางเข้าหน้าดำ `/station/1/new/*` ด้วย redirect เข้า V2 ยกเว้น receipt และเปลี่ยน admin/login/sidebar/dashboard ให้ชี้ V2
 - 2026-04-27: ยกระดับ Tank Loy V2 ด้วย operations command panel และเพิ่ม Admin Data Health panel ให้แอดมินเห็นข้อมูลจาก V2 ครบในหน้าเดียว
-- 2026-04-28: แก้ Tank Loy V2 sticky controls ทับหน้าจอ: ย่อแผงพิมพ์สรุปวันใน header ให้เป็นแถบ compact และย้ายปุ่ม “บันทึกการเติม” ออกจาก fixed overlay มาอยู่ใน content flow เพื่อไม่บังฟอร์ม/รายการบน mobile
+- 2026-04-28: แก้ Tank Loy V2 sticky controls ทับหน้าจอ: ย้ายปุ่ม “บันทึกการเติม” ออกจาก fixed overlay มาอยู่ใน content flow และย้ายแผงพิมพ์สรุปวันออกจาก header ไปอยู่เฉพาะแท็บ `สรุป` เพื่อไม่บังฟอร์ม/รายการบน mobile
 - 2026-04-28: patch GAS price persistence/admin operations: staff/admin price edit sync `Station.gasPrice`, เพิ่ม `/admin/gas/operations` สำหรับแก้ราคาหลักและจัดการกะค้างอย่างปลอดภัย, และ backfill production GAS station default price เป็น 16.49 ตามราคาล่าสุด
 - 2026-04-28: ยกระดับ GAS admin data-entry ให้สร้าง/แก้กะตามวันที่จากแอดมินได้โดยตรงทั้ง `OPEN`/`CLOSED`, เพิ่มเกจเปิด/ปิด, ราคาก๊าซ, ยอดขายอื่น/ค่าใช้จ่าย, reconciliation และลิงก์จากหน้า operations
 - 2026-04-28: harden หน้า GAS staff open-shift หลังพบ log มีแต่ GET ไม่มี POST: เพิ่ม form submit/auto-scroll error/timeout/non-JSON error handling/numeric normalization และ manual shift choice เมื่อยังไม่มีกะของวันนั้น
