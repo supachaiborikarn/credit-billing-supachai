@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
     Play,
@@ -23,6 +23,45 @@ interface GaugeInput {
     percentage: string;
 }
 
+const THAI_DIGITS: Record<string, string> = {
+    '๐': '0',
+    '๑': '1',
+    '๒': '2',
+    '๓': '3',
+    '๔': '4',
+    '๕': '5',
+    '๖': '6',
+    '๗': '7',
+    '๘': '8',
+    '๙': '9',
+};
+
+function normalizeNumericText(value: string): string {
+    return value
+        .trim()
+        .replace(/[๐-๙]/g, (digit) => THAI_DIGITS[digit] || digit)
+        .replace(/,/g, '');
+}
+
+function parseNumericInput(value: string): number | null {
+    const normalized = normalizeNumericText(value);
+    if (!normalized) return null;
+
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+async function readResponseBody(res: Response): Promise<{ error?: string; errors?: string[] } | null> {
+    const text = await res.text();
+    if (!text) return null;
+
+    try {
+        return JSON.parse(text);
+    } catch {
+        return { error: text.slice(0, 200) };
+    }
+}
+
 export default function ShiftOpenPage() {
     const params = useParams();
     const router = useRouter();
@@ -33,8 +72,10 @@ export default function ShiftOpenPage() {
     const [existingShift, setExistingShift] = useState<{ id: string; shiftNumber?: number; status?: string } | null>(null);
     const [dayComplete, setDayComplete] = useState(false);
     const [nextShiftNumber, setNextShiftNumber] = useState(1);
+    const [allowManualShiftChoice, setAllowManualShiftChoice] = useState(false);
     const [step, setStep] = useState<'meters' | 'gauge' | 'confirm'>('meters');
     const [gasPrice, setGasPrice] = useState('16.09');
+    const errorRef = useRef<HTMLDivElement | null>(null);
 
     // Meter readings
     const [meters, setMeters] = useState<MeterInput[]>(
@@ -61,10 +102,15 @@ export default function ShiftOpenPage() {
                     const data = await res.json();
                     if (data.shift && data.shift.status === 'OPEN') {
                         setExistingShift(data.shift);
+                        setAllowManualShiftChoice(false);
                     } else if (data.shift?.shiftNumber === 1) {
                         setNextShiftNumber(2);
+                        setAllowManualShiftChoice(false);
                     } else if (data.shift?.shiftNumber >= 2) {
                         setDayComplete(true);
+                        setAllowManualShiftChoice(false);
+                    } else {
+                        setAllowManualShiftChoice(true);
                     }
                 }
                 if (summaryRes.ok) {
@@ -82,6 +128,11 @@ export default function ShiftOpenPage() {
         checkShift();
     }, [stationId]);
 
+    useEffect(() => {
+        if (errors.length === 0) return;
+        errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, [errors]);
+
     const handleMeterChange = (index: number, value: string) => {
         const updated = [...meters];
         updated[index].reading = value;
@@ -94,27 +145,44 @@ export default function ShiftOpenPage() {
         setGauges(updated);
     };
 
-    const validateMeters = (): boolean => {
+    const buildMeterPayload = () => {
         const newErrors: string[] = [];
+        const payload: { nozzleNumber: number; reading: number }[] = [];
         for (const m of meters) {
-            if (!m.reading || parseFloat(m.reading) < 0) {
-                newErrors.push(`หัวจ่าย ${m.nozzleNumber}: ต้องกรอกตัวเลข`);
+            const reading = parseNumericInput(m.reading);
+            if (reading === null || reading < 0) {
+                newErrors.push(`หัวจ่าย ${m.nozzleNumber}: ต้องกรอกตัวเลขไม่ติดลบ`);
+                continue;
             }
+            payload.push({ nozzleNumber: m.nozzleNumber, reading });
         }
-        setErrors(newErrors);
-        return newErrors.length === 0;
+        return { ok: newErrors.length === 0, errors: newErrors, payload };
+    };
+
+    const buildGaugePayload = () => {
+        const newErrors: string[] = [];
+        const payload: { tankNumber: number; percentage: number }[] = [];
+        for (const g of gauges) {
+            const pct = parseNumericInput(g.percentage);
+            if (pct === null || pct < 0 || pct > 100) {
+                newErrors.push(`ถัง ${g.tankNumber}: ต้องกรอกเปอร์เซ็นต์ (0-100)`);
+                continue;
+            }
+            payload.push({ tankNumber: g.tankNumber, percentage: pct });
+        }
+        return { ok: newErrors.length === 0, errors: newErrors, payload };
+    };
+
+    const validateMeters = (): boolean => {
+        const result = buildMeterPayload();
+        setErrors(result.errors);
+        return result.ok;
     };
 
     const validateGauges = (): boolean => {
-        const newErrors: string[] = [];
-        for (const g of gauges) {
-            const pct = parseFloat(g.percentage);
-            if (!g.percentage || isNaN(pct) || pct < 0 || pct > 100) {
-                newErrors.push(`ถัง ${g.tankNumber}: ต้องกรอกเปอร์เซ็นต์ (0-100)`);
-            }
-        }
-        setErrors(newErrors);
-        return newErrors.length === 0;
+        const result = buildGaugePayload();
+        setErrors(result.errors);
+        return result.ok;
     };
 
     const handleNextStep = () => {
@@ -133,30 +201,41 @@ export default function ShiftOpenPage() {
 
     const handleOpenShift = async () => {
         setErrors([]);
-        const parsedGasPrice = Number(gasPrice);
-        if (!gasPrice || !Number.isFinite(parsedGasPrice) || parsedGasPrice <= 0) {
+        const parsedGasPrice = parseNumericInput(gasPrice);
+        if (parsedGasPrice === null || parsedGasPrice <= 0) {
             setErrors(['ราคาขายวันนี้ต้องเป็นตัวเลขมากกว่า 0']);
             return;
         }
 
+        const meterValidation = buildMeterPayload();
+        if (!meterValidation.ok) {
+            setStep('meters');
+            setErrors(meterValidation.errors);
+            return;
+        }
+
+        const gaugeValidation = buildGaugePayload();
+        if (!gaugeValidation.ok) {
+            setStep('gauge');
+            setErrors(gaugeValidation.errors);
+            return;
+        }
+
         setLoading(true);
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 20000);
 
         try {
             const res = await fetch(`/api/v2/gas/${stationId}/shift/open`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                signal: controller.signal,
                 body: JSON.stringify({
                     dateKey: getTodayBangkok(),
                     shiftNumber: nextShiftNumber,
                     gasPrice: parsedGasPrice,
-                    meters: meters.map(m => ({
-                        nozzleNumber: m.nozzleNumber,
-                        reading: parseFloat(m.reading)
-                    })),
-                    gauges: gauges.map(g => ({
-                        tankNumber: g.tankNumber,
-                        percentage: parseFloat(g.percentage)
-                    }))
+                    meters: meterValidation.payload,
+                    gauges: gaugeValidation.payload,
                 })
             });
 
@@ -166,15 +245,28 @@ export default function ShiftOpenPage() {
                     router.push(`/gas/${stationId}`);
                 }, 1500);
             } else {
-                const data = await res.json();
-                setErrors([data.error || 'ไม่สามารถเปิดกะได้']);
+                const data = await readResponseBody(res);
+                setErrors(data?.errors?.length
+                    ? data.errors
+                    : [data?.error || `ไม่สามารถเปิดกะได้ (HTTP ${res.status})`]);
             }
         } catch (error) {
             console.error('Error opening shift:', error);
-            setErrors(['เกิดข้อผิดพลาด กรุณาลองใหม่']);
+            setErrors([
+                error instanceof DOMException && error.name === 'AbortError'
+                    ? 'ส่งข้อมูลเปิดกะนานเกินไป กรุณาตรวจอินเทอร์เน็ตแล้วกดเปิดกะอีกครั้ง'
+                    : 'เกิดข้อผิดพลาด กรุณาลองใหม่',
+            ]);
         } finally {
+            window.clearTimeout(timeout);
             setLoading(false);
         }
+    };
+
+    const handleOpenShiftSubmit = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (loading) return;
+        void handleOpenShift();
     };
 
     if (checkingShift) {
@@ -198,12 +290,14 @@ export default function ShiftOpenPage() {
                     </p>
                     <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
                         <button
+                            type="button"
                             onClick={() => router.push(`/gas/${stationId}/shift/close`)}
                             className="bg-red-600 hover:bg-red-500 text-white px-6 py-3 rounded-xl font-medium"
                         >
                             ไปปิดกะปัจจุบัน
                         </button>
                         <button
+                            type="button"
                             onClick={() => router.push(`/gas/${stationId}`)}
                             className="bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-xl font-medium"
                         >
@@ -223,6 +317,7 @@ export default function ShiftOpenPage() {
                     <h2 className="text-2xl font-bold mb-2">วันนี้เปิดครบ 2 กะแล้ว</h2>
                     <p className="text-gray-400 mb-6">ถ้าต้องแก้ไขข้อมูล ให้กลับไปที่รายงานกะหรือหน้าปิดกะเดิมแทนการเปิดกะใหม่</p>
                     <button
+                        type="button"
                         onClick={() => router.push(`/gas/${stationId}`)}
                         className="bg-amber-600 hover:bg-amber-500 text-white px-6 py-3 rounded-xl font-medium"
                     >
@@ -258,192 +353,225 @@ export default function ShiftOpenPage() {
                 </p>
             </div>
 
-            {/* Daily Price */}
-            <div className="bg-[#1a1a24] rounded-2xl p-5 border border-white/10 mb-6">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
-                    <Banknote className="text-green-400" size={18} />
-                    ราคาขายวันนี้ (บาท/ลิตร)
-                </label>
-                <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={gasPrice}
-                    onChange={(e) => setGasPrice(e.target.value)}
-                    placeholder="16.09"
-                    className="w-full bg-gray-800 border border-white/10 rounded-lg px-4 py-3 text-white font-mono text-xl focus:border-orange-500 focus:outline-none"
-                />
-                <p className="mt-2 text-xs text-gray-500">
-                    ราคานี้จะถูกบันทึกเป็นราคาหลักของปั๊มจนกว่าจะเปลี่ยนครั้งถัดไป และใช้คำนวณยอดขายของกะนี้
-                </p>
-            </div>
+            <form onSubmit={handleOpenShiftSubmit}>
+                {/* Daily Price */}
+                <div className="bg-[#1a1a24] rounded-2xl p-5 border border-white/10 mb-6">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
+                        <Banknote className="text-green-400" size={18} />
+                        ราคาขายวันนี้ (บาท/ลิตร)
+                    </label>
+                    <input
+                        type="text"
+                        inputMode="decimal"
+                        value={gasPrice}
+                        onChange={(e) => setGasPrice(e.target.value)}
+                        placeholder="16.49"
+                        className="w-full bg-gray-800 border border-white/10 rounded-lg px-4 py-3 text-white font-mono text-xl focus:border-orange-500 focus:outline-none"
+                    />
+                    <p className="mt-2 text-xs text-gray-500">
+                        ราคานี้จะถูกบันทึกเป็นราคาหลักของปั๊มจนกว่าจะเปลี่ยนครั้งถัดไป และใช้คำนวณยอดขายของกะนี้
+                    </p>
+                </div>
 
-            {/* Progress Steps */}
-            <div className="flex items-center justify-center gap-4 mb-8">
-                {['meters', 'gauge', 'confirm'].map((s, i) => (
-                    <div key={s} className="flex items-center gap-2">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${step === s ? 'bg-orange-500 text-white' :
-                                ['meters', 'gauge', 'confirm'].indexOf(step) > i ? 'bg-green-500 text-white' :
-                                    'bg-gray-700 text-gray-400'
-                            }`}>
-                            {i + 1}
+                {allowManualShiftChoice && (
+                    <div className="bg-amber-900/20 rounded-2xl p-5 border border-amber-500/20 mb-6">
+                        <label className="block text-sm font-medium text-amber-100 mb-3">
+                            กะที่จะเปิด
+                        </label>
+                        <div className="grid grid-cols-2 gap-3">
+                            {[1, 2].map((shiftNumber) => (
+                                <button
+                                    key={shiftNumber}
+                                    type="button"
+                                    onClick={() => setNextShiftNumber(shiftNumber)}
+                                    className={`rounded-xl border px-4 py-3 font-medium transition-colors ${nextShiftNumber === shiftNumber
+                                        ? 'border-orange-400 bg-orange-500 text-white'
+                                        : 'border-white/10 bg-gray-800 text-gray-300 hover:border-orange-400/60'
+                                        }`}
+                                >
+                                    {getShiftName(shiftNumber)}
+                                </button>
+                            ))}
                         </div>
-                        {i < 2 && <div className="w-8 h-1 bg-gray-700" />}
+                        <p className="mt-3 text-xs leading-5 text-amber-100/70">
+                            ปกติระบบเลือกให้อัตโนมัติ ถ้ากะเช้าไม่ได้ถูกบันทึกในระบบแต่หน้างานเป็นกะบ่าย ให้เลือกกะบ่ายก่อนกดเปิดกะ
+                        </p>
                     </div>
-                ))}
-            </div>
+                )}
 
-            {/* Errors */}
-            {errors.length > 0 && (
-                <div className="bg-red-900/30 border border-red-500/30 rounded-xl p-4 mb-6">
-                    <div className="flex items-center gap-2 text-red-400 mb-2">
-                        <AlertCircle size={20} />
-                        <span className="font-medium">กรุณาแก้ไข</span>
-                    </div>
-                    <ul className="text-sm text-red-300 space-y-1">
-                        {errors.map((e, i) => <li key={i}>• {e}</li>)}
-                    </ul>
-                </div>
-            )}
-
-            {/* Step 1: Meters */}
-            {step === 'meters' && (
-                <div className="bg-[#1a1a24] rounded-2xl p-6 border border-white/10">
-                    <h2 className="text-lg font-medium mb-4 flex items-center gap-2">
-                        <Calculator className="text-blue-400" size={20} />
-                        บันทึกมิเตอร์เริ่มกะ
-                    </h2>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        {meters.map((m, i) => (
-                            <div key={m.nozzleNumber}>
-                                <label className="block text-sm text-gray-400 mb-1">
-                                    หัวจ่าย {m.nozzleNumber}
-                                </label>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    value={m.reading}
-                                    onChange={(e) => handleMeterChange(i, e.target.value)}
-                                    placeholder="0.00"
-                                    className="w-full bg-gray-800 border border-white/10 rounded-lg px-4 py-3 text-white font-mono text-lg focus:border-orange-500 focus:outline-none"
-                                />
+                {/* Progress Steps */}
+                <div className="flex items-center justify-center gap-4 mb-8">
+                    {['meters', 'gauge', 'confirm'].map((s, i) => (
+                        <div key={s} className="flex items-center gap-2">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${step === s ? 'bg-orange-500 text-white' :
+                                    ['meters', 'gauge', 'confirm'].indexOf(step) > i ? 'bg-green-500 text-white' :
+                                        'bg-gray-700 text-gray-400'
+                                }`}>
+                                {i + 1}
                             </div>
-                        ))}
-                    </div>
-
-                    <button
-                        onClick={handleNextStep}
-                        className="w-full mt-6 bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 rounded-xl font-medium hover:from-orange-600 hover:to-red-600"
-                    >
-                        ถัดไป: เช็คเกจ
-                    </button>
+                            {i < 2 && <div className="w-8 h-1 bg-gray-700" />}
+                        </div>
+                    ))}
                 </div>
-            )}
 
-            {/* Step 2: Gauge */}
-            {step === 'gauge' && (
-                <div className="bg-[#1a1a24] rounded-2xl p-6 border border-white/10">
-                    <h2 className="text-lg font-medium mb-4 flex items-center gap-2">
-                        <Gauge className="text-orange-400" size={20} />
-                        เช็คเกจเริ่มกะ
-                    </h2>
+                {/* Errors */}
+                {errors.length > 0 && (
+                    <div ref={errorRef} role="alert" className="bg-red-900/30 border border-red-500/30 rounded-xl p-4 mb-6">
+                        <div className="flex items-center gap-2 text-red-400 mb-2">
+                            <AlertCircle size={20} />
+                            <span className="font-medium">กรุณาแก้ไข</span>
+                        </div>
+                        <ul className="text-sm text-red-300 space-y-1">
+                            {errors.map((e, i) => <li key={i}>• {e}</li>)}
+                        </ul>
+                    </div>
+                )}
 
-                    <div className="grid grid-cols-3 gap-4">
-                        {gauges.map((g, i) => (
-                            <div key={g.tankNumber} className="text-center">
-                                <label className="block text-sm text-gray-400 mb-2">
-                                    ถัง {g.tankNumber}
-                                </label>
-                                <div className="relative">
+                {/* Step 1: Meters */}
+                {step === 'meters' && (
+                    <div className="bg-[#1a1a24] rounded-2xl p-6 border border-white/10">
+                        <h2 className="text-lg font-medium mb-4 flex items-center gap-2">
+                            <Calculator className="text-blue-400" size={20} />
+                            บันทึกมิเตอร์เริ่มกะ
+                        </h2>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            {meters.map((m, i) => (
+                                <div key={m.nozzleNumber}>
+                                    <label className="block text-sm text-gray-400 mb-1">
+                                        หัวจ่าย {m.nozzleNumber}
+                                    </label>
                                     <input
-                                        type="number"
-                                        min="0"
-                                        max="100"
-                                        value={g.percentage}
-                                        onChange={(e) => handleGaugeChange(i, e.target.value)}
-                                        placeholder="0"
-                                        className="w-full bg-gray-800 border border-white/10 rounded-lg px-4 py-3 text-white font-mono text-lg text-center focus:border-orange-500 focus:outline-none"
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={m.reading}
+                                        onChange={(e) => handleMeterChange(i, e.target.value)}
+                                        placeholder="0.00"
+                                        className="w-full bg-gray-800 border border-white/10 rounded-lg px-4 py-3 text-white font-mono text-lg focus:border-orange-500 focus:outline-none"
                                     />
-                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
 
-                    <div className="flex gap-4 mt-6">
                         <button
-                            onClick={() => setStep('meters')}
-                            className="flex-1 bg-gray-700 text-white py-3 rounded-xl font-medium hover:bg-gray-600"
-                        >
-                            ย้อนกลับ
-                        </button>
-                        <button
+                            type="button"
                             onClick={handleNextStep}
-                            className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 rounded-xl font-medium hover:from-orange-600 hover:to-red-600"
+                            className="w-full mt-6 bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 rounded-xl font-medium hover:from-orange-600 hover:to-red-600"
                         >
-                            ถัดไป: ยืนยัน
+                            ถัดไป: เช็คเกจ
                         </button>
                     </div>
-                </div>
-            )}
+                )}
 
-            {/* Step 3: Confirm */}
-            {step === 'confirm' && (
-                <div className="bg-[#1a1a24] rounded-2xl p-6 border border-white/10">
-                    <h2 className="text-lg font-medium mb-4">ยืนยันข้อมูลเปิดกะ</h2>
+                {/* Step 2: Gauge */}
+                {step === 'gauge' && (
+                    <div className="bg-[#1a1a24] rounded-2xl p-6 border border-white/10">
+                        <h2 className="text-lg font-medium mb-4 flex items-center gap-2">
+                            <Gauge className="text-orange-400" size={20} />
+                            เช็คเกจเริ่มกะ
+                        </h2>
 
-                    {/* Meters Summary */}
-                    <div className="mb-4">
-                        <h3 className="text-sm text-gray-400 mb-2">มิเตอร์:</h3>
-                        <div className="grid grid-cols-4 gap-2">
-                            {meters.map(m => (
-                                <div key={m.nozzleNumber} className="bg-gray-800 rounded-lg p-2 text-center">
-                                    <div className="text-xs text-gray-400">หัวจ่าย {m.nozzleNumber}</div>
-                                    <div className="font-mono text-green-400">{parseFloat(m.reading).toFixed(2)}</div>
+                        <div className="grid grid-cols-3 gap-4">
+                            {gauges.map((g, i) => (
+                                <div key={g.tankNumber} className="text-center">
+                                    <label className="block text-sm text-gray-400 mb-2">
+                                        ถัง {g.tankNumber}
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={g.percentage}
+                                            onChange={(e) => handleGaugeChange(i, e.target.value)}
+                                            placeholder="0"
+                                            className="w-full bg-gray-800 border border-white/10 rounded-lg px-4 py-3 text-white font-mono text-lg text-center focus:border-orange-500 focus:outline-none"
+                                        />
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
+                                    </div>
                                 </div>
                             ))}
                         </div>
-                    </div>
 
-                    {/* Gauge Summary */}
-                    <div className="mb-6">
-                        <h3 className="text-sm text-gray-400 mb-2">เกจ:</h3>
-                        <div className="grid grid-cols-3 gap-2">
-                            {gauges.map(g => (
-                                <div key={g.tankNumber} className="bg-gray-800 rounded-lg p-2 text-center">
-                                    <div className="text-xs text-gray-400">ถัง {g.tankNumber}</div>
-                                    <div className="font-mono text-orange-400">{g.percentage}%</div>
-                                </div>
-                            ))}
+                        <div className="flex gap-4 mt-6">
+                            <button
+                                type="button"
+                                onClick={() => setStep('meters')}
+                                className="flex-1 bg-gray-700 text-white py-3 rounded-xl font-medium hover:bg-gray-600"
+                            >
+                                ย้อนกลับ
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleNextStep}
+                                className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 rounded-xl font-medium hover:from-orange-600 hover:to-red-600"
+                            >
+                                ถัดไป: ยืนยัน
+                            </button>
                         </div>
                     </div>
+                )}
 
-                    <div className="mb-6 rounded-xl border border-green-500/20 bg-green-900/20 p-3">
-                        <div className="text-sm text-gray-400">ราคาขายวันนี้</div>
-                        <div className="text-xl font-mono font-bold text-green-400">
-                            ฿{Number(gasPrice || 0).toFixed(2)} / ลิตร
+                {/* Step 3: Confirm */}
+                {step === 'confirm' && (
+                    <div className="bg-[#1a1a24] rounded-2xl p-6 border border-white/10">
+                        <h2 className="text-lg font-medium mb-4">ยืนยันข้อมูลเปิดกะ</h2>
+
+                        {/* Meters Summary */}
+                        <div className="mb-4">
+                            <h3 className="text-sm text-gray-400 mb-2">มิเตอร์:</h3>
+                            <div className="grid grid-cols-4 gap-2">
+                                {meters.map(m => (
+                                    <div key={m.nozzleNumber} className="bg-gray-800 rounded-lg p-2 text-center">
+                                        <div className="text-xs text-gray-400">หัวจ่าย {m.nozzleNumber}</div>
+                                        <div className="font-mono text-green-400">
+                                            {(parseNumericInput(m.reading) ?? 0).toFixed(2)}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Gauge Summary */}
+                        <div className="mb-6">
+                            <h3 className="text-sm text-gray-400 mb-2">เกจ:</h3>
+                            <div className="grid grid-cols-3 gap-2">
+                                {gauges.map(g => (
+                                    <div key={g.tankNumber} className="bg-gray-800 rounded-lg p-2 text-center">
+                                        <div className="text-xs text-gray-400">ถัง {g.tankNumber}</div>
+                                        <div className="font-mono text-orange-400">{parseNumericInput(g.percentage) ?? 0}%</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="mb-6 rounded-xl border border-green-500/20 bg-green-900/20 p-3">
+                            <div className="text-sm text-gray-400">ราคาขายวันนี้</div>
+                            <div className="text-xl font-mono font-bold text-green-400">
+                                ฿{(parseNumericInput(gasPrice) ?? 0).toFixed(2)} / ลิตร
+                            </div>
+                        </div>
+
+                        <div className="flex gap-4">
+                            <button
+                                type="button"
+                                onClick={() => setStep('gauge')}
+                                className="flex-1 bg-gray-700 text-white py-3 rounded-xl font-medium hover:bg-gray-600"
+                            >
+                                แก้ไข
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                aria-busy={loading}
+                                className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white py-3 rounded-xl font-medium hover:from-green-600 hover:to-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {loading ? <Loader2 className="animate-spin" size={20} /> : <Play size={20} />}
+                                {loading ? 'กำลังเปิดกะ...' : 'เปิดกะ'}
+                            </button>
                         </div>
                     </div>
-
-                    <div className="flex gap-4">
-                        <button
-                            onClick={() => setStep('gauge')}
-                            className="flex-1 bg-gray-700 text-white py-3 rounded-xl font-medium hover:bg-gray-600"
-                        >
-                            แก้ไข
-                        </button>
-                        <button
-                            onClick={handleOpenShift}
-                            disabled={loading}
-                            className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white py-3 rounded-xl font-medium hover:from-green-600 hover:to-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                            {loading ? <Loader2 className="animate-spin" size={20} /> : <Play size={20} />}
-                            เปิดกะ
-                        </button>
-                    </div>
-                </div>
-            )}
+                )}
+            </form>
         </div>
     );
 }

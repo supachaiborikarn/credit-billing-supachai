@@ -305,3 +305,8 @@
   - เพิ่ม safety guard: ถ้าสร้างเป็น `OPEN` ต้องไม่มีกะอื่นเปิดอยู่ในวันเดียวกัน และห้าม reopen กะที่มีกระทบยอดแล้ว
   - เพิ่มปุ่มจาก `/admin/gas/operations` เข้า data-entry ทั้งกรณีกะยังไม่มีและกะมีอยู่แล้ว เพื่อไม่ต้องเปิดกะผ่านหน้าพนักงาน
   - verification: `npm run test` ผ่าน 61 tests, targeted eslint ผ่าน, targeted TypeScript ผ่าน
+- ⛽ Harden หน้า GAS staff open-shift ที่กดแล้วดูเหมือนไม่ไปต่อ
+  - ตรวจ production logs พบ `/gas/6/shift/open` และ `/api/v2/gas/6/shift/current` เป็น 200 แต่ไม่มี `POST /api/v2/gas/6/shift/open` และไม่มี error log
+  - ตรวจ DB จริงของ `station-6` พบวันนี้ยังไม่มี record ใหม่ แต่มี legacy open shifts เก่าวัน 2026-04-24 แบบไม่มี meter rows ซึ่งไม่บล็อก route v2 วันนี้
+  - ปรับ `/gas/[stationId]/shift/open` ให้ validate ราคา/มิเตอร์/เกจซ้ำก่อน POST, ใช้ form submit, auto-scroll ไปหา error, รองรับเลขมี comma/เลขไทย, แสดง timeout/non-JSON API error ชัดเจน และให้เลือกกะเช้า/กะบ่ายได้เมื่อยังไม่มีกะของวันนั้นในระบบ
+  - verification: targeted eslint ผ่าน, `tests/gas-v2-routes.test.ts` ผ่าน 14 tests, targeted TypeScript ผ่าน; `npm run build` ยังติด untracked `scratch/new_gauges.tsx` เดิมนอก scope

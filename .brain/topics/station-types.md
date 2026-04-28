@@ -1,5 +1,5 @@
 <!-- SUMMARY: 6 สถานี: แท๊งลอยวัชรเกียรติ (FULL) ใช้ staff route เดียว `/station/1/v2` และคง classic admin ที่ `/station/1`;
-     วัชรเกียรติออยล์/พงษ์อนันต์/ศุภชัยบริการ (SIMPLE), ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS) ใช้ staff route หลัก `/gas/[id]` และ admin `/admin/gas/*`, แต่ละแบบมี route และ features ต่างกัน -->
+     วัชรเกียรติออยล์/พงษ์อนันต์/ศุภชัยบริการ (SIMPLE), ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS) ใช้ staff route หลัก `/gas/[id]` พร้อม open-shift guard/เลือกกะเมื่อยังไม่มี record วันนี้ และ admin `/admin/gas/*`, แต่ละแบบมี route และ features ต่างกัน -->
 
 # Station Types
 
@@ -63,3 +63,4 @@
 - 2026-04-28: ซ่อม V2 meter-start/no-shift incident และเพิ่ม auto shift sync ให้ transaction ไม่เจอ false “กรุณาเปิดกะก่อน”
 - 2026-04-28: เพิ่มปุ่มพิมพ์สรุปวันใน V2 พร้อมกระทบยอดมิเตอร์เทียบรายการเติมในรายงานเดียว
 - 2026-04-28: เพิ่ม thermal daily summary 58/80mm สำหรับ Epson TM-m30III ในหน้า V2
+- 2026-04-28: harden GAS staff open-shift ให้ไม่กดแล้วเงียบ, รองรับตัวเลขแบบ comma/เลขไทย, auto-scroll error, และให้เลือกกะบ่ายได้เมื่อยังไม่มีกะของวันนั้นในระบบ
