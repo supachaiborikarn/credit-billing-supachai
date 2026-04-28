@@ -5,6 +5,7 @@ const txMock = {
         findFirst: vi.fn(),
         findUnique: vi.fn(),
         create: vi.fn(),
+        update: vi.fn(),
     },
     dailyRecord: {
         findFirst: vi.fn(),
@@ -13,16 +14,26 @@ const txMock = {
     },
     meterReading: {
         create: vi.fn(),
+        upsert: vi.fn(),
     },
     gaugeReading: {
         create: vi.fn(),
+        deleteMany: vi.fn(),
     },
     gasSettings: {
         findUnique: vi.fn(),
     },
     station: {
+        findFirst: vi.fn(),
         findUnique: vi.fn(),
         update: vi.fn(),
+    },
+    transaction: {
+        updateMany: vi.fn(),
+        create: vi.fn(),
+    },
+    shiftReconciliation: {
+        upsert: vi.fn(),
     },
     auditLog: {
         create: vi.fn(),
@@ -567,46 +578,60 @@ describe('gas v2 route guards', () => {
     });
 
     it('persists admin gas data-entry sales as linked summary transactions', async () => {
-        prismaMock.dailyRecord.findFirst.mockResolvedValue({
+        txMock.station.findFirst.mockResolvedValue({ id: 'station-5', gasPrice: 16 });
+        txMock.dailyRecord.findFirst.mockResolvedValue({
             id: 'daily-1',
             date: new Date('2026-04-24T17:00:00.000Z'),
             gasPrice: 16,
             retailPrice: 16,
         });
-        prismaMock.shift.findFirst.mockResolvedValue(null);
-        prismaMock.shift.create.mockResolvedValue({ id: 'shift-1' });
-        prismaMock.meterReading.upsert.mockResolvedValue({});
-        prismaMock.gaugeReading.deleteMany.mockResolvedValue({ count: 0 });
-        prismaMock.gaugeReading.create.mockResolvedValue({});
-        prismaMock.transaction.updateMany.mockResolvedValue({ count: 0 });
-        prismaMock.transaction.create.mockResolvedValue({ id: 'tx-summary' });
+        txMock.dailyRecord.update.mockResolvedValue({
+            id: 'daily-1',
+            date: new Date('2026-04-24T17:00:00.000Z'),
+            gasPrice: 16,
+            retailPrice: 16,
+        });
+        txMock.shift.findFirst.mockResolvedValue(null);
+        txMock.shift.create.mockResolvedValue({ id: 'shift-1' });
+        txMock.shift.update.mockResolvedValue({ id: 'shift-1' });
+        txMock.meterReading.upsert.mockResolvedValue({});
+        txMock.gaugeReading.deleteMany.mockResolvedValue({ count: 0 });
+        txMock.gaugeReading.create.mockResolvedValue({});
+        txMock.transaction.updateMany.mockResolvedValue({ count: 0 });
+        txMock.transaction.create.mockResolvedValue({ id: 'tx-summary' });
+        txMock.shiftReconciliation.upsert.mockResolvedValue({});
+        txMock.auditLog.create.mockResolvedValue({});
 
         const { POST } = await import('../src/app/api/v2/gas/admin/data-entry/route');
         const response = await POST(buildJsonRequest({
             stationId: 'station-5',
             date: '2026-04-25',
             shiftNumber: 1,
+            status: 'CLOSED',
+            gasPrice: 16,
             meters: [
                 { nozzle: 1, start: 100, end: 110 },
-                { nozzle: 2, start: null, end: null },
-                { nozzle: 3, start: null, end: null },
-                { nozzle: 4, start: null, end: null },
+                { nozzle: 2, start: 200, end: 200 },
+                { nozzle: 3, start: 300, end: 300 },
+                { nozzle: 4, start: 400, end: 400 },
             ],
             gauges: [
-                { tank: 1, percentage: 40 },
-                { tank: 2, percentage: null },
-                { tank: 3, percentage: null },
+                { tank: 1, start: 40, end: 39 },
+                { tank: 2, start: 50, end: 49 },
+                { tank: 3, start: 60, end: 59 },
             ],
             sales: {
                 cash: 160,
                 credit: 80,
                 card: 0,
                 transfer: 32,
+                nonGasSales: 10,
+                expenses: 5,
             },
         }) as never);
 
         expect(response.status).toBe(200);
-        expect(prismaMock.transaction.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+        expect(txMock.transaction.updateMany).toHaveBeenCalledWith(expect.objectContaining({
             where: expect.objectContaining({
                 stationId: 'station-5',
                 dailyRecordId: 'daily-1',
@@ -614,8 +639,8 @@ describe('gas v2 route guards', () => {
                 notes: { startsWith: 'admin-data-entry:' },
             }),
         }));
-        expect(prismaMock.transaction.create).toHaveBeenCalledTimes(3);
-        expect(prismaMock.transaction.create).toHaveBeenCalledWith(expect.objectContaining({
+        expect(txMock.transaction.create).toHaveBeenCalledTimes(3);
+        expect(txMock.transaction.create).toHaveBeenCalledWith(expect.objectContaining({
             data: expect.objectContaining({
                 stationId: 'station-5',
                 dailyRecordId: 'daily-1',
@@ -625,6 +650,19 @@ describe('gas v2 route guards', () => {
                 liters: 10,
                 recordedById: 'admin-1',
                 notes: 'admin-data-entry:cash',
+            }),
+        }));
+        expect(txMock.shiftReconciliation.upsert).toHaveBeenCalledWith(expect.objectContaining({
+            update: expect.objectContaining({
+                expectedFuelAmount: 160,
+                expectedOtherAmount: 5,
+                totalExpected: 165,
+                cashReceived: 160,
+                creditReceived: 80,
+                transferReceived: 32,
+                totalReceived: 272,
+                variance: 107,
+                varianceStatus: 'YELLOW',
             }),
         }));
     });

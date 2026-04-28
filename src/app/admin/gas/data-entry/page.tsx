@@ -17,15 +17,42 @@ import { getTodayBangkok } from '@/lib/gas';
 interface ShiftData {
     id?: string;
     exists: boolean;
+    status: 'OPEN' | 'CLOSED';
+    gasPrice: number;
     meters: { nozzle: number; start: number | null; end: number | null }[];
-    gauges: { tank: number; percentage: number | null }[];
+    gauges: { tank: number; start: number | null; end: number | null }[];
     sales: {
         cash: number;
         credit: number;
         card: number;
         transfer: number;
+        nonGasSales: number;
+        expenses: number;
     };
+    varianceNote: string;
 }
+
+const DEFAULT_METERS = [
+    { nozzle: 1, start: null, end: null },
+    { nozzle: 2, start: null, end: null },
+    { nozzle: 3, start: null, end: null },
+    { nozzle: 4, start: null, end: null },
+];
+
+const DEFAULT_GAUGES = [
+    { tank: 1, start: null, end: null },
+    { tank: 2, start: null, end: null },
+    { tank: 3, start: null, end: null },
+];
+
+const DEFAULT_SALES = {
+    cash: 0,
+    credit: 0,
+    card: 0,
+    transfer: 0,
+    nonGasSales: 0,
+    expenses: 0,
+};
 
 export default function AdminDataEntryPage() {
     const gasStations = STATIONS.filter(s => s.type === 'GAS');
@@ -39,18 +66,12 @@ export default function AdminDataEntryPage() {
 
     const [shiftData, setShiftData] = useState<ShiftData>({
         exists: false,
-        meters: [
-            { nozzle: 1, start: null, end: null },
-            { nozzle: 2, start: null, end: null },
-            { nozzle: 3, start: null, end: null },
-            { nozzle: 4, start: null, end: null },
-        ],
-        gauges: [
-            { tank: 1, percentage: null },
-            { tank: 2, percentage: null },
-            { tank: 3, percentage: null },
-        ],
-        sales: { cash: 0, credit: 0, card: 0, transfer: 0 }
+        status: 'CLOSED',
+        gasPrice: 16.49,
+        meters: DEFAULT_METERS,
+        gauges: DEFAULT_GAUGES,
+        sales: DEFAULT_SALES,
+        varianceNote: '',
     });
 
     const selectedStation = gasStations.find(s => s.id === stationId);
@@ -76,6 +97,28 @@ export default function AdminDataEntryPage() {
         return field === 'start' ? nozzle - 1 : nozzle + 3;
     };
 
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const queryStationId = params.get('stationId');
+        const queryDate = params.get('date');
+        const queryShiftNumber = Number(params.get('shiftNumber'));
+        const queryStatus = params.get('status');
+
+        if (queryStationId && gasStations.some((station) => station.id === queryStationId)) {
+            setStationId(queryStationId);
+        }
+        if (queryDate) {
+            setDate(queryDate);
+        }
+        if (Number.isInteger(queryShiftNumber) && queryShiftNumber >= 1 && queryShiftNumber <= 2) {
+            setShiftNumber(queryShiftNumber);
+        }
+        if (queryStatus === 'OPEN' || queryStatus === 'CLOSED') {
+            setShiftData((prev) => ({ ...prev, status: queryStatus }));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     // Fetch existing data when selection changes
     useEffect(() => {
         const fetchData = async () => {
@@ -88,13 +131,16 @@ export default function AdminDataEntryPage() {
                 const res = await fetch(`/api/v2/gas/admin/data-entry?stationId=${stationId}&date=${date}&shiftNumber=${shiftNumber}`);
                 if (res.ok) {
                     const data = await res.json();
-                    setShiftData({
+                    setShiftData(prev => ({
                         id: data.shiftId,
                         exists: data.exists,
-                        meters: data.meters || shiftData.meters,
-                        gauges: data.gauges || shiftData.gauges,
-                        sales: data.sales || shiftData.sales
-                    });
+                        status: data.exists ? (data.status || prev.status) : prev.status,
+                        gasPrice: Number(data.gasPrice || prev.gasPrice || 16.49),
+                        meters: data.meters || DEFAULT_METERS,
+                        gauges: data.gauges || DEFAULT_GAUGES,
+                        sales: data.sales || DEFAULT_SALES,
+                        varianceNote: data.varianceNote || '',
+                    }));
                 }
             } catch (error) {
                 console.error('Error fetching data:', error);
@@ -105,6 +151,17 @@ export default function AdminDataEntryPage() {
 
         fetchData();
     }, [stationId, date, shiftNumber]);
+
+    const handleStatusChange = (status: 'OPEN' | 'CLOSED') => {
+        setShiftData(prev => ({ ...prev, status }));
+    };
+
+    const handleGasPriceChange = (value: string) => {
+        setShiftData(prev => ({
+            ...prev,
+            gasPrice: value === '' ? 0 : parseFloat(value)
+        }));
+    };
 
     const handleMeterChange = (nozzle: number, field: 'start' | 'end', value: string) => {
         setShiftData(prev => ({
@@ -117,12 +174,12 @@ export default function AdminDataEntryPage() {
         }));
     };
 
-    const handleGaugeChange = (tank: number, value: string) => {
+    const handleGaugeChange = (tank: number, field: 'start' | 'end', value: string) => {
         setShiftData(prev => ({
             ...prev,
             gauges: prev.gauges.map(g =>
                 g.tank === tank
-                    ? { ...g, percentage: value === '' ? null : parseFloat(value) }
+                    ? { ...g, [field]: value === '' ? null : parseFloat(value) }
                     : g
             )
         }));
@@ -136,6 +193,11 @@ export default function AdminDataEntryPage() {
     };
 
     const handleSave = async () => {
+        if (!Number.isFinite(shiftData.gasPrice) || shiftData.gasPrice <= 0) {
+            setMessage({ type: 'error', text: 'กรุณากรอกราคาขายแก๊สให้มากกว่า 0' });
+            return;
+        }
+
         setSaving(true);
         setMessage(null);
 
@@ -147,17 +209,22 @@ export default function AdminDataEntryPage() {
                     stationId,
                     date,
                     shiftNumber,
-                    ...shiftData
+                    status: shiftData.status,
+                    gasPrice: shiftData.gasPrice,
+                    meters: shiftData.meters,
+                    gauges: shiftData.gauges,
+                    sales: shiftData.sales,
+                    varianceNote: shiftData.varianceNote,
                 })
             });
 
             if (res.ok) {
                 const data = await res.json();
-                setShiftData(prev => ({ ...prev, id: data.shiftId, exists: true }));
-                setMessage({ type: 'success', text: 'บันทึกข้อมูลสำเร็จ!' });
+                setShiftData(prev => ({ ...prev, id: data.shiftId, status: data.status || prev.status, exists: true }));
+                setMessage({ type: 'success', text: data.message || 'บันทึกข้อมูลสำเร็จ!' });
             } else {
                 const error = await res.json();
-                setMessage({ type: 'error', text: error.message || 'เกิดข้อผิดพลาด' });
+                setMessage({ type: 'error', text: error.error || error.message || 'เกิดข้อผิดพลาด' });
             }
         } catch {
             setMessage({ type: 'error', text: 'ไม่สามารถบันทึกข้อมูลได้' });
@@ -166,13 +233,17 @@ export default function AdminDataEntryPage() {
         }
     };
 
-    const totalSales = shiftData.sales.cash + shiftData.sales.credit + shiftData.sales.card + shiftData.sales.transfer;
+    const totalReceived = shiftData.sales.cash + shiftData.sales.credit + shiftData.sales.card + shiftData.sales.transfer;
     const totalLiters = shiftData.meters.reduce((sum, m) => {
         if (m.start !== null && m.end !== null) {
             return sum + Math.max(0, m.end - m.start);
         }
         return sum;
     }, 0);
+    const expectedFuelAmount = totalLiters * (shiftData.gasPrice || 0);
+    const expectedOtherAmount = shiftData.sales.nonGasSales - shiftData.sales.expenses;
+    const totalExpected = expectedFuelAmount + expectedOtherAmount;
+    const variance = totalReceived - totalExpected;
 
     return (
         <div className="max-w-4xl mx-auto p-6 space-y-6">
@@ -183,13 +254,15 @@ export default function AdminDataEntryPage() {
                 </div>
                 <div>
                     <h1 className="text-2xl font-bold">ใส่ข้อมูลย้อนหลัง</h1>
-                    <p className="text-gray-400 text-sm">สำหรับปั๊มแก๊ส - เลือกปั๊ม วันที่ และกะ</p>
+                    <p className="text-gray-400 text-sm">
+                        สำหรับปั๊มแก๊ส - แอดมินสร้าง/แก้ข้อมูลกะตามวันที่ได้โดยไม่ต้องเข้าเปิดกะหน้าพนักงาน
+                    </p>
                 </div>
             </div>
 
             {/* Selection */}
             <div className="bg-[#1a1a24] rounded-xl p-6 border border-white/10 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
                     {/* Station */}
                     <div>
                         <label className="block text-sm text-gray-400 mb-2">ปั๊ม</label>
@@ -215,6 +288,44 @@ export default function AdminDataEntryPage() {
                                 className="w-full px-4 py-3 bg-gray-800 border border-white/10 rounded-xl text-white focus:border-orange-500 focus:outline-none"
                             />
                             <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" size={18} />
+                        </div>
+                    </div>
+
+                    {/* Gas price */}
+                    <div>
+                        <label className="block text-sm text-gray-400 mb-2">ราคาขายแก๊ส</label>
+                        <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={shiftData.gasPrice || ''}
+                            onChange={(e) => handleGasPriceChange(e.target.value)}
+                            className="w-full px-4 py-3 bg-gray-800 border border-white/10 rounded-xl text-right text-white focus:border-orange-500 focus:outline-none"
+                        />
+                    </div>
+
+                    {/* Status */}
+                    <div>
+                        <label className="block text-sm text-gray-400 mb-2">บันทึกเป็น</label>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => handleStatusChange('OPEN')}
+                                className={`flex-1 py-3 rounded-xl font-medium transition-colors ${shiftData.status === 'OPEN'
+                                    ? 'bg-green-600 text-white'
+                                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                                    }`}
+                            >
+                                เปิดกะ
+                            </button>
+                            <button
+                                onClick={() => handleStatusChange('CLOSED')}
+                                className={`flex-1 py-3 rounded-xl font-medium transition-colors ${shiftData.status === 'CLOSED'
+                                    ? 'bg-red-600 text-white'
+                                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                                    }`}
+                            >
+                                ปิดกะ
+                            </button>
                         </div>
                     </div>
 
@@ -255,10 +366,14 @@ export default function AdminDataEntryPage() {
                                     วันที่ {new Date(date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })} |
                                     กะ {shiftNumber}
                                     {shiftData.exists ? ' (มีข้อมูลแล้ว)' : ' (ยังไม่มีข้อมูล)'}
+                                    {' '}| จะบันทึกเป็น {shiftData.status === 'OPEN' ? 'กะเปิด' : 'กะปิด'}
                                 </>
                             )}
                         </span>
                     </div>
+                    <p className="mt-2 text-xs text-gray-400">
+                        กะเปิดต้องมีมิเตอร์เปิดและเกจเปิดครบ ส่วนกะปิดต้องมีมิเตอร์เปิด/ปิดและเกจเปิด/ปิดครบ พร้อมสร้างยอดสรุปให้รายงานผู้จัดการทันที
+                    </p>
                 </div>
             </div>
 
@@ -334,22 +449,36 @@ export default function AdminDataEntryPage() {
             <div className="bg-[#1a1a24] rounded-xl p-6 border border-white/10">
                 <div className="flex items-center gap-2 mb-4">
                     <Gauge className="text-orange-400" size={20} />
-                    <h2 className="text-lg font-medium">ระดับเกจ</h2>
+                    <h2 className="text-lg font-medium">ระดับเกจเปิด/ปิดกะ</h2>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {shiftData.gauges.map((g) => (
-                        <div key={g.tank} className="text-center">
-                            <div className="text-sm text-gray-400 mb-2">ถัง {g.tank}</div>
+                        <div key={g.tank} className="rounded-xl border border-white/10 bg-gray-900/50 p-4">
+                            <div className="text-sm text-gray-300 mb-3">ถัง {g.tank}</div>
+                            <label className="mb-2 block text-xs text-orange-300">เปิดกะ (%)</label>
+                            <div className="relative mb-3">
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={g.start ?? ''}
+                                    onChange={(e) => handleGaugeChange(g.tank, 'start', e.target.value)}
+                                    placeholder="0"
+                                    className="w-full px-4 py-3 bg-gray-800 border border-white/10 rounded-xl text-center text-2xl font-bold focus:border-orange-500 focus:outline-none"
+                                />
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">%</span>
+                            </div>
+                            <label className="mb-2 block text-xs text-red-300">ปิดกะ (%)</label>
                             <div className="relative">
                                 <input
                                     type="number"
                                     min="0"
                                     max="100"
-                                    value={g.percentage ?? ''}
-                                    onChange={(e) => handleGaugeChange(g.tank, e.target.value)}
-                                    placeholder="0"
-                                    className="w-full px-4 py-3 bg-gray-800 border border-white/10 rounded-xl text-center text-2xl font-bold focus:border-orange-500 focus:outline-none"
+                                    value={g.end ?? ''}
+                                    onChange={(e) => handleGaugeChange(g.tank, 'end', e.target.value)}
+                                    placeholder={shiftData.status === 'OPEN' ? 'ยังไม่ต้องกรอก' : '0'}
+                                    className="w-full px-4 py-3 bg-gray-800 border border-white/10 rounded-xl text-center text-2xl font-bold focus:border-red-500 focus:outline-none"
                                 />
                                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">%</span>
                             </div>
@@ -363,14 +492,14 @@ export default function AdminDataEntryPage() {
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                         <FuelIcon className="text-green-400" size={20} />
-                        <h2 className="text-lg font-medium">ยอดขาย</h2>
+                        <h2 className="text-lg font-medium">ยอดขาย/ยอดรับตามกะ</h2>
                     </div>
                     <div className="text-2xl font-bold text-green-400">
-                        ฿{totalSales.toLocaleString()}
+                        ฿{totalReceived.toLocaleString()}
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                     <div>
                         <label className="block text-sm text-green-400 mb-2">เงินสด</label>
                         <input
@@ -411,6 +540,58 @@ export default function AdminDataEntryPage() {
                             className="w-full px-4 py-3 bg-cyan-900/20 border border-cyan-500/20 rounded-xl text-right focus:border-cyan-500 focus:outline-none"
                         />
                     </div>
+                    <div>
+                        <label className="block text-sm text-amber-400 mb-2">ยอดขายอื่นที่ไม่ใช่แก๊ส</label>
+                        <input
+                            type="number"
+                            value={shiftData.sales.nonGasSales || ''}
+                            onChange={(e) => handleSalesChange('nonGasSales', e.target.value)}
+                            placeholder="0"
+                            className="w-full px-4 py-3 bg-amber-900/20 border border-amber-500/20 rounded-xl text-right focus:border-amber-500 focus:outline-none"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm text-red-400 mb-2">ค่าใช้จ่ายอื่นๆ</label>
+                        <input
+                            type="number"
+                            value={shiftData.sales.expenses || ''}
+                            onChange={(e) => handleSalesChange('expenses', e.target.value)}
+                            placeholder="0"
+                            className="w-full px-4 py-3 bg-red-900/20 border border-red-500/20 rounded-xl text-right focus:border-red-500 focus:outline-none"
+                        />
+                    </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-3 rounded-xl border border-white/10 bg-gray-900/50 p-4 md:grid-cols-4">
+                    <div>
+                        <div className="text-xs text-gray-500">ยอดแก๊สตามมิเตอร์</div>
+                        <div className="font-mono text-blue-300">฿{expectedFuelAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+                    </div>
+                    <div>
+                        <div className="text-xs text-gray-500">ยอดอื่นสุทธิ</div>
+                        <div className="font-mono text-amber-300">฿{expectedOtherAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+                    </div>
+                    <div>
+                        <div className="text-xs text-gray-500">ยอดที่ควรได้</div>
+                        <div className="font-mono text-orange-300">฿{totalExpected.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+                    </div>
+                    <div>
+                        <div className="text-xs text-gray-500">ส่วนต่าง</div>
+                        <div className={`font-mono ${Math.abs(variance) > 100 ? 'text-red-300' : 'text-green-300'}`}>
+                            ฿{variance.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-4">
+                    <label className="block text-sm text-gray-400 mb-2">หมายเหตุส่วนต่าง/การแก้ไข</label>
+                    <textarea
+                        value={shiftData.varianceNote}
+                        onChange={(e) => setShiftData(prev => ({ ...prev, varianceNote: e.target.value }))}
+                        rows={3}
+                        placeholder="เช่น แอดมินกรอกย้อนหลังจากเอกสารหน้าลาน"
+                        className="w-full rounded-xl border border-white/10 bg-gray-800 px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
+                    />
                 </div>
             </div>
 
@@ -436,7 +617,11 @@ export default function AdminDataEntryPage() {
                 ) : (
                     <Save size={20} />
                 )}
-                {saving ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}
+                {saving
+                    ? 'กำลังบันทึก...'
+                    : shiftData.status === 'OPEN'
+                        ? 'สร้าง/อัปเดตกะเปิดจากแอดมิน'
+                        : 'บันทึกข้อมูลและปิดกะจากแอดมิน'}
             </button>
         </div>
     );

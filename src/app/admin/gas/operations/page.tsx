@@ -341,6 +341,13 @@ export default function GasOperationsPage() {
                                                 {shift.status === 'OPEN' && (
                                                     <div className="mt-3 flex flex-wrap gap-2">
                                                         <Link
+                                                            href={`/admin/gas/data-entry?stationId=${station.id}&date=${dateKey}&shiftNumber=${shift.shiftNumber}&status=OPEN`}
+                                                            className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-3 py-2 text-sm font-medium text-white hover:bg-orange-500"
+                                                        >
+                                                            <Save size={16} />
+                                                            กรอก/แก้ข้อมูลกะ
+                                                        </Link>
+                                                        <Link
                                                             href={`/gas/${station.id}/shift/close`}
                                                             className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-500"
                                                         >
@@ -361,19 +368,37 @@ export default function GasOperationsPage() {
                                                         )}
                                                     </div>
                                                 )}
+                                                {shift.status !== 'OPEN' && (
+                                                    <div className="mt-3 flex flex-wrap gap-2">
+                                                        <Link
+                                                            href={`/admin/gas/data-entry?stationId=${station.id}&date=${dateKey}&shiftNumber=${shift.shiftNumber}&status=CLOSED`}
+                                                            className="inline-flex items-center gap-2 rounded-lg border border-orange-500/40 px-3 py-2 text-sm text-orange-200 hover:bg-orange-500/10"
+                                                        >
+                                                            <Save size={16} />
+                                                            แก้ข้อมูลกะ
+                                                        </Link>
+                                                    </div>
+                                                )}
                                             </div>
                                         ))
                                     )}
                                 </div>
 
                                 {!station.openShiftId && station.nextShiftNumber && (
-                                    <div className="mt-4">
+                                    <div className="mt-4 flex flex-wrap gap-2">
+                                        <Link
+                                            href={`/admin/gas/data-entry?stationId=${station.id}&date=${dateKey}&shiftNumber=${station.nextShiftNumber}&status=OPEN`}
+                                            className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-500"
+                                        >
+                                            <Save size={16} />
+                                            สร้าง/กรอกกะ {station.nextShiftNumber} จากแอดมิน
+                                        </Link>
                                         <Link
                                             href={`/gas/${station.id}/shift/open`}
-                                            className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-500"
+                                            className="inline-flex items-center gap-2 rounded-lg border border-green-500/40 px-4 py-2 text-sm font-medium text-green-200 hover:bg-green-500/10"
                                         >
                                             <Play size={16} />
-                                            เปิดกะ {station.nextShiftNumber}
+                                            เปิดกะ {station.nextShiftNumber} หน้าพนักงาน
                                         </Link>
                                     </div>
                                 )}

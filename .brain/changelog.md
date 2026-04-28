@@ -284,3 +284,9 @@
   - ตรวจ production DB พบ `station-5` วันที่ 2026-04-28 กะ 1 ยัง `OPEN` และมี transaction จึงต้องปิดผ่าน flow ปิดกะ ไม่ force-close
   - backfill production `stations.gasPrice` ของ `station-5` และ `station-6` จาก 16.09 เป็น 16.49 ตามราคาล่าสุด พร้อม audit log
   - verification: `npm run test` ผ่าน 61 tests, targeted eslint และ targeted TypeScript ผ่าน; full workspace lint/build ยังติดไฟล์ untracked `scratch/*` และ legacy lint errors นอก scope
+- 🧾 เพิ่ม admin data-entry ให้สร้างกะ GAS ตามวันที่ได้โดยตรง
+  - ปรับ `/admin/gas/data-entry` ให้เลือกสถานะ `OPEN` หรือ `CLOSED`, กรอกราคาก๊าซ, มิเตอร์เปิด/ปิด, เกจเปิด/ปิด, ยอดเงินสด/เชื่อ/บัตร/โอน, ยอดขายอื่น, ค่าใช้จ่าย และหมายเหตุ
+  - patch `/api/v2/gas/admin/data-entry` ให้สร้าง/แก้ `DailyRecord`, `Shift`, `MeterReading`, `GaugeReading`, synthetic `admin-data-entry:*` transactions, `ShiftReconciliation`, และ audit log ใน transaction เดียว
+  - เพิ่ม safety guard: ถ้าสร้างเป็น `OPEN` ต้องไม่มีกะอื่นเปิดอยู่ในวันเดียวกัน และห้าม reopen กะที่มีกระทบยอดแล้ว
+  - เพิ่มปุ่มจาก `/admin/gas/operations` เข้า data-entry ทั้งกรณีกะยังไม่มีและกะมีอยู่แล้ว เพื่อไม่ต้องเปิดกะผ่านหน้าพนักงาน
+  - verification: `npm run test` ผ่าน 61 tests, targeted eslint ผ่าน, targeted TypeScript ผ่าน
