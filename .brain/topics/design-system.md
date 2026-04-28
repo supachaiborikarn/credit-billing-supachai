@@ -12,7 +12,8 @@
 - Thai-first typography ใช้ Sarabun และต้องรักษา `letterSpacing: 0`
 - primary action ใช้ fuel orange (`#F97316`) ไม่ใช้ purple เป็นค่า default
 - mobile station flows ต้อง compact, scan ง่าย, ค่าเงิน/ลิตร/มิเตอร์เด่น และ bottom nav คงที่
-- fixed bottom nav ต้องเผื่อ `env(safe-area-inset-bottom)` และ content padding มากพอไม่ให้บังปุ่ม CTA ท้ายหน้า
+- fixed bottom nav ต้องเผื่อ `env(safe-area-inset-bottom)` และ content padding มากพอไม่ให้บังปุ่ม CTA ท้ายหน้า; หลีกเลี่ยง fixed CTA ลอยทับ content ใน station staff flow ถ้าไม่จำเป็น
+- sticky header ของ mobile station flow ต้อง compact โดยเฉพาะ controls เสริมอย่าง print options เพื่อไม่กินพื้นที่กรอกข้อมูล
 - thermal receipt/report views ต้องออกแบบเป็น print-first surface: รองรับกระดาษ 58mm/80mm, คุมความกว้างด้วย `@page` และไม่ผูกชนิดเอกสารกับสี/ธีมหน้าจอ
 - admin/reporting pages ใช้ density ได้มากกว่า แต่ยังต้องเก็บสีและ hierarchy ให้ตรงกับ DESIGN.md
 
@@ -30,3 +31,4 @@
 - 2026-04-26: เพิ่ม topic นี้หลังสร้าง root `DESIGN.md` และผูก quick start ใน `AGENTS.md`
 - 2026-04-26: เพิ่มข้อกำกับ bottom nav/safe-area หลังแก้แท๊งลอยที่ bottom bar บังปุ่มท้ายหน้า
 - 2026-04-26: เพิ่มข้อกำกับ thermal receipt 58mm/80mm หลังเปิดให้พิมพ์ transaction เป็นใบเสร็จรับเงินหรือบิลเงินเชื่อได้ทุกรายการ
+- 2026-04-28: เพิ่มข้อกำกับไม่ใช้ fixed CTA ทับ content และให้ sticky header controls ของ mobile station flow เป็น compact หลังแก้ Tank Loy V2

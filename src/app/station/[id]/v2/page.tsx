@@ -402,7 +402,7 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
                 date={selectedDate}
             />
 
-            <header className="sticky top-0 z-30 bg-gradient-to-br from-slate-950 via-slate-900 to-orange-700 px-4 py-5 text-white shadow-lg shadow-slate-950/20">
+            <header className="sticky top-0 z-30 bg-gradient-to-br from-slate-950 via-slate-900 to-orange-700 px-4 py-4 text-white shadow-lg shadow-slate-950/20">
                 <div className="flex items-center justify-between mb-3">
                     <div>
                         <h1 className="text-xl font-bold">{station.name}</h1>
@@ -424,50 +424,46 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
                     onChange={(e) => setSelectedDate(e.target.value)}
                     className="w-full rounded-xl bg-white/15 px-4 py-2.5 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-orange-200"
                 />
-                <div className="mt-3 rounded-2xl bg-white/12 p-2 ring-1 ring-white/15">
-                    <div className="mb-2 flex items-center gap-2 px-1 text-sm font-bold text-white">
-                        <Printer size={16} />
-                        พิมพ์สรุปวัน
+                <div className="mt-2 flex items-center gap-2 rounded-xl bg-white/12 p-1.5 ring-1 ring-white/15">
+                    <div className="flex shrink-0 items-center gap-1 px-1 text-xs font-bold text-white">
+                        <Printer size={14} />
+                        สรุปวัน
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid flex-1 grid-cols-3 gap-1.5">
                         <button
                             onClick={() => handlePrintDailyReport('80')}
-                            className="rounded-xl bg-white px-2 py-3 text-sm font-extrabold text-slate-900 shadow-sm transition active:scale-[0.98]"
+                            className="rounded-lg bg-white px-2 py-1.5 text-xs font-extrabold text-slate-900 shadow-sm transition active:scale-[0.98]"
                         >
                             80mm
-                            <span className="block text-[10px] font-semibold text-orange-600">TM-m30III</span>
                         </button>
                         <button
                             onClick={() => handlePrintDailyReport('58')}
-                            className="rounded-xl bg-white/90 px-2 py-3 text-sm font-extrabold text-slate-900 shadow-sm transition active:scale-[0.98]"
+                            className="rounded-lg bg-white/90 px-2 py-1.5 text-xs font-extrabold text-slate-900 shadow-sm transition active:scale-[0.98]"
                         >
                             58mm
-                            <span className="block text-[10px] font-semibold text-slate-500">ใบยาว</span>
                         </button>
                         <button
                             onClick={() => handlePrintDailyReport('a4')}
-                            className="rounded-xl bg-slate-900/70 px-2 py-3 text-sm font-extrabold text-white ring-1 ring-white/20 transition active:scale-[0.98]"
+                            className="rounded-lg bg-slate-900/70 px-2 py-1.5 text-xs font-extrabold text-white ring-1 ring-white/20 transition active:scale-[0.98]"
                         >
                             A4
-                            <span className="block text-[10px] font-semibold text-slate-300">เต็มหน้า</span>
                         </button>
                     </div>
                 </div>
             </header>
 
-            <main className="p-4 space-y-4 pb-52">
+            <main className="p-4 space-y-4 pb-28">
+                <div className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-gray-200">
+                    <button
+                        onClick={handleRefillClick}
+                        disabled={buttonState.disabled}
+                        className={`w-full py-3 ${buttonState.className} text-white font-bold text-base rounded-xl shadow-sm active:scale-[0.98] transition flex items-center justify-center gap-2 disabled:opacity-70 disabled:active:scale-100`}
+                    >
+                        {buttonState.text}
+                    </button>
+                </div>
                 {renderContent()}
             </main>
-
-            <div className="fixed bottom-28 left-0 right-0 px-4 z-40">
-                <button
-                    onClick={handleRefillClick}
-                    disabled={buttonState.disabled}
-                    className={`w-full py-4 ${buttonState.className} text-white font-bold text-lg rounded-xl shadow-lg active:scale-[0.98] transition flex items-center justify-center gap-2 disabled:opacity-70 disabled:active:scale-100`}
-                >
-                    {buttonState.text}
-                </button>
-            </div>
 
             <BottomTabBar activeTab={activeTab} onTabChange={setActiveTab} showHistory={isAdmin} />
 
