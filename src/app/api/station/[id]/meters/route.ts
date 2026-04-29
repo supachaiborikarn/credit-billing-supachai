@@ -50,8 +50,15 @@ export async function POST(
             }
         });
 
+        const shift = await ensureOpenFullStationShiftForDailyRecord({
+            dailyRecordId: dailyRecord.id,
+            userId: auth.user.id,
+            requireStartedMeters: false,
+        });
         const existingMeters = await prisma.meterReading.findMany({
-            where: { dailyRecordId: dailyRecord.id },
+            where: shift
+                ? { shiftId: shift.id }
+                : { dailyRecordId: dailyRecord.id },
         });
         const existingByNozzle = new Map(existingMeters.map(m => [m.nozzleNumber, m]));
         const getIncomingPhoto = (meter: MeterPayload) => {
@@ -80,37 +87,65 @@ export async function POST(
         // Update meter readings
         for (const meter of meterPayloads) {
             const incomingPhoto = getIncomingPhoto(meter);
-            await prisma.meterReading.upsert({
-                where: {
-                    dailyRecordId_nozzleNumber: {
-                        dailyRecordId: dailyRecord.id,
-                        nozzleNumber: Number(meter.nozzleNumber),
-                    }
-                },
-                update: type === 'start'
-                    ? {
-                        startReading: meter.reading,
-                        ...(incomingPhoto ? { startPhoto: incomingPhoto } : {}),
-                    }
-                    : {
-                        endReading: meter.reading,
-                        ...(incomingPhoto ? { endPhoto: incomingPhoto } : {}),
-                    },
-                create: {
-                    dailyRecordId: dailyRecord.id,
-                    nozzleNumber: Number(meter.nozzleNumber),
-                    startReading: type === 'start' ? meter.reading : 0,
-                    endReading: type === 'end' ? meter.reading : null,
-                    startPhoto: type === 'start' ? incomingPhoto : null,
-                    endPhoto: type === 'end' ? incomingPhoto : null,
-                }
-            });
-        }
+            const nozzleNumber = Number(meter.nozzleNumber);
 
-        await ensureOpenFullStationShiftForDailyRecord({
-            dailyRecordId: dailyRecord.id,
-            userId: auth.user.id,
-        });
+            if (shift) {
+                await prisma.meterReading.upsert({
+                    where: {
+                        shiftId_nozzleNumber: {
+                            shiftId: shift.id,
+                            nozzleNumber,
+                        },
+                    },
+                    update: type === 'start'
+                        ? {
+                            startReading: meter.reading,
+                            ...(incomingPhoto ? { startPhoto: incomingPhoto } : {}),
+                        }
+                        : {
+                            endReading: meter.reading,
+                            ...(incomingPhoto ? { endPhoto: incomingPhoto } : {}),
+                        },
+                    create: {
+                        dailyRecordId: dailyRecord.id,
+                        shiftId: shift.id,
+                        nozzleNumber,
+                        startReading: type === 'start' ? meter.reading : 0,
+                        endReading: type === 'end' ? meter.reading : null,
+                        startPhoto: type === 'start' ? incomingPhoto : null,
+                        endPhoto: type === 'end' ? incomingPhoto : null,
+                    },
+                });
+                continue;
+            }
+
+            const existingMeter = existingByNozzle.get(nozzleNumber);
+            if (existingMeter) {
+                await prisma.meterReading.update({
+                    where: { id: existingMeter.id },
+                    data: type === 'start'
+                        ? {
+                            startReading: meter.reading,
+                            ...(incomingPhoto ? { startPhoto: incomingPhoto } : {}),
+                        }
+                        : {
+                            endReading: meter.reading,
+                            ...(incomingPhoto ? { endPhoto: incomingPhoto } : {}),
+                        },
+                });
+            } else {
+                await prisma.meterReading.create({
+                    data: {
+                        dailyRecordId: dailyRecord.id,
+                        nozzleNumber,
+                        startReading: type === 'start' ? meter.reading : 0,
+                        endReading: type === 'end' ? meter.reading : null,
+                        startPhoto: type === 'start' ? incomingPhoto : null,
+                        endPhoto: type === 'end' ? incomingPhoto : null,
+                    },
+                });
+            }
+        }
 
         return NextResponse.json({ success: true });
     } catch (error) {

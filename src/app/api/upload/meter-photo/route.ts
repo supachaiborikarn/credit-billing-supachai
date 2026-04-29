@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { getStartOfDayBangkok } from '@/lib/date-utils';
 import { requireApiSession } from '@/lib/api-auth';
 import { canAccessStation } from '@/lib/auth-utils';
+import { ensureOpenFullStationShiftForDailyRecord } from '@/lib/full-station-shift-sync';
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 
@@ -95,24 +96,58 @@ export async function POST(request: NextRequest) {
 
             // Update meter reading with photo URL
             const nozzleNum = parseInt(nozzle);
-            await prisma.meterReading.upsert({
-                where: {
-                    dailyRecordId_nozzleNumber: {
+            const shift = await ensureOpenFullStationShiftForDailyRecord({
+                dailyRecordId: dailyRecord.id,
+                userId: auth.user.id,
+                requireStartedMeters: false,
+            });
+            const updateData = type === 'start'
+                ? { startPhoto: result.secure_url }
+                : { endPhoto: result.secure_url };
+
+            if (shift) {
+                await prisma.meterReading.upsert({
+                    where: {
+                        shiftId_nozzleNumber: {
+                            shiftId: shift.id,
+                            nozzleNumber: nozzleNum,
+                        },
+                    },
+                    update: updateData,
+                    create: {
+                        dailyRecordId: dailyRecord.id,
+                        shiftId: shift.id,
+                        nozzleNumber: nozzleNum,
+                        startReading: 0,
+                        startPhoto: type === 'start' ? result.secure_url : null,
+                        endPhoto: type === 'end' ? result.secure_url : null,
+                    },
+                });
+            } else {
+                const existingMeter = await prisma.meterReading.findFirst({
+                    where: {
                         dailyRecordId: dailyRecord.id,
                         nozzleNumber: nozzleNum,
-                    }
-                },
-                update: type === 'start'
-                    ? { startPhoto: result.secure_url }
-                    : { endPhoto: result.secure_url },
-                create: {
-                    dailyRecordId: dailyRecord.id,
-                    nozzleNumber: nozzleNum,
-                    startReading: 0,
-                    startPhoto: type === 'start' ? result.secure_url : null,
-                    endPhoto: type === 'end' ? result.secure_url : null,
+                    },
+                });
+
+                if (existingMeter) {
+                    await prisma.meterReading.update({
+                        where: { id: existingMeter.id },
+                        data: updateData,
+                    });
+                } else {
+                    await prisma.meterReading.create({
+                        data: {
+                            dailyRecordId: dailyRecord.id,
+                            nozzleNumber: nozzleNum,
+                            startReading: 0,
+                            startPhoto: type === 'start' ? result.secure_url : null,
+                            endPhoto: type === 'end' ? result.secure_url : null,
+                        },
+                    });
                 }
-            });
+            }
         }
 
         return NextResponse.json({

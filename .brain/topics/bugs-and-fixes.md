@@ -19,7 +19,8 @@
      และ 2026-04-27 เพิ่มช่องยอดขายอื่น/ค่าใช้จ่ายอื่นตอนปิดกะ GAS v2 โดยเก็บ gross detail ผ่าน variance note helper กลางและใช้ `expectedOtherAmount` เป็นยอดสุทธิ;
      2026-04-28 ทำ GAS price persistence ให้ staff/admin price edit sync `Station.gasPrice`, เพิ่ม admin operations page สำหรับแก้ราคาหลัก/จัดการกะค้าง, backfill production gasPrice ล่าสุดเป็น 16.49,
      ยกระดับ admin data-entry ให้สร้าง/แก้กะ GAS ตามวันที่จากแอดมินโดยตรงได้ทั้งแบบ OPEN/CLOSED พร้อมมิเตอร์/เกจ/ยอดขาย/กระทบยอด,
-     และ harden หน้า staff open-shift ให้ไม่กดแล้วเงียบ พร้อม manual shift choice เมื่อยังไม่มีกะของวันนั้นในระบบ -->
+     harden หน้า staff open-shift ให้ไม่กดแล้วเงียบ พร้อม manual shift choice เมื่อยังไม่มีกะของวันนั้นในระบบ,
+     และ 2026-04-29 ถอด unique constraint `dailyRecordId+nozzleNumber` ของ `meter_readings` เพื่อให้ GAS เปิดกะบ่ายสร้างมิเตอร์หัวเดิมได้โดย unique ตาม `shiftId+nozzleNumber` แทน -->
 
 # Bugs & Fixes
 
@@ -278,6 +279,12 @@
 - **Operational fallback**: ถ้าวันนั้นระบบยังไม่เห็นกะเลย จะให้พนักงานเลือกได้ว่าจะเปิดกะเช้าหรือกะบ่าย เพื่อช่วยเคสกะเช้าไม่ได้ถูกบันทึกในระบบแต่หน้างานต้องเริ่มกะบ่ายต่อ
 - **สถานะ**: ✅ patch UI แล้ว; targeted lint, route tests, targeted TypeScript ผ่าน; full build ยังติด untracked `scratch/new_gauges.tsx` เดิมนอก scope
 
+### GAS Afternoon Shift Meter Unique Constraint (Apr 29, 2026)
+- **ปัญหา**: production logs วันที่ 2026-04-29 เวลา 13:16 และ 13:40-13:41 มี `POST /api/v2/gas/5/shift/open` ตอบ 500 จาก Prisma `P2002` เพราะ unique constraint `dailyRecordId,nozzleNumber` ใน `meter_readings`; กะเช้าปิดแล้วมี meter rows หัว 1-4 อยู่ จึงเปิดกะบ่ายไม่ได้เพราะหัวจ่ายซ้ำใน daily record เดียวกัน
+- **แก้ไข**: ถอด `@@unique([dailyRecordId, nozzleNumber])` ออกจาก Prisma schema และ production DB ด้วย `prisma db push`; ให้ unique ที่ถูกต้องสำหรับ workflow แยกกะคือ `@@unique([shiftId, nozzleNumber])`
+- **Compatibility**: ปรับ full station meter/photo routes ที่เคยใช้ `dailyRecordId_nozzleNumber` ให้ใช้ `shiftId_nozzleNumber` เมื่อมี shift และ fallback เป็น `findFirst/update/create` สำหรับ daily-only rows
+- **สถานะ**: ✅ production DB sync แล้วและตรวจ `pg_indexes` เหลือแค่ `meter_readings_shiftId_nozzleNumber_key`; full tests ผ่าน 61 tests
+
 ## ⚠️ Known Gotchas
 1. **String vs Numeric Sort**: ทุก sort ที่เกี่ยวกับตัวเลข (book, number) ต้องใช้ parseInt
 2. **Neon Data Transfer**: free tier จำกัด 5GB/month → ระวัง polling ถี่เกินไป
@@ -318,6 +325,7 @@
 37. **GAS Admin Operations Safety**: หน้า `/admin/gas/operations` ปิดกะค้างได้เฉพาะกะ `OPEN` ที่ไม่มี transaction, ไม่มี end meter, และไม่มี reconciliation เท่านั้น; ถ้ากะมีข้อมูลขายแล้วต้องพาเข้าหน้าปิดกะปกติ ไม่ force-close ผ่าน admin shortcut เพราะจะทำให้ยอดรับจริง/กระทบยอดหาย
 38. **GAS Admin Data Entry as Shift Creator**: `/admin/gas/data-entry` เป็นทางหลักให้แอดมินสร้าง/แก้กะ GAS ตามวันที่โดยตรงได้ ห้ามบังคับแอดมินไปเปิดกะผ่าน `/gas/[id]/shift/open` ก่อน; ถ้ากะถูกสร้างเป็น `CLOSED` ต้องสร้าง meter, start/end gauges, synthetic sales, reconciliation และ audit ใน transaction เดียวกัน
 39. **GAS Staff Open Shift UX**: หน้า `/gas/[id]/shift/open` ต้องไม่ปล่อยให้ validation/API error อยู่ไกลจากปุ่มจนเหมือนกดแล้วเงียบ; ถ้าวันนั้นไม่มี shift ในระบบเลยจึงค่อยเปิด manual shift choice ให้เลือกกะบ่ายได้ แต่ถ้ามีกะของวันแล้วต้องให้ระบบเลือกกะถัดไปอัตโนมัติเพื่อกัน duplicate
+40. **MeterReading Shift Uniqueness**: `meter_readings` ห้ามมี unique constraint ระดับ `dailyRecordId+nozzleNumber` เพราะ GAS และ full shift flow ต้องมีหัวจ่ายเดิมได้หลายกะในวันเดียวกัน; route ที่ต้อง upsert meter ต่อกะให้ใช้ `shiftId_nozzleNumber` และถ้าทำ daily-only compatibility ให้ใช้ `findFirst/update/create` แทน compound unique รายวัน
 
 ## Changelog
 - 2026-02-24: สร้างไฟล์ brain topic นี้จากประวัติ conversations
@@ -342,6 +350,7 @@
 - 2026-04-28: patch GAS price persistence/admin operations: staff/admin price edit sync `Station.gasPrice`, เพิ่ม `/admin/gas/operations` สำหรับแก้ราคาหลักและจัดการกะค้างอย่างปลอดภัย, และ backfill production GAS station default price เป็น 16.49 ตามราคาล่าสุด
 - 2026-04-28: ยกระดับ GAS admin data-entry ให้สร้าง/แก้กะตามวันที่จากแอดมินได้โดยตรงทั้ง `OPEN`/`CLOSED`, เพิ่มเกจเปิด/ปิด, ราคาก๊าซ, ยอดขายอื่น/ค่าใช้จ่าย, reconciliation และลิงก์จากหน้า operations
 - 2026-04-28: harden หน้า GAS staff open-shift หลังพบ log มีแต่ GET ไม่มี POST: เพิ่ม form submit/auto-scroll error/timeout/non-JSON error handling/numeric normalization และ manual shift choice เมื่อยังไม่มีกะของวันนั้น
+- 2026-04-29: แก้ GAS เปิดกะบ่ายไม่ได้จาก Prisma `P2002` โดยถอด unique `meter_readings(dailyRecordId,nozzleNumber)` ออกจาก schema/production DB และปรับ full-station meter/photo routes ไม่ให้พึ่ง unique รายวัน
 - 2026-04-23: audit ปั๊มแก๊สทั้ง 2 สาขา พบ route/API ซ้อนกัน, `/api/v2/gas/[stationId]/gauge` ขาด, auth/ownership gaps ใน GAS v2/legacy routes, payment type drift, transaction ไม่ผูก `shiftId` ใน v2 sell, station-5 `hasProducts` config/DB ไม่ตรง, และ DB จริงมีกะ GAS ค้างจำนวนมาก
 - 2026-04-23: implement GAS hardening ตาม audit: เพิ่ม v2 gauge route, helper guard กลาง, station ownership checks, v2 sell/summary shift scope, payment normalize `CREDIT_CARD`/`TRANSFER`, product guard เฉพาะ station-5 พร้อม sync DB, admin stale-shift cleanup endpoint, eslint ignore สำหรับ ad hoc scripts, และ tests เฉพาะ GAS
 - 2026-04-23: ปิด GAS `OPEN` shifts ค้างใน DB จริงครบ 70 กะ (`station-5` 57, `station-6` 13), เติม end meter ที่ว่าง 16 จุดด้วยค่า start เดิม, ปิด daily records ที่ไม่มี open shift เหลือ 67 records, และสร้าง audit log ครบ 70 รายการ

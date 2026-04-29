@@ -277,6 +277,14 @@
   - ลบ production sessions ที่เข้าเงื่อนไขจริงแล้ว 92 รายการ เหลือ 0
   - verification: targeted eslint ผ่าน 0 errors (เหลือ warning legacy เดิม); `git diff --check` ผ่าน
 
+## 2026-04-29
+- ⛽ แก้ปั๊มแก๊สเปิดกะบ่ายไม่ได้จาก meter unique constraint
+  - production logs มี `POST /api/v2/gas/5/shift/open` 500 หลายครั้ง พร้อม Prisma `P2002` เพราะ `meter_readings` unique ที่ `dailyRecordId,nozzleNumber`
+  - DB วันนี้ของ `station-5` มีกะเช้าปิดแล้วและมี meter rows หัว 1-4 ครบ ทำให้กะบ่ายสร้างหัวเดิมซ้ำใน daily record ไม่ได้
+  - ถอด `@@unique([dailyRecordId, nozzleNumber])` ออกจาก Prisma schema และรัน `npx prisma db push --skip-generate` กับ production DB สำเร็จ
+  - ปรับ full station meter/photo routes ให้ใช้ `shiftId_nozzleNumber` เมื่อมี shift และ fallback `findFirst/update/create` สำหรับ daily-only rows แทน compound unique รายวัน
+  - ตรวจ production index แล้วเหลือ `meter_readings_pkey` และ `meter_readings_shiftId_nozzleNumber_key`; verification: targeted lint, targeted TypeScript, `npm run test` ผ่าน 61 tests
+
 ## 2026-04-28
 - 🖨️ เพิ่ม thermal daily summary สำหรับ Epson TM-m30III
   - เพิ่มตัวเลือกพิมพ์สรุปวัน `80mm`, `58mm`, และ `A4` ในหน้า `/station/1/v2`
