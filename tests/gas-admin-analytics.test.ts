@@ -202,4 +202,68 @@ describe('gas admin analytics helpers', () => {
             cardAmount: 8110,
         });
     });
+
+    it('flags meter start readings that do not continue from the previous shift', () => {
+        const shifts = buildGasShiftAnalytics([
+            {
+                id: 'shift-morning',
+                shiftNumber: 1,
+                status: 'CLOSED',
+                createdAt: new Date('2026-04-24T01:00:00.000Z'),
+                closedAt: new Date('2026-04-24T06:00:00.000Z'),
+                varianceNote: null,
+                staff: { name: 'กุ้ง' },
+                dailyRecord: {
+                    id: 'daily-continuity',
+                    stationId: 'station-5',
+                    date: new Date('2026-04-23T17:00:00.000Z'),
+                    gasPrice: 17,
+                    station: { name: 'ปั๊มแก๊สพงษ์อนันต์' },
+                },
+                meters: [
+                    { nozzleNumber: 1, startReading: 1000, endReading: 1040, soldQty: 40 },
+                    { nozzleNumber: 2, startReading: 2000, endReading: 2025, soldQty: 25 },
+                ],
+                reconciliation: null,
+            },
+            {
+                id: 'shift-afternoon',
+                shiftNumber: 2,
+                status: 'OPEN',
+                createdAt: new Date('2026-04-24T07:00:00.000Z'),
+                closedAt: null,
+                varianceNote: null,
+                staff: { name: 'เล็ก' },
+                dailyRecord: {
+                    id: 'daily-continuity',
+                    stationId: 'station-5',
+                    date: new Date('2026-04-23T17:00:00.000Z'),
+                    gasPrice: 17,
+                    station: { name: 'ปั๊มแก๊สพงษ์อนันต์' },
+                },
+                meters: [
+                    { nozzleNumber: 1, startReading: 1040, endReading: null, soldQty: 0 },
+                    { nozzleNumber: 2, startReading: 2031.5, endReading: null, soldQty: 0 },
+                ],
+                reconciliation: null,
+            },
+        ], []);
+
+        const afternoon = shifts.find((shift) => shift.id === 'shift-afternoon');
+        expect(afternoon?.meters.continuity).toMatchObject({
+            checked: true,
+            isContinuous: false,
+            issueCount: 1,
+            maxGap: 6.5,
+            issues: [
+                expect.objectContaining({
+                    nozzleNumber: 2,
+                    previousShiftNumber: 1,
+                    previousEndReading: 2025,
+                    currentStartReading: 2031.5,
+                    gap: 6.5,
+                }),
+            ],
+        });
+    });
 });

@@ -6,5 +6,5 @@ export default async function LegacyGasSuppliesPage({
     params: Promise<{ id: string }>;
 }) {
     const { id } = await params;
-    redirect(`/gas/${id}`);
+    redirect(`/gas/${id}/supplies`);
 }

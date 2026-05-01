@@ -19,6 +19,20 @@ interface MeterReport {
         endReading: number;
         soldQty: number;
     }[];
+    continuity: {
+        checked: boolean;
+        isContinuous: boolean;
+        issueCount: number;
+        maxGap: number;
+        issues: {
+            nozzleNumber: number;
+            previousDateKey: string;
+            previousShiftNumber: number;
+            previousEndReading: number;
+            currentStartReading: number;
+            gap: number;
+        }[];
+    };
     totalLiters: number;
     transactionLiters: number;
     litersVariance: number;
@@ -115,6 +129,8 @@ export default function MeterReportPage() {
         unassignedLiters: sum.unassignedLiters + (report.isSyntheticOrphan ? report.transactionLiters : 0),
         unassignedSales: sum.unassignedSales + (report.isSyntheticOrphan ? report.actualSales : 0),
         unassignedTransactions: sum.unassignedTransactions + (report.isSyntheticOrphan ? report.transactionCount : 0),
+        continuityIssues: sum.continuityIssues + (report.continuity?.issueCount || 0),
+        discontinuousShifts: sum.discontinuousShifts + ((report.continuity?.issueCount || 0) > 0 ? 1 : 0),
     }), {
         meterLiters: 0,
         transactionLiters: 0,
@@ -125,6 +141,8 @@ export default function MeterReportPage() {
         unassignedLiters: 0,
         unassignedSales: 0,
         unassignedTransactions: 0,
+        continuityIssues: 0,
+        discontinuousShifts: 0,
     });
 
     return (
@@ -146,7 +164,7 @@ export default function MeterReportPage() {
                 </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div className="bg-[#1a1a24] rounded-xl p-4 border border-white/10">
                     <div className="text-sm text-gray-400">ลิตรมิเตอร์รวม</div>
                     <div className="text-2xl font-bold text-green-400">{totals.meterLiters.toLocaleString()} L</div>
@@ -166,6 +184,13 @@ export default function MeterReportPage() {
                         {totals.comparableVariance.toLocaleString()} L
                     </div>
                 </div>
+                <div className="bg-[#1a1a24] rounded-xl p-4 border border-white/10">
+                    <div className="text-sm text-gray-400">มิเตอร์ไม่ต่อกะ</div>
+                    <div className={`text-2xl font-bold ${totals.continuityIssues > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                        {totals.continuityIssues}
+                    </div>
+                    <div className="text-xs text-gray-500">{totals.discontinuousShifts} กะที่ต้องตรวจ</div>
+                </div>
             </div>
 
             {totals.unassignedTransactions > 0 && (
@@ -176,6 +201,17 @@ export default function MeterReportPage() {
                     <div className="mt-1 text-amber-100/80">
                         รวม ฿{formatCurrency(totals.unassignedSales)} / {totals.unassignedLiters.toLocaleString()} L
                         ระบบแสดงยอดขายไว้ให้ผู้จัดการเห็นก่อน แต่ยังไม่นับเป็นส่วนต่างมิเตอร์จนกว่าจะผูกกะหรือมีมิเตอร์ประกบ
+                    </div>
+                </div>
+            )}
+
+            {totals.continuityIssues > 0 && (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">
+                    <div className="font-semibold text-red-200">
+                        พบเลขมิเตอร์เริ่มกะไม่ต่อจากเลขปิดกะก่อน {totals.continuityIssues.toLocaleString()} จุด
+                    </div>
+                    <div className="mt-1 text-red-100/80">
+                        ให้ตรวจแถวที่ขึ้น “ไม่ต่อ” ในตารางด้านล่าง เพื่อดูหัวจ่ายและส่วนต่างจากกะก่อนหน้า
                     </div>
                 </div>
             )}
@@ -257,6 +293,7 @@ export default function MeterReportPage() {
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">หัว 2</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">หัว 3</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">หัว 4</th>
+                                    <th className="text-left px-4 py-3 font-medium text-gray-400">ต่อกะก่อน</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">รวม (L)</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">ขายจริง (L)</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">ส่วนต่าง</th>
@@ -304,6 +341,30 @@ export default function MeterReportPage() {
                                                 </td>
                                             );
                                         })}
+                                        <td className="px-4 py-3 min-w-[190px]">
+                                            {r.isSyntheticOrphan ? (
+                                                <span className="text-xs text-amber-300">รอผูกกะ</span>
+                                            ) : !r.continuity?.checked ? (
+                                                <span className="text-xs text-gray-500">ยังไม่มีกะก่อนหน้า</span>
+                                            ) : r.continuity.isContinuous ? (
+                                                <span className="rounded bg-green-900/40 px-2 py-1 text-xs text-green-300">
+                                                    ต่อกัน
+                                                </span>
+                                            ) : (
+                                                <div className="space-y-1">
+                                                    <span className="rounded bg-red-900/50 px-2 py-1 text-xs text-red-200">
+                                                        ไม่ต่อ {r.continuity.issueCount} จุด
+                                                    </span>
+                                                    <div className="text-xs text-red-200/80">
+                                                        {r.continuity.issues.slice(0, 2).map((issue) => (
+                                                            <div key={`${r.id}-${issue.nozzleNumber}`}>
+                                                                หัว {issue.nozzleNumber}: {issue.gap >= 0 ? '+' : ''}{issue.gap.toLocaleString()} L
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </td>
                                         <td className="px-4 py-3 text-right font-mono text-green-400 font-bold">
                                             {r.totalLiters.toLocaleString()}
                                         </td>

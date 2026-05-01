@@ -1,5 +1,5 @@
 <!-- SUMMARY: 6 สถานี: แท๊งลอยวัชรเกียรติ (FULL) ใช้ staff route เดียว `/station/1/v2` และคง classic admin ที่ `/station/1`;
-     วัชรเกียรติออยล์/พงษ์อนันต์/ศุภชัยบริการ (SIMPLE), ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS) ใช้ staff route หลัก `/gas/[id]` พร้อม open-shift guard/เลือกกะเมื่อยังไม่มี record วันนี้ และ admin `/admin/gas/*`, แต่ละแบบมี route และ features ต่างกัน -->
+     วัชรเกียรติออยล์/พงษ์อนันต์/ศุภชัยบริการ (SIMPLE), ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS) ใช้ staff route หลัก `/gas/[id]` พร้อม open-shift guard, supply receiving `/gas/[id]/supplies`, meter continuity ใน admin report, และ admin `/admin/gas/*`; legacy admin gas-control redirect ไป v2 -->
 
 # Station Types
 
@@ -39,6 +39,8 @@
 - บันทึกแก๊ส (กิโลกรัม + ราคา/กก.)
 - Shift management (เหมือน FULL)
 - Gauge reading (เกจวัดถังแก๊ส)
+- Supply receiving: พนักงาน/แอดมินบันทึกสั่ง-ลงแก๊สเข้าถังผ่าน `gas_supplies` โดยใช้ v2 routes เท่านั้น
+- Meter continuity: admin meter report/executive alert ตรวจเลขเปิดกะว่าต่อจากเลขปิดกะก่อนหน้าต่อหัวจ่ายหรือไม่
 - บางสถานีมี Products (สินค้าเสริม)
 
 ## Key Files
@@ -47,7 +49,9 @@
 - **FULL daily print report**: `/src/lib/daily-report-print.ts` ใช้กับ V2 เพื่อพิมพ์สรุปวันพร้อมเลขเปิด-ปิดมิเตอร์, รายการเติมทั้งหมด, ยอดเงินรวม และผลต่างลิตรระหว่างมิเตอร์กับรายการเติม ทั้ง A4 และ thermal 58/80mm สำหรับ Epson TM-m30III
 - **FULL thermal receipt implementation**: `/src/app/station/[id]/new/receipt/page.tsx` (re-export จาก simple receipt สำหรับ V2 print)
 - **GAS staff UI**: `/src/app/gas/[stationId]/page.tsx`
+- **GAS staff supply receiving**: `/src/app/gas/[stationId]/supplies/page.tsx`
 - **GAS admin operations**: `/src/app/admin/gas/operations/page.tsx`
+- **GAS admin supply receiving**: `/src/app/admin/gas/supplies/page.tsx`
 - **Constants**: `/src/constants/index.ts`
 
 ## Changelog
@@ -65,3 +69,4 @@
 - 2026-04-28: เพิ่ม thermal daily summary 58/80mm สำหรับ Epson TM-m30III ในหน้า V2
 - 2026-04-28: ปรับ Tank Loy V2 layout ให้แผงพิมพ์สรุปวันอยู่เฉพาะแท็บ `สรุป` และย้ายปุ่มบันทึกการเติมเข้า content flow แทน fixed overlay เพื่อไม่บังหน้าทำงาน
 - 2026-04-28: harden GAS staff open-shift ให้ไม่กดแล้วเงียบ, รองรับตัวเลขแบบ comma/เลขไทย, auto-scroll error, และให้เลือกกะบ่ายได้เมื่อยังไม่มีกะของวันนั้นในระบบ
+- 2026-05-01: เพิ่ม v2 supply receiving สำหรับ GAS ทั้ง staff/admin, เพิ่ม meter continuity ใน admin analytics/report/executive alerts, และปิด `/admin/gas-control` ให้ redirect ไป `/admin/gas`

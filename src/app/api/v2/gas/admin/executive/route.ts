@@ -275,6 +275,15 @@ export async function GET() {
                 }]
                 : []),
             ...weekShiftFacts
+                .filter((shift) => shift.meters.continuity.issueCount > 0)
+                .slice(0, 3)
+                .map((shift) => ({
+                    id: `meter-continuity:${shift.id}`,
+                    severity: Math.abs(shift.meters.continuity.maxGap) >= 5 ? 'CRITICAL' as const : 'WARNING' as const,
+                    title: `${shift.stationName} มิเตอร์ไม่ต่อกัน`,
+                    detail: `${shift.displayDate} กะ ${shift.shiftNumber} พบ ${shift.meters.continuity.issueCount} หัวจ่ายไม่ต่อจากกะก่อน (ต่างสูงสุด ${shift.meters.continuity.maxGap >= 0 ? '+' : ''}${shift.meters.continuity.maxGap.toLocaleString()} L)`,
+                })),
+            ...weekShiftFacts
                 .filter((shift) => Math.abs(shift.meters.litersVariance) >= 5)
                 .slice(0, 3)
                 .map((shift) => ({

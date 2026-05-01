@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
             totalLiters: shift.meters.total,
             transactionLiters: shift.meters.transactionLiters,
             litersVariance: shift.meters.litersVariance,
+            continuity: shift.meters.continuity,
             gasPrice: shift.gasPrice,
             expectedSales: Number((shift.meters.total * shift.gasPrice).toFixed(2)),
             actualSales: shift.sales.total,

@@ -25,6 +25,7 @@ function getGasV2RedirectPath(pathname: string) {
     const legacyPage = match[2] || '';
 
     if (legacyPage === 'sell') return `/gas/${stationId}/sell`;
+    if (legacyPage === 'supplies') return `/gas/${stationId}/supplies`;
     if (legacyPage === 'meters') return `/gas/${stationId}/meters`;
     if (legacyPage === 'summary' || legacyPage === 'shift-summary') return `/gas/${stationId}/summary`;
 

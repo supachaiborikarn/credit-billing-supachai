@@ -9,6 +9,7 @@ import {
     Gauge,
     Calculator,
     ClipboardList,
+    PackagePlus,
     Clock,
     LogOut,
     ChevronLeft,
@@ -75,6 +76,7 @@ export default function GasStationLayout({
     const navItems = [
         { href: `/gas/${stationId}`, icon: Home, label: 'หน้าหลัก', exact: true },
         { href: `/gas/${stationId}/sell`, icon: FuelIcon, label: 'บันทึกขาย' },
+        { href: `/gas/${stationId}/supplies`, icon: PackagePlus, label: 'ลงแก๊ส' },
         { href: `/gas/${stationId}/meters`, icon: Calculator, label: 'มิเตอร์' },
         { href: `/gas/${stationId}/gauge`, icon: Gauge, label: 'เช็คเกจ' },
         { href: `/gas/${stationId}/summary`, icon: ClipboardList, label: 'สรุปกะ' },
@@ -181,7 +183,7 @@ export default function GasStationLayout({
             {/* Desktop Bottom Navigation */}
             <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#1a1a24] border-t border-white/10 hidden md:block">
                 <div className="flex justify-around py-2">
-                    {navItems.slice(0, 6).map((item) => (
+                    {navItems.map((item) => (
                         <Link
                             key={item.href}
                             href={item.href}

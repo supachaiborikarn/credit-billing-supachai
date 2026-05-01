@@ -67,6 +67,24 @@ export interface GasPaymentBreakdown {
     transfer: number;
 }
 
+export interface GasMeterContinuityIssue {
+    nozzleNumber: number;
+    previousShiftId: string;
+    previousDateKey: string;
+    previousShiftNumber: number;
+    previousEndReading: number;
+    currentStartReading: number;
+    gap: number;
+}
+
+export interface GasMeterContinuitySummary {
+    checked: boolean;
+    isContinuous: boolean;
+    issueCount: number;
+    maxGap: number;
+    issues: GasMeterContinuityIssue[];
+}
+
 export interface GasShiftAnalytics {
     id: string;
     stationId: string;
@@ -86,6 +104,7 @@ export interface GasShiftAnalytics {
         total: number;
         transactionLiters: number;
         litersVariance: number;
+        continuity: GasMeterContinuitySummary;
         nozzles: {
             nozzleNumber: number;
             startReading: number;
@@ -297,6 +316,88 @@ function getMeterSoldQty(meter: AnalyticsMeterRecord): number {
     return Math.max(endReading - startReading, 0);
 }
 
+function createMeterContinuitySummary(
+    checked: boolean,
+    issues: GasMeterContinuityIssue[]
+): GasMeterContinuitySummary {
+    return {
+        checked,
+        isContinuous: issues.length === 0,
+        issueCount: issues.length,
+        maxGap: issues.reduce((largest, issue) => (
+            Math.abs(issue.gap) > Math.abs(largest) ? issue.gap : largest
+        ), 0),
+        issues,
+    };
+}
+
+function buildGasMeterContinuityByShiftId(
+    shifts: AnalyticsShiftRecord[]
+): Map<string, GasMeterContinuitySummary> {
+    const result = new Map<string, GasMeterContinuitySummary>();
+    const previousByStationNozzle = new Map<string, {
+        shiftId: string;
+        dateKey: string;
+        shiftNumber: number;
+        endReading: number;
+    }>();
+
+    const orderedShifts = [...shifts].sort((left, right) => {
+        const leftStation = getGasStationMeta(left.dailyRecord.stationId).canonicalId;
+        const rightStation = getGasStationMeta(right.dailyRecord.stationId).canonicalId;
+
+        return leftStation.localeCompare(rightStation)
+            || left.dailyRecord.date.getTime() - right.dailyRecord.date.getTime()
+            || left.createdAt.getTime() - right.createdAt.getTime()
+            || left.shiftNumber - right.shiftNumber;
+    });
+
+    for (const shift of orderedShifts) {
+        const stationMeta = getGasStationMeta(shift.dailyRecord.stationId);
+        const issues: GasMeterContinuityIssue[] = [];
+        let checked = false;
+
+        for (const meter of shift.meters) {
+            const key = `${stationMeta.canonicalId}:${meter.nozzleNumber}`;
+            const previous = previousByStationNozzle.get(key);
+            if (!previous) continue;
+
+            checked = true;
+            const currentStartReading = toNumber(meter.startReading);
+            const gap = roundGasCurrency(currentStartReading - previous.endReading);
+            if (Math.abs(gap) > 0.01) {
+                issues.push({
+                    nozzleNumber: meter.nozzleNumber,
+                    previousShiftId: previous.shiftId,
+                    previousDateKey: previous.dateKey,
+                    previousShiftNumber: previous.shiftNumber,
+                    previousEndReading: previous.endReading,
+                    currentStartReading,
+                    gap,
+                });
+            }
+        }
+
+        result.set(shift.id, createMeterContinuitySummary(checked, issues));
+
+        for (const meter of shift.meters) {
+            if (meter.endReading === null || meter.endReading === undefined) {
+                continue;
+            }
+
+            const key = `${stationMeta.canonicalId}:${meter.nozzleNumber}`;
+            previousByStationNozzle.set(key, {
+                shiftId: shift.id,
+                dateKey: toBangkokDateKey(shift.dailyRecord.date),
+                shiftNumber: shift.shiftNumber,
+                endReading: toNumber(meter.endReading),
+            });
+        }
+    }
+
+    return result;
+}
+
 function minDate(...dates: Array<Date | null | undefined>): Date | null {
     const validDates = dates.filter((date): date is Date => Boolean(date));
     if (validDates.length === 0) return null;
@@ -452,6 +553,7 @@ export function buildGasShiftAnalytics(
     transactions: AnalyticsTransactionRecord[]
 ): GasShiftAnalytics[] {
     const shiftsById = new Map(shifts.map((shift) => [shift.id, shift]));
+    const continuityByShiftId = buildGasMeterContinuityByShiftId(shifts);
     const shiftWindowsByDailyRecord = new Map<string, ShiftWindow[]>();
     const shiftWindowsByStationDay = new Map<string, ShiftWindow[]>();
 
@@ -651,6 +753,7 @@ export function buildGasShiftAnalytics(
                 total: meterLiters,
                 transactionLiters,
                 litersVariance: roundGasCurrency(transactionLiters - meterLiters),
+                continuity: continuityByShiftId.get(shift.id) ?? createMeterContinuitySummary(false, []),
                 nozzles,
             },
             sales: {
@@ -735,6 +838,7 @@ export function buildGasShiftAnalytics(
                 total: 0,
                 transactionLiters,
                 litersVariance: transactionLiters,
+                continuity: createMeterContinuitySummary(false, []),
                 nozzles: [],
             },
             sales: {

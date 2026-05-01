@@ -11,6 +11,7 @@ import {
     Scale,
     Settings,
     Wrench,
+    PackagePlus,
     ChevronLeft,
     Menu,
     X
@@ -31,6 +32,7 @@ export default function AdminGasLayout({
         { href: '/admin/gas/reports/shift', icon: FileText, label: 'รายงานตามกะ' },
         { href: '/admin/gas/reports/meters', icon: Calculator, label: 'รายงานมิเตอร์' },
         { href: '/admin/gas/gauge', icon: Gauge, label: 'ประวัติเกจ' },
+        { href: '/admin/gas/supplies', icon: PackagePlus, label: 'สั่ง/ลงแก๊ส' },
         { href: '/admin/gas/reconciliation', icon: Scale, label: 'กระทบยอด' },
         { href: '/admin/gas/operations', icon: Wrench, label: 'จัดการกะ/ราคา' },
         { href: '/admin/gas/settings', icon: Settings, label: 'ตั้งค่า' },

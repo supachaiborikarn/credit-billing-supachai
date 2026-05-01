@@ -12,6 +12,7 @@ function normalizeGasRedirectPath(path: string) {
     const legacyPage = match[2] || '';
 
     if (legacyPage === 'sell') return `/gas/${stationNum}/sell`;
+    if (legacyPage === 'supplies') return `/gas/${stationNum}/supplies`;
     if (legacyPage === 'meters') return `/gas/${stationNum}/meters`;
     if (legacyPage === 'summary' || legacyPage === 'shift-summary') return `/gas/${stationNum}/summary`;
 

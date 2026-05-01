@@ -285,6 +285,14 @@
   - ปรับ full station meter/photo routes ให้ใช้ `shiftId_nozzleNumber` เมื่อมี shift และ fallback `findFirst/update/create` สำหรับ daily-only rows แทน compound unique รายวัน
   - ตรวจ production index แล้วเหลือ `meter_readings_pkey` และ `meter_readings_shiftId_nozzleNumber_key`; verification: targeted lint, targeted TypeScript, `npm run test` ผ่าน 61 tests
 
+## 2026-05-01
+- ⛽ เพิ่ม supply receiving และ meter continuity ให้ GAS v2
+  - เพิ่มหน้า staff `/gas/[stationId]/supplies` และ admin `/admin/gas/supplies` สำหรับบันทึกสั่ง/ลงแก๊สเข้าถังผ่าน `gas_supplies`
+  - เพิ่ม v2 APIs `/api/v2/gas/[stationId]/supplies` และ `/api/v2/gas/admin/supplies` พร้อม validation, summary และ audit log
+  - เพิ่ม `meters.continuity` ใน `src/lib/gas/admin-analytics.ts`, แสดงในรายงานมิเตอร์ และยกเป็น executive action alert เมื่อเลขมิเตอร์เริ่มกะไม่ต่อจากเลขปิดกะก่อน
+  - ปิดหน้า admin GAS v1 `/admin/gas-control` ด้วย redirect ไป `/admin/gas`
+  - verification: `npm run test` ผ่าน 65 tests, targeted eslint และ targeted TypeScript ผ่าน; full `tsc` ยังติด untracked `scratch/*` เดิมนอก scope
+
 ## 2026-04-28
 - 🖨️ เพิ่ม thermal daily summary สำหรับ Epson TM-m30III
   - เพิ่มตัวเลือกพิมพ์สรุปวัน `80mm`, `58mm`, และ `A4` ในหน้า `/station/1/v2`

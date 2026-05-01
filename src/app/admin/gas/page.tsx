@@ -292,6 +292,15 @@ export default function AdminGasDashboardPage() {
                 </Link>
 
                 <Link
+                    href="/admin/gas/supplies"
+                    className="bg-[#1a1a24] rounded-xl p-4 border border-orange-500/30 hover:border-orange-500/50 transition-colors group"
+                >
+                    <div className="text-orange-400 group-hover:text-orange-300 mb-2">🚚</div>
+                    <div className="font-medium">สั่ง/ลงแก๊ส</div>
+                    <div className="text-sm text-gray-400">บันทึกใบส่งและต้นทุนรับเข้า</div>
+                </Link>
+
+                <Link
                     href="/admin/gas/reconciliation"
                     className="bg-[#1a1a24] rounded-xl p-4 border border-white/10 hover:border-purple-500/50 transition-colors group"
                 >

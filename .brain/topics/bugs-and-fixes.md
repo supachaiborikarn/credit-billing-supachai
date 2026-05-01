@@ -20,7 +20,8 @@
      2026-04-28 ทำ GAS price persistence ให้ staff/admin price edit sync `Station.gasPrice`, เพิ่ม admin operations page สำหรับแก้ราคาหลัก/จัดการกะค้าง, backfill production gasPrice ล่าสุดเป็น 16.49,
      ยกระดับ admin data-entry ให้สร้าง/แก้กะ GAS ตามวันที่จากแอดมินโดยตรงได้ทั้งแบบ OPEN/CLOSED พร้อมมิเตอร์/เกจ/ยอดขาย/กระทบยอด,
      harden หน้า staff open-shift ให้ไม่กดแล้วเงียบ พร้อม manual shift choice เมื่อยังไม่มีกะของวันนั้นในระบบ,
-     และ 2026-04-29 ถอด unique constraint `dailyRecordId+nozzleNumber` ของ `meter_readings` เพื่อให้ GAS เปิดกะบ่ายสร้างมิเตอร์หัวเดิมได้โดย unique ตาม `shiftId+nozzleNumber` แทน -->
+     และ 2026-04-29 ถอด unique constraint `dailyRecordId+nozzleNumber` ของ `meter_readings` เพื่อให้ GAS เปิดกะบ่ายสร้างมิเตอร์หัวเดิมได้โดย unique ตาม `shiftId+nozzleNumber` แทน;
+     2026-05-01 เพิ่ม v2 supply receiving สำหรับสั่ง/ลงแก๊สเข้าถัง, ผูก meter continuity เข้ากับ GAS admin analytics/report/executive alerts, และปิดหน้า admin GAS v1 `/admin/gas-control` ด้วย redirect ไป `/admin/gas` -->
 
 # Bugs & Fixes
 
@@ -285,6 +286,12 @@
 - **Compatibility**: ปรับ full station meter/photo routes ที่เคยใช้ `dailyRecordId_nozzleNumber` ให้ใช้ `shiftId_nozzleNumber` เมื่อมี shift และ fallback เป็น `findFirst/update/create` สำหรับ daily-only rows
 - **สถานะ**: ✅ production DB sync แล้วและตรวจ `pg_indexes` เหลือแค่ `meter_readings_shiftId_nozzleNumber_key`; full tests ผ่าน 61 tests
 
+### GAS Supply Receiving and Meter Continuity (May 1, 2026)
+- **ปัญหา**: มีตาราง `gas_supplies` และ legacy API `/api/gas-station/[id]/supplies` อยู่ แต่ v2 staff/admin ไม่มีทางใช้งานชัดเจน; meter continuity มี helper แต่ยังไม่ขึ้นใน admin analytics/report; และหน้า admin เก่า `/admin/gas-control` ยังเปิดได้ ทำให้ผู้จัดการมีโอกาสเห็นสูตร/หน้า v1
+- **แก้ไข**: เพิ่ม `/api/v2/gas/[stationId]/supplies` และ `/api/v2/gas/admin/supplies`, หน้า staff `/gas/[stationId]/supplies`, หน้า admin `/admin/gas/supplies`, link จาก nav/dashboard, audit log ตอนสร้าง supply, และ redirect legacy supplies page ไป v2; เพิ่ม `meters.continuity` ใน `src/lib/gas/admin-analytics.ts`, แสดงใน meter report, และยกเป็น executive action alert; เปลี่ยน `/admin/gas-control` เป็น redirect ไป `/admin/gas`
+- **Verification**: `npm run test` ผ่าน 65 tests, targeted eslint ผ่าน, targeted TypeScript ผ่าน; full `tsc` ยังติดไฟล์ untracked `scratch/*` เดิมนอก scope
+- **สถานะ**: ✅ v2 มี flow สั่ง/ลงแก๊สและรายงานตรวจมิเตอร์ต่อกะแล้ว; legacy admin UI ไม่เป็นทางเข้าใช้งานแล้ว
+
 ## ⚠️ Known Gotchas
 1. **String vs Numeric Sort**: ทุก sort ที่เกี่ยวกับตัวเลข (book, number) ต้องใช้ parseInt
 2. **Neon Data Transfer**: free tier จำกัด 5GB/month → ระวัง polling ถี่เกินไป
@@ -326,6 +333,9 @@
 38. **GAS Admin Data Entry as Shift Creator**: `/admin/gas/data-entry` เป็นทางหลักให้แอดมินสร้าง/แก้กะ GAS ตามวันที่โดยตรงได้ ห้ามบังคับแอดมินไปเปิดกะผ่าน `/gas/[id]/shift/open` ก่อน; ถ้ากะถูกสร้างเป็น `CLOSED` ต้องสร้าง meter, start/end gauges, synthetic sales, reconciliation และ audit ใน transaction เดียวกัน
 39. **GAS Staff Open Shift UX**: หน้า `/gas/[id]/shift/open` ต้องไม่ปล่อยให้ validation/API error อยู่ไกลจากปุ่มจนเหมือนกดแล้วเงียบ; ถ้าวันนั้นไม่มี shift ในระบบเลยจึงค่อยเปิด manual shift choice ให้เลือกกะบ่ายได้ แต่ถ้ามีกะของวันแล้วต้องให้ระบบเลือกกะถัดไปอัตโนมัติเพื่อกัน duplicate
 40. **MeterReading Shift Uniqueness**: `meter_readings` ห้ามมี unique constraint ระดับ `dailyRecordId+nozzleNumber` เพราะ GAS และ full shift flow ต้องมีหัวจ่ายเดิมได้หลายกะในวันเดียวกัน; route ที่ต้อง upsert meter ต่อกะให้ใช้ `shiftId_nozzleNumber` และถ้าทำ daily-only compatibility ให้ใช้ `findFirst/update/create` แทน compound unique รายวัน
+41. **GAS Supply Receiving Source**: flow สั่ง/ลงแก๊สเข้าถังต้องใช้ v2 routes `/api/v2/gas/[stationId]/supplies` หรือ `/api/v2/gas/admin/supplies` และตาราง `gas_supplies`; legacy `/api/gas-station/[id]/supplies` เป็น compatibility เท่านั้น ห้ามเพิ่ม UI ใหม่ใต้ `/gas-station/[id]/new/*`
+42. **GAS Meter Continuity Source**: การตรวจเลขมิเตอร์ต่อกะต้องอ่านจาก `shift.meters` ผ่าน `src/lib/gas/admin-analytics.ts` (`meters.continuity`) เพื่อให้ meter report และ executive alerts ใช้ผลเดียวกัน ห้ามคำนวณ continuity ซ้ำในหน้า UI
+43. **GAS Admin V1 Shutdown**: `/admin/gas-control` เป็น v1 legacy และต้อง redirect ไป `/admin/gas`; ถ้าต้องเพิ่ม dashboard/analysis ใหม่ให้เพิ่มใต้ `/admin/gas/*` เท่านั้น
 
 ## Changelog
 - 2026-02-24: สร้างไฟล์ brain topic นี้จากประวัติ conversations
@@ -351,6 +361,7 @@
 - 2026-04-28: ยกระดับ GAS admin data-entry ให้สร้าง/แก้กะตามวันที่จากแอดมินได้โดยตรงทั้ง `OPEN`/`CLOSED`, เพิ่มเกจเปิด/ปิด, ราคาก๊าซ, ยอดขายอื่น/ค่าใช้จ่าย, reconciliation และลิงก์จากหน้า operations
 - 2026-04-28: harden หน้า GAS staff open-shift หลังพบ log มีแต่ GET ไม่มี POST: เพิ่ม form submit/auto-scroll error/timeout/non-JSON error handling/numeric normalization และ manual shift choice เมื่อยังไม่มีกะของวันนั้น
 - 2026-04-29: แก้ GAS เปิดกะบ่ายไม่ได้จาก Prisma `P2002` โดยถอด unique `meter_readings(dailyRecordId,nozzleNumber)` ออกจาก schema/production DB และปรับ full-station meter/photo routes ไม่ให้พึ่ง unique รายวัน
+- 2026-05-01: เพิ่ม GAS supply receiving v2, meter continuity ใน admin analytics/report/executive alert, และปิดหน้า admin GAS v1 `/admin/gas-control`
 - 2026-04-23: audit ปั๊มแก๊สทั้ง 2 สาขา พบ route/API ซ้อนกัน, `/api/v2/gas/[stationId]/gauge` ขาด, auth/ownership gaps ใน GAS v2/legacy routes, payment type drift, transaction ไม่ผูก `shiftId` ใน v2 sell, station-5 `hasProducts` config/DB ไม่ตรง, และ DB จริงมีกะ GAS ค้างจำนวนมาก
 - 2026-04-23: implement GAS hardening ตาม audit: เพิ่ม v2 gauge route, helper guard กลาง, station ownership checks, v2 sell/summary shift scope, payment normalize `CREDIT_CARD`/`TRANSFER`, product guard เฉพาะ station-5 พร้อม sync DB, admin stale-shift cleanup endpoint, eslint ignore สำหรับ ad hoc scripts, และ tests เฉพาะ GAS
 - 2026-04-23: ปิด GAS `OPEN` shifts ค้างใน DB จริงครบ 70 กะ (`station-5` 57, `station-6` 13), เติม end meter ที่ว่าง 16 จุดด้วยค่า start เดิม, ปิด daily records ที่ไม่มี open shift เหลือ 67 records, และสร้าง audit log ครบ 70 รายการ
