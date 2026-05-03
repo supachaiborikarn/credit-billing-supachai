@@ -285,6 +285,12 @@
   - ปรับ full station meter/photo routes ให้ใช้ `shiftId_nozzleNumber` เมื่อมี shift และ fallback `findFirst/update/create` สำหรับ daily-only rows แทน compound unique รายวัน
   - ตรวจ production index แล้วเหลือ `meter_readings_pkey` และ `meter_readings_shiftId_nozzleNumber_key`; verification: targeted lint, targeted TypeScript, `npm run test` ผ่าน 61 tests
 
+## 2026-05-03
+- 🖨️ แก้ mobile thermal print ของรายงานสรุปวันแท๊งลอย
+  - รูปจาก Epson TM Print Assistant ยืนยันว่า Android print preview ยังสร้างเอกสารคล้าย A4 แล้ววางรายงาน 80mm ไว้เล็กๆ ข้างใน แม้เลือก paper size 80mm
+  - เพิ่ม Android direct path ใน `printThermalDailyWorkReport`: สร้าง ePOS-Print XML แล้วเปิด `tmprintassistant://tmprintassistant.epson.com/print?ver=1&data-type=eposprintxml...` เพื่อส่งเข้า Epson TM Print Assistant โดยตรง
+  - Desktop/อุปกรณ์อื่นยังใช้ HTML print fallback เดิม; เพิ่ม unit test ตรวจ URL/XML payload และกันไม่ให้มี `@page`/`A4` ใน payload direct print
+
 ## 2026-05-01
 - ⛽ เพิ่ม supply receiving และ meter continuity ให้ GAS v2
   - เพิ่มหน้า staff `/gas/[stationId]/supplies` และ admin `/admin/gas/supplies` สำหรับบันทึกสั่ง/ลงแก๊สเข้าถังผ่าน `gas_supplies`

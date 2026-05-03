@@ -21,7 +21,8 @@
      ยกระดับ admin data-entry ให้สร้าง/แก้กะ GAS ตามวันที่จากแอดมินโดยตรงได้ทั้งแบบ OPEN/CLOSED พร้อมมิเตอร์/เกจ/ยอดขาย/กระทบยอด,
      harden หน้า staff open-shift ให้ไม่กดแล้วเงียบ พร้อม manual shift choice เมื่อยังไม่มีกะของวันนั้นในระบบ,
      และ 2026-04-29 ถอด unique constraint `dailyRecordId+nozzleNumber` ของ `meter_readings` เพื่อให้ GAS เปิดกะบ่ายสร้างมิเตอร์หัวเดิมได้โดย unique ตาม `shiftId+nozzleNumber` แทน;
-     2026-05-01 เพิ่ม v2 supply receiving สำหรับสั่ง/ลงแก๊สเข้าถัง, ผูก meter continuity เข้ากับ GAS admin analytics/report/executive alerts, และปิดหน้า admin GAS v1 `/admin/gas-control` ด้วย redirect ไป `/admin/gas` -->
+     2026-05-01 เพิ่ม v2 supply receiving สำหรับสั่ง/ลงแก๊สเข้าถัง, ผูก meter continuity เข้ากับ GAS admin analytics/report/executive alerts, และปิดหน้า admin GAS v1 `/admin/gas-control` ด้วย redirect ไป `/admin/gas`;
+     2026-05-03 แก้ mobile thermal daily print ของ Tank Loy โดย Android ส่ง ePOS-Print XML เข้า Epson TM Print Assistant โดยตรงแทนการให้ Android สร้าง A4 preview -->
 
 # Bugs & Fixes
 
@@ -336,8 +337,10 @@
 41. **GAS Supply Receiving Source**: flow สั่ง/ลงแก๊สเข้าถังต้องใช้ v2 routes `/api/v2/gas/[stationId]/supplies` หรือ `/api/v2/gas/admin/supplies` และตาราง `gas_supplies`; legacy `/api/gas-station/[id]/supplies` เป็น compatibility เท่านั้น ห้ามเพิ่ม UI ใหม่ใต้ `/gas-station/[id]/new/*`
 42. **GAS Meter Continuity Source**: การตรวจเลขมิเตอร์ต่อกะต้องอ่านจาก `shift.meters` ผ่าน `src/lib/gas/admin-analytics.ts` (`meters.continuity`) เพื่อให้ meter report และ executive alerts ใช้ผลเดียวกัน ห้ามคำนวณ continuity ซ้ำในหน้า UI
 43. **GAS Admin V1 Shutdown**: `/admin/gas-control` เป็น v1 legacy และต้อง redirect ไป `/admin/gas`; ถ้าต้องเพิ่ม dashboard/analysis ใหม่ให้เพิ่มใต้ `/admin/gas/*` เท่านั้น
+44. **Tank Loy Mobile Thermal Print Scaling**: Android/Epson preview เคยย่อรายงานเหมือน A4 ลงกระดาษ 80mm เพราะ `window.print()` ให้ Android สร้าง PDF/preview ก่อนเข้า Epson แม้เว็บตั้ง `@page` 80mm แล้ว; ตั้งแต่ 2026-05-03 `printThermalDailyWorkReport` บน Android จะส่ง ePOS-Print XML ผ่าน `tmprintassistant://...data-type=eposprintxml` เข้า Epson TM Print Assistant โดยตรง ส่วน desktop/อุปกรณ์อื่นยัง fallback เป็น HTML print เดิม
 
 ## Changelog
+- 2026-05-03: แก้รายงานสรุปวันแท๊งลอยบน Android ให้ส่ง ePOS-Print XML เข้า Epson TM Print Assistant โดยตรง เพื่อเลี่ยง mobile print preview ที่ย่อ A4 ลงกระดาษ 80mm; เพิ่ม unit test สำหรับ URL/XML payload
 - 2026-02-24: สร้างไฟล์ brain topic นี้จากประวัติ conversations
 - 2026-04-18: เพิ่ม audit gotchas เรื่อง API auth gap, audit atomicity, และ variance sign convention
 - 2026-04-18: implement push-hardening รอบแรก: `/admin` layout guard, `api-auth`, high-risk API guards, upload validation, LINE webhook fail-closed, และ atomic transaction audit

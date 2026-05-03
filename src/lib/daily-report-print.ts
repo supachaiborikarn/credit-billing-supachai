@@ -39,6 +39,13 @@ const THERMAL_DAILY_PRINTER_PROFILE = {
     printableWidthMm: { '58': 52.5, '80': 72 } as Record<ThermalPaperSize, number>,
 };
 
+const EPSON_TM_PRINT_ASSISTANT_URL = 'tmprintassistant://tmprintassistant.epson.com/print';
+const EPSON_TM_PRINT_ASSISTANT_MAX_URL_LENGTH = 190_000;
+const EPSON_THERMAL_COLUMNS: Record<ThermalPaperSize, number> = {
+    '58': 32,
+    '80': 42,
+};
+
 const PAYMENT_LABELS: Record<string, string> = {
     CASH: 'เงินสด',
     CREDIT: 'เงินเชื่อ',
@@ -96,6 +103,188 @@ function getFuelLabel(fuelType?: string | null): string {
     }
 
     return fuelLabelMap[fuelType] || fuelType;
+}
+
+function isAndroidDevice(): boolean {
+    return typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
+}
+
+function getTextLength(value: string): number {
+    return Array.from(value).length;
+}
+
+function truncateText(value: string, maxLength: number): string {
+    const chars = Array.from(value);
+    if (chars.length <= maxLength) {
+        return value;
+    }
+
+    if (maxLength <= 3) {
+        return chars.slice(0, maxLength).join('');
+    }
+
+    return `${chars.slice(0, maxLength - 3).join('')}...`;
+}
+
+function padReceiptLine(leftValue: string, rightValue: string, columns: number): string {
+    const left = leftValue.replace(/\s+/g, ' ').trim();
+    const right = rightValue.replace(/\s+/g, ' ').trim();
+    const rightLength = getTextLength(right);
+    const maxLeftLength = Math.max(1, columns - rightLength - 1);
+    const clippedLeft = truncateText(left, maxLeftLength);
+    const spaces = Math.max(1, columns - getTextLength(clippedLeft) - rightLength);
+
+    return `${clippedLeft}${' '.repeat(spaces)}${right}`;
+}
+
+function centerReceiptLine(value: string, columns: number): string {
+    const clipped = truncateText(value.replace(/\s+/g, ' ').trim(), columns);
+    const sidePadding = Math.max(0, Math.floor((columns - getTextLength(clipped)) / 2));
+
+    return `${' '.repeat(sidePadding)}${clipped}`;
+}
+
+function escapeXml(value: string | number | null | undefined): string {
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&apos;');
+}
+
+function eposText(value: string, attributes = ''): string {
+    const escapedValue = escapeXml(value).replaceAll('\n', '&#10;');
+    return `<text${attributes}>${escapedValue}</text>`;
+}
+
+function buildEpsonAssistantDailyReportXml({
+    stationName,
+    reportDate,
+    transactions,
+    meters,
+    paperSize,
+}: PrintDailyWorkReportInput & { paperSize: ThermalPaperSize }): string {
+    const {
+        sortedTransactions,
+        totalLiters,
+        totalAmount,
+        normalizedMeters,
+        totalMeterLiters,
+        litersDiff,
+        diffOk,
+        paymentTotals,
+    } = buildDailyReportModel(transactions, meters || []);
+
+    const columns = EPSON_THERMAL_COLUMNS[paperSize];
+    const divider = '-'.repeat(columns);
+    const doubleDivider = '='.repeat(columns);
+    const lines: string[] = [
+        centerReceiptLine(stationName, columns),
+        centerReceiptLine('รายงานสรุปวัน', columns),
+        centerReceiptLine(formatReportDate(reportDate), columns),
+        centerReceiptLine(`${THERMAL_DAILY_PRINTER_PROFILE.model} ${paperSize}mm`, columns),
+        doubleDivider,
+        centerReceiptLine('ยอดเงินทั้งหมด', columns),
+        centerReceiptLine(`฿ ${formatCurrency(totalAmount)}`, columns),
+        divider,
+        padReceiptLine('จำนวนรายการ', String(sortedTransactions.length), columns),
+        padReceiptLine('ลิตรจากรายการเติม', formatCurrency(totalLiters), columns),
+        padReceiptLine('ลิตรจากมิเตอร์', formatCurrency(totalMeterLiters), columns),
+        padReceiptLine('ผลต่างลิตร', `${litersDiff > 0 ? '+' : ''}${formatCurrency(litersDiff)}`, columns),
+        centerReceiptLine(diffOk ? 'กระทบยอดตรง' : 'ตรวจสอบผลต่าง', columns),
+        divider,
+        'สรุปชำระ',
+    ];
+
+    const paymentEntries = Object.entries(paymentTotals)
+        .sort(([left], [right]) => getPaymentLabel(left).localeCompare(getPaymentLabel(right), 'th'));
+
+    if (paymentEntries.length === 0) {
+        lines.push('ไม่มีรายการชำระ');
+    } else {
+        paymentEntries.forEach(([paymentType, total]) => {
+            lines.push(padReceiptLine(`${getPaymentLabel(paymentType)} (${total.count})`, formatCurrency(total.amount), columns));
+        });
+    }
+
+    lines.push(divider, 'เลขเปิด-ปิดมิเตอร์');
+
+    if (normalizedMeters.length === 0) {
+        lines.push('ไม่พบเลขมิเตอร์');
+    } else {
+        normalizedMeters.forEach((meter) => {
+            lines.push(`หัว ${meter.nozzleNumber} ${truncateText(meter.fuelType || 'ดีเซล B7', Math.max(8, columns - 6))}`);
+            lines.push(padReceiptLine('เปิด', formatCurrency(meter.startReading), columns));
+            lines.push(padReceiptLine('ปิด', meter.endReading === null ? '-' : formatCurrency(meter.endReading), columns));
+            lines.push(padReceiptLine('ลิตร', formatCurrency(meter.liters), columns));
+        });
+    }
+
+    lines.push(divider, 'รายการเติมทั้งหมด');
+
+    if (sortedTransactions.length === 0) {
+        lines.push('ไม่พบรายการเติม');
+    } else {
+        sortedTransactions.forEach((transaction, index) => {
+            const billText = transaction.billBookNo || transaction.billNo
+                ? `${transaction.billBookNo || '-'} / ${transaction.billNo || '-'}`
+                : '-';
+            const title = `${index + 1}. ${formatTime(transaction.date)} ${transaction.licensePlate || '-'}`;
+
+            lines.push(truncateText(title, columns));
+            lines.push(padReceiptLine(getPaymentLabel(transaction.paymentType), formatCurrency(Number(transaction.amount || 0)), columns));
+            lines.push(padReceiptLine('ลิตร', formatCurrency(Number(transaction.liters || 0)), columns));
+            lines.push(truncateText(`ลูกค้า ${transaction.ownerName || '-'}`, columns));
+            lines.push(truncateText(`บิล ${billText}`, columns));
+        });
+    }
+
+    lines.push(
+        doubleDivider,
+        padReceiptLine('รวมลิตร', formatCurrency(totalLiters), columns),
+        padReceiptLine('รวมเงิน', formatCurrency(totalAmount), columns),
+        centerReceiptLine(`พิมพ์เมื่อ ${new Date().toLocaleString('th-TH')}`, columns),
+    );
+
+    return [
+        '<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">',
+        '<text lang="mul" />',
+        '<text font="font_a" />',
+        '<text smooth="true" />',
+        '<text linespc="32" />',
+        eposText(`${lines.join('\n')}\n`),
+        '<feed line="3" />',
+        '<cut type="feed" />',
+        '</epos-print>',
+    ].join('');
+}
+
+export function buildEpsonAssistantDailyReportUrl(
+    input: PrintDailyWorkReportInput & { paperSize: ThermalPaperSize },
+): string | null {
+    const xml = buildEpsonAssistantDailyReportXml(input);
+    const url = `${EPSON_TM_PRINT_ASSISTANT_URL}?ver=1&data-type=eposprintxml&data=${encodeURIComponent(xml)}`;
+
+    if (url.length > EPSON_TM_PRINT_ASSISTANT_MAX_URL_LENGTH) {
+        return null;
+    }
+
+    return url;
+}
+
+function printViaEpsonTmAssistant(input: PrintDailyWorkReportInput & { paperSize: ThermalPaperSize }): boolean {
+    if (!isAndroidDevice()) {
+        return false;
+    }
+
+    const assistantUrl = buildEpsonAssistantDailyReportUrl(input);
+    if (!assistantUrl) {
+        return false;
+    }
+
+    window.location.href = assistantUrl;
+    return true;
 }
 
 function buildDailyReportModel(transactions: PrintableDailyTransaction[], meters: PrintableDailyMeter[]) {
@@ -480,6 +669,18 @@ export function printThermalDailyWorkReport({
     meters = [],
     paperSize,
 }: PrintDailyWorkReportInput & { paperSize: ThermalPaperSize }): boolean {
+    const epsonAssistantOpened = printViaEpsonTmAssistant({
+        stationName,
+        reportDate,
+        transactions,
+        meters,
+        paperSize,
+    });
+
+    if (epsonAssistantOpened) {
+        return true;
+    }
+
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
         return false;
