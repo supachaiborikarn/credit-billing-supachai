@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getTodayBangkok, getStartOfDayBangkokUTC, getEndOfDayBangkokUTC } from '@/lib/gas';
+import {
+    getEndOfDayBangkokUTC,
+    getGasActiveShiftDateRange,
+    getStartOfDayBangkokUTC,
+    getTodayBangkok,
+} from '@/lib/gas';
 import { requireGasStationAccess } from '@/lib/gas/api-guards';
 import { addToGasPaymentSummary, normalizeGasPaymentType } from '@/lib/gas/payment-utils';
 import {
@@ -93,38 +98,36 @@ export async function POST(
             }
         }
 
-        // Get today's DailyRecord and current shift
+        // Get the current open shift. Night shifts can belong to yesterday's
+        // business date and still be open after midnight.
         const today = getTodayBangkok();
-        const startOfDay = getStartOfDayBangkokUTC(today);
-        const endOfDay = getEndOfDayBangkokUTC(today);
+        const activeShiftRange = getGasActiveShiftDateRange(today);
 
-        const dailyRecord = await prisma.dailyRecord.findFirst({
+        const currentShift = await prisma.shift.findFirst({
             where: {
-                stationId: station.dbId,
-                date: {
-                    gte: startOfDay,
-                    lte: endOfDay
-                }
+                status: 'OPEN',
+                dailyRecord: {
+                    stationId: station.dbId,
+                    date: {
+                        gte: activeShiftRange.start,
+                        lte: activeShiftRange.end,
+                    },
+                },
             },
-            orderBy: { date: 'asc' },
+            orderBy: [
+                { dailyRecord: { date: 'desc' } },
+                { createdAt: 'desc' },
+            ],
             include: {
-                shifts: {
-                    where: { status: 'OPEN' },
-                    orderBy: { createdAt: 'desc' },
-                    take: 1
-                }
-            }
+                dailyRecord: true,
+            },
         });
 
-        if (!dailyRecord) {
-            return NextResponse.json({ error: 'No daily record found. Please open a shift first.' }, { status: 400 });
-        }
-
-        const currentShift = dailyRecord.shifts[0];
         if (!currentShift) {
             return NextResponse.json({ error: 'No open shift. Please open a shift first.' }, { status: 400 });
         }
 
+        const dailyRecord = currentShift.dailyRecord;
         const resolvedGasPrice = await resolveDailyGasPrice(prisma, station.dbId, dailyRecord.gasPrice);
         const resolvedAmount = inputAmount ?? roundGasCurrency(inputLiters! * resolvedGasPrice);
         const normalizedLiters = inputAmount !== null

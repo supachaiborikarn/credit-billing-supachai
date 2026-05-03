@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import {
     getEndOfDayBangkokUTC,
+    getGasActiveShiftDateRange,
     getStartOfDayBangkokUTC,
     getTodayBangkok,
     isValidDateKey,
+    toBangkokDateKey,
 } from '@/lib/gas';
 import { requireGasStationAccess } from '@/lib/gas/api-guards';
 
@@ -55,19 +57,52 @@ export async function PUT(
             return NextResponse.json({ error: 'ราคาขายต้องเป็นตัวเลขมากกว่า 0' }, { status: 400 });
         }
 
-        const dateKey = typeof body.dateKey === 'string' && body.dateKey.trim()
+        const requestedDateKey = typeof body.dateKey === 'string' && body.dateKey.trim()
             ? body.dateKey.trim()
-            : getTodayBangkok();
+            : null;
 
-        if (!isValidDateKey(dateKey)) {
+        if (requestedDateKey !== null && !isValidDateKey(requestedDateKey)) {
             return NextResponse.json({ error: 'รูปแบบวันที่ไม่ถูกต้อง' }, { status: 400 });
         }
 
-        const startOfDay = getStartOfDayBangkokUTC(dateKey);
-        const endOfDay = getEndOfDayBangkokUTC(dateKey);
-
         const result = await prisma.$transaction(async (tx) => {
-            const existingRecord = await tx.dailyRecord.findFirst({
+            const today = getTodayBangkok();
+            const activeShiftRange = getGasActiveShiftDateRange(today);
+            const activeShift = requestedDateKey === null
+                ? await tx.shift.findFirst({
+                    where: {
+                        status: 'OPEN',
+                        dailyRecord: {
+                            stationId: station.dbId,
+                            date: {
+                                gte: activeShiftRange.start,
+                                lte: activeShiftRange.end,
+                            },
+                        },
+                    },
+                    include: {
+                        dailyRecord: {
+                            select: {
+                                id: true,
+                                date: true,
+                                gasPrice: true,
+                                retailPrice: true,
+                                wholesalePrice: true,
+                            },
+                        },
+                    },
+                    orderBy: [
+                        { dailyRecord: { date: 'desc' } },
+                        { createdAt: 'desc' },
+                    ],
+                })
+                : null;
+            const dateKey = activeShift
+                ? toBangkokDateKey(activeShift.dailyRecord.date)
+                : (requestedDateKey ?? today);
+            const startOfDay = getStartOfDayBangkokUTC(dateKey);
+            const endOfDay = getEndOfDayBangkokUTC(dateKey);
+            const existingRecord = activeShift?.dailyRecord ?? await tx.dailyRecord.findFirst({
                 where: {
                     stationId: station.dbId,
                     date: {
@@ -171,6 +206,7 @@ export async function PUT(
             return {
                 dailyRecord: savedRecord,
                 previousStationGasPrice: numberOrNull(existingStation?.gasPrice),
+                dateKey,
             };
         });
 
@@ -180,7 +216,7 @@ export async function PUT(
             stationGasPrice: gasPrice,
             previousStationGasPrice: result.previousStationGasPrice,
             dailyRecordId: result.dailyRecord.id,
-            dateKey,
+            dateKey: result.dateKey,
             message: 'อัปเดตราคาขายแก๊สและตั้งเป็นราคาหลักแล้ว',
         });
     } catch (error) {

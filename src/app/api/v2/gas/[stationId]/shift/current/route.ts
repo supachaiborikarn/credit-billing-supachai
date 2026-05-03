@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getTodayBangkok, getStartOfDayBangkokUTC, getEndOfDayBangkokUTC } from '@/lib/gas';
+import {
+    getEndOfDayBangkokUTC,
+    getGasActiveShiftDateRange,
+    getStartOfDayBangkokUTC,
+    getTodayBangkok,
+    toBangkokDateKey,
+} from '@/lib/gas';
 import { requireGasStationAccess } from '@/lib/gas/api-guards';
 import { getGasStartBaselineLock } from '@/lib/gas/v2-workflow';
 
@@ -22,47 +28,63 @@ export async function GET(
         const today = getTodayBangkok();
         const startOfDay = getStartOfDayBangkokUTC(today);
         const endOfDay = getEndOfDayBangkokUTC(today);
+        const activeShiftRange = getGasActiveShiftDateRange(today);
 
-        // Find today's DailyRecord (use dbId for database queries)
-        const dailyRecord = await prisma.dailyRecord.findFirst({
-            where: {
-                stationId: station.dbId,
-                date: {
-                    gte: startOfDay,
-                    lte: endOfDay
-                }
+        const shiftInclude = {
+            dailyRecord: true,
+            staff: { select: { name: true } },
+            meters: {
+                orderBy: { nozzleNumber: 'asc' as const },
             },
-            orderBy: { date: 'asc' },
-            include: {
-                shifts: {
-                    orderBy: { shiftNumber: 'desc' },
-                    take: 1,
-                    include: {
-                        staff: { select: { name: true } },
-                        meters: {
-                            orderBy: { nozzleNumber: 'asc' }
-                        },
-                        reconciliation: true
-                    }
-                }
-            }
+            reconciliation: true,
+        };
+
+        const openShift = await prisma.shift.findFirst({
+            where: {
+                status: 'OPEN',
+                dailyRecord: {
+                    stationId: station.dbId,
+                    date: {
+                        gte: activeShiftRange.start,
+                        lte: activeShiftRange.end,
+                    },
+                },
+            },
+            orderBy: [
+                { dailyRecord: { date: 'desc' } },
+                { createdAt: 'desc' },
+            ],
+            include: shiftInclude,
         });
 
-        if (!dailyRecord || dailyRecord.shifts.length === 0) {
+        const latestTodayShift = openShift ? null : await prisma.shift.findFirst({
+            where: {
+                dailyRecord: {
+                    stationId: station.dbId,
+                    date: {
+                        gte: startOfDay,
+                        lte: endOfDay,
+                    },
+                },
+            },
+            orderBy: [
+                { shiftNumber: 'desc' },
+                { createdAt: 'desc' },
+            ],
+            include: shiftInclude,
+        });
+
+        const shift = openShift ?? latestTodayShift;
+        if (!shift) {
             return NextResponse.json({ shift: null });
         }
-
-        const shift = dailyRecord.shifts[0];
 
         // Get gauge readings for this shift
         const gaugeReadings = await prisma.gaugeReading.findMany({
             where: {
                 stationId: station.dbId,
+                dailyRecordId: shift.dailyRecordId,
                 shiftNumber: shift.shiftNumber,
-                date: {
-                    gte: startOfDay,
-                    lte: endOfDay
-                }
             },
             orderBy: { tankNumber: 'asc' }
         });
@@ -93,6 +115,8 @@ export async function GET(
                 staffName: shift.staff?.name || null,
                 openedAt: shift.createdAt,
                 closedAt: shift.closedAt,
+                businessDate: toBangkokDateKey(shift.dailyRecord.date),
+                dateKey: toBangkokDateKey(shift.dailyRecord.date),
                 meters: shift.meters.map(m => ({
                     nozzleNumber: m.nozzleNumber,
                     startReading: m.startReading !== null ? Number(m.startReading) : null,

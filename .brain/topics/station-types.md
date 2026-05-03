@@ -1,5 +1,5 @@
 <!-- SUMMARY: 6 สถานี: แท๊งลอยวัชรเกียรติ (FULL) ใช้ staff route เดียว `/station/1/v2` และคง classic admin ที่ `/station/1`;
-     วัชรเกียรติออยล์/พงษ์อนันต์/ศุภชัยบริการ (SIMPLE), ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS) ใช้ staff route หลัก `/gas/[id]` พร้อม open-shift guard, supply receiving `/gas/[id]/supplies`, meter continuity ใน admin report, และ admin `/admin/gas/*`; legacy admin gas-control redirect ไป v2 -->
+     วัชรเกียรติออยล์/พงษ์อนันต์/ศุภชัยบริการ (SIMPLE), ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS) ใช้ staff route หลัก `/gas/[id]` พร้อม open-shift guard, กะ 2 เป็นกะค่ำที่ข้ามวันได้, supply receiving `/gas/[id]/supplies`, meter continuity ใน admin report, และ admin `/admin/gas/*`; legacy admin gas-control redirect ไป v2 -->
 
 # Station Types
 
@@ -37,7 +37,7 @@
 
 ### GAS Station
 - บันทึกแก๊ส (กิโลกรัม + ราคา/กก.)
-- Shift management (เหมือน FULL)
+- Shift management (กะ 1 เช้า, กะ 2 ค่ำ; กะค่ำอาจเปิดวันหนึ่งและปิดเช้าวันถัดไป โดย active shift ต้องค้นจาก business date เมื่อวานถึงวันนี้)
 - Gauge reading (เกจวัดถังแก๊ส)
 - Supply receiving: พนักงาน/แอดมินบันทึกสั่ง-ลงแก๊สเข้าถังผ่าน `gas_supplies` โดยใช้ v2 routes เท่านั้น
 - Meter continuity: admin meter report/executive alert ตรวจเลขเปิดกะว่าต่อจากเลขปิดกะก่อนหน้าต่อหัวจ่ายหรือไม่
@@ -70,3 +70,4 @@
 - 2026-04-28: ปรับ Tank Loy V2 layout ให้แผงพิมพ์สรุปวันอยู่เฉพาะแท็บ `สรุป` และย้ายปุ่มบันทึกการเติมเข้า content flow แทน fixed overlay เพื่อไม่บังหน้าทำงาน
 - 2026-04-28: harden GAS staff open-shift ให้ไม่กดแล้วเงียบ, รองรับตัวเลขแบบ comma/เลขไทย, auto-scroll error, และให้เลือกกะบ่ายได้เมื่อยังไม่มีกะของวันนั้นในระบบ
 - 2026-05-01: เพิ่ม v2 supply receiving สำหรับ GAS ทั้ง staff/admin, เพิ่ม meter continuity ใน admin analytics/report/executive alerts, และปิด `/admin/gas-control` ให้ redirect ไป `/admin/gas`
+- 2026-05-03: ปรับ GAS v2 ให้รองรับกะค่ำข้ามวัน: active/current/summary/sell/price/open guard ใช้ช่วงเมื่อวานถึงวันนี้ และ analytics ดึง transactions ตาม `shiftId` เพื่อเก็บยอดหลังเที่ยงคืนไว้กับ business day ของกะเดิม

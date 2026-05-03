@@ -4,8 +4,6 @@
  * Functions for shift management and validation
  */
 
-import { toBangkokDateKey } from './date-utils';
-
 export type ShiftNumber = 1 | 2;
 
 export interface ShiftInfo {
@@ -25,9 +23,9 @@ export const SHIFTS: Record<ShiftNumber, ShiftInfo> = {
     },
     2: {
         shiftNumber: 2,
-        name: 'กะบ่าย',
+        name: 'กะค่ำ',
         startHour: 14,
-        endHour: 22
+        endHour: 6
     }
 };
 
@@ -56,7 +54,7 @@ export function getShiftInfo(shiftNumber: ShiftNumber): ShiftInfo {
  */
 export function getShiftName(shiftNumber: number): string {
     if (shiftNumber === 1) return 'กะ 1 (เช้า)';
-    if (shiftNumber === 2) return 'กะ 2 (บ่าย)';
+    if (shiftNumber === 2) return 'กะ 2 (ค่ำ)';
     return `กะ ${shiftNumber}`;
 }
 

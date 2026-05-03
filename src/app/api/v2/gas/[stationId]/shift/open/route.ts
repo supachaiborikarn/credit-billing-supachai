@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { bangkokDateToUTC } from '@/lib/gas';
+import {
+    bangkokDateToUTC,
+    getGasActiveShiftDateRange,
+    getShiftName,
+    toBangkokDateKey,
+} from '@/lib/gas';
 import { resolveGasStation, getNonGasStationError } from '@/lib/gas/station-resolver';
 import { requireStationAccessApi } from '@/lib/api-auth';
 import {
@@ -60,19 +65,35 @@ export async function POST(
         }
 
         const dateUTC = bangkokDateToUTC(dateKey);
+        const activeShiftRange = getGasActiveShiftDateRange(dateKey);
         return await prisma.$transaction(async (tx) => {
             const existingOpenShift = await tx.shift.findFirst({
                 where: {
                     status: 'OPEN',
                     dailyRecord: {
                         stationId: station.dbId,
-                        date: dateUTC,
+                        date: {
+                            gte: activeShiftRange.start,
+                            lte: activeShiftRange.end,
+                        },
                     },
                 },
+                include: {
+                    dailyRecord: {
+                        select: { date: true },
+                    },
+                },
+                orderBy: [
+                    { dailyRecord: { date: 'desc' } },
+                    { createdAt: 'desc' },
+                ],
             });
 
             if (existingOpenShift) {
-                return NextResponse.json({ error: 'มีกะที่เปิดอยู่แล้ว' }, { status: 400 });
+                const openDateKey = toBangkokDateKey(existingOpenShift.dailyRecord.date);
+                return NextResponse.json({
+                    error: `มีกะที่เปิดอยู่แล้ว (${openDateKey} ${getShiftName(existingOpenShift.shiftNumber)}) กรุณาปิดกะเดิมก่อนเปิดกะใหม่`,
+                }, { status: 400 });
             }
 
             let dailyRecord = await tx.dailyRecord.findFirst({
@@ -145,7 +166,7 @@ export async function POST(
 
             if (existingShiftNumber) {
                 return NextResponse.json({
-                    error: `${shiftNumber === 1 ? 'กะเช้า' : 'กะบ่าย'}ของวันนี้มีอยู่แล้ว กรุณาเปิดกะถัดไปหรือเลือกหน้าปิดกะเดิม`,
+                    error: `${shiftNumber === 1 ? 'กะเช้า' : 'กะค่ำ'}ของวันนี้มีอยู่แล้ว กรุณาเปิดกะถัดไปหรือเลือกหน้าปิดกะเดิม`,
                 }, { status: 409 });
             }
 

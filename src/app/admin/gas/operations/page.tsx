@@ -72,7 +72,7 @@ function getStatusLabel(status: string): string {
 function getShiftActionText(station: GasStationOperation): string {
     if (station.openShiftId) return 'ต้องปิดกะที่เปิดอยู่ก่อน';
     if (station.nextShiftNumber === 1) return 'ยังไม่เปิดกะวันนี้';
-    if (station.nextShiftNumber === 2) return 'พร้อมเปิดกะบ่าย';
+    if (station.nextShiftNumber === 2) return 'พร้อมเปิดกะค่ำ';
     return 'วันนี้ครบ 2 กะแล้ว';
 }
 
@@ -304,7 +304,7 @@ export default function GasOperationsPage() {
 
                                 {needsCloseBeforeAfternoon && (
                                     <div className="mb-4 rounded-xl border border-red-500/25 bg-red-900/25 p-4 text-sm text-red-200">
-                                        กะเช้ายังเป็นสถานะเปิดอยู่ในระบบ จึงยังเปิดกะบ่ายไม่ได้ ให้ปิดกะเช้าก่อน หรือถ้าเป็นกะว่างให้ใช้ปุ่มปิดกะค้างด้านล่าง
+                                        กะเช้ายังเป็นสถานะเปิดอยู่ในระบบ จึงยังเปิดกะค่ำไม่ได้ ให้ปิดกะเช้าก่อน หรือถ้าเป็นกะว่างให้ใช้ปุ่มปิดกะค้างด้านล่าง
                                     </div>
                                 )}
 

@@ -286,6 +286,12 @@
   - ตรวจ production index แล้วเหลือ `meter_readings_pkey` และ `meter_readings_shiftId_nozzleNumber_key`; verification: targeted lint, targeted TypeScript, `npm run test` ผ่าน 61 tests
 
 ## 2026-05-03
+- ⛽ รองรับกะค่ำข้ามวันของปั๊มแก๊สศุภชัยใน GAS v2
+  - เพิ่ม helper `src/lib/gas/active-shift.ts` เพื่อคำนวณ active shift window จาก business date เมื่อวานถึงวันนี้
+  - patch `shift/current`, `summary`, `sell`, `price`, และ `shift/open` ให้เห็นกะ OPEN ที่เปิดเมื่อวานหลังเที่ยงคืน, บันทึกขายเข้า `shiftId/dailyRecordId` เดิม, และบล็อกเปิดกะใหม่จนกว่าจะปิดกะค่ำเดิม
+  - patch `src/lib/gas/admin-analytics.ts` ให้ดึง transactions ตาม `shiftId` ของ shifts ในช่วงรายงานด้วย เพื่อให้ยอดหลังเที่ยงคืนยังอยู่กับ business day ของกะเดิม
+  - เปลี่ยน label GAS กะ 2 เป็น “กะค่ำ” และเพิ่ม route-level tests สำหรับ current/summary/sell/price/open guard
+  - verification: `npm run test` ผ่าน 72 tests, targeted ESLint ผ่าน, targeted TypeScript ผ่าน, `git diff --check` ผ่าน; `npm run build` ยังล้มจากไฟล์ทดลองเก่า `scratch/new_gauges.tsx` ที่ถูก tsconfig include อยู่
 - 🖨️ แก้ mobile thermal print ของรายงานสรุปวันแท๊งลอย
   - รูปจาก Epson TM Print Assistant ยืนยันว่า Android print preview ยังสร้างเอกสารคล้าย A4 แล้ววางรายงาน 80mm ไว้เล็กๆ ข้างใน แม้เลือก paper size 80mm
   - เพิ่ม Android direct path ใน `printThermalDailyWorkReport`: สร้าง ePOS-Print XML แล้วเปิด `tmprintassistant://tmprintassistant.epson.com/print?ver=1&data-type=eposprintxml...` เพื่อส่งเข้า Epson TM Print Assistant โดยตรง

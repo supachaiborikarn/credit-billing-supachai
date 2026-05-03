@@ -22,6 +22,7 @@
      harden หน้า staff open-shift ให้ไม่กดแล้วเงียบ พร้อม manual shift choice เมื่อยังไม่มีกะของวันนั้นในระบบ,
      และ 2026-04-29 ถอด unique constraint `dailyRecordId+nozzleNumber` ของ `meter_readings` เพื่อให้ GAS เปิดกะบ่ายสร้างมิเตอร์หัวเดิมได้โดย unique ตาม `shiftId+nozzleNumber` แทน;
      2026-05-01 เพิ่ม v2 supply receiving สำหรับสั่ง/ลงแก๊สเข้าถัง, ผูก meter continuity เข้ากับ GAS admin analytics/report/executive alerts, และปิดหน้า admin GAS v1 `/admin/gas-control` ด้วย redirect ไป `/admin/gas`;
+     2026-05-03 ปรับ GAS v2 ให้รองรับกะค่ำข้ามวันโดย active/current/summary/sell/price/open guard ใช้ business shift window เมื่อวานถึงวันนี้ และ admin analytics ดึง transactions ตาม `shiftId`;
      2026-05-03 แก้ mobile thermal daily print ของ Tank Loy โดย Android ส่ง ePOS-Print XML เข้า Epson TM Print Assistant โดยตรงแทนการให้ Android สร้าง A4 preview -->
 
 # Bugs & Fixes
@@ -237,6 +238,12 @@
 - **Smoke verification**: local dev + Chrome headless เปิดหน้า admin `/admin/gas`, `/admin/gas/executive`, `/admin/gas/reports/shift`, `/admin/gas/reconciliation` และหน้า staff `/gas/5`, `/gas/5/summary`, `/gas/5/meters`, `/gas/5/sell` ได้ 200 ไม่มี page error; API smoke ผ่านสำหรับ dashboard, shift report, reconciliation, stale-shifts, staff summary/current, price validation และ manager reconciliation edit จริงพร้อม restore ข้อมูลกลับ
 - **สถานะ**: ✅ patch + route-level test แล้ว; `npm run test` ผ่าน 54 tests
 
+### GAS Overnight Shift Business Date (May 3, 2026)
+- **ปัญหา**: ปั๊มแก๊สศุภชัยใช้ 2 กะครอบคลุม 24 ชม. โดยกะ 2 เป็นกะค่ำที่เปิดวันหนึ่งและปิดเช้าวันถัดไป แต่ GAS v2 หลาย route หา current shift จาก `DailyRecord` ของ “วันนี้” เท่านั้น ทำให้หลังเที่ยงคืนพนักงานไม่เห็นกะที่ยังเปิด, บันทึกขายไม่ได้/ไปไม่ถูกกะ, เปลี่ยนราคาแล้วอาจอัปเดต daily record ผิดวัน และ admin analytics อาจไม่ดึง transaction หลังเที่ยงคืนของกะเดิม
+- **แก้ไข**: เพิ่ม `src/lib/gas/active-shift.ts` เพื่อคำนวณ active shift window จาก business date เมื่อวานถึงวันนี้; patch `shift/current`, `summary`, `sell`, `price`, และ `shift/open` ให้ค้นหา `OPEN` shift ในช่วงนี้ก่อน fallback วันนี้, ให้ summary/sell อิง `shiftId` โดยไม่ตัดยอดด้วย calendar day เมื่อมีกะเปิด, ให้ price update ตอนกะข้ามวันอัปเดต daily record ของกะนั้นจริง, และให้ admin analytics ดึง transaction ด้วย `OR date-range OR shiftId in fetched shifts`
+- **ข้อควรระวัง**: ห้ามย้อนกลับไปหาเฉพาะ `getTodayBangkok()` สำหรับ active/current staff flow ของ GAS เพราะจะทำให้กะค่ำ “หาย” หลังเที่ยงคืน; แต่ guard เปิดกะใหม่ยังต้องจำกัดแค่เมื่อวาน+วันนี้เพื่อไม่ให้กะค้างเก่ามากกลับมาบล็อกวันใหม่
+- **สถานะ**: ✅ patch แล้วพร้อม route-level/unit tests; verification `npm run test`, targeted ESLint, targeted TypeScript, และ `git diff --check` ผ่าน
+
 ### GAS Orphan Transactions in Admin Reports (Apr 25, 2026)
 - **อาการจาก DB จริง**: วันที่ 2026-04-25 `station-5` มีรายการขาย 5 รายการจากพนักงาน `กุ้ง` รวม `฿21,540.78` / `1,306.29 L` (`CASH ฿13,430.78`, `CREDIT_CARD ฿8,110`) อยู่ใน `DailyRecord` ของวันนั้น แต่ `shiftId=null` และวันนั้นยังไม่มีแถว `Shift`
 - **สาเหตุ**: legacy หน้า `/gas-station/[id]/new/sell` ยังยอม submit ได้แม้ `currentShiftId` เป็น `null`; legacy transaction route จึงสร้าง transaction ที่ผูกแค่ `dailyRecordId`. ฝั่ง admin daily/executive ใช้ `src/lib/gas/admin-analytics.ts` ที่เริ่มจาก shift facts จึงทิ้ง transaction ที่จับเข้ากะไม่ได้
@@ -338,8 +345,10 @@
 42. **GAS Meter Continuity Source**: การตรวจเลขมิเตอร์ต่อกะต้องอ่านจาก `shift.meters` ผ่าน `src/lib/gas/admin-analytics.ts` (`meters.continuity`) เพื่อให้ meter report และ executive alerts ใช้ผลเดียวกัน ห้ามคำนวณ continuity ซ้ำในหน้า UI
 43. **GAS Admin V1 Shutdown**: `/admin/gas-control` เป็น v1 legacy และต้อง redirect ไป `/admin/gas`; ถ้าต้องเพิ่ม dashboard/analysis ใหม่ให้เพิ่มใต้ `/admin/gas/*` เท่านั้น
 44. **Tank Loy Mobile Thermal Print Scaling**: Android/Epson preview เคยย่อรายงานเหมือน A4 ลงกระดาษ 80mm เพราะ `window.print()` ให้ Android สร้าง PDF/preview ก่อนเข้า Epson แม้เว็บตั้ง `@page` 80mm แล้ว; ตั้งแต่ 2026-05-03 `printThermalDailyWorkReport` บน Android จะส่ง ePOS-Print XML ผ่าน `tmprintassistant://...data-type=eposprintxml` เข้า Epson TM Print Assistant โดยตรง ส่วน desktop/อุปกรณ์อื่นยัง fallback เป็น HTML print เดิม
+45. **GAS Overnight Active Shift**: GAS v2 active/current staff flow ต้องถือว่า `OPEN` กะค่ำอาจอยู่ใน `DailyRecord` ของเมื่อวานและปิดเช้าวันนี้; `summary`/`sell`/`price` ต้องอิง `shiftId`/`dailyRecordId` ของกะที่เปิดอยู่ก่อน calendar day ส่วน admin analytics ต้องดึง transactions ที่ `shiftId` อยู่ใน shifts ของช่วงรายงานแม้ `transaction.date` จะเลยเที่ยงคืนไปวันถัดไป
 
 ## Changelog
+- 2026-05-03: ปรับ GAS v2 ให้รองรับกะค่ำข้ามวันของปั๊มแก๊สศุภชัย โดย active/current/summary/sell/price/open guard ใช้ช่วงเมื่อวานถึงวันนี้, price update อิง business day ของกะที่เปิด, และ admin analytics ดึง transactions ตาม `shiftId`
 - 2026-05-03: แก้รายงานสรุปวันแท๊งลอยบน Android ให้ส่ง ePOS-Print XML เข้า Epson TM Print Assistant โดยตรง เพื่อเลี่ยง mobile print preview ที่ย่อ A4 ลงกระดาษ 80mm; เพิ่ม unit test สำหรับ URL/XML payload
 - 2026-02-24: สร้างไฟล์ brain topic นี้จากประวัติ conversations
 - 2026-04-18: เพิ่ม audit gotchas เรื่อง API auth gap, audit atomicity, และ variance sign convention

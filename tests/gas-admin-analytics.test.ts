@@ -203,6 +203,62 @@ describe('gas admin analytics helpers', () => {
         });
     });
 
+    it('keeps after-midnight night-shift transactions on the shift business date', () => {
+        const shifts = buildGasShiftAnalytics([
+            {
+                id: 'shift-night',
+                shiftNumber: 2,
+                status: 'CLOSED',
+                createdAt: new Date('2026-04-24T07:00:00.000Z'),
+                closedAt: new Date('2026-04-24T23:00:00.000Z'),
+                varianceNote: null,
+                staff: { name: 'กะค่ำ' },
+                dailyRecord: {
+                    id: 'daily-24',
+                    stationId: 'station-5',
+                    date: new Date('2026-04-23T17:00:00.000Z'),
+                    gasPrice: 20,
+                    station: { name: 'ปั๊มแก๊สพงษ์อนันต์' },
+                },
+                meters: [
+                    { nozzleNumber: 1, startReading: 1000, endReading: 1010, soldQty: 10 },
+                ],
+                reconciliation: null,
+            },
+        ], [
+            {
+                id: 'tx-after-midnight',
+                stationId: 'station-5',
+                dailyRecordId: 'daily-24',
+                shiftId: 'shift-night',
+                date: new Date('2026-04-24T18:30:00.000Z'),
+                paymentType: 'CASH',
+                liters: 10,
+                amount: 200,
+            },
+        ]);
+
+        expect(shifts).toHaveLength(1);
+        expect(shifts[0]).toMatchObject({
+            id: 'shift-night',
+            dateKey: '2026-04-24',
+            transactionCount: 1,
+            sales: expect.objectContaining({
+                total: 200,
+                cash: 200,
+                transactions: 1,
+            }),
+        });
+
+        const daily = buildGasDailyAnalytics(shifts);
+        expect(daily).toHaveLength(1);
+        expect(daily[0]).toMatchObject({
+            dateKey: '2026-04-24',
+            totalSales: 200,
+            transactionCount: 1,
+        });
+    });
+
     it('flags meter start readings that do not continue from the previous shift', () => {
         const shifts = buildGasShiftAnalytics([
             {

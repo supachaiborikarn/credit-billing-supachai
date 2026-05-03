@@ -1123,64 +1123,69 @@ export async function getGasShiftAnalyticsData(
 ): Promise<GasShiftAnalytics[]> {
     const stationIds = getGasAnalyticsStationIds(options.stationId);
 
-    const [shifts, transactions] = await Promise.all([
-        prisma.shift.findMany({
-            where: {
-                dailyRecord: {
-                    stationId: { in: stationIds },
-                    date: {
-                        gte: options.fromDate,
-                        lte: options.toDate,
-                    },
-                },
-                ...(options.shiftNumber ? { shiftNumber: options.shiftNumber } : {}),
-                ...(options.reconciledOnly ? { reconciliation: { isNot: null } } : {}),
-            },
-            include: {
-                dailyRecord: {
-                    include: {
-                        station: {
-                            select: { name: true },
-                        },
-                    },
-                },
-                staff: {
-                    select: { name: true },
-                },
-                meters: {
-                    orderBy: { nozzleNumber: 'asc' },
-                },
-                reconciliation: true,
-            },
-            orderBy: [
-                { dailyRecord: { date: 'desc' } },
-                { shiftNumber: 'asc' },
-                { createdAt: 'asc' },
-            ],
-        }),
-        prisma.transaction.findMany({
-            where: {
+    const shifts = await prisma.shift.findMany({
+        where: {
+            dailyRecord: {
                 stationId: { in: stationIds },
                 date: {
                     gte: options.fromDate,
                     lte: options.toDate,
                 },
-                deletedAt: null,
-                isVoided: false,
             },
-            select: {
-                id: true,
-                stationId: true,
-                dailyRecordId: true,
-                shiftId: true,
-                date: true,
-                paymentType: true,
-                liters: true,
-                amount: true,
+            ...(options.shiftNumber ? { shiftNumber: options.shiftNumber } : {}),
+            ...(options.reconciledOnly ? { reconciliation: { isNot: null } } : {}),
+        },
+        include: {
+            dailyRecord: {
+                include: {
+                    station: {
+                        select: { name: true },
+                    },
+                },
             },
-            orderBy: { date: 'asc' },
-        }),
-    ]);
+            staff: {
+                select: { name: true },
+            },
+            meters: {
+                orderBy: { nozzleNumber: 'asc' },
+            },
+            reconciliation: true,
+        },
+        orderBy: [
+            { dailyRecord: { date: 'desc' } },
+            { shiftNumber: 'asc' },
+            { createdAt: 'asc' },
+        ],
+    });
+
+    const shiftIds = shifts.map((shift) => shift.id);
+    const transactions = await prisma.transaction.findMany({
+        where: {
+            stationId: { in: stationIds },
+            OR: [
+                {
+                    date: {
+                        gte: options.fromDate,
+                        lte: options.toDate,
+                    },
+                },
+                ...(shiftIds.length > 0 ? [{ shiftId: { in: shiftIds } }] : []),
+            ],
+            deletedAt: null,
+            isVoided: false,
+        },
+        select: {
+            id: true,
+            stationId: true,
+            dailyRecordId: true,
+            shiftId: true,
+            date: true,
+            paymentType: true,
+            liters: true,
+            amount: true,
+        },
+        orderBy: { date: 'asc' },
+    });
 
     return buildGasShiftAnalytics(shifts, transactions);
 }

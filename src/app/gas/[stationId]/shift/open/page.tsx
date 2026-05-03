@@ -285,7 +285,7 @@ export default function ShiftOpenPage() {
                     <h2 className="text-2xl font-bold mb-2">มีกะที่เปิดอยู่แล้ว</h2>
                     <p className="text-gray-400 mb-6">
                         {existingShift.shiftNumber === 1
-                            ? 'ต้องปิดกะเช้าให้สำเร็จก่อนจึงจะเปิดกะบ่ายได้'
+                            ? 'ต้องปิดกะเช้าให้สำเร็จก่อนจึงจะเปิดกะค่ำได้'
                             : 'กรุณาปิดกะปัจจุบันก่อนเปิดกะใหม่'}
                     </p>
                     <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
@@ -394,7 +394,7 @@ export default function ShiftOpenPage() {
                             ))}
                         </div>
                         <p className="mt-3 text-xs leading-5 text-amber-100/70">
-                            ปกติระบบเลือกให้อัตโนมัติ ถ้ากะเช้าไม่ได้ถูกบันทึกในระบบแต่หน้างานเป็นกะบ่าย ให้เลือกกะบ่ายก่อนกดเปิดกะ
+                            ปกติระบบเลือกให้อัตโนมัติ ถ้ากะเช้าไม่ได้ถูกบันทึกในระบบแต่หน้างานเป็นกะค่ำ ให้เลือกกะค่ำก่อนกดเปิดกะ
                         </p>
                     </div>
                 )}

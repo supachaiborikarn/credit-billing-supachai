@@ -11,6 +11,7 @@ export * from './date-utils';
 
 // Shift utilities
 export * from './shift-utils';
+export * from './active-shift';
 
 // Meter utilities
 export * from './meter-utils';
@@ -23,4 +24,3 @@ export * from './payment-utils';
 
 // NOTE: station-resolver uses prisma and must be imported directly in server components
 // export * from './station-resolver';
-

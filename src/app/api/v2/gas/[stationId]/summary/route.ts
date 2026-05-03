@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getTodayBangkok, getStartOfDayBangkokUTC, getEndOfDayBangkokUTC } from '@/lib/gas';
+import {
+    getEndOfDayBangkokUTC,
+    getGasActiveShiftDateRange,
+    getStartOfDayBangkokUTC,
+    getTodayBangkok,
+    toBangkokDateKey,
+} from '@/lib/gas';
 import { requireGasStationAccess } from '@/lib/gas/api-guards';
 import { addToGasPaymentSummary } from '@/lib/gas/payment-utils';
 import { getDefaultGasPriceForStation, resolveDailyGasPrice } from '@/lib/gas/v2-workflow';
@@ -26,30 +32,43 @@ export async function GET(
         const today = getTodayBangkok();
         const startOfDay = getStartOfDayBangkokUTC(today);
         const endOfDay = getEndOfDayBangkokUTC(today);
+        const activeShiftRange = getGasActiveShiftDateRange(today);
 
-        // Get today's DailyRecord (use station.dbId)
-        const dailyRecord = await prisma.dailyRecord.findFirst({
+        const shift = await prisma.shift.findFirst({
+            where: {
+                status: 'OPEN',
+                dailyRecord: {
+                    stationId: station.dbId,
+                    date: {
+                        gte: activeShiftRange.start,
+                        lte: activeShiftRange.end,
+                    },
+                },
+            },
+            orderBy: [
+                { dailyRecord: { date: 'desc' } },
+                { createdAt: 'desc' },
+            ],
+            include: {
+                dailyRecord: true,
+                staff: { select: { name: true } },
+                meters: true,
+                reconciliation: true,
+            },
+        });
+
+        // Fall back to today's DailyRecord when no shift is open.
+        const todayDailyRecord = shift ? null : await prisma.dailyRecord.findFirst({
             where: {
                 stationId: station.dbId,
                 date: {
                     gte: startOfDay,
-                    lte: endOfDay
-                }
+                    lte: endOfDay,
+                },
             },
             orderBy: { date: 'asc' },
-            include: {
-                shifts: {
-                    orderBy: { shiftNumber: 'desc' },
-                    take: 1,
-                    include: {
-                        staff: { select: { name: true } },
-                        meters: true,
-                        reconciliation: true
-                    },
-                    where: { status: 'OPEN' }
-                }
-            }
         });
+        const dailyRecord = shift?.dailyRecord ?? todayDailyRecord;
 
         if (!dailyRecord) {
             const defaultGasPrice = await getDefaultGasPriceForStation(prisma, station.dbId);
@@ -64,18 +83,15 @@ export async function GET(
             });
         }
 
-        const shift = dailyRecord.shifts[0];
         const dailyGasPrice = await resolveDailyGasPrice(prisma, station.dbId, dailyRecord.gasPrice);
 
         // Get current-shift transactions when a shift is open; fall back to the day for empty state.
         const transactions = await prisma.transaction.findMany({
             where: {
                 stationId: station.dbId,
-                ...(shift ? { shiftId: shift.id } : {}),
-                date: {
-                    gte: startOfDay,
-                    lte: endOfDay
-                },
+                ...(shift
+                    ? { shiftId: shift.id }
+                    : { date: { gte: startOfDay, lte: endOfDay } }),
                 deletedAt: null,
                 isVoided: false
             },
@@ -108,10 +124,12 @@ export async function GET(
         const latestGauge = await prisma.gaugeReading.findMany({
             where: {
                 stationId: station.dbId,
-                date: {
-                    gte: startOfDay,
-                    lte: endOfDay
-                }
+                ...(shift
+                    ? {
+                        dailyRecordId: shift.dailyRecordId,
+                        shiftNumber: shift.shiftNumber,
+                    }
+                    : { dailyRecordId: dailyRecord.id }),
             },
             orderBy: { createdAt: 'desc' },
             take: 3,
@@ -150,6 +168,8 @@ export async function GET(
                 staffName: shift.staff?.name || null,
                 openedAt: shift.createdAt,
                 closedAt: shift.closedAt,
+                businessDate: toBangkokDateKey(shift.dailyRecord.date),
+                dateKey: toBangkokDateKey(shift.dailyRecord.date),
                 meters: shift.meters.map(m => ({
                     nozzleNumber: m.nozzleNumber,
                     startReading: m.startReading !== null ? Number(m.startReading) : null,
@@ -164,11 +184,8 @@ export async function GET(
                 const shiftGauges = await prisma.gaugeReading.findMany({
                     where: {
                         stationId: station.dbId,
+                        dailyRecordId: shift.dailyRecordId,
                         shiftNumber: shift.shiftNumber,
-                        date: {
-                            gte: startOfDay,
-                            lte: endOfDay
-                        }
                     }
                 });
 
