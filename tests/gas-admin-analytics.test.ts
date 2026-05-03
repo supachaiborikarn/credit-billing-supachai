@@ -7,6 +7,7 @@ import {
     buildGasVarianceNote,
     parseGasVarianceNote,
 } from '../src/lib/gas/admin-analytics';
+import { buildGasExecutivePrintReport } from '../src/lib/gas/executive-report';
 
 describe('gas admin analytics helpers', () => {
     it('extracts and rebuilds card amounts stored in variance notes', () => {
@@ -257,6 +258,133 @@ describe('gas admin analytics helpers', () => {
             totalSales: 200,
             transactionCount: 1,
         });
+    });
+
+    it('builds executive print report across revenue, meters, and supplies', () => {
+        const shiftFacts = buildGasShiftAnalytics([
+            {
+                id: 'shift-morning',
+                shiftNumber: 1,
+                status: 'CLOSED',
+                createdAt: new Date('2026-05-01T00:00:00.000Z'),
+                closedAt: new Date('2026-05-01T08:00:00.000Z'),
+                varianceNote: null,
+                staff: { name: 'กุ้ง' },
+                dailyRecord: {
+                    id: 'daily-report',
+                    stationId: 'station-5',
+                    date: new Date('2026-04-30T17:00:00.000Z'),
+                    gasPrice: 20,
+                    station: { name: 'ปั๊มแก๊สพงษ์อนันต์' },
+                },
+                meters: [
+                    { nozzleNumber: 1, startReading: 100, endReading: 110, soldQty: 10 },
+                ],
+                reconciliation: null,
+            },
+            {
+                id: 'shift-night',
+                shiftNumber: 2,
+                status: 'CLOSED',
+                createdAt: new Date('2026-05-01T10:00:00.000Z'),
+                closedAt: new Date('2026-05-01T23:00:00.000Z'),
+                varianceNote: null,
+                staff: { name: 'เล็ก' },
+                dailyRecord: {
+                    id: 'daily-report',
+                    stationId: 'station-5',
+                    date: new Date('2026-04-30T17:00:00.000Z'),
+                    gasPrice: 20,
+                    station: { name: 'ปั๊มแก๊สพงษ์อนันต์' },
+                },
+                meters: [
+                    { nozzleNumber: 1, startReading: 115, endReading: 120, soldQty: 5 },
+                ],
+                reconciliation: null,
+            },
+        ], [
+            {
+                id: 'tx-morning',
+                stationId: 'station-5',
+                dailyRecordId: 'daily-report',
+                shiftId: 'shift-morning',
+                date: new Date('2026-05-01T02:00:00.000Z'),
+                paymentType: 'CASH',
+                liters: 10,
+                amount: 200,
+            },
+            {
+                id: 'tx-night',
+                stationId: 'station-5',
+                dailyRecordId: 'daily-report',
+                shiftId: 'shift-night',
+                date: new Date('2026-05-01T12:00:00.000Z'),
+                paymentType: 'TRANSFER',
+                liters: 5,
+                amount: 100,
+            },
+            {
+                id: 'tx-orphan',
+                stationId: 'station-5',
+                dailyRecordId: null,
+                shiftId: null,
+                date: new Date('2026-05-01T09:00:00.000Z'),
+                paymentType: 'CREDIT',
+                liters: 2.5,
+                amount: 50,
+            },
+        ]);
+        const daily = buildGasDailyAnalytics(shiftFacts);
+        const report = buildGasExecutivePrintReport({
+            from: '2026-05-01',
+            to: '2026-05-01',
+            generatedAt: new Date('2026-05-02T03:00:00.000Z'),
+            stationLabel: 'ปั๊มแก๊สพงษ์อนันต์',
+            stations: [{ stationId: 'station-5', stationName: 'ปั๊มแก๊สพงษ์อนันต์' }],
+            shifts: shiftFacts,
+            daily,
+            supplies: [
+                {
+                    id: 'supply-1',
+                    stationId: 'station-5',
+                    stationName: 'ปั๊มแก๊สพงษ์อนันต์',
+                    date: '2026-05-01',
+                    displayDate: '1 พ.ค. 2569',
+                    liters: 1000,
+                    supplier: 'Supplier A',
+                    invoiceNo: 'INV-1',
+                    pricePerLiter: 8,
+                    totalCost: 8000,
+                    notes: null,
+                    createdAt: '2026-05-01T01:00:00.000Z',
+                },
+            ],
+        });
+
+        expect(report.kpis).toMatchObject({
+            totalRevenue: 350,
+            transactionCount: 3,
+            supplyLiters: 1000,
+            supplyCost: 8000,
+            averageSupplyCost: 8,
+            continuityIssues: 1,
+            unassignedTransactions: 1,
+        });
+        expect(report.revenue.paymentMix).toMatchObject({
+            cash: 200,
+            credit: 50,
+            transfer: 100,
+        });
+        expect(report.meters.totalsByNozzle[0]).toMatchObject({
+            stationId: 'station-5',
+            nozzleNumber: 1,
+            liters: 15,
+            estimatedSales: 300,
+        });
+        expect(report.managementNotes.map((note) => note.title)).toEqual(expect.arrayContaining([
+            'เลขมิเตอร์ไม่ต่อจากกะก่อน',
+            'มีรายการขายยังไม่ผูกกะ',
+        ]));
     });
 
     it('flags meter start readings that do not continue from the previous shift', () => {

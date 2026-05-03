@@ -1,5 +1,5 @@
 <!-- SUMMARY: 6 สถานี: แท๊งลอยวัชรเกียรติ (FULL) ใช้ staff route เดียว `/station/1/v2` และคง classic admin ที่ `/station/1`;
-     วัชรเกียรติออยล์/พงษ์อนันต์/ศุภชัยบริการ (SIMPLE), ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS) ใช้ staff route หลัก `/gas/[id]` พร้อม open-shift guard, กะ 2 เป็นกะค่ำที่ข้ามวันได้, supply receiving `/gas/[id]/supplies`, meter continuity ใน admin report, และ admin `/admin/gas/*`; legacy admin gas-control redirect ไป v2 -->
+     วัชรเกียรติออยล์/พงษ์อนันต์/ศุภชัยบริการ (SIMPLE), ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS) ใช้ staff route หลัก `/gas/[id]` พร้อม open-shift guard, กะ 2 เป็นกะค่ำที่ข้ามวันได้, supply receiving `/gas/[id]/supplies`, meter continuity ใน admin report, executive print report `/admin/gas/reports/executive`, และ admin `/admin/gas/*`; legacy admin gas-control redirect ไป v2 -->
 
 # Station Types
 
@@ -41,6 +41,7 @@
 - Gauge reading (เกจวัดถังแก๊ส)
 - Supply receiving: พนักงาน/แอดมินบันทึกสั่ง-ลงแก๊สเข้าถังผ่าน `gas_supplies` โดยใช้ v2 routes เท่านั้น
 - Meter continuity: admin meter report/executive alert ตรวจเลขเปิดกะว่าต่อจากเลขปิดกะก่อนหน้าต่อหัวจ่ายหรือไม่
+- Executive print report: แอดมินพิมพ์รายงานเสนอผู้บริหารตามช่วงวันที่ได้ที่ `/admin/gas/reports/executive` โดยรวมรายได้, รายงานเลขมิเตอร์, payment mix, รายการลงแก๊ส, และ management notes
 - บางสถานีมี Products (สินค้าเสริม)
 
 ## Key Files
@@ -52,6 +53,7 @@
 - **GAS staff supply receiving**: `/src/app/gas/[stationId]/supplies/page.tsx`
 - **GAS admin operations**: `/src/app/admin/gas/operations/page.tsx`
 - **GAS admin supply receiving**: `/src/app/admin/gas/supplies/page.tsx`
+- **GAS executive print report**: `/src/app/admin/gas/reports/executive/page.tsx`, API `/src/app/api/v2/gas/admin/reports/executive/route.ts`, builder `/src/lib/gas/executive-report.ts`
 - **Constants**: `/src/constants/index.ts`
 
 ## Changelog
@@ -71,3 +73,4 @@
 - 2026-04-28: harden GAS staff open-shift ให้ไม่กดแล้วเงียบ, รองรับตัวเลขแบบ comma/เลขไทย, auto-scroll error, และให้เลือกกะบ่ายได้เมื่อยังไม่มีกะของวันนั้นในระบบ
 - 2026-05-01: เพิ่ม v2 supply receiving สำหรับ GAS ทั้ง staff/admin, เพิ่ม meter continuity ใน admin analytics/report/executive alerts, และปิด `/admin/gas-control` ให้ redirect ไป `/admin/gas`
 - 2026-05-03: ปรับ GAS v2 ให้รองรับกะค่ำข้ามวัน: active/current/summary/sell/price/open guard ใช้ช่วงเมื่อวานถึงวันนี้ และ analytics ดึง transactions ตาม `shiftId` เพื่อเก็บยอดหลังเที่ยงคืนไว้กับ business day ของกะเดิม
+- 2026-05-03: เพิ่มหน้า GAS executive print report `/admin/gas/reports/executive` สำหรับรายงานเสนอผู้บริหารตามช่วงเวลา รวมรายได้ เลขมิเตอร์ และรายการลงแก๊สในหน้า A4 print-friendly

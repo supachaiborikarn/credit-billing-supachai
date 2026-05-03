@@ -12,6 +12,7 @@ import {
     Settings,
     Wrench,
     PackagePlus,
+    Printer,
     ChevronLeft,
     Menu,
     X
@@ -28,6 +29,7 @@ export default function AdminGasLayout({
     const navItems = [
         { href: '/admin/gas', icon: LayoutDashboard, label: 'Dashboard', exact: true },
         { href: '/admin/gas/executive', icon: FileText, label: '📊 Executive' },
+        { href: '/admin/gas/reports/executive', icon: Printer, label: 'พิมพ์รายงานผู้บริหาร' },
         { href: '/admin/gas/reports/daily', icon: FileText, label: 'รายงานรายวัน' },
         { href: '/admin/gas/reports/shift', icon: FileText, label: 'รายงานตามกะ' },
         { href: '/admin/gas/reports/meters', icon: Calculator, label: 'รายงานมิเตอร์' },

@@ -286,6 +286,11 @@
   - ตรวจ production index แล้วเหลือ `meter_readings_pkey` และ `meter_readings_shiftId_nozzleNumber_key`; verification: targeted lint, targeted TypeScript, `npm run test` ผ่าน 61 tests
 
 ## 2026-05-03
+- 🖨️ เพิ่ม GAS executive print report สำหรับรายงานเสนอผู้บริหาร
+  - เพิ่มหน้า `/admin/gas/reports/executive` แบบ A4 print-friendly พร้อม filter ช่วงวันที่/สถานี และปุ่มพิมพ์หรือบันทึก PDF
+  - เพิ่ม API `/api/v2/gas/admin/reports/executive` และ builder `src/lib/gas/executive-report.ts` เพื่อรวมรายได้, payment mix, รายงานเลขมิเตอร์, meter continuity, orphan sales, รายการลงแก๊ส และ management notes จาก source เดียวกัน
+  - เพิ่มเมนูใน admin GAS และ test ครอบ report builder เพื่อกันตัวเลข revenue/meter/supply drift
+  - verification: `npm run test` ผ่าน 73 tests, targeted ESLint ผ่าน, targeted TypeScript ผ่าน, `git diff --check` ผ่าน
 - ⛽ รองรับกะค่ำข้ามวันของปั๊มแก๊สศุภชัยใน GAS v2
   - เพิ่ม helper `src/lib/gas/active-shift.ts` เพื่อคำนวณ active shift window จาก business date เมื่อวานถึงวันนี้
   - patch `shift/current`, `summary`, `sell`, `price`, และ `shift/open` ให้เห็นกะ OPEN ที่เปิดเมื่อวานหลังเที่ยงคืน, บันทึกขายเข้า `shiftId/dailyRecordId` เดิม, และบล็อกเปิดกะใหม่จนกว่าจะปิดกะค่ำเดิม

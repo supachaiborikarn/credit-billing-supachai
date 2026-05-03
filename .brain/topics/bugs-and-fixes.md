@@ -23,6 +23,7 @@
      และ 2026-04-29 ถอด unique constraint `dailyRecordId+nozzleNumber` ของ `meter_readings` เพื่อให้ GAS เปิดกะบ่ายสร้างมิเตอร์หัวเดิมได้โดย unique ตาม `shiftId+nozzleNumber` แทน;
      2026-05-01 เพิ่ม v2 supply receiving สำหรับสั่ง/ลงแก๊สเข้าถัง, ผูก meter continuity เข้ากับ GAS admin analytics/report/executive alerts, และปิดหน้า admin GAS v1 `/admin/gas-control` ด้วย redirect ไป `/admin/gas`;
      2026-05-03 ปรับ GAS v2 ให้รองรับกะค่ำข้ามวันโดย active/current/summary/sell/price/open guard ใช้ business shift window เมื่อวานถึงวันนี้ และ admin analytics ดึง transactions ตาม `shiftId`;
+     2026-05-03 เพิ่ม GAS executive print report ที่ใช้ `src/lib/gas/executive-report.ts` รวม revenue/meter/supplies/management notes จาก source เดียวกับ admin analytics;
      2026-05-03 แก้ mobile thermal daily print ของ Tank Loy โดย Android ส่ง ePOS-Print XML เข้า Epson TM Print Assistant โดยตรงแทนการให้ Android สร้าง A4 preview -->
 
 # Bugs & Fixes
@@ -346,8 +347,10 @@
 43. **GAS Admin V1 Shutdown**: `/admin/gas-control` เป็น v1 legacy และต้อง redirect ไป `/admin/gas`; ถ้าต้องเพิ่ม dashboard/analysis ใหม่ให้เพิ่มใต้ `/admin/gas/*` เท่านั้น
 44. **Tank Loy Mobile Thermal Print Scaling**: Android/Epson preview เคยย่อรายงานเหมือน A4 ลงกระดาษ 80mm เพราะ `window.print()` ให้ Android สร้าง PDF/preview ก่อนเข้า Epson แม้เว็บตั้ง `@page` 80mm แล้ว; ตั้งแต่ 2026-05-03 `printThermalDailyWorkReport` บน Android จะส่ง ePOS-Print XML ผ่าน `tmprintassistant://...data-type=eposprintxml` เข้า Epson TM Print Assistant โดยตรง ส่วน desktop/อุปกรณ์อื่นยัง fallback เป็น HTML print เดิม
 45. **GAS Overnight Active Shift**: GAS v2 active/current staff flow ต้องถือว่า `OPEN` กะค่ำอาจอยู่ใน `DailyRecord` ของเมื่อวานและปิดเช้าวันนี้; `summary`/`sell`/`price` ต้องอิง `shiftId`/`dailyRecordId` ของกะที่เปิดอยู่ก่อน calendar day ส่วน admin analytics ต้องดึง transactions ที่ `shiftId` อยู่ใน shifts ของช่วงรายงานแม้ `transaction.date` จะเลยเที่ยงคืนไปวันถัดไป
+46. **GAS Executive Print Report Source**: หน้า `/admin/gas/reports/executive` ต้องดึงข้อมูลผ่าน `/api/v2/gas/admin/reports/executive` และ build ด้วย `src/lib/gas/executive-report.ts` เท่านั้น เพื่อให้รายได้, payment mix, meter continuity, orphan transactions, และรายการลงแก๊สใช้ source เดียวกับ `admin-analytics`; ห้ามคำนวณตัวเลขซ้ำใน UI print page
 
 ## Changelog
+- 2026-05-03: เพิ่ม GAS executive print report สำหรับผู้บริหารที่ `/admin/gas/reports/executive` และ API `/api/v2/gas/admin/reports/executive` โดยรวม revenue, meter readings, gas supplies, continuity/orphan notes ผ่าน `src/lib/gas/executive-report.ts`
 - 2026-05-03: ปรับ GAS v2 ให้รองรับกะค่ำข้ามวันของปั๊มแก๊สศุภชัย โดย active/current/summary/sell/price/open guard ใช้ช่วงเมื่อวานถึงวันนี้, price update อิง business day ของกะที่เปิด, และ admin analytics ดึง transactions ตาม `shiftId`
 - 2026-05-03: แก้รายงานสรุปวันแท๊งลอยบน Android ให้ส่ง ePOS-Print XML เข้า Epson TM Print Assistant โดยตรง เพื่อเลี่ยง mobile print preview ที่ย่อ A4 ลงกระดาษ 80mm; เพิ่ม unit test สำหรับ URL/XML payload
 - 2026-02-24: สร้างไฟล์ brain topic นี้จากประวัติ conversations
