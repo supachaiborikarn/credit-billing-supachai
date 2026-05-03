@@ -93,6 +93,19 @@ function formatTime(dateStr: string): string {
     });
 }
 
+function formatShortReportDate(dateStr: string): string {
+    const date = new Date(`${dateStr}T00:00:00+07:00`);
+    if (Number.isNaN(date.getTime())) {
+        return dateStr;
+    }
+
+    return date.toLocaleDateString('th-TH', {
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit',
+    });
+}
+
 function getPaymentLabel(paymentType: string): string {
     return PAYMENT_LABELS[paymentType] || paymentType;
 }
@@ -158,6 +171,45 @@ function eposText(value: string, attributes = ''): string {
     return `<text${attributes}>${escapedValue}</text>`;
 }
 
+function buildCompactMeterLines(meters: ReturnType<typeof buildDailyReportModel>['normalizedMeters'], columns: number): string[] {
+    if (meters.length === 0) {
+        return ['ไม่พบเลขมิเตอร์'];
+    }
+
+    return meters.map((meter) => {
+        const endReading = meter.endReading === null ? '-' : formatCurrency(meter.endReading);
+        const fuelLabel = truncateText(meter.fuelType || 'ดีเซล B7', 8);
+        const meterText = `${meter.nozzleNumber} ${fuelLabel} ${formatCurrency(meter.startReading)}-${endReading}`;
+        const litersText = `${formatCurrency(meter.liters)}L`;
+
+        return padReceiptLine(meterText, litersText, columns);
+    });
+}
+
+function buildCompactTransactionLines(
+    transaction: PrintableDailyTransaction,
+    index: number,
+    columns: number,
+): string[] {
+    const amount = formatCurrency(Number(transaction.amount || 0));
+    const liters = `${formatCurrency(Number(transaction.liters || 0))}L`;
+    const payment = getPaymentLabel(transaction.paymentType);
+    const billText = transaction.billBookNo || transaction.billNo
+        ? `${transaction.billBookNo || '-'}/${transaction.billNo || '-'}`
+        : '';
+    const plateAndOwner = [transaction.licensePlate || '-', transaction.ownerName || '']
+        .filter(Boolean)
+        .join(' ');
+    const detailText = [plateAndOwner, payment, liters, billText ? `บิล ${billText}` : '']
+        .filter(Boolean)
+        .join(' ');
+
+    return [
+        padReceiptLine(`${index + 1}. ${formatTime(transaction.date)}`, amount, columns),
+        truncateText(detailText, columns),
+    ];
+}
+
 function buildEpsonAssistantDailyReportXml({
     stationName,
     reportDate,
@@ -179,82 +231,57 @@ function buildEpsonAssistantDailyReportXml({
     const columns = EPSON_THERMAL_COLUMNS[paperSize];
     const divider = '-'.repeat(columns);
     const doubleDivider = '='.repeat(columns);
-    const lines: string[] = [
-        centerReceiptLine(stationName, columns),
-        centerReceiptLine('รายงานสรุปวัน', columns),
-        centerReceiptLine(formatReportDate(reportDate), columns),
-        centerReceiptLine(`${THERMAL_DAILY_PRINTER_PROFILE.model} ${paperSize}mm`, columns),
-        doubleDivider,
-        centerReceiptLine('ยอดเงินทั้งหมด', columns),
-        centerReceiptLine(`฿ ${formatCurrency(totalAmount)}`, columns),
-        divider,
+    const summaryLines = [
         padReceiptLine('จำนวนรายการ', String(sortedTransactions.length), columns),
         padReceiptLine('ลิตรจากรายการเติม', formatCurrency(totalLiters), columns),
         padReceiptLine('ลิตรจากมิเตอร์', formatCurrency(totalMeterLiters), columns),
-        padReceiptLine('ผลต่างลิตร', `${litersDiff > 0 ? '+' : ''}${formatCurrency(litersDiff)}`, columns),
-        centerReceiptLine(diffOk ? 'กระทบยอดตรง' : 'ตรวจสอบผลต่าง', columns),
-        divider,
-        'สรุปชำระ',
+        padReceiptLine('ผลต่างลิตร', `${litersDiff > 0 ? '+' : ''}${formatCurrency(litersDiff)} ${diffOk ? 'ตรง' : 'ตรวจสอบ'}`, columns),
     ];
 
     const paymentEntries = Object.entries(paymentTotals)
         .sort(([left], [right]) => getPaymentLabel(left).localeCompare(getPaymentLabel(right), 'th'));
 
+    const paymentLines: string[] = ['สรุปชำระ'];
     if (paymentEntries.length === 0) {
-        lines.push('ไม่มีรายการชำระ');
+        paymentLines.push('ไม่มีรายการชำระ');
     } else {
         paymentEntries.forEach(([paymentType, total]) => {
-            lines.push(padReceiptLine(`${getPaymentLabel(paymentType)} (${total.count})`, formatCurrency(total.amount), columns));
+            paymentLines.push(padReceiptLine(`${getPaymentLabel(paymentType)} (${total.count})`, formatCurrency(total.amount), columns));
         });
     }
 
-    lines.push(divider, 'เลขเปิด-ปิดมิเตอร์');
-
-    if (normalizedMeters.length === 0) {
-        lines.push('ไม่พบเลขมิเตอร์');
-    } else {
-        normalizedMeters.forEach((meter) => {
-            lines.push(`หัว ${meter.nozzleNumber} ${truncateText(meter.fuelType || 'ดีเซล B7', Math.max(8, columns - 6))}`);
-            lines.push(padReceiptLine('เปิด', formatCurrency(meter.startReading), columns));
-            lines.push(padReceiptLine('ปิด', meter.endReading === null ? '-' : formatCurrency(meter.endReading), columns));
-            lines.push(padReceiptLine('ลิตร', formatCurrency(meter.liters), columns));
-        });
-    }
-
-    lines.push(divider, 'รายการเติมทั้งหมด');
-
+    const transactionLines: string[] = [];
     if (sortedTransactions.length === 0) {
-        lines.push('ไม่พบรายการเติม');
+        transactionLines.push('ไม่พบรายการเติม');
     } else {
         sortedTransactions.forEach((transaction, index) => {
-            const billText = transaction.billBookNo || transaction.billNo
-                ? `${transaction.billBookNo || '-'} / ${transaction.billNo || '-'}`
-                : '-';
-            const title = `${index + 1}. ${formatTime(transaction.date)} ${transaction.licensePlate || '-'}`;
-
-            lines.push(truncateText(title, columns));
-            lines.push(padReceiptLine(getPaymentLabel(transaction.paymentType), formatCurrency(Number(transaction.amount || 0)), columns));
-            lines.push(padReceiptLine('ลิตร', formatCurrency(Number(transaction.liters || 0)), columns));
-            lines.push(truncateText(`ลูกค้า ${transaction.ownerName || '-'}`, columns));
-            lines.push(truncateText(`บิล ${billText}`, columns));
+            transactionLines.push(...buildCompactTransactionLines(transaction, index, columns));
         });
     }
 
-    lines.push(
-        doubleDivider,
+    const meterLines = buildCompactMeterLines(normalizedMeters, columns);
+    const footerLines = [
         padReceiptLine('รวมลิตร', formatCurrency(totalLiters), columns),
         padReceiptLine('รวมเงิน', formatCurrency(totalAmount), columns),
-        centerReceiptLine(`พิมพ์เมื่อ ${new Date().toLocaleString('th-TH')}`, columns),
-    );
+        centerReceiptLine(`พิมพ์ ${new Date().toLocaleString('th-TH')}`, columns),
+    ];
 
     return [
         '<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">',
         '<text lang="mul" />',
         '<text font="font_a" />',
         '<text smooth="true" />',
-        '<text linespc="32" />',
-        eposText(`${lines.join('\n')}\n`),
-        '<feed line="3" />',
+        '<text linespc="24" />',
+        eposText(`${stationName}\n`, ' align="center" em="true"'),
+        eposText(`รายงานสรุปวัน ${formatShortReportDate(reportDate)}\n`, ' align="center"'),
+        eposText(`${doubleDivider}\n`, ' align="left"'),
+        eposText(`฿ ${formatCurrency(totalAmount)}\n`, ' align="center" em="true"'),
+        eposText(`${divider}\n${summaryLines.join('\n')}\n${divider}\n`),
+        eposText(`${paymentLines.join('\n')}\n${divider}\n`),
+        eposText(`เลขเปิด-ปิดมิเตอร์\n${meterLines.join('\n')}\n${divider}\n`),
+        eposText(`รายการเติมทั้งหมด\n${transactionLines.join('\n')}\n${doubleDivider}\n`),
+        eposText(`${footerLines.join('\n')}\n`),
+        '<feed line="1" />',
         '<cut type="feed" />',
         '</epos-print>',
     ].join('');

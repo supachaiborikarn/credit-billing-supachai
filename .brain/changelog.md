@@ -300,7 +300,8 @@
 - 🖨️ แก้ mobile thermal print ของรายงานสรุปวันแท๊งลอย
   - รูปจาก Epson TM Print Assistant ยืนยันว่า Android print preview ยังสร้างเอกสารคล้าย A4 แล้ววางรายงาน 80mm ไว้เล็กๆ ข้างใน แม้เลือก paper size 80mm
   - เพิ่ม Android direct path ใน `printThermalDailyWorkReport`: สร้าง ePOS-Print XML แล้วเปิด `tmprintassistant://tmprintassistant.epson.com/print?ver=1&data-type=eposprintxml...` เพื่อส่งเข้า Epson TM Print Assistant โดยตรง
-  - Desktop/อุปกรณ์อื่นยังใช้ HTML print fallback เดิม; เพิ่ม unit test ตรวจ URL/XML payload และกันไม่ให้มี `@page`/`A4` ใน payload direct print
+  - ปรับ direct XML layout ให้ compact ขึ้น: line spacing 24, feed ท้าย 1, รายการเติมประมาณ 2 บรรทัด, มิเตอร์ 80mm ประมาณ 1 บรรทัดต่อหัวจ่าย เพื่อลดการใช้กระดาษและให้ใกล้ thermal report เดิมกว่าเดิม
+  - Desktop/อุปกรณ์อื่นยังใช้ HTML print fallback เดิม; unit test ตรวจ URL/XML payload และกันไม่ให้มี `@page`/`A4` ใน payload direct print
 
 ## 2026-05-01
 - ⛽ เพิ่ม supply receiving และ meter continuity ให้ GAS v2
