@@ -39,6 +39,10 @@ describe('daily report thermal printing', () => {
         const xml = decodeURIComponent(url!.split('data=')[1]);
         expect(xml).toContain('<epos-print');
         expect(xml).toContain('<text lang="mul" />');
+        expect(xml).toContain('<text font="font_b" />');
+        expect(xml).toContain('width="2" height="2"');
+        expect(xml).toContain('เลขเปิด-ปิดมิเตอร์');
+        expect(xml).toContain('ผลต่าง');
         expect(xml).toContain('รายงานสรุปวัน');
         expect(xml).toContain('แท๊งลอยวัชรเกียรติ');
         expect(xml).toContain('<cut type="feed" />');

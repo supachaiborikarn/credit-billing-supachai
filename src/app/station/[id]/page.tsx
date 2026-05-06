@@ -4,6 +4,7 @@ import { useState, useEffect, use, useRef } from 'react';
 import Sidebar from '@/components/Sidebar';
 import BillEntryForm from '@/components/BillEntryForm';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { printDailyWorkReport } from '@/lib/daily-report-print';
 import {
     Calendar,
     Save,
@@ -705,6 +706,30 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
         Math.abs(meterDiff) > 1 ? `ผลต่างมิเตอร์ ${meterDiff > 0 ? '+' : ''}${formatNumber(meterDiff)} ลิตร` : null,
     ].filter(Boolean) as string[];
     const dataHealthOk = dataHealthIssues.length === 0;
+
+    const handlePrintAdminDailySummary = () => {
+        if (!station) {
+            alert('ไม่พบข้อมูลสถานีสำหรับพิมพ์รายงาน');
+            return;
+        }
+
+        const opened = printDailyWorkReport({
+            stationName: station.name,
+            reportDate: selectedDate,
+            transactions,
+            meters: meters.map((meter) => ({
+                nozzleNumber: meter.nozzle,
+                fuelType: 'ดีเซล B7',
+                startReading: Number(meter.start || 0),
+                endReading: Number(meter.end || 0),
+                liters: Math.max(Number(meter.end || 0) - Number(meter.start || 0), 0),
+            })),
+        });
+
+        if (!opened) {
+            alert('กรุณาอนุญาตให้เปิด popup เพื่อพิมพ์รายงาน');
+        }
+    };
 
     if (!station) {
         return (
@@ -1694,7 +1719,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                             </div>
                             <div className="flex items-center gap-2">
                                 <button
-                                    onClick={() => window.print()}
+                                    onClick={handlePrintAdminDailySummary}
                                     className="btn btn-secondary btn-sm"
                                 >
                                     <Printer size={16} />

@@ -42,8 +42,12 @@ const THERMAL_DAILY_PRINTER_PROFILE = {
 const EPSON_TM_PRINT_ASSISTANT_URL = 'tmprintassistant://tmprintassistant.epson.com/print';
 const EPSON_TM_PRINT_ASSISTANT_MAX_URL_LENGTH = 190_000;
 const EPSON_THERMAL_COLUMNS: Record<ThermalPaperSize, number> = {
-    '58': 32,
-    '80': 42,
+    '58': 34,
+    '80': 48,
+};
+const EPSON_THERMAL_TRANSACTION_COLUMNS: Record<ThermalPaperSize, number> = {
+    '58': 40,
+    '80': 56,
 };
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -171,18 +175,21 @@ function eposText(value: string, attributes = ''): string {
     return `<text${attributes}>${escapedValue}</text>`;
 }
 
-function buildCompactMeterLines(meters: ReturnType<typeof buildDailyReportModel>['normalizedMeters'], columns: number): string[] {
+function buildHighlightedMeterLines(meters: ReturnType<typeof buildDailyReportModel>['normalizedMeters'], columns: number): string[] {
     if (meters.length === 0) {
         return ['ไม่พบเลขมิเตอร์'];
     }
 
-    return meters.map((meter) => {
+    return meters.flatMap((meter) => {
         const endReading = meter.endReading === null ? '-' : formatCurrency(meter.endReading);
-        const fuelLabel = truncateText(meter.fuelType || 'ดีเซล B7', 8);
-        const meterText = `${meter.nozzleNumber} ${fuelLabel} ${formatCurrency(meter.startReading)}-${endReading}`;
-        const litersText = `${formatCurrency(meter.liters)}L`;
+        const fuelLabel = truncateText(meter.fuelType || 'ดีเซล B7', Math.max(8, columns - 8));
 
-        return padReceiptLine(meterText, litersText, columns);
+        return [
+            `หัว ${meter.nozzleNumber} ${fuelLabel}`,
+            padReceiptLine('เปิด', formatCurrency(meter.startReading), columns),
+            padReceiptLine('ปิด', endReading, columns),
+            padReceiptLine('ขาย', `${formatCurrency(meter.liters)}L`, columns),
+        ];
     });
 }
 
@@ -229,6 +236,7 @@ function buildEpsonAssistantDailyReportXml({
     } = buildDailyReportModel(transactions, meters || []);
 
     const columns = EPSON_THERMAL_COLUMNS[paperSize];
+    const transactionColumns = EPSON_THERMAL_TRANSACTION_COLUMNS[paperSize];
     const divider = '-'.repeat(columns);
     const doubleDivider = '='.repeat(columns);
     const summaryLines = [
@@ -255,11 +263,11 @@ function buildEpsonAssistantDailyReportXml({
         transactionLines.push('ไม่พบรายการเติม');
     } else {
         sortedTransactions.forEach((transaction, index) => {
-            transactionLines.push(...buildCompactTransactionLines(transaction, index, columns));
+            transactionLines.push(...buildCompactTransactionLines(transaction, index, transactionColumns));
         });
     }
 
-    const meterLines = buildCompactMeterLines(normalizedMeters, columns);
+    const meterLines = buildHighlightedMeterLines(normalizedMeters, columns);
     const footerLines = [
         padReceiptLine('รวมลิตร', formatCurrency(totalLiters), columns),
         padReceiptLine('รวมเงิน', formatCurrency(totalAmount), columns),
@@ -271,15 +279,23 @@ function buildEpsonAssistantDailyReportXml({
         '<text lang="mul" />',
         '<text font="font_a" />',
         '<text smooth="true" />',
-        '<text linespc="24" />',
+        '<text linespc="22" />',
         eposText(`${stationName}\n`, ' align="center" em="true"'),
         eposText(`รายงานสรุปวัน ${formatShortReportDate(reportDate)}\n`, ' align="center"'),
         eposText(`${doubleDivider}\n`, ' align="left"'),
-        eposText(`฿ ${formatCurrency(totalAmount)}\n`, ' align="center" em="true"'),
+        eposText('ยอดรวม\n', ' align="center" em="true"'),
+        eposText(`฿ ${formatCurrency(totalAmount)}\n`, ' align="center" em="true" width="2" height="2"'),
+        eposText(`${divider}\nเลขเปิด-ปิดมิเตอร์\n`, ' em="true"'),
+        eposText(`${meterLines.join('\n')}\n`, ' em="true"'),
+        eposText(`${divider}\n`),
+        eposText(`ผลต่าง ${litersDiff > 0 ? '+' : ''}${formatCurrency(litersDiff)} ลิตร ${diffOk ? '(ตรง)' : '(ตรวจสอบ)'}\n`, ' align="center" em="true"'),
         eposText(`${divider}\n${summaryLines.join('\n')}\n${divider}\n`),
         eposText(`${paymentLines.join('\n')}\n${divider}\n`),
-        eposText(`เลขเปิด-ปิดมิเตอร์\n${meterLines.join('\n')}\n${divider}\n`),
-        eposText(`รายการเติมทั้งหมด\n${transactionLines.join('\n')}\n${doubleDivider}\n`),
+        eposText('รายการเติมทั้งหมด\n', ' em="true"'),
+        '<text font="font_b" />',
+        eposText(`${transactionLines.join('\n')}\n`),
+        '<text font="font_a" />',
+        eposText(`${doubleDivider}\n`),
         eposText(`${footerLines.join('\n')}\n`),
         '<feed line="1" />',
         '<cut type="feed" />',
@@ -450,23 +466,26 @@ export function printDailyWorkReport({
             color: #111827;
             background: #ffffff;
             padding: 0;
-            font-size: 10px;
+            font-size: 9.5px;
         }
         .sheet {
-            padding: 8mm;
+            padding: 7mm;
         }
         .header {
             display: flex;
             align-items: flex-start;
             justify-content: space-between;
             gap: 12px;
-            margin-bottom: 8px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #111827;
+            margin-bottom: 10px;
+            padding: 8px 10px;
+            border: 1px solid #111827;
+            border-left: 5px solid #f97316;
+            background: #f8fafc;
         }
         .header h1 {
             margin: 0 0 3px;
-            font-size: 18px;
+            font-size: 20px;
+            letter-spacing: 0;
         }
         .header p {
             margin: 0;
@@ -480,44 +499,52 @@ export function printDailyWorkReport({
         .header .total-label {
             color: #6b7280;
             font-size: 10px;
+            font-weight: 700;
         }
         .header .total-value {
-            font-size: 20px;
+            font-size: 23px;
             font-weight: 800;
-            color: #047857;
+            color: #0f172a;
         }
         .summary-grid {
             display: grid;
             grid-template-columns: repeat(5, minmax(0, 1fr));
             gap: 6px;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }
         .summary-card {
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+            border-top: 3px solid #f97316;
+            border-radius: 7px;
             padding: 6px 8px;
-            background: #f9fafb;
+            background: #ffffff;
         }
         .summary-card .label {
             color: #6b7280;
             font-size: 9px;
             margin-bottom: 2px;
+            font-weight: 700;
         }
         .summary-card .value {
-            font-size: 14px;
-            font-weight: 700;
+            font-size: 15px;
+            font-weight: 800;
+            color: #0f172a;
         }
         .payment-line {
-            margin: 4px 0 8px;
+            margin: 4px 0 10px;
+            padding: 5px 8px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
             color: #374151;
             font-size: 9px;
+            background: #f8fafc;
         }
         .reconcile-line {
-            margin: 0 0 8px;
-            padding: 5px 8px;
+            margin: 0 0 10px;
+            padding: 7px 10px;
             border-radius: 6px;
-            font-size: 10px;
-            font-weight: 700;
+            font-size: 11px;
+            font-weight: 800;
         }
         .reconcile-line.ok {
             background: #ecfdf5;
@@ -530,30 +557,36 @@ export function printDailyWorkReport({
             border: 1px solid #fecaca;
         }
         .section-title {
-            margin: 8px 0 4px;
-            font-size: 11px;
-            font-weight: 700;
+            margin: 10px 0 5px;
+            font-size: 12px;
+            font-weight: 800;
+            color: #0f172a;
+            border-left: 4px solid #f97316;
+            padding-left: 6px;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 9px;
+            font-size: 8.7px;
             page-break-inside: auto;
         }
         th, td {
-            border: 1px solid #d1d5db;
+            border: 1px solid #cbd5e1;
             padding: 3px 4px;
             vertical-align: top;
         }
         th {
-            background: #f3f4f6;
+            background: #111827;
+            color: #ffffff;
             text-align: left;
+            font-weight: 800;
         }
         .text-center { text-align: center; }
         .text-right { text-align: right; }
         .total-row {
-            background: #ecfdf5;
-            font-weight: 700;
+            background: #fff7ed;
+            font-weight: 800;
+            color: #111827;
         }
         .empty-state {
             text-align: center;
