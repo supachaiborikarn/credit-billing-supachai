@@ -42,8 +42,8 @@ const THERMAL_DAILY_PRINTER_PROFILE = {
 const EPSON_TM_PRINT_ASSISTANT_URL = 'tmprintassistant://tmprintassistant.epson.com/print';
 const EPSON_TM_PRINT_ASSISTANT_MAX_URL_LENGTH = 190_000;
 const EPSON_THERMAL_COLUMNS: Record<ThermalPaperSize, number> = {
-    '58': 34,
-    '80': 48,
+    '58': 32,
+    '80': 42,
 };
 const EPSON_THERMAL_TRANSACTION_COLUMNS: Record<ThermalPaperSize, number> = {
     '58': 40,
@@ -175,21 +175,18 @@ function eposText(value: string, attributes = ''): string {
     return `<text${attributes}>${escapedValue}</text>`;
 }
 
-function buildHighlightedMeterLines(meters: ReturnType<typeof buildDailyReportModel>['normalizedMeters'], columns: number): string[] {
+function buildCompactMeterLines(meters: ReturnType<typeof buildDailyReportModel>['normalizedMeters'], columns: number): string[] {
     if (meters.length === 0) {
         return ['ไม่พบเลขมิเตอร์'];
     }
 
-    return meters.flatMap((meter) => {
+    return meters.map((meter) => {
         const endReading = meter.endReading === null ? '-' : formatCurrency(meter.endReading);
-        const fuelLabel = truncateText(meter.fuelType || 'ดีเซล B7', Math.max(8, columns - 8));
+        const fuelLabel = truncateText(meter.fuelType || 'ดีเซล B7', 8);
+        const meterText = `${meter.nozzleNumber} ${fuelLabel} ${formatCurrency(meter.startReading)}-${endReading}`;
+        const litersText = `${formatCurrency(meter.liters)}L`;
 
-        return [
-            `หัว ${meter.nozzleNumber} ${fuelLabel}`,
-            padReceiptLine('เปิด', formatCurrency(meter.startReading), columns),
-            padReceiptLine('ปิด', endReading, columns),
-            padReceiptLine('ขาย', `${formatCurrency(meter.liters)}L`, columns),
-        ];
+        return padReceiptLine(meterText, litersText, columns);
     });
 }
 
@@ -267,7 +264,7 @@ function buildEpsonAssistantDailyReportXml({
         });
     }
 
-    const meterLines = buildHighlightedMeterLines(normalizedMeters, columns);
+    const meterLines = buildCompactMeterLines(normalizedMeters, columns);
     const footerLines = [
         padReceiptLine('รวมลิตร', formatCurrency(totalLiters), columns),
         padReceiptLine('รวมเงิน', formatCurrency(totalAmount), columns),
@@ -279,16 +276,15 @@ function buildEpsonAssistantDailyReportXml({
         '<text lang="mul" />',
         '<text font="font_a" />',
         '<text smooth="true" />',
-        '<text linespc="22" />',
+        '<text linespc="24" />',
         eposText(`${stationName}\n`, ' align="center" em="true"'),
         eposText(`รายงานสรุปวัน ${formatShortReportDate(reportDate)}\n`, ' align="center"'),
         eposText(`${doubleDivider}\n`, ' align="left"'),
-        eposText('ยอดรวม\n', ' align="center" em="true"'),
-        eposText(`฿ ${formatCurrency(totalAmount)}\n`, ' align="center" em="true" width="2" height="2"'),
-        eposText(`${divider}\nเลขเปิด-ปิดมิเตอร์\n`, ' em="true"'),
-        eposText(`${meterLines.join('\n')}\n`, ' em="true"'),
+        eposText(`ยอดรวม ฿ ${formatCurrency(totalAmount)}\n`, ' align="center" em="true"'),
         eposText(`${divider}\n`),
-        eposText(`ผลต่าง ${litersDiff > 0 ? '+' : ''}${formatCurrency(litersDiff)} ลิตร ${diffOk ? '(ตรง)' : '(ตรวจสอบ)'}\n`, ' align="center" em="true"'),
+        eposText('เลขเปิด-ปิดมิเตอร์\n', ' em="true"'),
+        eposText(`${meterLines.join('\n')}\n`),
+        eposText(`ผลต่าง ${litersDiff > 0 ? '+' : ''}${formatCurrency(litersDiff)} ลิตร ${diffOk ? '(ตรง)' : '(ตรวจสอบ)'}\n`, ' em="true"'),
         eposText(`${divider}\n${summaryLines.join('\n')}\n${divider}\n`),
         eposText(`${paymentLines.join('\n')}\n${divider}\n`),
         eposText('รายการเติมทั้งหมด\n', ' em="true"'),

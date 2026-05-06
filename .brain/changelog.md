@@ -288,7 +288,8 @@
 ## 2026-05-06
 - 🖨️ ปรับ hierarchy ของรายงานสรุปวัน Tank Loy
   - Mobile Epson direct daily summary เน้นยอดรวมด้วยตัวอักษรใหญ่, เน้นเลขเปิด/ปิดมิเตอร์และผลต่างลิตรด้วย ePOS emphasis, และลดรายการเติมทั้งหมดเป็น `font_b`
-  - เพิ่ม columns thermal เป็น 48 สำหรับ 80mm / 34 สำหรับ 58mm และใช้ transaction columns แยกเพื่อให้รายการเติมอ่านได้แต่ไม่แย่งพื้นที่ตัวเลขสำคัญ
+  - Follow-up จากรูปหน้างาน: ถอด `width=2 height=2`, คืนมิเตอร์เป็น 1 บรรทัดต่อหัว และคืน column/line spacing ใกล้ compact layout เดิมเพื่อลดความยาวกระดาษ
+  - คง summary columns แบบ compact 42 สำหรับ 80mm / 32 สำหรับ 58mm และใช้ transaction columns แยกเพื่อให้รายการเติมอ่านได้แต่ไม่แย่งพื้นที่ตัวเลขสำคัญ
   - ปุ่มพิมพ์สรุปวันใน classic admin `/station/1` เปลี่ยนจาก `window.print()` modal เป็น `printDailyWorkReport` เพื่อใช้ A4 report template ที่ดูเป็นเอกสารมืออาชีพกว่า
 - 🧾 แก้ mobile thermal receipt/credit bill ของแท๊งลอย
   - เพิ่ม `src/lib/thermal-receipt-print.ts` สำหรับสร้าง ePOS-Print XML ของใบเสร็จ/บิลเงินเชื่อโดยตรงผ่าน Epson TM Print Assistant บน Android

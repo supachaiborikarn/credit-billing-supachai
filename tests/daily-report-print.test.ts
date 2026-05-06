@@ -40,9 +40,10 @@ describe('daily report thermal printing', () => {
         expect(xml).toContain('<epos-print');
         expect(xml).toContain('<text lang="mul" />');
         expect(xml).toContain('<text font="font_b" />');
-        expect(xml).toContain('width="2" height="2"');
+        expect(xml).not.toContain('width="2" height="2"');
         expect(xml).toContain('เลขเปิด-ปิดมิเตอร์');
         expect(xml).toContain('ผลต่าง');
+        expect(xml).toContain('1 ดีเซล B7 1,000.00-1,100.00');
         expect(xml).toContain('รายงานสรุปวัน');
         expect(xml).toContain('แท๊งลอยวัชรเกียรติ');
         expect(xml).toContain('<cut type="feed" />');
