@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2, Scale, Search, Download, Check, AlertTriangle } from 'lucide-react';
+import { Loader2, Scale, Search, Download, Check, AlertTriangle, Edit3, Save, X } from 'lucide-react';
 import { formatCurrency, getTodayBangkok } from '@/lib/gas';
 
 interface ReconciliationRecord {
@@ -72,9 +72,25 @@ async function loadReconciliationRecords({
     }
 }
 
+function toAmountInput(value: number): string {
+    return Number.isFinite(value) ? String(value) : '0';
+}
+
 export default function ReconciliationPage() {
     const [loading, setLoading] = useState(true);
     const [records, setRecords] = useState<ReconciliationRecord[]>([]);
+    const [editingRecord, setEditingRecord] = useState<ReconciliationRecord | null>(null);
+    const [savingEdit, setSavingEdit] = useState(false);
+    const [editError, setEditError] = useState<string | null>(null);
+    const [editForm, setEditForm] = useState({
+        cashReceived: '0',
+        creditReceived: '0',
+        cardReceived: '0',
+        transferReceived: '0',
+        nonGasSalesAmount: '0',
+        otherExpensesAmount: '0',
+        varianceNote: '',
+    });
     const [stationId, setStationId] = useState<string>('all');
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [fromDate, setFromDate] = useState<string>(() => {
@@ -97,6 +113,17 @@ export default function ReconciliationPage() {
     }, []);
 
     useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const queryStationId = params.get('stationId');
+        const queryFrom = params.get('from');
+        const queryTo = params.get('to');
+
+        if (queryStationId) setStationId(queryStationId);
+        if (queryFrom) setFromDate(queryFrom);
+        if (queryTo) setToDate(queryTo);
+    }, []);
+
+    useEffect(() => {
         void loadReconciliationRecords({
             fromDate,
             toDate,
@@ -106,6 +133,103 @@ export default function ReconciliationPage() {
             setRecords,
         });
     }, [fromDate, toDate, stationId, statusFilter]);
+
+    useEffect(() => {
+        if (records.length === 0 || editingRecord) return;
+
+        const params = new URLSearchParams(window.location.search);
+        const editShiftId = params.get('editShiftId');
+        if (!editShiftId) return;
+
+        const matchedRecord = records.find((record) => record.id === editShiftId);
+        if (matchedRecord) {
+            openEditModal(matchedRecord);
+        }
+    }, [records, editingRecord]);
+
+    const openEditModal = (record: ReconciliationRecord) => {
+        setEditingRecord(record);
+        setEditError(null);
+        setEditForm({
+            cashReceived: toAmountInput(record.cashReceived),
+            creditReceived: toAmountInput(record.creditReceived),
+            cardReceived: toAmountInput(record.cardReceived),
+            transferReceived: toAmountInput(record.transferReceived),
+            nonGasSalesAmount: toAmountInput(record.nonGasSalesAmount),
+            otherExpensesAmount: toAmountInput(record.otherExpensesAmount),
+            varianceNote: record.varianceNote || '',
+        });
+    };
+
+    const closeEditModal = () => {
+        setEditingRecord(null);
+        setEditError(null);
+        const url = new URL(window.location.href);
+        url.searchParams.delete('editShiftId');
+        window.history.replaceState(null, '', `${url.pathname}${url.search}`);
+    };
+
+    const setEditField = (field: keyof typeof editForm, value: string) => {
+        setEditForm((current) => ({ ...current, [field]: value }));
+    };
+
+    const parseEditAmount = (value: string): number | null => {
+        if (!value.trim()) return 0;
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed) || parsed < 0) return null;
+        return Number(parsed.toFixed(2));
+    };
+
+    const saveEdit = async () => {
+        if (!editingRecord) return;
+
+        const payload = {
+            cashReceived: parseEditAmount(editForm.cashReceived),
+            creditReceived: parseEditAmount(editForm.creditReceived),
+            cardReceived: parseEditAmount(editForm.cardReceived),
+            transferReceived: parseEditAmount(editForm.transferReceived),
+            nonGasSalesAmount: parseEditAmount(editForm.nonGasSalesAmount),
+            otherExpensesAmount: parseEditAmount(editForm.otherExpensesAmount),
+            varianceNote: editForm.varianceNote,
+        };
+
+        if (Object.values(payload).some((value) => value === null)) {
+            setEditError('กรอกตัวเลขให้ถูกต้อง และยอดต้องไม่ติดลบ');
+            return;
+        }
+
+        setSavingEdit(true);
+        setEditError(null);
+
+        try {
+            const res = await fetch(`/api/v2/gas/admin/reconciliation/${editingRecord.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                setEditError(data.error || 'บันทึกไม่สำเร็จ');
+                return;
+            }
+
+            await loadReconciliationRecords({
+                fromDate,
+                toDate,
+                stationId,
+                statusFilter,
+                setLoading,
+                setRecords,
+            });
+            closeEditModal();
+        } catch (error) {
+            console.error('Error updating reconciliation:', error);
+            setEditError('บันทึกไม่สำเร็จ กรุณาลองใหม่');
+        } finally {
+            setSavingEdit(false);
+        }
+    };
 
     const getVarianceIcon = (status: string) => {
         if (status === 'OVER') return <AlertTriangle size={16} className="text-yellow-400" />;
@@ -123,6 +247,25 @@ export default function ReconciliationPage() {
     const totalReceived = records.reduce((sum, r) => sum + r.totalReceived, 0);
     const totalVariance = records.reduce((sum, r) => sum + r.variance, 0);
     const offBalanceCount = records.filter((record) => record.varianceStatus !== 'BALANCED').length;
+    const editPreview = editingRecord ? (() => {
+        const cash = parseEditAmount(editForm.cashReceived) ?? 0;
+        const credit = parseEditAmount(editForm.creditReceived) ?? 0;
+        const card = parseEditAmount(editForm.cardReceived) ?? 0;
+        const transfer = parseEditAmount(editForm.transferReceived) ?? 0;
+        const nonGasSales = parseEditAmount(editForm.nonGasSalesAmount) ?? 0;
+        const otherExpenses = parseEditAmount(editForm.otherExpensesAmount) ?? 0;
+        const expectedOther = Number((nonGasSales - otherExpenses).toFixed(2));
+        const expected = Number((editingRecord.expectedFuelAmount + expectedOther).toFixed(2));
+        const received = Number((cash + credit + card + transfer).toFixed(2));
+        const variance = Number((received - expected).toFixed(2));
+
+        return {
+            expectedOther,
+            expected,
+            received,
+            variance,
+        };
+    })() : null;
 
     return (
         <div className="space-y-6">
@@ -262,6 +405,7 @@ export default function ReconciliationPage() {
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">รับจริง</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">ส่วนต่าง</th>
                                     <th className="text-center px-4 py-3 font-medium text-gray-400">สถานะ</th>
+                                    <th className="text-right px-4 py-3 font-medium text-gray-400">แก้ไข</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5">
@@ -299,6 +443,16 @@ export default function ReconciliationPage() {
                                                 </span>
                                             </div>
                                         </td>
+                                        <td className="px-4 py-3 text-right">
+                                            <button
+                                                type="button"
+                                                onClick={() => openEditModal(r)}
+                                                className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-3 py-2 text-xs font-semibold text-white hover:bg-orange-500"
+                                            >
+                                                <Edit3 size={14} />
+                                                แก้ยอด
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -306,6 +460,139 @@ export default function ReconciliationPage() {
                     </div>
                 )}
             </div>
+
+            {editingRecord && editPreview && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+                    <div className="w-full max-w-2xl rounded-xl border border-white/10 bg-[#111827] shadow-xl">
+                        <div className="flex items-start justify-between gap-4 border-b border-white/10 p-4">
+                            <div>
+                                <h2 className="text-xl font-bold">แก้ยอดสรุปกะ</h2>
+                                <div className="mt-1 text-sm text-gray-400">
+                                    {editingRecord.displayDate} / {editingRecord.stationName} / กะ {editingRecord.shiftNumber}
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={closeEditModal}
+                                className="rounded-lg p-2 text-gray-400 hover:bg-white/10 hover:text-white"
+                                aria-label="ปิด"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="max-h-[75vh] overflow-y-auto p-4">
+                            {editError && (
+                                <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+                                    {editError}
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                {[
+                                    ['cashReceived', 'เงินสดรับจริง', editingRecord.cashExpected],
+                                    ['creditReceived', 'เครดิตรับจริง', editingRecord.creditExpected],
+                                    ['cardReceived', 'บัตรรับจริง', editingRecord.cardExpected],
+                                    ['transferReceived', 'โอนรับจริง', editingRecord.transferExpected],
+                                ].map(([field, label, expected]) => (
+                                    <label key={field} className="block">
+                                        <span className="mb-1 block text-sm text-gray-400">
+                                            {label}
+                                            <span className="ml-2 text-xs text-gray-500">
+                                                ตามบิล ฿{formatCurrency(Number(expected))}
+                                            </span>
+                                        </span>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            inputMode="decimal"
+                                            value={editForm[field as keyof typeof editForm]}
+                                            onChange={(e) => setEditField(field as keyof typeof editForm, e.target.value)}
+                                            className="w-full rounded-lg border border-white/10 bg-gray-800 px-4 py-2 text-right font-mono focus:border-orange-500 focus:outline-none"
+                                        />
+                                    </label>
+                                ))}
+                            </div>
+
+                            <div className="mt-4 grid grid-cols-1 gap-4 border-t border-white/10 pt-4 md:grid-cols-2">
+                                <label className="block">
+                                    <span className="mb-1 block text-sm text-gray-400">ขายอื่น</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        inputMode="decimal"
+                                        value={editForm.nonGasSalesAmount}
+                                        onChange={(e) => setEditField('nonGasSalesAmount', e.target.value)}
+                                        className="w-full rounded-lg border border-white/10 bg-gray-800 px-4 py-2 text-right font-mono focus:border-orange-500 focus:outline-none"
+                                    />
+                                </label>
+                                <label className="block">
+                                    <span className="mb-1 block text-sm text-gray-400">ค่าใช้จ่าย</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        inputMode="decimal"
+                                        value={editForm.otherExpensesAmount}
+                                        onChange={(e) => setEditField('otherExpensesAmount', e.target.value)}
+                                        className="w-full rounded-lg border border-white/10 bg-gray-800 px-4 py-2 text-right font-mono focus:border-orange-500 focus:outline-none"
+                                    />
+                                </label>
+                            </div>
+
+                            <label className="mt-4 block">
+                                <span className="mb-1 block text-sm text-gray-400">หมายเหตุ</span>
+                                <textarea
+                                    value={editForm.varianceNote}
+                                    onChange={(e) => setEditField('varianceNote', e.target.value)}
+                                    rows={3}
+                                    className="w-full resize-none rounded-lg border border-white/10 bg-gray-800 px-4 py-2 focus:border-orange-500 focus:outline-none"
+                                />
+                            </label>
+
+                            <div className="mt-4 rounded-lg border border-white/10 bg-gray-900 p-4">
+                                <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
+                                    <div>
+                                        <div className="text-gray-400">ยอดที่ควรได้</div>
+                                        <div className="mt-1 font-mono text-lg font-bold">฿{formatCurrency(editPreview.expected)}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-gray-400">ยอดรับจริงใหม่</div>
+                                        <div className="mt-1 font-mono text-lg font-bold text-green-400">฿{formatCurrency(editPreview.received)}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-gray-400">ส่วนต่างใหม่</div>
+                                        <div className={`mt-1 font-mono text-lg font-bold ${editPreview.variance >= 0 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                            {editPreview.variance >= 0 ? '+' : ''}฿{formatCurrency(editPreview.variance)}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3 border-t border-white/10 p-4">
+                            <button
+                                type="button"
+                                onClick={closeEditModal}
+                                className="rounded-lg bg-gray-700 px-4 py-2 text-sm font-semibold hover:bg-gray-600"
+                            >
+                                ยกเลิก
+                            </button>
+                            <button
+                                type="button"
+                                onClick={saveEdit}
+                                disabled={savingEdit}
+                                className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-500 disabled:opacity-60"
+                            >
+                                {savingEdit ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+                                บันทึก
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

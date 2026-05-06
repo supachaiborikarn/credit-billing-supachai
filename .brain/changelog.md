@@ -306,6 +306,13 @@
   - desktop/อุปกรณ์อื่นยัง fallback เป็น HTML print เดิม
   - verification: targeted Vitest สำหรับ daily/receipt direct print ผ่าน, targeted ESLint ผ่าน
 
+## 2026-05-06
+- ⛽ เพิ่มปุ่มแก้ยอดสรุปกะ GAS สำหรับแอดมิน
+  - หน้า `/admin/gas/reconciliation` มีปุ่ม `แก้ยอด` ต่อกะ และเปิด modal แก้เงินสด, เครดิต, บัตร, โอน, ขายอื่น, ค่าใช้จ่าย และหมายเหตุได้
+  - หน้า `/admin/gas/reports/meters` มีปุ่ม `แก้ยอด` ในแถวยอดเงิน เพื่อเปิดหน้า reconciliation พร้อมกะที่เลือกทันที
+  - ใช้ API เดิม `PUT /api/v2/gas/admin/reconciliation/[shiftId]` เพื่อคำนวณยอดรับจริงและส่วนต่างใหม่หลังบันทึก
+  - verification: targeted ESLint เฉพาะไฟล์ที่แก้ผ่าน; `npm run lint`, `npx tsc --noEmit`, และ `npm run build` ยังล้มจากไฟล์/ปัญหาเดิมใน `scratch/*` และ legacy lint นอก scope
+
 ## 2026-05-03
 - 🖨️ เพิ่ม GAS executive print report สำหรับรายงานเสนอผู้บริหาร
   - เพิ่มหน้า `/admin/gas/reports/executive` แบบ A4 print-friendly พร้อม filter ช่วงวันที่/สถานี และปุ่มพิมพ์หรือบันทึก PDF

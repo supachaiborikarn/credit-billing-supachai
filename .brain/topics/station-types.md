@@ -1,5 +1,5 @@
 <!-- SUMMARY: 6 สถานี: แท๊งลอยวัชรเกียรติ (FULL) ใช้ staff route เดียว `/station/1/v2` และคง classic admin ที่ `/station/1`;
-     วัชรเกียรติออยล์/พงษ์อนันต์/ศุภชัยบริการ (SIMPLE), ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS) ใช้ staff route หลัก `/gas/[id]` พร้อม open-shift guard, กะ 2 เป็นกะค่ำที่ข้ามวันได้, supply receiving `/gas/[id]/supplies`, meter continuity ใน admin report, executive print report `/admin/gas/reports/executive`, และ admin `/admin/gas/*`; legacy admin gas-control redirect ไป v2 -->
+     วัชรเกียรติออยล์/พงษ์อนันต์/ศุภชัยบริการ (SIMPLE), ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS) ใช้ staff route หลัก `/gas/[id]` พร้อม open-shift guard, กะ 2 เป็นกะค่ำที่ข้ามวันได้, supply receiving `/gas/[id]/supplies`, meter continuity ใน admin report, admin reconciliation edit จากรายงานมิเตอร์, executive print report `/admin/gas/reports/executive`, และ admin `/admin/gas/*`; legacy admin gas-control redirect ไป v2 -->
 
 # Station Types
 
@@ -42,6 +42,7 @@
 - Supply receiving: พนักงาน/แอดมินบันทึกสั่ง-ลงแก๊สเข้าถังผ่าน `gas_supplies` โดยใช้ v2 routes เท่านั้น
 - Meter continuity: admin meter report/executive alert ตรวจเลขเปิดกะว่าต่อจากเลขปิดกะก่อนหน้าต่อหัวจ่ายหรือไม่
 - Admin meter report: `/admin/gas/reports/meters` แสดงกะ 2 ก่อนกะ 1 ในวันเดียวกัน, ยุบคอลัมน์ให้ไม่ต้องเลื่อนขวา, และช่องยอดเงินใช้ยอดรับจริงจาก reconciliation ถ้าปิดกะแล้ว
+- Admin reconciliation edit: `/admin/gas/reconciliation` แก้ยอดรับจริงหลังปิดกะได้ และ `/admin/gas/reports/meters` มีปุ่ม `แก้ยอด` เพื่อเปิดกะนั้นโดยตรง
 - Executive print report: แอดมินพิมพ์รายงานเสนอผู้บริหารตามช่วงวันที่ได้ที่ `/admin/gas/reports/executive` โดยรวมรายได้, รายงานเลขมิเตอร์, payment mix, รายการลงแก๊ส, และ management notes
 - บางสถานีมี Products (สินค้าเสริม)
 
@@ -80,3 +81,4 @@
 - 2026-05-06: ปรับ Tank Loy mobile daily summary ใช้ font หลักแบบไม่หนาใน direct XML และให้รายการย่อยใช้ `font_b` เพื่ออ่านง่ายบนเครื่องจริง
 - 2026-05-06: ปรับตามรูปหน้างาน direct print: daily summary ถอด `em=true` ให้ตัวบางลง และ receipt/credit direct print ลด columns+เติม left padding เพื่อขยับเข้ากลางกระดาษ
 - 2026-05-06: ปรับ GAS admin meter report ให้ตารางไม่ล้นกรอบ, เรียงกะ 2 ก่อนกะ 1 และแสดงยอดรับจริงจาก reconciliation เมื่อมีข้อมูลปิดกะ
+- 2026-05-06: เพิ่มปุ่มแก้ยอดสรุปกะ GAS ใน `/admin/gas/reconciliation` และลิงก์จาก `/admin/gas/reports/meters` เพื่อให้แอดมินแก้เงินสด/เครดิต/บัตร/โอนหลังปิดกะได้

@@ -26,7 +26,7 @@
      2026-05-03 เพิ่ม GAS executive print report ที่ใช้ `src/lib/gas/executive-report.ts` รวม revenue/meter/supplies/management notes จาก source เดียวกับ admin analytics;
      2026-05-03 แก้ mobile thermal daily print ของ Tank Loy โดย Android ส่ง ePOS-Print XML เข้า Epson TM Print Assistant โดยตรงแทนการให้ Android สร้าง A4 preview;
      2026-05-06 แก้ mobile thermal receipt/credit bill ของ Tank Loy ให้ Android ส่ง ePOS XML ที่มี cut หลังต้นฉบับและหลังสำเนาแทน page-break HTML;
-     2026-05-06 ปรับ mobile thermal daily summary ให้เน้นยอดรวม/มิเตอร์/ผลต่าง และให้ admin daily summary print ใช้ template A4 มืออาชีพแทน print modal; รอบ follow-up คืนความยาวกระดาษใกล้ compact เดิมโดยไม่ใช้ `width=2 height=2`, และปรับมิเตอร์เป็นหัว+ลิตร 1 บรรทัด ตามด้วยเปิด/ปิดแยกบรรทัดเพื่อกันเลขยาวล้น -->
+     2026-05-06 ปรับ mobile thermal daily summary ให้เน้นยอดรวม/มิเตอร์/ผลต่าง และให้ admin daily summary print ใช้ template A4 มืออาชีพแทน print modal; รอบ follow-up คืนความยาวกระดาษใกล้ compact เดิมโดยไม่ใช้ `width=2 height=2`, ปรับมิเตอร์เป็นหัว+ลิตร 1 บรรทัด ตามด้วยเปิด/ปิดแยกบรรทัดเพื่อกันเลขยาวล้น, และเพิ่มปุ่มแอดมินแก้ยอดสรุปกะ GAS จากหน้ากระทบยอด/รายงานมิเตอร์เพื่อแก้เงินสดหรือเครดิตที่ลงซ้ำหลังปิดกะ -->
 
 # Bugs & Fixes
 
@@ -406,3 +406,4 @@
 - 2026-04-25: ปิด GAS staff UI หน้าขาว legacy ให้สนิท โดย redirect ทุก `/gas-station/[id]/new/*` ไป v2 และเปลี่ยน login/sidebar/admin history/back button ให้เข้า `/gas/[id]` โดยตรง
 - 2026-04-25: verification รอบปิดหน้าขาวพบ middleware ยังตั้ง login redirect เป็น URL legacy ตอนยังไม่ login; patch middleware/login ให้ normalize redirect ไป `/gas/[id]` ตั้งแต่ต้น
 - 2026-04-27: เพิ่มช่องยอดขายอื่นที่ไม่ใช่แก๊สและค่าใช้จ่ายอื่นๆ ในหน้า `/gas/[stationId]/shift/close`, API ปิดกะ, admin reconciliation edit/report และ fact layer โดยใช้ `expectedOtherAmount` เป็นยอดสุทธิพร้อมเก็บ gross detail ใน variance note helper กลาง; verification ผ่าน full tests, lint, clean TypeScript และ clean webpack build
+- 2026-05-06: เพิ่ม GAS admin reconciliation edit UI ให้แก้ยอดเงินสด/เครดิต/บัตร/โอน/ขายอื่น/ค่าใช้จ่ายหลังปิดกะได้ และเพิ่มปุ่ม `แก้ยอด` จากรายงานมิเตอร์เข้า record กะนั้นโดยตรง

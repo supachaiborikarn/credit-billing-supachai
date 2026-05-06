@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2, Calculator, Download, Search } from 'lucide-react';
+import { Loader2, Calculator, Download, Search, Edit3 } from 'lucide-react';
 import { formatCurrency, getTodayBangkok } from '@/lib/gas';
 
 interface MeterReport {
@@ -133,6 +133,17 @@ export default function MeterReportPage() {
             ...(stationId !== 'all' && { stationId })
         });
         window.open(`/api/export/csv?${params}`, '_blank');
+    };
+
+    const getEditReconciliationUrl = (report: MeterReport): string => {
+        const params = new URLSearchParams({
+            from: fromDate,
+            to: toDate,
+            stationId: report.stationId,
+            editShiftId: report.id,
+        });
+
+        return `/admin/gas/reconciliation?${params}`;
     };
 
     const totals = reports.reduce((sum, report) => ({
@@ -401,6 +412,15 @@ export default function MeterReportPage() {
                                             <div className="mt-1 text-cyan-400">
                                                 {r.isSyntheticOrphan ? 'รอมิเตอร์' : `คาด ฿${formatCurrency(r.expectedSales)}`}
                                             </div>
+                                            {!r.isSyntheticOrphan && (
+                                                <a
+                                                    href={getEditReconciliationUrl(r)}
+                                                    className="mt-2 inline-flex items-center gap-1 rounded bg-orange-600 px-2 py-1 font-sans text-[11px] font-semibold text-white hover:bg-orange-500"
+                                                >
+                                                    <Edit3 size={12} />
+                                                    แก้ยอด
+                                                </a>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
