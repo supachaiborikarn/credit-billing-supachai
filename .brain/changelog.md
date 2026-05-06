@@ -286,6 +286,11 @@
   - ตรวจ production index แล้วเหลือ `meter_readings_pkey` และ `meter_readings_shiftId_nozzleNumber_key`; verification: targeted lint, targeted TypeScript, `npm run test` ผ่าน 61 tests
 
 ## 2026-05-06
+- ⛽ ปรับ GAS admin meter report ตามรูปหน้างาน
+  - ยุบตาราง `/admin/gas/reports/meters` ให้ไม่ล้นกรอบและรวมยอดเงินรับ/คาดไว้ในช่องเดียว
+  - เรียงกะ 2 ก่อนกะ 1 ในวันเดียวกันเพื่อดูเลขมิเตอร์ต่อกันง่ายขึ้น
+  - เปลี่ยนยอดบนรายงานให้ใช้ยอดรับจริงจาก reconciliation เมื่อปิดกะแล้ว เช่น 2026-05-05 `station-5` กะ 1 แสดง 15,842 บาทแทนยอด transaction รวม 24,259 บาทที่มีรายการซ้ำต้องตรวจ
+  - verification: targeted ESLint ผ่าน, เช็คข้อมูลจริงผ่าน `admin-analytics`, browser local ไม่มี console error
 - 🖨️ ปรับ hierarchy ของรายงานสรุปวัน Tank Loy
   - Follow-up จากรูป `IMG_9006`: ถอด ePOS `em=true` ออกจาก daily summary direct print ทั้งใบ เพราะฟ้อนท์หนาเกินอ่านยากบนเครื่องจริง
   - Follow-up รอบก่อนหน้า: ทำยอดรวม, รวมลิตรขาย, ลิตรตามมิเตอร์, ผลต่าง และรวมท้ายใบเป็น font หลักตัวหนา แต่ลดจำนวนรายการ, สรุปชำระ, รายการเติม และเวลาพิมพ์เป็น `font_b` เพื่อให้จุดสำคัญเด่นขึ้นโดยไม่เพิ่มความยาวกระดาษ

@@ -41,6 +41,7 @@
 - Gauge reading (เกจวัดถังแก๊ส)
 - Supply receiving: พนักงาน/แอดมินบันทึกสั่ง-ลงแก๊สเข้าถังผ่าน `gas_supplies` โดยใช้ v2 routes เท่านั้น
 - Meter continuity: admin meter report/executive alert ตรวจเลขเปิดกะว่าต่อจากเลขปิดกะก่อนหน้าต่อหัวจ่ายหรือไม่
+- Admin meter report: `/admin/gas/reports/meters` แสดงกะ 2 ก่อนกะ 1 ในวันเดียวกัน, ยุบคอลัมน์ให้ไม่ต้องเลื่อนขวา, และช่องยอดเงินใช้ยอดรับจริงจาก reconciliation ถ้าปิดกะแล้ว
 - Executive print report: แอดมินพิมพ์รายงานเสนอผู้บริหารตามช่วงวันที่ได้ที่ `/admin/gas/reports/executive` โดยรวมรายได้, รายงานเลขมิเตอร์, payment mix, รายการลงแก๊ส, และ management notes
 - บางสถานีมี Products (สินค้าเสริม)
 
@@ -78,3 +79,4 @@
 - 2026-05-06: ปรับ Tank Loy daily summary print hierarchy: mobile thermal เน้นยอดรวม/มิเตอร์/ผลต่าง และ classic admin ใช้ A4 professional report template
 - 2026-05-06: ปรับ Tank Loy mobile daily summary ใช้ font หลักแบบไม่หนาใน direct XML และให้รายการย่อยใช้ `font_b` เพื่ออ่านง่ายบนเครื่องจริง
 - 2026-05-06: ปรับตามรูปหน้างาน direct print: daily summary ถอด `em=true` ให้ตัวบางลง และ receipt/credit direct print ลด columns+เติม left padding เพื่อขยับเข้ากลางกระดาษ
+- 2026-05-06: ปรับ GAS admin meter report ให้ตารางไม่ล้นกรอบ, เรียงกะ 2 ก่อนกะ 1 และแสดงยอดรับจริงจาก reconciliation เมื่อมีข้อมูลปิดกะ

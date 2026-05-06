@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
             continuity: shift.meters.continuity,
             gasPrice: shift.gasPrice,
             expectedSales: Number((shift.meters.total * shift.gasPrice).toFixed(2)),
-            actualSales: shift.sales.total,
+            actualSales: shift.reconciliation?.received ?? shift.sales.total,
             transactionCount: shift.sales.transactions,
             averagePerNozzle: shift.meters.nozzles.length > 0
                 ? Number((shift.meters.total / shift.meters.nozzles.length).toFixed(2))

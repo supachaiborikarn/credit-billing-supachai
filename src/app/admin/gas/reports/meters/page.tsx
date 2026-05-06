@@ -43,6 +43,22 @@ interface MeterReport {
     averagePerNozzle: number;
 }
 
+function getShiftSortRank(report: MeterReport): number {
+    if (report.isSyntheticOrphan) return 99;
+    if (report.shiftNumber === 2) return 0;
+    if (report.shiftNumber === 1) return 1;
+    return 10 + report.shiftNumber;
+}
+
+function sortMeterReports(reports: MeterReport[]): MeterReport[] {
+    return [...reports].sort((left, right) => (
+        right.date.localeCompare(left.date)
+        || left.stationName.localeCompare(right.stationName, 'th')
+        || getShiftSortRank(left) - getShiftSortRank(right)
+        || left.id.localeCompare(right.id)
+    ));
+}
+
 async function loadMeterReports({
     fromDate,
     toDate,
@@ -67,7 +83,7 @@ async function loadMeterReports({
         const res = await fetch(`/api/v2/gas/admin/reports/meters?${params}`);
         if (res.ok) {
             const data = await res.json();
-            setReports(data.meters || []);
+            setReports(sortMeterReports(data.meters || []));
         }
     } catch (error) {
         console.error('Error fetching reports:', error);
@@ -174,7 +190,7 @@ export default function MeterReportPage() {
                     <div className="text-2xl font-bold text-cyan-400">{totals.transactionLiters.toLocaleString()} L</div>
                 </div>
                 <div className="bg-[#1a1a24] rounded-xl p-4 border border-white/10">
-                    <div className="text-sm text-gray-400">ยอดขายจริง</div>
+                    <div className="text-sm text-gray-400">ยอดรับจริง</div>
                     <div className="text-2xl font-bold text-blue-400">฿{formatCurrency(totals.actualSales)}</div>
                 </div>
                 <div className="bg-[#1a1a24] rounded-xl p-4 border border-white/10">
@@ -263,7 +279,7 @@ export default function MeterReportPage() {
                                 setReports,
                             });
                         }}
-                        className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg"
+                        className="flex items-center gap-2 bg-orange-600 hover:bg-orange-500 px-4 py-2 rounded-lg"
                     >
                         <Search size={18} />
                         ค้นหา
@@ -282,24 +298,20 @@ export default function MeterReportPage() {
                         ไม่พบข้อมูล
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                    <div className="w-full overflow-hidden">
+                        <table className="w-full table-fixed text-xs xl:text-sm">
                             <thead className="bg-gray-800/50">
                                 <tr>
-                                    <th className="text-left px-4 py-3 font-medium text-gray-400">วันที่</th>
-                                    <th className="text-left px-4 py-3 font-medium text-gray-400">สถานี</th>
-                                    <th className="text-center px-4 py-3 font-medium text-gray-400">กะ</th>
-                                    <th className="text-right px-4 py-3 font-medium text-gray-400">หัว 1</th>
-                                    <th className="text-right px-4 py-3 font-medium text-gray-400">หัว 2</th>
-                                    <th className="text-right px-4 py-3 font-medium text-gray-400">หัว 3</th>
-                                    <th className="text-right px-4 py-3 font-medium text-gray-400">หัว 4</th>
-                                    <th className="text-left px-4 py-3 font-medium text-gray-400">ต่อกะก่อน</th>
-                                    <th className="text-right px-4 py-3 font-medium text-gray-400">รวม (L)</th>
-                                    <th className="text-right px-4 py-3 font-medium text-gray-400">ขายจริง (L)</th>
-                                    <th className="text-right px-4 py-3 font-medium text-gray-400">ส่วนต่าง</th>
-                                    <th className="text-right px-4 py-3 font-medium text-gray-400">รายการ</th>
-                                    <th className="text-right px-4 py-3 font-medium text-gray-400">ยอดขายจริง</th>
-                                    <th className="text-right px-4 py-3 font-medium text-gray-400">ยอดคาดหวัง</th>
+                                    <th className="w-[13%] text-left px-3 py-3 font-medium text-gray-400">วันที่ / สถานี</th>
+                                    <th className="w-[6%] text-center px-2 py-3 font-medium text-gray-400">กะ</th>
+                                    <th className="w-[10%] text-right px-2 py-3 font-medium text-gray-400">หัว 1</th>
+                                    <th className="w-[10%] text-right px-2 py-3 font-medium text-gray-400">หัว 2</th>
+                                    <th className="w-[10%] text-right px-2 py-3 font-medium text-gray-400">หัว 3</th>
+                                    <th className="w-[10%] text-right px-2 py-3 font-medium text-gray-400">หัว 4</th>
+                                    <th className="w-[12%] text-left px-3 py-3 font-medium text-gray-400">ต่อกะก่อน</th>
+                                    <th className="w-[12%] text-right px-3 py-3 font-medium text-gray-400">สรุปลิตร</th>
+                                    <th className="w-[5%] text-right px-2 py-3 font-medium text-gray-400">รายการ</th>
+                                    <th className="w-[12%] text-right px-3 py-3 font-medium text-gray-400">ยอดเงิน</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5">
@@ -310,10 +322,12 @@ export default function MeterReportPage() {
                                             ? 'bg-amber-500/5 hover:bg-amber-500/10'
                                             : 'hover:bg-white/5'}
                                     >
-                                        <td className="px-4 py-3">{r.displayDate}</td>
-                                        <td className="px-4 py-3">{r.stationName}</td>
-                                        <td className="px-4 py-3 text-center">
-                                            <span className={`px-2 py-1 rounded text-xs ${r.isSyntheticOrphan
+                                        <td className="px-3 py-3 align-top">
+                                            <div className="font-medium text-gray-100">{r.displayDate}</div>
+                                            <div className="mt-1 leading-tight text-gray-400">{r.stationName}</div>
+                                        </td>
+                                        <td className="px-2 py-3 text-center align-top">
+                                            <span className={`inline-block rounded px-1.5 py-1 text-xs leading-none ${r.isSyntheticOrphan
                                                 ? 'bg-amber-900/60 text-amber-200'
                                                 : r.shiftNumber === 1
                                                     ? 'bg-blue-900/50 text-blue-300'
@@ -325,14 +339,14 @@ export default function MeterReportPage() {
                                         {[1, 2, 3, 4].map(n => {
                                             const nozzle = r.nozzles.find(z => z.nozzleNumber === n);
                                             return (
-                                                <td key={n} className="px-4 py-2 text-right">
+                                                <td key={n} className="px-2 py-2 text-right align-top">
                                                     {nozzle ? (
                                                         <div className="space-y-0.5">
-                                                            <div className="font-mono font-bold text-green-400">
+                                                            <div className="font-mono font-bold leading-tight text-green-400">
                                                                 {nozzle.soldQty.toLocaleString()}
                                                             </div>
-                                                            <div className="text-xs text-gray-500 font-mono">
-                                                                {nozzle.startReading.toLocaleString()} → {nozzle.endReading.toLocaleString()}
+                                                            <div className="break-words font-mono text-[11px] leading-tight text-gray-500">
+                                                                {nozzle.startReading.toLocaleString()} - {nozzle.endReading.toLocaleString()}
                                                             </div>
                                                         </div>
                                                     ) : (
@@ -341,7 +355,7 @@ export default function MeterReportPage() {
                                                 </td>
                                             );
                                         })}
-                                        <td className="px-4 py-3 min-w-[190px]">
+                                        <td className="px-3 py-3 align-top">
                                             {r.isSyntheticOrphan ? (
                                                 <span className="text-xs text-amber-300">รอผูกกะ</span>
                                             ) : !r.continuity?.checked ? (
@@ -355,7 +369,7 @@ export default function MeterReportPage() {
                                                     <span className="rounded bg-red-900/50 px-2 py-1 text-xs text-red-200">
                                                         ไม่ต่อ {r.continuity.issueCount} จุด
                                                     </span>
-                                                    <div className="text-xs text-red-200/80">
+                                                    <div className="text-[11px] leading-tight text-red-200/80">
                                                         {r.continuity.issues.slice(0, 2).map((issue) => (
                                                             <div key={`${r.id}-${issue.nozzleNumber}`}>
                                                                 หัว {issue.nozzleNumber}: {issue.gap >= 0 ? '+' : ''}{issue.gap.toLocaleString()} L
@@ -365,30 +379,28 @@ export default function MeterReportPage() {
                                                 </div>
                                             )}
                                         </td>
-                                        <td className="px-4 py-3 text-right font-mono text-green-400 font-bold">
-                                            {r.totalLiters.toLocaleString()}
+                                        <td className="px-3 py-3 text-right align-top font-mono leading-tight">
+                                            <div className="font-bold text-green-400">{r.totalLiters.toLocaleString()} L</div>
+                                            <div className="mt-1 text-cyan-400">ขาย {r.transactionLiters.toLocaleString()} L</div>
+                                            <div className={r.isSyntheticOrphan
+                                                ? 'mt-1 text-amber-300'
+                                                : r.litersVariance >= 0
+                                                    ? 'mt-1 text-yellow-400'
+                                                    : 'mt-1 text-red-400'
+                                            }>
+                                                {r.isSyntheticOrphan
+                                                    ? 'รอผูกกะ'
+                                                    : `ต่าง ${r.litersVariance >= 0 ? '+' : ''}${r.litersVariance.toLocaleString()}`}
+                                            </div>
                                         </td>
-                                        <td className="px-4 py-3 text-right font-mono text-cyan-400">
-                                            {r.transactionLiters.toLocaleString()}
-                                        </td>
-                                        <td className={`px-4 py-3 text-right font-mono ${r.isSyntheticOrphan
-                                            ? 'text-amber-300'
-                                            : r.litersVariance >= 0
-                                                ? 'text-yellow-400'
-                                                : 'text-red-400'
-                                            }`}>
-                                            {r.isSyntheticOrphan
-                                                ? 'รอผูกกะ'
-                                                : `${r.litersVariance >= 0 ? '+' : ''}${r.litersVariance.toLocaleString()}`}
-                                        </td>
-                                        <td className="px-4 py-3 text-right">
+                                        <td className="px-2 py-3 text-right align-top">
                                             {r.transactionCount}
                                         </td>
-                                        <td className="px-4 py-3 text-right font-mono text-blue-400">
-                                            ฿{formatCurrency(r.actualSales)}
-                                        </td>
-                                        <td className="px-4 py-3 text-right font-mono text-cyan-400">
-                                            {r.isSyntheticOrphan ? 'รอมิเตอร์' : `฿${formatCurrency(r.expectedSales)}`}
+                                        <td className="px-3 py-3 text-right align-top font-mono leading-tight">
+                                            <div className="font-semibold text-blue-400">รับ ฿{formatCurrency(r.actualSales)}</div>
+                                            <div className="mt-1 text-cyan-400">
+                                                {r.isSyntheticOrphan ? 'รอมิเตอร์' : `คาด ฿${formatCurrency(r.expectedSales)}`}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
