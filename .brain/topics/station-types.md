@@ -76,3 +76,4 @@
 - 2026-05-03: เพิ่มหน้า GAS executive print report `/admin/gas/reports/executive` สำหรับรายงานเสนอผู้บริหารตามช่วงเวลา รวมรายได้ เลขมิเตอร์ และรายการลงแก๊สในหน้า A4 print-friendly
 - 2026-05-06: เพิ่ม Android Epson direct thermal receipt/credit bill print สำหรับ Tank Loy ให้ใช้พื้นที่ 80mm กว้างขึ้นและ cut แยกต้นฉบับ/สำเนาอัตโนมัติ
 - 2026-05-06: ปรับ Tank Loy daily summary print hierarchy: mobile thermal เน้นยอดรวม/มิเตอร์/ผลต่าง และ classic admin ใช้ A4 professional report template
+- 2026-05-06: ปรับ Tank Loy mobile daily summary เพิ่มชั้นน้ำหนักตัวอักษร: ยอดรวม/ลิตร/ผลต่างใช้ font หลักตัวหนา และรายการย่อยใช้ `font_b` เพื่อให้พิมพ์ยาวเท่าเดิมแต่โฟกัสดีขึ้น

@@ -175,22 +175,27 @@ function eposText(value: string, attributes = ''): string {
     return `<text${attributes}>${escapedValue}</text>`;
 }
 
-function buildReadableMeterLines(meters: ReturnType<typeof buildDailyReportModel>['normalizedMeters'], columns: number): string[] {
+function buildReadableMeterGroups(
+    meters: ReturnType<typeof buildDailyReportModel>['normalizedMeters'],
+    columns: number,
+): Array<{ title: string; readings: string[] }> {
     if (meters.length === 0) {
-        return ['ไม่พบเลขมิเตอร์'];
+        return [{ title: 'ไม่พบเลขมิเตอร์', readings: [] }];
     }
 
-    return meters.flatMap((meter) => {
+    return meters.map((meter) => {
         const endReading = meter.endReading === null ? '-' : formatCurrency(meter.endReading);
         const fuelLabel = truncateText(meter.fuelType || 'ดีเซล B7', 12);
         const headerText = `หัว ${meter.nozzleNumber} ${fuelLabel}`;
         const litersText = `ขาย ${formatCurrency(meter.liters)}L`;
 
-        return [
-            padReceiptLine(headerText, litersText, columns),
-            `เปิด ${formatCurrency(meter.startReading)}`,
-            `ปิด  ${endReading}`,
-        ];
+        return {
+            title: padReceiptLine(headerText, litersText, columns),
+            readings: [
+                padReceiptLine('เปิด', formatCurrency(meter.startReading), columns),
+                padReceiptLine('ปิด', endReading, columns),
+            ],
+        };
     });
 }
 
@@ -240,12 +245,12 @@ function buildEpsonAssistantDailyReportXml({
     const transactionColumns = EPSON_THERMAL_TRANSACTION_COLUMNS[paperSize];
     const divider = '-'.repeat(columns);
     const doubleDivider = '='.repeat(columns);
-    const summaryLines = [
-        padReceiptLine('จำนวนรายการ', String(sortedTransactions.length), columns),
-        padReceiptLine('ลิตรจากรายการเติม', formatCurrency(totalLiters), columns),
-        padReceiptLine('ลิตรจากมิเตอร์', formatCurrency(totalMeterLiters), columns),
-        padReceiptLine('ผลต่างลิตร', `${litersDiff > 0 ? '+' : ''}${formatCurrency(litersDiff)} ${diffOk ? 'ตรง' : 'ตรวจสอบ'}`, columns),
+    const focusLines = [
+        padReceiptLine('รวมลิตรขาย', `${formatCurrency(totalLiters)}L`, columns),
+        padReceiptLine('ลิตรตามมิเตอร์', `${formatCurrency(totalMeterLiters)}L`, columns),
+        padReceiptLine('ผลต่าง', `${litersDiff > 0 ? '+' : ''}${formatCurrency(litersDiff)}L ${diffOk ? 'ตรง' : 'ตรวจสอบ'}`, columns),
     ];
+    const detailLines = [padReceiptLine('จำนวนรายการ', String(sortedTransactions.length), columns)];
 
     const paymentEntries = Object.entries(paymentTotals)
         .sort(([left], [right]) => getPaymentLabel(left).localeCompare(getPaymentLabel(right), 'th'));
@@ -268,12 +273,12 @@ function buildEpsonAssistantDailyReportXml({
         });
     }
 
-    const meterLines = buildReadableMeterLines(normalizedMeters, columns);
-    const footerLines = [
+    const meterGroups = buildReadableMeterGroups(normalizedMeters, columns);
+    const footerTotalLines = [
         padReceiptLine('รวมลิตร', formatCurrency(totalLiters), columns),
         padReceiptLine('รวมเงิน', formatCurrency(totalAmount), columns),
-        centerReceiptLine(`พิมพ์ ${new Date().toLocaleString('th-TH')}`, columns),
     ];
+    const footerPrintedAtLine = centerReceiptLine(`พิมพ์ ${new Date().toLocaleString('th-TH')}`, columns);
 
     return [
         '<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">',
@@ -285,18 +290,28 @@ function buildEpsonAssistantDailyReportXml({
         eposText(`รายงานสรุปวัน ${formatShortReportDate(reportDate)}\n`, ' align="center"'),
         eposText(`${doubleDivider}\n`, ' align="left"'),
         eposText(`ยอดรวม ฿ ${formatCurrency(totalAmount)}\n`, ' align="center" em="true"'),
+        eposText(`${focusLines.join('\n')}\n`, ' em="true"'),
+        '<text font="font_b" />',
+        eposText(`${detailLines.join('\n')}\n`),
+        '<text font="font_a" />',
         eposText(`${divider}\n`),
         eposText('เลขเปิด-ปิดมิเตอร์\n', ' em="true"'),
-        eposText(`${meterLines.join('\n')}\n`),
-        eposText(`ผลต่าง ${litersDiff > 0 ? '+' : ''}${formatCurrency(litersDiff)} ลิตร ${diffOk ? '(ตรง)' : '(ตรวจสอบ)'}\n`, ' em="true"'),
-        eposText(`${divider}\n${summaryLines.join('\n')}\n${divider}\n`),
+        ...meterGroups.flatMap((meterGroup) => [
+            eposText(`${meterGroup.title}\n`, ' em="true"'),
+            meterGroup.readings.length > 0 ? eposText(`${meterGroup.readings.join('\n')}\n`) : '',
+        ]),
+        eposText(`${divider}\n`),
+        '<text font="font_b" />',
         eposText(`${paymentLines.join('\n')}\n${divider}\n`),
+        '<text font="font_a" />',
         eposText('รายการเติมทั้งหมด\n', ' em="true"'),
         '<text font="font_b" />',
         eposText(`${transactionLines.join('\n')}\n`),
         '<text font="font_a" />',
         eposText(`${doubleDivider}\n`),
-        eposText(`${footerLines.join('\n')}\n`),
+        eposText(`${footerTotalLines.join('\n')}\n`, ' em="true"'),
+        '<text font="font_b" />',
+        eposText(`${footerPrintedAtLine}\n`),
         '<feed line="1" />',
         '<cut type="feed" />',
         '</epos-print>',
