@@ -175,18 +175,22 @@ function eposText(value: string, attributes = ''): string {
     return `<text${attributes}>${escapedValue}</text>`;
 }
 
-function buildCompactMeterLines(meters: ReturnType<typeof buildDailyReportModel>['normalizedMeters'], columns: number): string[] {
+function buildReadableMeterLines(meters: ReturnType<typeof buildDailyReportModel>['normalizedMeters'], columns: number): string[] {
     if (meters.length === 0) {
         return ['ไม่พบเลขมิเตอร์'];
     }
 
-    return meters.map((meter) => {
+    return meters.flatMap((meter) => {
         const endReading = meter.endReading === null ? '-' : formatCurrency(meter.endReading);
-        const fuelLabel = truncateText(meter.fuelType || 'ดีเซล B7', 8);
-        const meterText = `${meter.nozzleNumber} ${fuelLabel} ${formatCurrency(meter.startReading)}-${endReading}`;
-        const litersText = `${formatCurrency(meter.liters)}L`;
+        const fuelLabel = truncateText(meter.fuelType || 'ดีเซล B7', 12);
+        const headerText = `หัว ${meter.nozzleNumber} ${fuelLabel}`;
+        const litersText = `ขาย ${formatCurrency(meter.liters)}L`;
 
-        return padReceiptLine(meterText, litersText, columns);
+        return [
+            padReceiptLine(headerText, litersText, columns),
+            `เปิด ${formatCurrency(meter.startReading)}`,
+            `ปิด  ${endReading}`,
+        ];
     });
 }
 
@@ -264,7 +268,7 @@ function buildEpsonAssistantDailyReportXml({
         });
     }
 
-    const meterLines = buildCompactMeterLines(normalizedMeters, columns);
+    const meterLines = buildReadableMeterLines(normalizedMeters, columns);
     const footerLines = [
         padReceiptLine('รวมลิตร', formatCurrency(totalLiters), columns),
         padReceiptLine('รวมเงิน', formatCurrency(totalAmount), columns),

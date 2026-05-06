@@ -26,7 +26,7 @@
      2026-05-03 เพิ่ม GAS executive print report ที่ใช้ `src/lib/gas/executive-report.ts` รวม revenue/meter/supplies/management notes จาก source เดียวกับ admin analytics;
      2026-05-03 แก้ mobile thermal daily print ของ Tank Loy โดย Android ส่ง ePOS-Print XML เข้า Epson TM Print Assistant โดยตรงแทนการให้ Android สร้าง A4 preview;
      2026-05-06 แก้ mobile thermal receipt/credit bill ของ Tank Loy ให้ Android ส่ง ePOS XML ที่มี cut หลังต้นฉบับและหลังสำเนาแทน page-break HTML;
-     2026-05-06 ปรับ mobile thermal daily summary ให้เน้นยอดรวม/มิเตอร์/ผลต่าง และให้ admin daily summary print ใช้ template A4 มืออาชีพแทน print modal; รอบ follow-up คืนความยาวกระดาษใกล้ compact เดิมโดยไม่ใช้ `width=2 height=2` และมิเตอร์กลับเป็น 1 บรรทัดต่อหัว -->
+     2026-05-06 ปรับ mobile thermal daily summary ให้เน้นยอดรวม/มิเตอร์/ผลต่าง และให้ admin daily summary print ใช้ template A4 มืออาชีพแทน print modal; รอบ follow-up คืนความยาวกระดาษใกล้ compact เดิมโดยไม่ใช้ `width=2 height=2`, และปรับมิเตอร์เป็นหัว+ลิตร 1 บรรทัด ตามด้วยเปิด/ปิดแยกบรรทัดเพื่อกันเลขยาวล้น -->
 
 # Bugs & Fixes
 
@@ -351,9 +351,10 @@
 45. **GAS Overnight Active Shift**: GAS v2 active/current staff flow ต้องถือว่า `OPEN` กะค่ำอาจอยู่ใน `DailyRecord` ของเมื่อวานและปิดเช้าวันนี้; `summary`/`sell`/`price` ต้องอิง `shiftId`/`dailyRecordId` ของกะที่เปิดอยู่ก่อน calendar day ส่วน admin analytics ต้องดึง transactions ที่ `shiftId` อยู่ใน shifts ของช่วงรายงานแม้ `transaction.date` จะเลยเที่ยงคืนไปวันถัดไป
 46. **GAS Executive Print Report Source**: หน้า `/admin/gas/reports/executive` ต้องดึงข้อมูลผ่าน `/api/v2/gas/admin/reports/executive` และ build ด้วย `src/lib/gas/executive-report.ts` เท่านั้น เพื่อให้รายได้, payment mix, meter continuity, orphan transactions, และรายการลงแก๊สใช้ source เดียวกับ `admin-analytics`; ห้ามคำนวณตัวเลขซ้ำใน UI print page
 47. **Tank Loy Mobile Receipt Original/Copy Cuts**: ใบเสร็จ/บิลเงินเชื่อ thermal ที่มีต้นฉบับ+สำเนาห้ามพึ่ง HTML `page-break-after` อย่างเดียวบน Android/Epson เพราะ roll print อาจพิมพ์ต่อกันยาวและไม่ใช้พื้นที่ 80mm เต็ม; ตั้งแต่ 2026-05-06 route receipt ใช้ `src/lib/thermal-receipt-print.ts` สร้าง ePOS XML direct ที่มี `<cut type="feed" />` หลังต้นฉบับและหลังสำเนา พร้อม text columns 48 สำหรับ 80mm / 34 สำหรับ 58mm
-48. **Tank Loy Daily Summary Print Hierarchy**: mobile thermal daily summary ต้องเน้นยอดรวม, เลขมิเตอร์เปิด/ปิด, และผลต่างลิตรแบบ compact; ห้ามใช้ ePOS `width="2" height="2"` หรือแตกมิเตอร์หลายบรรทัดต่อหัว เพราะทำให้กระดาษยาวเกินหน้างาน ต้องคงความยาวใกล้ layout compact เดิม: meter 1 บรรทัดต่อหัว, line spacing 24, รายการเติมใช้ `font_b`; ส่วน admin daily summary classic page ต้องเรียก `printDailyWorkReport` แทน `window.print()` modal เพื่อให้ได้ A4 professional report template
+48. **Tank Loy Daily Summary Print Hierarchy**: mobile thermal daily summary ต้องเน้นยอดรวม, เลขมิเตอร์เปิด/ปิด, และผลต่างลิตรแบบ compact; ห้ามใช้ ePOS `width="2" height="2"` เพราะทำให้กระดาษยาวเกินหน้างาน; ตัวเลขมิเตอร์เปิด/ปิดยาวจึงต้องคุมเองเป็นหัวจ่าย+ลิตรขาย 1 บรรทัด แล้วแยก `เปิด ...` / `ปิด ...` คนละบรรทัด ห้ามยัดเปิด-ปิดในบรรทัดเดียวจน printer wrap เอง; รายการเติมใช้ `font_b`; ส่วน admin daily summary classic page ต้องเรียก `printDailyWorkReport` แทน `window.print()` modal เพื่อให้ได้ A4 professional report template
 
 ## Changelog
+- 2026-05-06: follow-up mobile thermal daily summary: แยกเลขมิเตอร์เปิด/ปิดคนละบรรทัดหลังพบเลขยาวล้นกระดาษ แต่ยังไม่ใช้ตัวอักษร 2 เท่า
 - 2026-05-06: follow-up mobile thermal daily summary หลังหน้างานพบยาวเกิน: ถอด `width=2 height=2`, คืน meter เป็น 1 บรรทัดต่อหัว และคืน column/line spacing ใกล้ compact เดิม
 - 2026-05-06: ปรับ mobile thermal daily summary ให้เน้นยอดรวม/มิเตอร์/ผลต่าง และปรับปุ่มพิมพ์สรุปวันใน classic admin ให้ใช้ A4 report template มืออาชีพ
 - 2026-05-06: แก้ใบเสร็จ/บิลเงินเชื่อ thermal บน Android Epson ให้ใช้ ePOS XML direct, ใช้พื้นที่ 80mm กว้างขึ้น และสั่ง cut แยกต้นฉบับ/สำเนาอัตโนมัติ
