@@ -31,6 +31,7 @@ describe('thermal receipt Epson direct printing', () => {
         expect(url).toContain('data-type=eposprintxml');
 
         const xml = decodeURIComponent(url!.split('data=')[1]);
+        expect(xml).toMatch(/<text align="left">\s+\[ ต้นฉบับ \]/);
         expect(xml).toContain('[ ต้นฉบับ ]');
         expect(xml).toContain('[ สำเนา ]');
         expect(xml).toContain('วัชรเกียรติออยล์');

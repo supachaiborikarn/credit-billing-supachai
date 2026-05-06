@@ -41,6 +41,7 @@ describe('daily report thermal printing', () => {
         expect(xml).toContain('<text lang="mul" />');
         expect(xml).toContain('<text font="font_b" />');
         expect(xml).not.toContain('width="2" height="2"');
+        expect(xml).not.toContain('em="true"');
         expect(xml).toContain('เลขเปิด-ปิดมิเตอร์');
         expect(xml).toContain('ผลต่าง');
         expect(xml).toContain('รวมลิตรขาย');

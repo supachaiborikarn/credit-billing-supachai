@@ -6,7 +6,8 @@ export const PRINTER_PROFILE = {
     recommendedPaper: '80' as PaperSize,
     paperWidthMm: { '58': 58, '80': 80 } as Record<PaperSize, number>,
     printableWidthMm: { '58': 52.5, '80': 72 } as Record<PaperSize, number>,
-    textColumns: { '58': 34, '80': 48 } as Record<PaperSize, number>,
+    textColumns: { '58': 30, '80': 42 } as Record<PaperSize, number>,
+    leftPaddingColumns: { '58': 2, '80': 3 } as Record<PaperSize, number>,
 };
 
 const EPSON_TM_PRINT_ASSISTANT_URL = 'tmprintassistant://tmprintassistant.epson.com/print';
@@ -143,6 +144,15 @@ function centerReceiptLine(value: string, columns: number): string {
     return `${' '.repeat(sidePadding)}${clipped}`;
 }
 
+function insetReceiptText(value: string, paperSize: PaperSize): string {
+    const leftPadding = ' '.repeat(PRINTER_PROFILE.leftPaddingColumns[paperSize]);
+
+    return value
+        .split('\n')
+        .map((line) => (line ? `${leftPadding}${line}` : line))
+        .join('\n');
+}
+
 function buildReceiptCopyText({
     txn,
     config,
@@ -199,7 +209,7 @@ function buildReceiptCopyText({
 
     lines.push('', centerReceiptLine('ขอบคุณที่ใช้บริการครับ', columns), centerReceiptLine(`Ref: ${txn.id.slice(0, 8).toUpperCase()}`, columns));
 
-    return `${lines.join('\n')}\n`;
+    return `${insetReceiptText(lines.join('\n'), paperSize)}\n`;
 }
 
 export interface BuildReceiptPrintInput {

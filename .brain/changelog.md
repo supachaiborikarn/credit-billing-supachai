@@ -287,16 +287,18 @@
 
 ## 2026-05-06
 - 🖨️ ปรับ hierarchy ของรายงานสรุปวัน Tank Loy
-  - Follow-up รอบล่าสุด: ทำยอดรวม, รวมลิตรขาย, ลิตรตามมิเตอร์, ผลต่าง และรวมท้ายใบเป็น font หลักตัวหนา แต่ลดจำนวนรายการ, สรุปชำระ, รายการเติม และเวลาพิมพ์เป็น `font_b` เพื่อให้จุดสำคัญเด่นขึ้นโดยไม่เพิ่มความยาวกระดาษ
+  - Follow-up จากรูป `IMG_9006`: ถอด ePOS `em=true` ออกจาก daily summary direct print ทั้งใบ เพราะฟ้อนท์หนาเกินอ่านยากบนเครื่องจริง
+  - Follow-up รอบก่อนหน้า: ทำยอดรวม, รวมลิตรขาย, ลิตรตามมิเตอร์, ผลต่าง และรวมท้ายใบเป็น font หลักตัวหนา แต่ลดจำนวนรายการ, สรุปชำระ, รายการเติม และเวลาพิมพ์เป็น `font_b` เพื่อให้จุดสำคัญเด่นขึ้นโดยไม่เพิ่มความยาวกระดาษ
   - Mobile Epson direct daily summary เน้นยอดรวมด้วยตัวอักษรใหญ่, เน้นเลขเปิด/ปิดมิเตอร์และผลต่างลิตรด้วย ePOS emphasis, และลดรายการเติมทั้งหมดเป็น `font_b`
   - Follow-up จากรูปหน้างาน: ถอด `width=2 height=2`, คืนมิเตอร์เป็น 1 บรรทัดต่อหัว และคืน column/line spacing ใกล้ compact layout เดิมเพื่อลดความยาวกระดาษ
   - Follow-up เลขมิเตอร์ยาว: เปลี่ยนมิเตอร์เป็นหัวจ่าย+ลิตรขาย 1 บรรทัด แล้วแยก `เปิด ...` / `ปิด ...` คนละบรรทัด เพื่อไม่ให้ printer wrap ตัวเลขเอง
   - คง summary columns แบบ compact 42 สำหรับ 80mm / 32 สำหรับ 58mm และใช้ transaction columns แยกเพื่อให้รายการเติมอ่านได้แต่ไม่แย่งพื้นที่ตัวเลขสำคัญ
   - ปุ่มพิมพ์สรุปวันใน classic admin `/station/1` เปลี่ยนจาก `window.print()` modal เป็น `printDailyWorkReport` เพื่อใช้ A4 report template ที่ดูเป็นเอกสารมืออาชีพกว่า
 - 🧾 แก้ mobile thermal receipt/credit bill ของแท๊งลอย
+  - Follow-up จากรูป `IMG_9006`: direct receipt/credit print ชิดซ้ายจนมีโอกาสตกขอบ จึงลด text columns เป็น 42 สำหรับ 80mm / 30 สำหรับ 58mm และเติม left padding 3/2 columns เพื่อขยับงานพิมพ์เข้ากลาง
   - เพิ่ม `src/lib/thermal-receipt-print.ts` สำหรับสร้าง ePOS-Print XML ของใบเสร็จ/บิลเงินเชื่อโดยตรงผ่าน Epson TM Print Assistant บน Android
   - XML พิมพ์ต้นฉบับและสำเนาใน job เดียว แต่สั่ง `<cut type="feed" />` หลังต้นฉบับและหลังสำเนา ทำให้แยกใบอัตโนมัติแทนการพึ่ง HTML page-break
-  - ปรับ 80mm ให้ใช้ text columns 48 และ 58mm ใช้ 34 เพื่อกินพื้นที่กระดาษกว้างขึ้น; desktop/อุปกรณ์อื่นยัง fallback เป็น HTML print เดิม
+  - desktop/อุปกรณ์อื่นยัง fallback เป็น HTML print เดิม
   - verification: targeted Vitest สำหรับ daily/receipt direct print ผ่าน, targeted ESLint ผ่าน
 
 ## 2026-05-03
