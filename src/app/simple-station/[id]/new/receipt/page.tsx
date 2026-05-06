@@ -1,83 +1,34 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useCallback, useEffect, useState, use } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import NextImage from 'next/image';
 import Link from 'next/link';
 import { Printer, ArrowLeft, Home, FileText } from 'lucide-react';
-
-type ReceiptDocType = 'receipt' | 'credit';
-type PaperSize = '58' | '80';
-
-const PRINTER_PROFILE = {
-    model: 'Epson TM-m30III',
-    recommendedPaper: '80' as PaperSize,
-    paperWidthMm: { '58': 58, '80': 80 } as Record<PaperSize, number>,
-    printableWidthMm: { '58': 52.5, '80': 72 } as Record<PaperSize, number>,
-};
-
-interface Transaction {
-    id: string;
-    date: string;
-    licensePlate: string;
-    ownerName: string;
-    paymentType: string;
-    fuelType: string;
-    liters: number;
-    pricePerLiter: number;
-    amount: number;
-    billBookNo: string;
-    billNo: string;
-    createdAt: string;
-    recordedBy?: { name: string };
-}
-
-const RECEIPT_CONFIG: Record<string, { name: string; address1: string; address2: string; tel: string }> = {
-    'station-1': { name: 'วัชรเกียรติออยล์', address1: '657 ถ.เจริญสุข ต.ในเมือง อ.เมือง', address2: 'จ.กำแพงเพชร 62000', tel: '055-840585, 055-773003' },
-    'station-2': { name: 'หจก.วัชรเกียรติออยล์', address1: '657 ถ.เจริญสุข ต.ในเมือง อ.เมือง', address2: 'จ.กำแพงเพชร 62000', tel: '055-773003' },
-    'station-3': { name: 'ศุภชัยบริการ(กำแพงเพชร)', address1: '172 หมู่ 1 ถนนพหลโยธิน ตำบลนครชุม', address2: 'อำเภอเมือง จังหวัดกำแพงเพชร 62000', tel: '055-840585, 055-773003' },
-    'station-4': { name: 'ศุภชัยบริการ(กำแพงเพชร)', address1: '172 หมู่ 1 ถนนพหลโยธิน ตำบลนครชุม', address2: 'อำเภอเมือง จังหวัดกำแพงเพชร 62000', tel: '055-840585, 055-773003' },
-    'station-5': { name: 'ปั๊มแก๊สพงษ์อนันต์', address1: '172 หมู่ 1 ถนนพหลโยธิน ตำบลนครชุม', address2: 'อำเภอเมือง จังหวัดกำแพงเพชร 62000', tel: '055-840585' },
-    'station-6': { name: 'ปั๊มแก๊สศุภชัย', address1: '172 หมู่ 1 ถนนพหลโยธิน ตำบลนครชุม', address2: 'อำเภอเมือง จังหวัดกำแพงเพชร 62000', tel: '055-840585' },
-};
-
-const FUEL_LABELS: Record<string, string> = {
-    DIESEL: 'ดีเซล B7',
-    POWER_DIESEL: 'พาวเวอร์ดีเซล',
-    GASOHOL_91: 'แก๊สโซฮอล์ 91',
-    GASOHOL_95: 'แก๊สโซฮอล์ 95',
-    GASOLINE_95: 'เบนซิน 95',
-    GASOHOL_E20: 'E20',
-    LPG: 'แก๊ส LPG',
-    ENGINE_OIL: 'น้ำมันเครื่อง/สินค้า',
-    COOLANT: 'น้ำยาหล่อเย็น',
-    OTHER_PRODUCT: 'สินค้าอื่นๆ',
-};
-
-const PAYMENT_LABELS: Record<string, string> = {
-    CASH: 'เงินสด',
-    CREDIT: 'เงินเชื่อ',
-    TRANSFER: 'โอนเงิน',
-    CREDIT_CARD: 'บัตรเครดิต',
-    BOX_TRUCK: 'รถตู้ทึบ',
-    OIL_TRUCK_SUPACHAI: 'รถน้ำมันศุภชัย',
-};
+import {
+    FUEL_LABELS,
+    PAYMENT_LABELS,
+    PRINTER_PROFILE,
+    RECEIPT_CONFIG,
+    formatReceiptDate,
+    formatReceiptTime,
+    printReceiptViaEpsonAssistant,
+    type PaperSize,
+    type ReceiptConfig,
+    type ReceiptDocType,
+    type ReceiptTransaction as Transaction,
+} from '@/lib/thermal-receipt-print';
 
 // Receipt Component
 function ReceiptContent({ txn, config, docNo, copyType, docType, paperSize }: {
     txn: Transaction;
-    config: { name: string; address1: string; address2: string; tel: string };
+    config: ReceiptConfig;
     docNo: string;
     copyType: 'ต้นฉบับ' | 'สำเนา';
     docType: ReceiptDocType;
     paperSize: PaperSize;
 }) {
     const fmt = (n: number) => new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2 }).format(n);
-    const fmtDate = (d: string) => {
-        const date = new Date(d);
-        return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
-    };
-    const fmtTime = (d: string) => new Date(d).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 
     const paymentLabel = PAYMENT_LABELS[txn.paymentType] || txn.paymentType;
     const isCreditDocument = docType === 'credit';
@@ -145,7 +96,7 @@ function ReceiptContent({ txn, config, docNo, copyType, docType, paperSize }: {
                 </div>
                 <div className="flex justify-between">
                     <span className="text-gray-800">วันที่:</span>
-                    <span>{fmtDate(receiptDate)} {fmtTime(receiptDate)}</span>
+                    <span>{formatReceiptDate(receiptDate)} {formatReceiptTime(receiptDate)}</span>
                 </div>
                 <div className="flex justify-between">
                     <span className="text-gray-800">พนักงาน:</span>
@@ -261,6 +212,26 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
     const [autoPrintStarted, setAutoPrintStarted] = useState(false);
     const paperWidthMm = PRINTER_PROFILE.paperWidthMm[paperSize];
     const printableWidthMm = PRINTER_PROFILE.printableWidthMm[paperSize];
+    const docNo = txn ? `${txn.billBookNo || '00'}/${txn.billNo || '000'}` : '00/000';
+
+    const handlePrint = useCallback(() => {
+        if (!txn) {
+            return;
+        }
+
+        setAutoPrintStarted(true);
+        const epsonAssistantOpened = printReceiptViaEpsonAssistant({
+            txn,
+            config,
+            docNo,
+            docType,
+            paperSize,
+        });
+
+        if (!epsonAssistantOpened) {
+            window.print();
+        }
+    }, [config, docNo, docType, paperSize, txn]);
 
     // Fetch Transaction
     useEffect(() => {
@@ -278,14 +249,12 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
     // Handle Auto Print Action
     useEffect(() => {
         if (!loading && txn && autoPrint) {
-            // Slight delay to ensure fonts and layout are fully rendered
             const timer = setTimeout(() => {
-                setAutoPrintStarted(true);
-                window.print();
+                handlePrint();
             }, 800);
             return () => clearTimeout(timer);
         }
-    }, [loading, txn, autoPrint]);
+    }, [loading, txn, autoPrint, handlePrint]);
 
     if (loading) {
         return (
@@ -307,8 +276,6 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
             </div>
         );
     }
-
-    const docNo = `${txn.billBookNo || '00'}/${txn.billNo || '000'}`;
 
     return (
         <>
@@ -398,7 +365,7 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
                         โปรไฟล์: {PRINTER_PROFILE.model} • แนะนำ 80mm
                     </div>
                     <button
-                        onClick={() => window.print()}
+                        onClick={handlePrint}
                         className="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md rounded-lg font-bold flex items-center gap-2 transform active:scale-95 transition-all"
                     >
                         <Printer size={18} /> {autoPrint ? 'พิมพ์ซ้ำ' : 'พิมพ์บิล'}

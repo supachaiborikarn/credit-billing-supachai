@@ -285,6 +285,13 @@
   - ปรับ full station meter/photo routes ให้ใช้ `shiftId_nozzleNumber` เมื่อมี shift และ fallback `findFirst/update/create` สำหรับ daily-only rows แทน compound unique รายวัน
   - ตรวจ production index แล้วเหลือ `meter_readings_pkey` และ `meter_readings_shiftId_nozzleNumber_key`; verification: targeted lint, targeted TypeScript, `npm run test` ผ่าน 61 tests
 
+## 2026-05-06
+- 🧾 แก้ mobile thermal receipt/credit bill ของแท๊งลอย
+  - เพิ่ม `src/lib/thermal-receipt-print.ts` สำหรับสร้าง ePOS-Print XML ของใบเสร็จ/บิลเงินเชื่อโดยตรงผ่าน Epson TM Print Assistant บน Android
+  - XML พิมพ์ต้นฉบับและสำเนาใน job เดียว แต่สั่ง `<cut type="feed" />` หลังต้นฉบับและหลังสำเนา ทำให้แยกใบอัตโนมัติแทนการพึ่ง HTML page-break
+  - ปรับ 80mm ให้ใช้ text columns 48 และ 58mm ใช้ 34 เพื่อกินพื้นที่กระดาษกว้างขึ้น; desktop/อุปกรณ์อื่นยัง fallback เป็น HTML print เดิม
+  - verification: targeted Vitest สำหรับ daily/receipt direct print ผ่าน, targeted ESLint ผ่าน
+
 ## 2026-05-03
 - 🖨️ เพิ่ม GAS executive print report สำหรับรายงานเสนอผู้บริหาร
   - เพิ่มหน้า `/admin/gas/reports/executive` แบบ A4 print-friendly พร้อม filter ช่วงวันที่/สถานี และปุ่มพิมพ์หรือบันทึก PDF

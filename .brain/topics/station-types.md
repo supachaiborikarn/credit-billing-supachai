@@ -48,7 +48,7 @@
 - **FULL staff UI implementation**: `/src/app/station/[id]/v2/page.tsx` และ components ใต้ `/src/app/station/[id]/v2/components` โดยมี `OperationsCommandPanel` เป็น command center สำหรับสถานะมิเตอร์/หลักฐาน/ยอดขาย
 - **FULL admin health implementation**: `/src/app/station/[id]/page.tsx` มี `Admin Data Health` panel เพื่อแสดงข้อมูลจาก V2 ครบทั้งรูปมิเตอร์, สลิปโอน, เลขบิล, ลูกค้าเงินเชื่อ, ยอดลิตร/เงิน และผลต่างมิเตอร์
 - **FULL daily print report**: `/src/lib/daily-report-print.ts` ใช้กับ V2 เพื่อพิมพ์สรุปวันพร้อมเลขเปิด-ปิดมิเตอร์, รายการเติมทั้งหมด, ยอดเงินรวม และผลต่างลิตรระหว่างมิเตอร์กับรายการเติม ทั้ง A4 และ thermal 58/80mm สำหรับ Epson TM-m30III
-- **FULL thermal receipt implementation**: `/src/app/station/[id]/new/receipt/page.tsx` (re-export จาก simple receipt สำหรับ V2 print)
+- **FULL thermal receipt implementation**: `/src/app/station/[id]/new/receipt/page.tsx` (re-export จาก simple receipt สำหรับ V2 print) และ Android Epson direct XML helper `/src/lib/thermal-receipt-print.ts` สำหรับตัดต้นฉบับ/สำเนาอัตโนมัติ
 - **GAS staff UI**: `/src/app/gas/[stationId]/page.tsx`
 - **GAS staff supply receiving**: `/src/app/gas/[stationId]/supplies/page.tsx`
 - **GAS admin operations**: `/src/app/admin/gas/operations/page.tsx`
@@ -74,3 +74,4 @@
 - 2026-05-01: เพิ่ม v2 supply receiving สำหรับ GAS ทั้ง staff/admin, เพิ่ม meter continuity ใน admin analytics/report/executive alerts, และปิด `/admin/gas-control` ให้ redirect ไป `/admin/gas`
 - 2026-05-03: ปรับ GAS v2 ให้รองรับกะค่ำข้ามวัน: active/current/summary/sell/price/open guard ใช้ช่วงเมื่อวานถึงวันนี้ และ analytics ดึง transactions ตาม `shiftId` เพื่อเก็บยอดหลังเที่ยงคืนไว้กับ business day ของกะเดิม
 - 2026-05-03: เพิ่มหน้า GAS executive print report `/admin/gas/reports/executive` สำหรับรายงานเสนอผู้บริหารตามช่วงเวลา รวมรายได้ เลขมิเตอร์ และรายการลงแก๊สในหน้า A4 print-friendly
+- 2026-05-06: เพิ่ม Android Epson direct thermal receipt/credit bill print สำหรับ Tank Loy ให้ใช้พื้นที่ 80mm กว้างขึ้นและ cut แยกต้นฉบับ/สำเนาอัตโนมัติ
