@@ -261,6 +261,7 @@ function buildEpsonAssistantDailyReportXml({
     } else {
         paymentEntries.forEach(([paymentType, total]) => {
             paymentLines.push(padReceiptLine(`${getPaymentLabel(paymentType)} (${total.count})`, formatCurrency(total.amount), columns));
+            paymentLines.push(padReceiptLine('ลิตร', `${formatCurrency(total.liters)}L`, columns));
         });
     }
 
@@ -427,7 +428,7 @@ export function printDailyWorkReport({
 
     const paymentSummaryText = Object.entries(paymentTotals)
         .sort(([left], [right]) => getPaymentLabel(left).localeCompare(getPaymentLabel(right), 'th'))
-        .map(([paymentType, total]) => `${getPaymentLabel(paymentType)} ${formatCurrency(total.amount)}`)
+        .map(([paymentType, total]) => `${getPaymentLabel(paymentType)} ${formatCurrency(total.amount)} บาท / ${formatCurrency(total.liters)} ลิตร`)
         .join(' | ');
 
     const meterRows = normalizedMeters.length > 0
@@ -782,6 +783,10 @@ export function printThermalDailyWorkReport({
             <div class="line-row">
                 <span>${escapeHtml(getPaymentLabel(paymentType))} (${escapeHtml(total.count)})</span>
                 <span>${escapeHtml(formatCurrency(total.amount))}</span>
+            </div>
+            <div class="line-row small muted">
+                <span>ลิตร</span>
+                <span>${escapeHtml(formatCurrency(total.liters))} ลิตร</span>
             </div>
         `).join('');
 

@@ -48,6 +48,9 @@ describe('daily report thermal printing', () => {
         expect(xml).toContain('ลิตรตามมิเตอร์');
         expect(xml).toContain('หัว 1 ดีเซล B7');
         expect(xml).toContain('ขาย 100.00L');
+        expect(xml).toContain('เงินสด (1)');
+        expect(xml).toContain('ลิตร');
+        expect(xml).toContain('100.00L');
         expect(xml).toContain('เปิด');
         expect(xml).toContain('1,000.00');
         expect(xml).toContain('ปิด');
