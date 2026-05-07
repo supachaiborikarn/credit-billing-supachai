@@ -36,6 +36,8 @@ describe('thermal receipt Epson direct printing', () => {
         expect(xml).toContain('[ สำเนา ]');
         expect(xml).toContain('วัชรเกียรติออยล์');
         expect(xml).toContain('บิลเงินเชื่อ / ใบส่งของ');
+        expect(xml).toContain('รวมลิตร');
+        expect(xml).toContain('200.00 ลิตร');
         expect(xml.match(/<cut type="feed" \/>/g)).toHaveLength(2);
         expect(xml).not.toContain('@page');
         expect(xml).not.toContain('A4');

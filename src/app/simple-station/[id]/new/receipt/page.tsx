@@ -149,9 +149,17 @@ function ReceiptContent({ txn, config, docNo, copyType, docType, paperSize }: {
 
             {/* Total */}
             <div className="dline mt-2"></div>
-            <div className="flex justify-between items-center py-2">
-                <div className={`font-bold ${isCompact ? 'text-[12px]' : 'text-[14px]'}`}>ยอดสุทธิ</div>
-                <div className={`${isCompact ? 'text-[15px]' : 'text-[18px]'} font-bold`}>฿ {fmt(txn.amount)}</div>
+            <div className="py-2">
+                {txn.liters > 0 && (
+                    <div className={`flex justify-between items-center ${isCompact ? 'text-[11px]' : 'text-[13px]'}`}>
+                        <span className="font-bold">รวมลิตร</span>
+                        <span>{fmt(txn.liters)} ลิตร</span>
+                    </div>
+                )}
+                <div className="mt-1 flex justify-between items-center">
+                    <div className={`font-bold ${isCompact ? 'text-[12px]' : 'text-[14px]'}`}>ยอดสุทธิ</div>
+                    <div className={`${isCompact ? 'text-[15px]' : 'text-[18px]'} font-bold`}>฿ {fmt(txn.amount)}</div>
+                </div>
             </div>
             <div className="dline mb-2"></div>
 

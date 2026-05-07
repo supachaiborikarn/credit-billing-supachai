@@ -194,6 +194,7 @@ function buildReceiptCopyText({
         truncateText(itemLabel, columns),
         padReceiptLine(itemDetail, formatCurrency(txn.amount), columns),
         doubleDivider,
+        txn.liters > 0 ? padReceiptLine('รวมลิตร', `${formatCurrency(txn.liters)} ลิตร`, columns) : '',
         padReceiptLine('ยอดสุทธิ', `฿ ${formatCurrency(txn.amount)}`, columns),
         doubleDivider,
     ].filter(Boolean);
