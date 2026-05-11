@@ -2,6 +2,18 @@
 
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
+## 2026-05-11
+- ⛽ เพิ่ม note เรื่องเงินสดสุทธิของ GAS
+  - จด rule ว่าหน้า GAS close, admin reconciliation และรายงานตามกะต้องแสดง “เงินสดควรส่งสุทธิ”
+  - สูตรที่ต้องแสดงคือ `cashExpected + nonGasSalesAmount - otherExpensesAmount`
+  - จุดนี้ช่วยกันความสับสนเมื่อพนักงานใช้เงินสดรับจริงไปจ่ายค่าใช้จ่ายก่อนส่งเงิน
+
+## 2026-05-07
+- ⛽ บันทึก GAS sell duplicate guard
+  - ตรวจ live `station-5` กะ 2 แล้วพบรายการเงินสด 7,656 บาทซ้ำหลาย row จริง
+  - จด rule ว่าหน้า GAS sell ต้องมี submit lock และ API sell ต้องกันรายการยอดเดียวกันในช่วงสั้น
+  - อัปเดต `bugs-and-fixes.md` และ index summary
+
 ## 2026-02-24
 - 🆕 สร้างระบบ brain เริ่มต้น
   - สร้าง `index.md` (สารบัญหลัก)

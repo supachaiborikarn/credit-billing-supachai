@@ -25,6 +25,8 @@ function normalizeOptionalText(value: unknown): string | null {
     return trimmed.length > 0 ? trimmed : null;
 }
 
+const DUPLICATE_GAS_SALE_WINDOW_MS = 5 * 60 * 1000;
+
 /**
  * POST /api/v2/gas/[stationId]/sell
  * Record a sale transaction (GAS stations only)
@@ -162,6 +164,32 @@ export async function POST(
             }
 
             creditTruck = truck;
+        }
+
+        const duplicateSince = new Date(Date.now() - DUPLICATE_GAS_SALE_WINDOW_MS);
+        const recentDuplicate = await prisma.transaction.findFirst({
+            where: {
+                stationId: station.dbId,
+                shiftId: currentShift.id,
+                paymentType: normalizedPaymentType,
+                amount: resolvedAmount,
+                liters: normalizedLiters,
+                productType: 'LPG',
+                billBookNo: normalizedBookNo,
+                billNo: normalizedBillNo,
+                deletedAt: null,
+                isVoided: false,
+                createdAt: { gte: duplicateSince },
+            },
+            select: { id: true },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        if (recentDuplicate) {
+            return NextResponse.json({
+                error: 'พบรายการยอดเดียวกันเพิ่งบันทึกไปแล้ว กรุณาตรวจหน้าสรุปก่อนบันทึกซ้ำ',
+                duplicateTransactionId: recentDuplicate.id,
+            }, { status: 409 });
         }
 
         // Create transaction

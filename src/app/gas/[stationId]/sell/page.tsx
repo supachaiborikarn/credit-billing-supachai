@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
     FuelIcon,
@@ -57,6 +57,7 @@ export default function SellPage() {
     const [loadingOwners, setLoadingOwners] = useState(false);
 
     const [errors, setErrors] = useState<string[]>([]);
+    const submittingRef = useRef(false);
 
     // Fetch gas price on mount
     useEffect(() => {
@@ -203,8 +204,10 @@ export default function SellPage() {
     };
 
     const handleSubmit = async () => {
+        if (submittingRef.current || loading) return;
         if (!validateForm()) return;
 
+        submittingRef.current = true;
         setLoading(true);
         setErrors([]);
 
@@ -249,6 +252,7 @@ export default function SellPage() {
             console.error('Error recording sale:', error);
             setErrors(['เกิดข้อผิดพลาด กรุณาลองใหม่']);
         } finally {
+            submittingRef.current = false;
             setLoading(false);
         }
     };

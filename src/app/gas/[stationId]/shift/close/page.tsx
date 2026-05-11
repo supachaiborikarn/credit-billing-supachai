@@ -239,6 +239,11 @@ export default function ShiftClosePage() {
     const expectedFuelAmount = calculateExpected();
     const previewNonGasSalesAmount = parsePreviewAmount(nonGasSalesAmount);
     const previewOtherExpensesAmount = parsePreviewAmount(otherExpensesAmount);
+    const previewExpectedNetCashToSubmit = Number((
+        shift.sales.cash
+        + previewNonGasSalesAmount
+        - previewOtherExpensesAmount
+    ).toFixed(2));
 
     if (loading) {
         return (
@@ -345,9 +350,9 @@ export default function ShiftClosePage() {
                 <div className="space-y-4">
                     {/* Cash */}
                     <div className="flex items-center gap-3">
-                        <div className="w-24 flex items-center gap-2 text-green-400">
+                        <div className="w-32 flex items-center gap-2 text-green-400">
                             <Banknote size={18} />
-                            <span>เงินสด</span>
+                            <span>เงินสดส่งจริง</span>
                         </div>
                         <input
                             type="number"
@@ -436,7 +441,7 @@ export default function ShiftClosePage() {
                         <div className="flex items-center gap-3">
                             <div className="w-32 flex items-center gap-2 text-red-300">
                                 <ReceiptText size={18} />
-                                <span>ค่าใช้จ่าย</span>
+                                <span>ค่าใช้จ่ายจากเงินสด</span>
                             </div>
                             <input
                                 type="number"
@@ -478,6 +483,10 @@ export default function ShiftClosePage() {
                     <div className="flex justify-between">
                         <span>- ค่าใช้จ่ายอื่นๆ</span>
                         <span className="font-mono text-red-300">฿{formatCurrency(previewOtherExpensesAmount)}</span>
+                    </div>
+                    <div className="mt-2 border-t border-white/10 pt-2 flex justify-between">
+                        <span>เงินสดควรส่งสุทธิ</span>
+                        <span className="font-mono text-green-300">฿{formatCurrency(previewExpectedNetCashToSubmit)}</span>
                     </div>
                 </div>
 

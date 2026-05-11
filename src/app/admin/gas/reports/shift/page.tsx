@@ -87,6 +87,18 @@ async function loadShiftReports({
     }
 }
 
+function getExpectedNetCashToSubmit({
+    cashExpected,
+    nonGasSalesAmount,
+    otherExpensesAmount,
+}: {
+    cashExpected: number;
+    nonGasSalesAmount: number;
+    otherExpensesAmount: number;
+}): number {
+    return Number((cashExpected + nonGasSalesAmount - otherExpensesAmount).toFixed(2));
+}
+
 export default function ShiftReportPage() {
     const [loading, setLoading] = useState(true);
     const [reports, setReports] = useState<ShiftReport[]>([]);
@@ -426,7 +438,7 @@ export default function ShiftReportPage() {
                                 {editing && editForm ? (
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="text-sm text-green-400">เงินสด</label>
+                                            <label className="text-sm text-green-400">เงินสดส่งจริง</label>
                                             <input
                                                 type="number"
                                                 value={editForm.cashReceived}
@@ -471,7 +483,7 @@ export default function ShiftReportPage() {
                                             />
                                         </div>
                                         <div>
-                                            <label className="text-sm text-red-300">ค่าใช้จ่ายอื่นๆ</label>
+                                            <label className="text-sm text-red-300">ค่าใช้จ่ายจากเงินสด</label>
                                             <input
                                                 type="number"
                                                 value={editForm.otherExpensesAmount}
@@ -525,6 +537,11 @@ export default function ShiftReportPage() {
                                                 <div className="flex justify-between"><span>เงินเชื่อ</span><span className="font-mono">฿{formatCurrency(selectedShift.reconciliation.creditExpected)}</span></div>
                                                 <div className="flex justify-between"><span>บัตร</span><span className="font-mono">฿{formatCurrency(selectedShift.reconciliation.cardExpected)}</span></div>
                                                 <div className="flex justify-between"><span>โอน</span><span className="font-mono">฿{formatCurrency(selectedShift.reconciliation.transferExpected)}</span></div>
+                                                <div className="my-2 border-t border-white/10" />
+                                                <div className="flex justify-between text-green-300">
+                                                    <span>เงินสดควรส่งสุทธิ</span>
+                                                    <span className="font-mono">฿{formatCurrency(getExpectedNetCashToSubmit(selectedShift.reconciliation))}</span>
+                                                </div>
                                             </div>
                                         </div>
                                         <div className="rounded-lg border border-white/10 p-3">

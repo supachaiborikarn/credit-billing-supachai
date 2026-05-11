@@ -76,6 +76,18 @@ function toAmountInput(value: number): string {
     return Number.isFinite(value) ? String(value) : '0';
 }
 
+function getExpectedNetCashToSubmit({
+    cashExpected,
+    nonGasSalesAmount,
+    otherExpensesAmount,
+}: {
+    cashExpected: number;
+    nonGasSalesAmount: number;
+    otherExpensesAmount: number;
+}): number {
+    return Number((cashExpected + nonGasSalesAmount - otherExpensesAmount).toFixed(2));
+}
+
 export default function ReconciliationPage() {
     const [loading, setLoading] = useState(true);
     const [records, setRecords] = useState<ReconciliationRecord[]>([]);
@@ -258,12 +270,18 @@ export default function ReconciliationPage() {
         const expected = Number((editingRecord.expectedFuelAmount + expectedOther).toFixed(2));
         const received = Number((cash + credit + card + transfer).toFixed(2));
         const variance = Number((received - expected).toFixed(2));
+        const expectedNetCashToSubmit = getExpectedNetCashToSubmit({
+            cashExpected: editingRecord.cashExpected,
+            nonGasSalesAmount: nonGasSales,
+            otherExpensesAmount: otherExpenses,
+        });
 
         return {
             expectedOther,
             expected,
             received,
             variance,
+            expectedNetCashToSubmit,
         };
     })() : null;
 
@@ -401,6 +419,7 @@ export default function ReconciliationPage() {
                                     <th className="text-left px-4 py-3 font-medium text-gray-400">พนักงาน</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">ลิตรต่าง</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">รายการอื่นสุทธิ</th>
+                                    <th className="text-right px-4 py-3 font-medium text-gray-400">เงินสดควรส่งสุทธิ</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">คาดหวัง</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">รับจริง</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">ส่วนต่าง</th>
@@ -424,6 +443,9 @@ export default function ReconciliationPage() {
                                         </td>
                                         <td className={`px-4 py-3 text-right font-mono ${r.expectedOtherAmount >= 0 ? 'text-amber-300' : 'text-red-300'}`}>
                                             {r.expectedOtherAmount >= 0 ? '+' : '-'}฿{formatCurrency(Math.abs(r.expectedOtherAmount))}
+                                        </td>
+                                        <td className="px-4 py-3 text-right font-mono text-green-300">
+                                            ฿{formatCurrency(getExpectedNetCashToSubmit(r))}
                                         </td>
                                         <td className="px-4 py-3 text-right font-mono text-gray-400">
                                             ฿{formatCurrency(r.totalExpected)}
@@ -490,7 +512,7 @@ export default function ReconciliationPage() {
 
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                 {[
-                                    ['cashReceived', 'เงินสดรับจริง', editingRecord.cashExpected],
+                                    ['cashReceived', 'เงินสดส่งจริง', editingRecord.cashExpected],
                                     ['creditReceived', 'เครดิตรับจริง', editingRecord.creditExpected],
                                     ['cardReceived', 'บัตรรับจริง', editingRecord.cardExpected],
                                     ['transferReceived', 'โอนรับจริง', editingRecord.transferExpected],
@@ -499,7 +521,7 @@ export default function ReconciliationPage() {
                                         <span className="mb-1 block text-sm text-gray-400">
                                             {label}
                                             <span className="ml-2 text-xs text-gray-500">
-                                                ตามบิล ฿{formatCurrency(Number(expected))}
+                                                {field === 'cashReceived' ? 'ตามบิลก่อนหักค่าใช้จ่าย' : 'ตามบิล'} ฿{formatCurrency(Number(expected))}
                                             </span>
                                         </span>
                                         <input
@@ -529,7 +551,7 @@ export default function ReconciliationPage() {
                                     />
                                 </label>
                                 <label className="block">
-                                    <span className="mb-1 block text-sm text-gray-400">ค่าใช้จ่าย</span>
+                                    <span className="mb-1 block text-sm text-gray-400">ค่าใช้จ่ายจากเงินสด</span>
                                     <input
                                         type="number"
                                         min="0"
@@ -553,10 +575,14 @@ export default function ReconciliationPage() {
                             </label>
 
                             <div className="mt-4 rounded-lg border border-white/10 bg-gray-900 p-4">
-                                <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
+                                <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-4">
                                     <div>
                                         <div className="text-gray-400">ยอดที่ควรได้</div>
                                         <div className="mt-1 font-mono text-lg font-bold">฿{formatCurrency(editPreview.expected)}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-gray-400">เงินสดควรส่งสุทธิ</div>
+                                        <div className="mt-1 font-mono text-lg font-bold text-green-300">฿{formatCurrency(editPreview.expectedNetCashToSubmit)}</div>
                                     </div>
                                     <div>
                                         <div className="text-gray-400">ยอดรับจริงใหม่</div>
