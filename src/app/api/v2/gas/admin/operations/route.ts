@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { requireAdminApi } from '@/lib/api-auth';
 import {
     getEndOfDayBangkokUTC,
+    getGasBusinessDateKey,
     getStartOfDayBangkokUTC,
-    getTodayBangkok,
     isValidDateKey,
 } from '@/lib/gas/date-utils';
 
@@ -24,7 +24,7 @@ function toPositivePrice(value: unknown): number | null {
 function toDateKey(value: unknown): string | null {
     const dateKey = typeof value === 'string' && value.trim()
         ? value.trim()
-        : getTodayBangkok();
+        : getGasBusinessDateKey();
 
     return isValidDateKey(dateKey) ? dateKey : null;
 }

@@ -45,6 +45,7 @@ const prismaMock = {
     transaction: {
         create: vi.fn(),
         count: vi.fn(),
+        findFirst: vi.fn(),
         findMany: vi.fn(),
         updateMany: vi.fn(),
     },
@@ -386,7 +387,7 @@ describe('gas v2 route guards', () => {
 
         expect(response.status).toBe(400);
         await expect(response.json()).resolves.toMatchObject({
-            error: expect.stringContaining('2026-04-25 กะ 2 (ค่ำ)'),
+            error: expect.stringContaining('2026-04-25 กะ 2 (19:00-07:00)'),
         });
         expect(txMock.dailyRecord.create).not.toHaveBeenCalled();
         expect(txMock.shift.create).not.toHaveBeenCalled();
@@ -425,7 +426,7 @@ describe('gas v2 route guards', () => {
 
         expect(response.status).toBe(409);
         await expect(response.json()).resolves.toMatchObject({
-            error: expect.stringContaining('กะเช้า'),
+            error: expect.stringContaining('กะ 1 (07:00-19:00)'),
         });
         expect(txMock.shift.create).not.toHaveBeenCalled();
         expect(txMock.meterReading.create).not.toHaveBeenCalled();
@@ -598,8 +599,8 @@ describe('gas v2 route guards', () => {
                     dailyRecord: expect.objectContaining({
                         stationId: 'station-5',
                         date: expect.objectContaining({
-                            gte: new Date('2026-04-23T17:00:00.000Z'),
-                            lte: new Date('2026-04-25T16:59:59.999Z'),
+                            gte: new Date('2026-04-22T17:00:00.000Z'),
+                            lte: new Date('2026-04-24T16:59:59.999Z'),
                         }),
                     }),
                 }),

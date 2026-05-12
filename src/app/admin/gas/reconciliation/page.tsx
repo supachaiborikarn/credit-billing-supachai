@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Loader2, Scale, Search, Download, Check, AlertTriangle, Edit3, Save, X } from 'lucide-react';
-import { formatCurrency, getTodayBangkok } from '@/lib/gas';
+import { formatCurrency, getGasBusinessDateKey } from '@/lib/gas';
 
 interface ReconciliationRecord {
     id: string;
@@ -110,7 +110,7 @@ export default function ReconciliationPage() {
         d.setDate(d.getDate() - 7);
         return d.toISOString().split('T')[0];
     });
-    const [toDate, setToDate] = useState<string>(getTodayBangkok());
+    const [toDate, setToDate] = useState<string>(getGasBusinessDateKey());
     const [stations, setStations] = useState<{ id: string; name: string }[]>([]);
 
     useEffect(() => {

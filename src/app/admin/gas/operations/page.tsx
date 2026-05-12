@@ -12,7 +12,7 @@ import {
     Save,
     Wrench,
 } from 'lucide-react';
-import { formatCurrency, getTodayBangkok } from '@/lib/gas';
+import { formatCurrency, getGasBusinessDateKey, getShiftName } from '@/lib/gas';
 
 interface GasShiftOperation {
     id: string;
@@ -72,14 +72,14 @@ function getStatusLabel(status: string): string {
 function getShiftActionText(station: GasStationOperation): string {
     if (station.openShiftId) return 'ต้องปิดกะที่เปิดอยู่ก่อน';
     if (station.nextShiftNumber === 1) return 'ยังไม่เปิดกะวันนี้';
-    if (station.nextShiftNumber === 2) return 'พร้อมเปิดกะค่ำ';
+    if (station.nextShiftNumber === 2) return 'พร้อมเปิดกะ 19:00-07:00';
     return 'วันนี้ครบ 2 กะแล้ว';
 }
 
 export default function GasOperationsPage() {
     const [loading, setLoading] = useState(true);
     const [savingKey, setSavingKey] = useState<string | null>(null);
-    const [dateKey, setDateKey] = useState(getTodayBangkok());
+    const [dateKey, setDateKey] = useState(getGasBusinessDateKey());
     const [data, setData] = useState<OperationsPayload | null>(null);
     const [priceInputs, setPriceInputs] = useState<Record<string, string>>({});
     const [notice, setNotice] = useState<Notice | null>(null);
@@ -240,7 +240,7 @@ export default function GasOperationsPage() {
                 <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
                     {(data?.stations ?? []).map((station) => {
                         const openShift = station.shifts.find((shift) => shift.status === 'OPEN') ?? null;
-                        const needsCloseBeforeAfternoon = openShift?.shiftNumber === 1;
+                        const needsCloseBeforeNightShift = openShift?.shiftNumber === 1;
 
                         return (
                             <section
@@ -302,9 +302,9 @@ export default function GasOperationsPage() {
                                     </p>
                                 </div>
 
-                                {needsCloseBeforeAfternoon && (
+                                {needsCloseBeforeNightShift && (
                                     <div className="mb-4 rounded-xl border border-red-500/25 bg-red-900/25 p-4 text-sm text-red-200">
-                                        กะเช้ายังเป็นสถานะเปิดอยู่ในระบบ จึงยังเปิดกะค่ำไม่ได้ ให้ปิดกะเช้าก่อน หรือถ้าเป็นกะว่างให้ใช้ปุ่มปิดกะค้างด้านล่าง
+                                        กะ 07:00-19:00 ยังเปิดอยู่ในระบบ จึงยังเปิดกะ 19:00-07:00 ไม่ได้ ให้ปิดกะเดิมก่อน หรือถ้าเป็นกะว่างให้ใช้ปุ่มปิดกะค้างด้านล่าง
                                     </div>
                                 )}
 
@@ -324,7 +324,7 @@ export default function GasOperationsPage() {
                                                         <div className={`h-3 w-3 rounded-full ${shift.status === 'OPEN' ? 'bg-green-400' : 'bg-gray-500'}`} />
                                                         <div>
                                                             <div className="font-medium">
-                                                                กะ {shift.shiftNumber} · {getStatusLabel(shift.status)}
+                                                                {getShiftName(shift.shiftNumber)} · {getStatusLabel(shift.status)}
                                                             </div>
                                                             <div className="text-xs text-gray-400">
                                                                 {shift.staffName || 'ไม่ระบุ'} · เปิด {formatTime(shift.openedAt)}
@@ -391,14 +391,14 @@ export default function GasOperationsPage() {
                                             className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-500"
                                         >
                                             <Save size={16} />
-                                            สร้าง/กรอกกะ {station.nextShiftNumber} จากแอดมิน
+                                            สร้าง/กรอก {getShiftName(station.nextShiftNumber)} จากแอดมิน
                                         </Link>
                                         <Link
                                             href={`/gas/${station.id}/shift/open`}
                                             className="inline-flex items-center gap-2 rounded-lg border border-green-500/40 px-4 py-2 text-sm font-medium text-green-200 hover:bg-green-500/10"
                                         >
                                             <Play size={16} />
-                                            เปิดกะ {station.nextShiftNumber} หน้าพนักงาน
+                                            เปิด {getShiftName(station.nextShiftNumber)} หน้าพนักงาน
                                         </Link>
                                     </div>
                                 )}

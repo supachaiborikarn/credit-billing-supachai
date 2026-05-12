@@ -6,8 +6,8 @@ import {
 } from '@/lib/gas/admin-analytics';
 import {
     getEndOfDayBangkokUTC,
+    getGasBusinessDateKey,
     getStartOfDayBangkokUTC,
-    getTodayBangkok,
     toBangkokDateKey,
 } from '@/lib/gas/date-utils';
 
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
         const to = searchParams.get('to');
         const stationIdFilter = searchParams.get('stationId');
 
-        const todayKey = getTodayBangkok();
+        const todayKey = getGasBusinessDateKey();
         const fromKey = from || subtractBangkokDays(todayKey, 7);
         const toKey = to || todayKey;
 

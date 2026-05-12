@@ -3,8 +3,8 @@ import { requireAdminApi } from '@/lib/api-auth';
 import { getGasShiftAnalyticsData } from '@/lib/gas/admin-analytics';
 import {
     getEndOfDayBangkokUTC,
+    getGasBusinessDateKey,
     getStartOfDayBangkokUTC,
-    getTodayBangkok,
 } from '@/lib/gas/date-utils';
 
 /**
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
         const stationIdFilter = searchParams.get('stationId');
         const shiftFilter = searchParams.get('shift');
 
-        const todayKey = getTodayBangkok();
+        const todayKey = getGasBusinessDateKey();
         const fromDate = getStartOfDayBangkokUTC(from || todayKey);
         const toDate = getEndOfDayBangkokUTC(to || todayKey);
         const shiftNumber = shiftFilter && shiftFilter !== 'all'

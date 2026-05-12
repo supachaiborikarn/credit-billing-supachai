@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Loader2, Clock, Download, Search, Eye, Edit2, Check, X } from 'lucide-react';
-import { formatCurrency, formatThaiTime, getTodayBangkok, getVarianceColorClass, getVarianceText } from '@/lib/gas';
+import { formatCurrency, formatThaiTime, getGasBusinessDateKey, getShiftName, getVarianceColorClass, getVarianceText } from '@/lib/gas';
 
 interface ShiftReport {
     id: string;
@@ -109,7 +109,7 @@ export default function ShiftReportPage() {
         d.setDate(d.getDate() - 7);
         return d.toISOString().split('T')[0];
     });
-    const [toDate, setToDate] = useState<string>(getTodayBangkok());
+    const [toDate, setToDate] = useState<string>(getGasBusinessDateKey());
     const [stations, setStations] = useState<{ id: string; name: string }[]>([]);
 
     // Detail modal
@@ -327,7 +327,7 @@ export default function ShiftReportPage() {
                                         <td className="px-4 py-3 text-center">
                                             <span className={`px-2 py-1 rounded text-xs ${r.shiftNumber === 1 ? 'bg-blue-900/50 text-blue-300' : 'bg-purple-900/50 text-purple-300'
                                                 }`}>
-                                                กะ {r.shiftNumber}
+                                                {getShiftName(r.shiftNumber)}
                                             </span>
                                         </td>
                                         <td className="px-4 py-3">{r.staffName || '-'}</td>
@@ -389,7 +389,7 @@ export default function ShiftReportPage() {
                     <div className="bg-[#1a1a24] rounded-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto border border-white/10">
                         <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
                             <h3 className="text-lg font-bold">
-                                {selectedShift.displayDate} - กะ {selectedShift.shiftNumber}
+                                {selectedShift.displayDate} - {getShiftName(selectedShift.shiftNumber)}
                             </h3>
                             <button
                                 onClick={() => { setSelectedShift(null); setEditing(false); }}

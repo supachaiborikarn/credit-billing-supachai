@@ -4,6 +4,8 @@
  * Functions for shift management and validation
  */
 
+import { GAS_BUSINESS_DAY_START_HOUR } from './date-utils';
+
 export type ShiftNumber = 1 | 2;
 
 export interface ShiftInfo {
@@ -18,16 +20,20 @@ export const SHIFTS: Record<ShiftNumber, ShiftInfo> = {
     1: {
         shiftNumber: 1,
         name: 'กะเช้า',
-        startHour: 6,
-        endHour: 14
+        startHour: GAS_BUSINESS_DAY_START_HOUR,
+        endHour: 19
     },
     2: {
         shiftNumber: 2,
         name: 'กะค่ำ',
-        startHour: 14,
-        endHour: 6
+        startHour: 19,
+        endHour: GAS_BUSINESS_DAY_START_HOUR
     }
 };
+
+function formatShiftHour(hour: number): string {
+    return `${String(hour).padStart(2, '0')}:00`;
+}
 
 /**
  * Get current shift number based on current Bangkok time
@@ -36,7 +42,7 @@ export function getCurrentShiftNumber(): ShiftNumber {
     const now = new Date();
     const bangkokHour = (now.getUTCHours() + 7) % 24;
 
-    if (bangkokHour >= 6 && bangkokHour < 14) {
+    if (bangkokHour >= SHIFTS[1].startHour && bangkokHour < SHIFTS[1].endHour) {
         return 1;
     }
     return 2;
@@ -50,11 +56,22 @@ export function getShiftInfo(shiftNumber: ShiftNumber): ShiftInfo {
 }
 
 /**
+ * Get shift time range for display.
+ */
+export function getShiftTimeRangeLabel(shiftNumber: number): string {
+    if (shiftNumber !== 1 && shiftNumber !== 2) return '';
+
+    const shift = SHIFTS[shiftNumber as ShiftNumber];
+    return `${formatShiftHour(shift.startHour)}-${formatShiftHour(shift.endHour)}`;
+}
+
+/**
  * Get shift name for display
  */
 export function getShiftName(shiftNumber: number): string {
-    if (shiftNumber === 1) return 'กะ 1 (เช้า)';
-    if (shiftNumber === 2) return 'กะ 2 (ค่ำ)';
+    if (shiftNumber === 1 || shiftNumber === 2) {
+        return `กะ ${shiftNumber} (${getShiftTimeRangeLabel(shiftNumber)})`;
+    }
     return `กะ ${shiftNumber}`;
 }
 

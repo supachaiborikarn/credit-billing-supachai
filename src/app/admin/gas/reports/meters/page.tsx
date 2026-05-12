@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Loader2, Calculator, Download, Search, Edit3 } from 'lucide-react';
-import { formatCurrency, getTodayBangkok } from '@/lib/gas';
+import { formatCurrency, getGasBusinessDateKey, getShiftTimeRangeLabel } from '@/lib/gas';
 
 interface MeterReport {
     id: string;
@@ -101,7 +101,7 @@ export default function MeterReportPage() {
         d.setDate(d.getDate() - 7);
         return d.toISOString().split('T')[0];
     });
-    const [toDate, setToDate] = useState<string>(getTodayBangkok());
+    const [toDate, setToDate] = useState<string>(getGasBusinessDateKey());
     const [stations, setStations] = useState<{ id: string; name: string }[]>([]);
 
     useEffect(() => {
@@ -326,13 +326,16 @@ export default function MeterReportPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5">
-                                {reports.map((r) => (
-                                    <tr
-                                        key={r.id}
-                                        className={r.isSyntheticOrphan
-                                            ? 'bg-amber-500/5 hover:bg-amber-500/10'
-                                            : 'hover:bg-white/5'}
-                                    >
+                                {reports.map((r) => {
+                                    const shiftTimeRange = getShiftTimeRangeLabel(r.shiftNumber);
+
+                                    return (
+                                        <tr
+                                            key={r.id}
+                                            className={r.isSyntheticOrphan
+                                                ? 'bg-amber-500/5 hover:bg-amber-500/10'
+                                                : 'hover:bg-white/5'}
+                                        >
                                         <td className="px-3 py-3 align-top">
                                             <div className="font-medium text-gray-100">{r.displayDate}</div>
                                             <div className="mt-1 leading-tight text-gray-400">{r.stationName}</div>
@@ -346,6 +349,11 @@ export default function MeterReportPage() {
                                                 }`}>
                                                 {r.isSyntheticOrphan ? 'ไม่ผูกกะ' : `กะ ${r.shiftNumber}`}
                                             </span>
+                                            {shiftTimeRange && (
+                                                <div className="mt-1 text-[10px] leading-tight text-gray-500">
+                                                    {shiftTimeRange}
+                                                </div>
+                                            )}
                                         </td>
                                         {[1, 2, 3, 4].map(n => {
                                             const nozzle = r.nozzles.find(z => z.nozzleNumber === n);
@@ -422,8 +430,9 @@ export default function MeterReportPage() {
                                                 </a>
                                             )}
                                         </td>
-                                    </tr>
-                                ))}
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>

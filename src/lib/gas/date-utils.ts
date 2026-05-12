@@ -7,6 +7,7 @@
 
 // Bangkok timezone offset: UTC+7
 const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
+export const GAS_BUSINESS_DAY_START_HOUR = 7;
 
 /**
  * Get current date in Bangkok timezone as YYYY-MM-DD string
@@ -14,6 +15,21 @@ const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
 export function getTodayBangkok(): string {
     const now = new Date();
     const bangkokTime = new Date(now.getTime() + BANGKOK_OFFSET_MS);
+    return bangkokTime.toISOString().split('T')[0];
+}
+
+/**
+ * Get the current GAS business date.
+ * GAS shift 2 runs 19:00-07:00, so 00:00-06:59 still belongs to yesterday.
+ */
+export function getGasBusinessDateKey(reference: Date | string = new Date()): string {
+    const source = typeof reference === 'string' ? new Date(reference) : reference;
+    const bangkokTime = new Date(source.getTime() + BANGKOK_OFFSET_MS);
+
+    if (bangkokTime.getUTCHours() < GAS_BUSINESS_DAY_START_HOUR) {
+        bangkokTime.setUTCDate(bangkokTime.getUTCDate() - 1);
+    }
+
     return bangkokTime.toISOString().split('T')[0];
 }
 

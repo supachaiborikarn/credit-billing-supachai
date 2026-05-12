@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma';
 import {
     getEndOfDayBangkokUTC,
     getGasActiveShiftDateRange,
+    getGasBusinessDateKey,
     getStartOfDayBangkokUTC,
-    getTodayBangkok,
 } from '@/lib/gas';
 import { requireGasStationAccess } from '@/lib/gas/api-guards';
 import { addToGasPaymentSummary, normalizeGasPaymentType } from '@/lib/gas/payment-utils';
@@ -102,7 +102,7 @@ export async function POST(
 
         // Get the current open shift. Night shifts can belong to yesterday's
         // business date and still be open after midnight.
-        const today = getTodayBangkok();
+        const today = getGasBusinessDateKey();
         const activeShiftRange = getGasActiveShiftDateRange(today);
 
         const currentShift = await prisma.shift.findFirst({
@@ -245,7 +245,7 @@ export async function GET(
         if (auth.response) return auth.response;
         const { station } = auth;
 
-        const today = getTodayBangkok();
+        const today = getGasBusinessDateKey();
         const startOfDay = getStartOfDayBangkokUTC(today);
         const endOfDay = getEndOfDayBangkokUTC(today);
 

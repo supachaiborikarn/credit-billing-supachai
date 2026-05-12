@@ -13,8 +13,8 @@ import {
 } from '@/lib/gas/admin-analytics';
 import {
     getEndOfDayBangkokUTC,
+    getGasBusinessDateKey,
     getStartOfDayBangkokUTC,
-    getTodayBangkok,
     toBangkokDateKey,
 } from '@/lib/gas/date-utils';
 import { prisma } from '@/lib/prisma';
@@ -73,7 +73,7 @@ export async function GET() {
                 name: station.name,
             }));
 
-        const todayKey = getTodayBangkok();
+        const todayKey = getGasBusinessDateKey();
         const weekStartKey = moveBangkokDateKey(todayKey, { days: -6 });
         const monthStartKey = moveBangkokDateKey(todayKey, { months: -1 });
 

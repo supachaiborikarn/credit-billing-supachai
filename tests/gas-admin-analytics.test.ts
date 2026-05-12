@@ -33,8 +33,8 @@ describe('gas admin analytics helpers', () => {
                 id: 'shift-1',
                 shiftNumber: 1,
                 status: 'CLOSED',
-                createdAt: new Date('2026-04-23T01:00:00.000Z'),
-                closedAt: new Date('2026-04-23T08:00:00.000Z'),
+                createdAt: new Date('2026-04-23T00:00:00.000Z'),
+                closedAt: new Date('2026-04-23T12:00:00.000Z'),
                 varianceNote: 'เงินขาดเล็กน้อย | cardReceived=50 | nonGasSalesAmount=100 | otherExpensesAmount=30',
                 staff: { name: 'กุ้ง' },
                 dailyRecord: {
@@ -64,7 +64,7 @@ describe('gas admin analytics helpers', () => {
                 id: 'shift-2',
                 shiftNumber: 2,
                 status: 'OPEN',
-                createdAt: new Date('2026-04-23T09:00:00.000Z'),
+                createdAt: new Date('2026-04-23T12:00:00.000Z'),
                 closedAt: null,
                 varianceNote: null,
                 staff: { name: 'เล็ก' },
@@ -106,7 +106,7 @@ describe('gas admin analytics helpers', () => {
                 stationId: 'station-5',
                 dailyRecordId: 'daily-1',
                 shiftId: null,
-                date: new Date('2026-04-23T10:00:00.000Z'),
+                date: new Date('2026-04-23T14:00:00.000Z'),
                 paymentType: 'TRANSFER',
                 liters: 10,
                 amount: 170,
@@ -257,6 +257,72 @@ describe('gas admin analytics helpers', () => {
             dateKey: '2026-04-24',
             totalSales: 200,
             transactionCount: 1,
+        });
+    });
+
+    it('assigns unlinked after-midnight transactions to the 19:00-07:00 gas shift', () => {
+        const shifts = buildGasShiftAnalytics([
+            {
+                id: 'shift-morning',
+                shiftNumber: 1,
+                status: 'CLOSED',
+                createdAt: new Date('2026-05-11T00:05:00.000Z'),
+                closedAt: new Date('2026-05-11T12:00:00.000Z'),
+                varianceNote: null,
+                staff: { name: 'เหน่ง' },
+                dailyRecord: {
+                    id: 'daily-11',
+                    stationId: 'station-6',
+                    date: new Date('2026-05-10T17:00:00.000Z'),
+                    gasPrice: 20,
+                    station: { name: 'ปั๊มแก๊สศุภชัย' },
+                },
+                meters: [
+                    { nozzleNumber: 1, startReading: 100, endReading: 105, soldQty: 5 },
+                ],
+                reconciliation: null,
+            },
+            {
+                id: 'shift-night',
+                shiftNumber: 2,
+                status: 'CLOSED',
+                createdAt: new Date('2026-05-11T12:00:00.000Z'),
+                closedAt: new Date('2026-05-12T00:00:00.000Z'),
+                varianceNote: null,
+                staff: { name: 'คนอง' },
+                dailyRecord: {
+                    id: 'daily-11',
+                    stationId: 'station-6',
+                    date: new Date('2026-05-10T17:00:00.000Z'),
+                    gasPrice: 20,
+                    station: { name: 'ปั๊มแก๊สศุภชัย' },
+                },
+                meters: [
+                    { nozzleNumber: 1, startReading: 105, endReading: 115, soldQty: 10 },
+                ],
+                reconciliation: null,
+            },
+        ], [
+            {
+                id: 'tx-night',
+                stationId: 'station-6',
+                dailyRecordId: 'daily-11',
+                shiftId: null,
+                date: new Date('2026-05-11T18:30:00.000Z'), // 01:30 Bangkok on May 12
+                paymentType: 'CASH',
+                liters: 10,
+                amount: 200,
+            },
+        ]);
+
+        expect(shifts).toHaveLength(2);
+        expect(shifts.find((shift) => shift.id === 'shift-morning')?.sales.transactions).toBe(0);
+        expect(shifts.find((shift) => shift.id === 'shift-night')).toMatchObject({
+            dateKey: '2026-05-11',
+            sales: expect.objectContaining({
+                cash: 200,
+                transactions: 1,
+            }),
         });
     });
 

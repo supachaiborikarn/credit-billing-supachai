@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Loader2, Gauge, Search, Download } from 'lucide-react';
-import { getTodayBangkok } from '@/lib/gas';
+import { getGasBusinessDateKey } from '@/lib/gas';
 
 interface GaugeReading {
     id: string;
@@ -27,7 +27,7 @@ export default function GaugeHistoryPage() {
         d.setDate(d.getDate() - 7);
         return d.toISOString().split('T')[0];
     });
-    const [toDate, setToDate] = useState<string>(getTodayBangkok());
+    const [toDate, setToDate] = useState<string>(getGasBusinessDateKey());
     const [stations, setStations] = useState<{ id: string; name: string }[]>([]);
 
     useEffect(() => {

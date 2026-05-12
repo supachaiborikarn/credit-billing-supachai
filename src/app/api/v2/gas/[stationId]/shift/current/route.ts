@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma';
 import {
     getEndOfDayBangkokUTC,
     getGasActiveShiftDateRange,
+    getGasBusinessDateKey,
     getStartOfDayBangkokUTC,
-    getTodayBangkok,
     toBangkokDateKey,
 } from '@/lib/gas';
 import { requireGasStationAccess } from '@/lib/gas/api-guards';
@@ -25,7 +25,7 @@ export async function GET(
         if (auth.response) return auth.response;
         const { station } = auth;
 
-        const today = getTodayBangkok();
+        const today = getGasBusinessDateKey();
         const startOfDay = getStartOfDayBangkokUTC(today);
         const endOfDay = getEndOfDayBangkokUTC(today);
         const activeShiftRange = getGasActiveShiftDateRange(today);

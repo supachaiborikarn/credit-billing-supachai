@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { STATIONS } from '@/constants';
-import { getEndOfDayBangkokUTC, getStartOfDayBangkokUTC, getTodayBangkok } from '@/lib/gas';
+import { getEndOfDayBangkokUTC, getGasBusinessDateKey, getStartOfDayBangkokUTC } from '@/lib/gas';
 import { requireAdminApi } from '@/lib/api-auth';
 
 // GET: Get admin dashboard data for all gas stations
@@ -13,7 +13,7 @@ export async function GET() {
         const gasStations = STATIONS.filter(s => s.type === 'GAS');
 
         // Get date ranges using Bangkok timezone
-        const todayStr = getTodayBangkok();
+        const todayStr = getGasBusinessDateKey();
         const startOfDay = getStartOfDayBangkokUTC(todayStr);
         const endOfDay = getEndOfDayBangkokUTC(todayStr);
 
@@ -61,12 +61,6 @@ export async function GET() {
         ]);
 
         // Fetch per-station data
-        const now = new Date();
-        const bangkokHour = Number(new Intl.DateTimeFormat('en-US', {
-            timeZone: 'Asia/Bangkok',
-            hour: '2-digit',
-            hour12: false,
-        }).format(now));
         const stationsData = await Promise.all(
             gasStations.map(async (station) => {
                 const index = STATIONS.findIndex(s => s.id === station.id) + 1;
@@ -117,10 +111,7 @@ export async function GET() {
                     alerts.push('ระดับแก๊สต่ำ');
                 }
                 if (!openShift) {
-                    // Only alert during business hours (6am - 10pm)
-                    if (bangkokHour >= 6 && bangkokHour <= 22) {
-                        alerts.push('ยังไม่เปิดกะ');
-                    }
+                    alerts.push('ยังไม่เปิดกะ');
                 }
 
                 return {

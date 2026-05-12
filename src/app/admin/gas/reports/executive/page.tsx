@@ -14,7 +14,7 @@ import {
     RefreshCcw,
     TrendingUp,
 } from 'lucide-react';
-import { getTodayBangkok } from '@/lib/gas';
+import { getGasBusinessDateKey, getShiftName } from '@/lib/gas';
 
 type Severity = 'INFO' | 'WARNING' | 'CRITICAL';
 
@@ -129,8 +129,9 @@ const GAS_STATIONS = [
 ];
 
 function getDefaultFromDate() {
-    const date = new Date();
-    date.setDate(date.getDate() - 6);
+    const [year, month, day] = getGasBusinessDateKey().split('-').map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    date.setUTCDate(date.getUTCDate() - 6);
     return date.toISOString().slice(0, 10);
 }
 
@@ -158,9 +159,7 @@ function formatGeneratedAt(value: string): string {
 
 function getShiftLabel(shiftNumber: number): string {
     if (shiftNumber === 0) return 'ไม่ผูกกะ';
-    if (shiftNumber === 1) return 'กะเช้า';
-    if (shiftNumber === 2) return 'กะค่ำ';
-    return `กะ ${shiftNumber}`;
+    return getShiftName(shiftNumber);
 }
 
 function getSeverityClass(severity: Severity): string {
@@ -247,7 +246,7 @@ function ReportTable({
 
 export default function GasExecutivePrintReportPage() {
     const [fromDate, setFromDate] = useState(getDefaultFromDate);
-    const [toDate, setToDate] = useState(getTodayBangkok);
+    const [toDate, setToDate] = useState(getGasBusinessDateKey);
     const [stationId, setStationId] = useState('all');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);

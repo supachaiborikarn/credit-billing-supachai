@@ -8,8 +8,8 @@ import {
 } from '@/lib/gas/admin-analytics';
 import {
     getEndOfDayBangkokUTC,
+    getGasBusinessDateKey,
     getStartOfDayBangkokUTC,
-    getTodayBangkok,
     isValidDateKey,
     toBangkokDateKey,
 } from '@/lib/gas/date-utils';
@@ -24,7 +24,7 @@ function subtractBangkokDays(dateKey: string, days: number): string {
 }
 
 function resolveDateRange(from: string | null, to: string | null) {
-    const todayKey = getTodayBangkok();
+    const todayKey = getGasBusinessDateKey();
     const fromKey = from && isValidDateKey(from)
         ? from
         : subtractBangkokDays(todayKey, 6);

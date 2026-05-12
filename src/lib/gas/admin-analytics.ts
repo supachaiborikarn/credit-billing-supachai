@@ -5,9 +5,11 @@ import {
 } from '@/lib/gas/payment-utils';
 import {
     getEndOfDayBangkokUTC,
+    getGasBusinessDateKey,
     getStartOfDayBangkokUTC,
     toBangkokDateKey,
 } from '@/lib/gas/date-utils';
+import { getShiftInfo, type ShiftNumber } from '@/lib/gas/shift-utils';
 
 type NumericLike = number | string | null | undefined | { toString(): string };
 
@@ -531,6 +533,27 @@ interface ShiftWindow {
     end: Date;
 }
 
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+
+function getScheduledShiftWindow(dateKey: string, shiftNumber: number): Omit<ShiftWindow, 'shiftId'> {
+    if (shiftNumber !== 1 && shiftNumber !== 2) {
+        return {
+            start: getStartOfDayBangkokUTC(dateKey),
+            end: getEndOfDayBangkokUTC(dateKey),
+        };
+    }
+
+    const shift = getShiftInfo(shiftNumber as ShiftNumber);
+    const dayStart = getStartOfDayBangkokUTC(dateKey).getTime();
+    const crossesMidnight = shift.endHour <= shift.startHour;
+
+    return {
+        start: new Date(dayStart + shift.startHour * HOUR_MS),
+        end: new Date(dayStart + (crossesMidnight ? DAY_MS : 0) + shift.endHour * HOUR_MS - 1),
+    };
+}
+
 function findMatchingShiftWindow(
     windows: ShiftWindow[] | undefined,
     targetDate: Date
@@ -572,17 +595,17 @@ export function buildGasShiftAnalytics(
 
         const windows = sortedShifts.map((shift, index) => {
             const dateKey = toBangkokDateKey(shift.dailyRecord.date);
-            const fallbackEnd = getEndOfDayBangkokUTC(dateKey);
+            const scheduledWindow = getScheduledShiftWindow(dateKey, shift.shiftNumber);
             const nextShift = sortedShifts[index + 1];
 
             return {
                 shiftId: shift.id,
-                start: shift.createdAt,
+                start: scheduledWindow.start,
                 end: minDate(
                     nextShift?.createdAt,
                     shift.closedAt,
-                    fallbackEnd
-                ) ?? fallbackEnd,
+                    scheduledWindow.end
+                ) ?? scheduledWindow.end,
             };
         });
 
@@ -615,7 +638,7 @@ export function buildGasShiftAnalytics(
 
         if (!matchedShiftId) {
             const stationMeta = getGasStationMeta(transaction.stationId);
-            const stationDayKey = `${stationMeta.canonicalId}:${toBangkokDateKey(transaction.date)}`;
+            const stationDayKey = `${stationMeta.canonicalId}:${getGasBusinessDateKey(transaction.date)}`;
             matchedShiftId = findMatchingShiftWindow(
                 shiftWindowsByStationDay.get(stationDayKey),
                 transaction.date
@@ -624,7 +647,7 @@ export function buildGasShiftAnalytics(
 
         if (!matchedShiftId) {
             const stationMeta = getGasStationMeta(transaction.stationId);
-            const stationDayKey = `${stationMeta.canonicalId}:${toBangkokDateKey(transaction.date)}`;
+            const stationDayKey = `${stationMeta.canonicalId}:${getGasBusinessDateKey(transaction.date)}`;
             const existing = orphanTransactionsByStationDay.get(stationDayKey) ?? [];
             existing.push(transaction);
             orphanTransactionsByStationDay.set(stationDayKey, existing);

@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma';
 import {
     getEndOfDayBangkokUTC,
     getGasActiveShiftDateRange,
+    getGasBusinessDateKey,
     getStartOfDayBangkokUTC,
-    getTodayBangkok,
     isValidDateKey,
     toBangkokDateKey,
 } from '@/lib/gas';
@@ -66,7 +66,7 @@ export async function PUT(
         }
 
         const result = await prisma.$transaction(async (tx) => {
-            const today = getTodayBangkok();
+            const today = getGasBusinessDateKey();
             const activeShiftRange = getGasActiveShiftDateRange(today);
             const activeShift = requestedDateKey === null
                 ? await tx.shift.findFirst({

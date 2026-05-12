@@ -1,5 +1,5 @@
 <!-- SUMMARY: 6 สถานี: แท๊งลอยวัชรเกียรติ (FULL) ใช้ staff route เดียว `/station/1/v2` และคง classic admin ที่ `/station/1`;
-     วัชรเกียรติออยล์/พงษ์อนันต์/ศุภชัยบริการ (SIMPLE), ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS) ใช้ staff route หลัก `/gas/[id]` พร้อม open-shift guard, กะ 2 เป็นกะค่ำที่ข้ามวันได้, supply receiving `/gas/[id]/supplies`, meter continuity ใน admin report, admin reconciliation edit จากรายงานมิเตอร์, executive print report `/admin/gas/reports/executive`, และ admin `/admin/gas/*`; legacy admin gas-control redirect ไป v2 -->
+     วัชรเกียรติออยล์/พงษ์อนันต์/ศุภชัยบริการ (SIMPLE), ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS) ใช้ staff route หลัก `/gas/[id]` พร้อม open-shift guard, GAS มี 2 กะตายตัว 07:00-19:00 และ 19:00-07:00 โดยกะ 2 ข้ามวันได้, supply receiving `/gas/[id]/supplies`, meter continuity ใน admin report, admin reconciliation edit จากรายงานมิเตอร์, executive print report `/admin/gas/reports/executive`, และ admin `/admin/gas/*`; legacy admin gas-control redirect ไป v2 -->
 
 # Station Types
 
@@ -37,7 +37,7 @@
 
 ### GAS Station
 - บันทึกแก๊ส (กิโลกรัม + ราคา/กก.)
-- Shift management (กะ 1 เช้า, กะ 2 ค่ำ; กะค่ำอาจเปิดวันหนึ่งและปิดเช้าวันถัดไป โดย active shift ต้องค้นจาก business date เมื่อวานถึงวันนี้)
+- Shift management (กะ 1 = 07:00-19:00, กะ 2 = 19:00-07:00; กะ 2 ข้ามวันได้และ business date ช่วง 00:00-06:59 ยังนับเป็นวันก่อนหน้า)
 - Gauge reading (เกจวัดถังแก๊ส)
 - Supply receiving: พนักงาน/แอดมินบันทึกสั่ง-ลงแก๊สเข้าถังผ่าน `gas_supplies` โดยใช้ v2 routes เท่านั้น
 - Meter continuity: admin meter report/executive alert ตรวจเลขเปิดกะว่าต่อจากเลขปิดกะก่อนหน้าต่อหัวจ่ายหรือไม่
@@ -82,3 +82,4 @@
 - 2026-05-06: ปรับตามรูปหน้างาน direct print: daily summary ถอด `em=true` ให้ตัวบางลง และ receipt/credit direct print ลด columns+เติม left padding เพื่อขยับเข้ากลางกระดาษ
 - 2026-05-06: ปรับ GAS admin meter report ให้ตารางไม่ล้นกรอบ, เรียงกะ 2 ก่อนกะ 1 และแสดงยอดรับจริงจาก reconciliation เมื่อมีข้อมูลปิดกะ
 - 2026-05-06: เพิ่มปุ่มแก้ยอดสรุปกะ GAS ใน `/admin/gas/reconciliation` และลิงก์จาก `/admin/gas/reports/meters` เพื่อให้แอดมินแก้เงินสด/เครดิต/บัตร/โอนหลังปิดกะได้
+- 2026-05-12: ปรับ GAS shift schedule กลางเป็นกะ 1 07:00-19:00 และกะ 2 19:00-07:00, ให้ business date ก่อน 07:00 นับเป็นวันก่อนหน้า, และให้รายงานแสดงช่วงเวลากะชัดเจน

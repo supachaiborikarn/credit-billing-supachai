@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Loader2, FileText, Download, Search, Eye } from 'lucide-react';
-import { formatCurrency, getTodayBangkok } from '@/lib/gas';
+import { formatCurrency, getGasBusinessDateKey } from '@/lib/gas';
 
 interface DayReport {
     dateKey: string;
@@ -77,7 +77,7 @@ export default function DailyReportPage() {
         d.setDate(d.getDate() - 7);
         return d.toISOString().split('T')[0];
     });
-    const [toDate, setToDate] = useState<string>(getTodayBangkok());
+    const [toDate, setToDate] = useState<string>(getGasBusinessDateKey());
     const [stations, setStations] = useState<{ id: string; name: string }[]>([]);
 
     // Selected row for detail view

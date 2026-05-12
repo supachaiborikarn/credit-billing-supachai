@@ -12,7 +12,7 @@ import {
     Loader2
 } from 'lucide-react';
 import { STATIONS } from '@/constants';
-import { getTodayBangkok } from '@/lib/gas';
+import { getGasBusinessDateKey, getShiftName } from '@/lib/gas';
 
 interface ShiftData {
     id?: string;
@@ -58,7 +58,7 @@ export default function AdminDataEntryPage() {
     const gasStations = STATIONS.filter(s => s.type === 'GAS');
 
     const [stationId, setStationId] = useState<string>(gasStations[0]?.id || '');
-    const [date, setDate] = useState(getTodayBangkok());
+    const [date, setDate] = useState(getGasBusinessDateKey());
     const [shiftNumber, setShiftNumber] = useState(1);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -337,12 +337,12 @@ export default function AdminDataEntryPage() {
                                 <button
                                     key={num}
                                     onClick={() => setShiftNumber(num)}
-                                    className={`flex-1 py-3 rounded-xl font-medium transition-colors ${shiftNumber === num
+                                    className={`flex-1 py-3 rounded-xl text-sm font-medium leading-tight transition-colors ${shiftNumber === num
                                         ? 'bg-orange-500 text-white'
                                         : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
                                         }`}
                                 >
-                                    กะ {num} {num === 1 ? '(เช้า)' : '(บ่าย)'}
+                                    {getShiftName(num)}
                                 </button>
                             ))}
                         </div>
@@ -364,7 +364,7 @@ export default function AdminDataEntryPage() {
                                 <>
                                     <strong>{selectedStation?.name}</strong> |
                                     วันที่ {new Date(date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })} |
-                                    กะ {shiftNumber}
+                                    {getShiftName(shiftNumber)}
                                     {shiftData.exists ? ' (มีข้อมูลแล้ว)' : ' (ยังไม่มีข้อมูล)'}
                                     {' '}| จะบันทึกเป็น {shiftData.status === 'OPEN' ? 'กะเปิด' : 'กะปิด'}
                                 </>

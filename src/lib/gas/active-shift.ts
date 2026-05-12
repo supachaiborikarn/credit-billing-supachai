@@ -1,7 +1,7 @@
 import {
     getEndOfDayBangkokUTC,
+    getGasBusinessDateKey,
     getStartOfDayBangkokUTC,
-    getTodayBangkok,
     toBangkokDateKey,
 } from './date-utils';
 
@@ -22,7 +22,7 @@ export function addDaysToBangkokDateKey(dateKey: string, days: number): string {
  * GAS has two 24-hour-covering shifts, so an OPEN night shift can belong to
  * yesterday's business date and still be the current shift after midnight.
  */
-export function getGasActiveShiftDateRange(referenceDateKey = getTodayBangkok()): GasActiveShiftDateRange {
+export function getGasActiveShiftDateRange(referenceDateKey = getGasBusinessDateKey()): GasActiveShiftDateRange {
     const previousDateKey = addDaysToBangkokDateKey(referenceDateKey, -1);
 
     return {

@@ -166,7 +166,7 @@ export async function POST(
 
             if (existingShiftNumber) {
                 return NextResponse.json({
-                    error: `${shiftNumber === 1 ? 'กะเช้า' : 'กะค่ำ'}ของวันนี้มีอยู่แล้ว กรุณาเปิดกะถัดไปหรือเลือกหน้าปิดกะเดิม`,
+                    error: `${getShiftName(shiftNumber)} ของวันนี้มีอยู่แล้ว กรุณาเปิดกะถัดไปหรือเลือกหน้าปิดกะเดิม`,
                 }, { status: 409 });
             }
 
