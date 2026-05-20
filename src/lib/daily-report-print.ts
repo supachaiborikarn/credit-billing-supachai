@@ -185,8 +185,7 @@ function buildReadableMeterGroups(
 
     return meters.map((meter) => {
         const endReading = meter.endReading === null ? '-' : formatCurrency(meter.endReading);
-        const fuelLabel = truncateText(meter.fuelType || 'ดีเซล B7', 12);
-        const headerText = `หัว ${meter.nozzleNumber} ${fuelLabel}`;
+        const headerText = `หัว ${meter.nozzleNumber}`;
         const litersText = `ขาย ${formatCurrency(meter.liters)}L`;
 
         return {
@@ -937,7 +936,7 @@ export function printThermalDailyWorkReport({
             <tbody>
                 ${normalizedMeters.map((meter) => `
                     <tr>
-                        <td colspan="4" class="nozzle-desc">หัว ${escapeHtml(meter.nozzleNumber)} - ${escapeHtml(meter.fuelType || 'ดีเซล B7')}</td>
+                        <td colspan="4" class="nozzle-desc">หัว ${escapeHtml(meter.nozzleNumber)}</td>
                     </tr>
                     <tr class="reading-row">
                         <td class="bullet-sub">└─</td>
@@ -1119,6 +1118,9 @@ export function printThermalDailyWorkReport({
         .nozzle-desc {
             font-weight: 700;
             padding-top: 4px !important;
+        }
+        .reading-row td {
+            font-size: ${isCompact ? '10.5px' : '12.5px'} !important;
         }
         .bullet-sub {
             color: #555;
