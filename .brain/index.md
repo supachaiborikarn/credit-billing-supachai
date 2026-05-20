@@ -16,6 +16,7 @@
 | **Design System** | `DESIGN.md` เป็น source of truth สำหรับ UI agents: Thai-first Sarabun, operational console, primary orange, compact mobile station flows, bottom nav ต้องเผื่อ safe-area/ไม่บัง CTA, thermal receipts ต้องรองรับ 58/80mm, no default-purple drift, และ Tank Loy ไม่มี engine-oil/product flow | [→ design-system.md](topics/design-system.md) |
 | **Attendance** | ระบบลงเวลา, ลาหยุด, shift swap, overlap detection | [→ attendance.md](topics/attendance.md) |
 | **Watchara Shared Dispenser** | external diesel source ของ Watchara ต้องเก็บ raw แยก, map เข้า `station-2`, และ patch หลายจุดที่ query `transactions` ตรง | [→ watchara-shared-dispenser.md](topics/watchara-shared-dispenser.md) |
+| **Product Ideas** | backlog ไอเดีย 2026-05-17: daily action center, stock จริงของ SIMPLE, LINE payment flow, owner cleanup, credit risk, Watchara rollout, print/device health, OCR รูปมิเตอร์/สลิป, และ staff UX cleanup | [→ product-ideas.md](topics/product-ideas.md) |
 
 ## 🔗 Recent Decisions
 
@@ -28,4 +29,4 @@
 | 2026-02-19 | เพิ่ม overlap detection ในระบบลาหยุด | [→ decisions/](decisions/) |
 
 ## 📅 Last Updated
-2026-05-12
+2026-05-20

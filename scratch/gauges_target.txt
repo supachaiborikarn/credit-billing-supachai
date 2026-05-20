@@ -1,0 +1,161 @@
+                        {/* Gauge Readings (3 Tanks) - METERS TAB */}
+                        <div className="glass-card p-6 mb-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                    <Gauge className="text-yellow-400" />
+                                    📊 เกจถังแก๊ส (3 ถัง) - เปรียบเทียบกับมิเตอร์
+                                </h2>
+                                <button
+                                    onClick={copyGaugeFromPreviousDay}
+                                    className="btn btn-info btn-sm"
+                                    title="คัดลอกเกจสิ้นสุดจากวันก่อน"
+                                >
+                                    📋 ดึงเกจวันก่อน
+                                </button>
+                            </div>
+                            <div className="grid md:grid-cols-3 gap-4">
+                                {[1, 2, 3].map(tankNum => {
+                                    const reading = gaugeReadings.find(g => g.tankNumber === tankNum);
+                                    // Calculate supplies per tank (divide total by 3)
+                                    const totalSupplyLiters = gasSupplies.reduce((sum, s) => sum + Number(s.liters), 0);
+                                    const supplyPerTank = totalSupplyLiters / 3;
+
+                                    // Formula: reading × 98 = liters (not percentage)
+                                    const startLiters = reading?.startPercentage !== null ? (reading?.startPercentage || 0) * GAS_TANK_CAPACITY_LITERS : null;
+                                    const endLiters = reading?.endPercentage !== null ? (reading?.endPercentage || 0) * GAS_TANK_CAPACITY_LITERS : null;
+
+                                    const usedLiters = startLiters !== null && endLiters !== null
+                                        ? (startLiters + supplyPerTank) - endLiters
+                                        : null;
+                                    return (
+                                        <div key={tankNum} className="bg-white/5 rounded-xl p-4">
+                                            <h3 className="font-bold text-yellow-400 mb-3">ถังที่ {tankNum}</h3>
+
+                                            {/* Start Gauge */}
+                                            <div className="mb-3">
+                                                <div className="flex justify-between text-sm mb-1">
+                                                    <span className="text-gray-400">🌅 เริ่มต้น:</span>
+                                                    <span className="text-cyan-400 font-mono">
+                                                        {reading?.startPercentage !== null ? `${reading?.startPercentage}%` : '-'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        id={`gauge-start-${tankNum}`}
+                                                        type="number"
+                                                        min="0"
+                                                        max="100"
+                                                        step="1"
+                                                        value={newGaugeValues[`${tankNum}-start`] || ''}
+                                                        onChange={(e) => setNewGaugeValues(prev => ({
+                                                            ...prev,
+                                                            [`${tankNum}-start`]: e.target.value
+                                                        }))}
+                                                        onKeyDown={(e) => handleInputKeyDown(e, `gauge-start-${tankNum}`)}
+                                                        placeholder="0-100%"
+                                                        className="input-glow flex-1 text-center text-sm"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* End Gauge */}
+                                            <div className="mb-3">
+                                                <div className="flex justify-between text-sm mb-1">
+                                                    <span className="text-gray-400">🌙 สิ้นสุด:</span>
+                                                    <span className={`font-mono ${reading?.endPercentage !== null && (reading?.endPercentage ?? 100) < 20 ? 'text-red-400' : 'text-green-400'}`}>
+                                                        {reading?.endPercentage !== null ? `${reading?.endPercentage}%` : '-'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        id={`gauge-end-${tankNum}`}
+                                                        type="number"
+                                                        min="0"
+                                                        max="100"
+                                                        step="1"
+                                                        value={newGaugeValues[`${tankNum}-end`] || ''}
+                                                        onChange={(e) => setNewGaugeValues(prev => ({
+                                                            ...prev,
+                                                            [`${tankNum}-end`]: e.target.value
+                                                        }))}
+                                                        onKeyDown={(e) => handleInputKeyDown(e, `gauge-end-${tankNum}`)}
+                                                        placeholder="0-100%"
+                                                        className="input-glow flex-1 text-center text-sm"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Used liters from this tank */}
+                                            {usedLiters !== null && (
+                                                <div className="bg-purple-500/10 rounded-lg p-2 text-center">
+                                                    <span className="text-xs text-gray-400">ใช้ไป: </span>
+                                                    <span className="font-mono text-purple-400 font-bold">
+                                                        {formatNumber(usedLiters)} ลิตร
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Save Gauge Buttons */}
+                            <div className="flex gap-3 mt-4">
+                                <button
+                                    onClick={() => saveAllGaugesByType('start')}
+                                    className="btn btn-info flex-1"
+                                >
+                                    <Save size={16} />
+                                    บันทึกเกจเริ่มต้น (3 ถัง)
+                                </button>
+                                <button
+                                    onClick={() => saveAllGaugesByType('end')}
+                                    className="btn btn-success flex-1"
+                                >
+                                    <Save size={16} />
+                                    บันทึกเกจสิ้นสุด (3 ถัง)
+                                </button>
+                            </div>
+
+                            {/* Total comparison with meters */}
+                            {(() => {
+                                // Formula: reading × 98 = liters (not percentage)
+                                const totalStartLiters = gaugeReadings.reduce((s, g) => s + ((g.startPercentage || 0) * GAS_TANK_CAPACITY_LITERS), 0);
+                                const totalEndLiters = gaugeReadings.reduce((s, g) => s + ((g.endPercentage || 0) * GAS_TANK_CAPACITY_LITERS), 0);
+                                const totalSupplyLiters = gasSupplies.reduce((sum, s) => sum + Number(s.liters), 0);
+                                // Formula: (startLiters + supplies) - endLiters
+                                const totalGaugeUsed = (totalStartLiters + totalSupplyLiters) - totalEndLiters;
+                                // Use allDayMeterTotal for proper comparison (all shifts)
+                                const difference = allDayMeterTotal - totalGaugeUsed;
+
+                                if (totalStartLiters > 0 && totalEndLiters > 0) {
+                                    return (
+                                        <div className="mt-4 bg-white/5 rounded-xl p-4">
+                                            <h4 className="font-bold text-white mb-3">📈 เปรียบเทียบ (รวมทั้งวัน)</h4>
+                                            <div className="grid grid-cols-3 gap-4 text-center">
+                                                <div>
+                                                    <div className="text-gray-400 text-sm">จากเกจ (ใช้ไป)</div>
+                                                    <div className="text-xl font-bold font-mono text-yellow-400">{formatNumber(totalGaugeUsed)} ลิตร</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-gray-400 text-sm">จากมิเตอร์ (ขาย)</div>
+                                                    <div className="text-xl font-bold font-mono text-cyan-400">{formatNumber(allDayMeterTotal)} ลิตร</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-gray-400 text-sm">ผลต่าง</div>
+                                                    <div className={`text-xl font-bold font-mono ${Math.abs(difference) < 10 ? 'text-green-400' : 'text-red-400'}`}>
+                                                        {difference > 0 ? '+' : ''}{formatNumber(difference)} ลิตร
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {Math.abs(difference) >= 10 && (
+                                                <div className="mt-2 text-center text-red-400 text-sm">
+                                                    ⚠️ ผลต่างมากกว่า 10 ลิตร - ตรวจสอบข้อมูล
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                }
+                                return null;
+                            })()}
+                        </div>

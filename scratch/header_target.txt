@@ -1,0 +1,201 @@
+    return (
+        <Sidebar>
+            <div className="max-w-6xl mx-auto relative">
+                {/* Breadcrumb */}
+                <Breadcrumb items={[{ label: 'ปั๊มแก๊ส' }, { label: station.name }]} className="mb-4" />
+
+                {/* Background orbs */}
+                <div className="fixed top-20 right-20 w-[400px] h-[400px] rounded-full opacity-20 blur-3xl pointer-events-none"
+                    style={{ background: 'radial-gradient(circle, rgba(6, 182, 212, 0.3) 0%, transparent 70%)' }} />
+
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+                    <div className="flex items-center gap-3">
+                        <div className="relative">
+                            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-2xl blur-lg opacity-50" />
+                            <div className="relative p-4 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500">
+                                <Fuel className="text-white" size={36} />
+                            </div>
+                        </div>
+                        <div>
+                            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-white via-cyan-200 to-white bg-clip-text text-transparent">
+                                {station.name}
+                            </h1>
+                            <p className="text-gray-400 flex items-center gap-2">
+                                <Sparkles size={14} className="text-cyan-400" />
+                                ⛽ ปั๊มแก๊ส LPG
+                                {currentShift && (
+                                    <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${currentShift === 1
+                                        ? 'bg-orange-500/20 text-orange-400'
+                                        : 'bg-indigo-500/20 text-indigo-400'
+                                        }`}>
+                                        {currentShift === 0 ? '📅 กะทั้งวัน' : currentShift === 1 ? '🌅 กะเช้า' : '🌙 กะบ่าย'}
+                                    </span>
+                                )}
+                                <a
+                                    href={`/gas-station/${id}/new/home`}
+                                    className="ml-2 px-3 py-1 rounded-full text-xs font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors flex items-center gap-1"
+                                >
+                                    📱 ใช้ UI ใหม่
+                                </a>
+                                <a
+                                    href={`/gas/${(() => {
+                                        const s = STATIONS[stationIndex];
+                                        return ('aliases' in s && s.aliases) ? (s.aliases as readonly string[])[0] : id;
+                                    })()}`}
+                                    className="ml-1 px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:opacity-90 transition-colors flex items-center gap-1"
+                                >
+                                    ✨ V2 (Beta)
+                                </a>
+                                <button
+                                    onClick={async () => {
+                                        await fetch('/api/auth/logout', { method: 'POST' });
+                                        window.location.href = '/login';
+                                    }}
+                                    className="ml-2 px-3 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors flex items-center gap-1"
+                                >
+                                    <LogOut size={12} />
+                                    ออกจากระบบ
+                                </button>
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Shift Controls */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {/* Shift Selector Dropdown */}
+                        <div className="flex items-center gap-2">
+                            <span className="text-gray-400 text-sm">กะ:</span>
+                            <select
+                                value={currentShift || ''}
+                                onChange={(e) => {
+                                    const val = e.target.value ? parseInt(e.target.value) : null;
+                                    setCurrentShift(val);
+                                    if (val !== null) {
+                                        localStorage.setItem('selectedShift', val.toString());
+                                    }
+                                    // Reset ALL data when switching shifts (avoid data spillover)
+                                    // Reset meters
+                                    setMeters([
+                                        { nozzle: 1, start: 0, end: 0 },
+                                        { nozzle: 2, start: 0, end: 0 },
+                                        { nozzle: 3, start: 0, end: 0 },
+                                        { nozzle: 4, start: 0, end: 0 },
+                                    ]);
+                                    // Reset gauge inputs
+                                    setNewGaugeValues({});
+                                    // Clear gauge readings
+                                    setGaugeReadings([]);
+                                    // Wait for state update then fetch
+                                    setTimeout(() => {
+                                        fetchDailyData();
+                                        fetchGaugeReadings();
+                                        fetchShiftData();
+                                    }, 100);
+                                }}
+                                className="bg-white/10 border border-white/20 rounded-xl px-4 py-2.5 text-white font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500 min-w-[160px]"
+                            >
+                                <option value="" className="bg-gray-800">-- เลือกกะ --</option>
+                                <option value="0" className="bg-gray-800">📅 กะทั้งวัน</option>
+                                <option value="1" className="bg-gray-800">🌅 กะเช้า (กะ 1)</option>
+                                <option value="2" className="bg-gray-800">🌙 กะบ่าย (กะ 2)</option>
+                            </select>
+
+                            {/* Show shift status */}
+                            {shiftData?.shifts && shiftData.shifts.length > 0 && (
+                                <div className="flex gap-1">
+                                    {shiftData.shifts.map((s: any) => (
+                                        <span
+                                            key={s.id}
+                                            className={`px-2 py-0.5 text-xs rounded-full ${s.status === 'OPEN'
+                                                ? 'bg-green-500/20 text-green-400'
+                                                : 'bg-gray-500/20 text-gray-400'
+                                                }`}
+                                        >
+                                            กะ{s.shiftNumber}: {s.status === 'OPEN' ? 'เปิด' : 'ปิด'}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {currentShift && (
+                            <>
+
+                                {/* Admin: Save All Button */}
+                                {isAdmin && (
+                                    <button
+                                        onClick={saveAllData}
+                                        disabled={savingAll}
+                                        className="px-5 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold hover:opacity-90 transition-all flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-purple-500/20"
+                                        title="บันทึกมิเตอร์และเกจทั้งหมด"
+                                    >
+                                        {savingAll ? (
+                                            <span className="animate-spin text-xl">⏳</span>
+                                        ) : (
+                                            <Save size={20} />
+                                        )}
+                                        💾 บันทึกทั้งหมด
+                                    </button>
+                                )}
+
+                                {isAdmin && (
+                                    <button
+                                        onClick={() => setShowRevenueSummary(true)}
+                                        className="px-5 py-3 rounded-xl bg-yellow-500/20 text-yellow-400 border-2 border-yellow-500/40 hover:bg-yellow-500/30 transition-all flex items-center gap-2 font-semibold shadow-lg shadow-yellow-500/10"
+                                        title="ดูสรุปยอดขาย"
+                                    >
+                                        <span className="text-xl">💰</span> สรุปยอด
+                                    </button>
+                                )}
+
+                                {shiftData?.shifts?.find((s: any) => s.shiftNumber === currentShift && s.status === 'OPEN') ? (
+                                    <button
+                                        onClick={() => setShowCloseShiftModal(true)}
+                                        className="px-5 py-3 rounded-xl bg-red-500/20 text-red-400 border-2 border-red-500/40 hover:bg-red-500/30 transition-all flex items-center gap-2 font-semibold shadow-lg shadow-red-500/10"
+                                    >
+                                        <Clock size={20} />
+                                        ปิดกะ
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => setShowOpenShiftModal(true)}
+                                        className="px-5 py-3 rounded-xl bg-green-500/20 text-green-400 border-2 border-green-500/40 hover:bg-green-500/30 transition-all flex items-center gap-2 font-semibold shadow-lg shadow-green-500/10"
+                                    >
+                                        <Clock size={20} />
+                                        เปิดกะ
+                                    </button>
+                                )}
+                            </>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setShowDailySummary(true)}
+                            className="relative group px-6 py-3 rounded-xl font-bold text-white overflow-hidden"
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-r from-cyan-600 to-blue-600" />
+                            <div className="absolute inset-0 bg-gradient-to-r from-cyan-600 to-blue-600 blur-xl opacity-50 group-hover:opacity-70 transition-opacity" />
+                            <span className="relative flex items-center gap-2">
+                                <FileText size={22} />
+                                สรุปงานประจำวัน
+                            </span>
+                        </button>
+                        <div className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white/10 border-2 border-white/20">
+                            <Calendar size={22} className="text-cyan-400" />
+                            <input
+                                type="date"
+                                value={selectedDate}
+                                onChange={(e) => setSelectedDate(e.target.value)}
+                                className="bg-transparent text-white font-medium focus:outline-none w-[150px]"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {loading ? (
+                    <div className="flex items-center justify-center h-64">
+                        <div className="spinner" />
+                    </div>
+                ) : (
+                    <>

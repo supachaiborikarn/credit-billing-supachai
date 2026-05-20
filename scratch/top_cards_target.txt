@@ -1,0 +1,87 @@
+                        {/* Gas Price & Stock Summary - HOME TAB */}
+                        <div className="grid md:grid-cols-3 gap-6 mb-6">
+                            {/* Gas Price */}
+                            <div className="glass-card p-6">
+                                <h2 className="text-lg font-bold text-white mb-4">💰 ราคาแก๊ส LPG</h2>
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={gasPrice}
+                                        onChange={(e) => setGasPrice(parseFloat(e.target.value))}
+                                        className="input-glow text-center text-2xl font-mono flex-1"
+                                    />
+                                    <span className="text-gray-400">บาท/ลิตร</span>
+                                </div>
+                                <button onClick={saveGasPrice} className="btn btn-primary w-full mt-4">
+                                    <Save size={18} />
+                                    บันทึกราคา
+                                </button>
+                            </div>
+
+                            {/* Current Stock - RECEIVE TAB */}
+                            <div className="glass-card p-6">
+                                <h2 className="text-lg font-bold text-white mb-4">⛽ สต็อกแก๊สคงเหลือ</h2>
+
+                                {/* Calculated Stock */}
+                                <div className="mb-4">
+                                    <p className="text-sm text-gray-400 mb-1">จากการคำนวณ (รับ-ขาย):</p>
+                                    <p className={`text-3xl font-bold font-mono ${currentStock < stockAlert ? 'text-red-400' : 'text-cyan-400'}`}>
+                                        {formatNumber(currentStock)} <span className="text-sm text-gray-400">ลิตร</span>
+                                    </p>
+                                </div>
+
+                                {/* Gauge-based Estimation */}
+                                <div className="bg-yellow-900/20 rounded-lg p-3 mb-4">
+                                    <p className="text-sm text-gray-400 mb-1">จากเกจ 3 ถัง (ถัง×98):</p>
+                                    {(() => {
+                                        const totalPercentage = gaugeReadings.reduce((sum, g) => sum + (g.endPercentage || 0), 0);
+                                        const gaugeEstimate = totalPercentage * GAS_TANK_CAPACITY_LITERS;
+                                        const difference = gaugeEstimate - currentStock;
+                                        return (
+                                            <>
+                                                <p className="text-xl font-bold font-mono text-yellow-400">
+                                                    ({gaugeReadings.map(g => g.endPercentage || 0).join('% + ')}%) × 98
+                                                </p>
+                                                <p className="text-2xl font-bold font-mono text-yellow-400">
+                                                    = {formatNumber(gaugeEstimate)} <span className="text-sm">ลิตร</span>
+                                                </p>
+                                                {Math.abs(difference) > 10 && (
+                                                    <p className={`text-xs mt-1 ${difference > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                        ต่าง {difference > 0 ? '+' : ''}{formatNumber(difference)} ลิตร
+                                                    </p>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
+                                </div>
+
+                                <button
+                                    onClick={() => setShowSupplyForm(true)}
+                                    className="btn btn-success w-full"
+                                >
+                                    <Plus size={18} />
+                                    + รับแก๊สเข้า (KG)
+                                </button>
+                            </div>
+
+                            {/* Today Summary */}
+                            <div className="glass-card p-6">
+                                <h2 className="text-lg font-bold text-white mb-4">📊 สรุปวันนี้</h2>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-400">ยอดขาย:</span>
+                                        <span className="font-mono text-cyan-400">{formatNumber(transactionsTotal)} ลิตร</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-400">รายได้:</span>
+                                        <span className="font-mono text-green-400">{formatCurrency(transactions.reduce((s, t) => s + Number(t.amount), 0))} บาท</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-400">รายการ:</span>
+                                        <span className="font-mono">{transactions.length} รายการ</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+

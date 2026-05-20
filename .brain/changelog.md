@@ -2,6 +2,18 @@
 
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
+## 2026-05-20
+- 🖨️ ปรับปรุงดีไซน์รายงานสรุปวัน (Daily Work Report) ทั้งสองรูปแบบ
+  - ปรับปรุงรายงาน A4 Landscape: ใช้ฟอนต์ Sarabun, จัดหน้าแบบ Grid Cards, ตาราง Zebra Striping, และระบบ Payment Chips สรุปยอดชำระแต่ละช่องทาง
+  - ปรับปรุงรายงาน Thermal Receipt Fallback (80mm/58mm): เพิ่มกรอบยอดเงินสไตล์บิลเครื่อง POS, แถบเตือนผลต่างลิตรแบบ High-contrast, ตารางเลขมิเตอร์กะทัดรัด (Thermal Table), และจัดโครงสร้างรายการเติมน้ำมันเป็น 3 บรรทัดย่อย
+  - รัน unit tests ผ่าน 100%
+
+## 2026-05-17
+- เพิ่ม topic `product-ideas.md`
+  - จด backlog ไอเดียจากการอ่าน brain, schema, routes, DESIGN.md, และ TODO ใน repo
+  - ไอเดียหลักคือ daily action center, stock จริงของ SIMPLE, LINE payment flow, owner cleanup, credit risk, Watchara rollout, print/device health, OCR รูปมิเตอร์/สลิป, และ staff UX cleanup
+  - แนะนำ first batch เป็น daily action center, real tank stock, และ owner cleanup
+
 ## 2026-05-12
 - ⛽ ปรับ note เรื่องกะ GAS ตามเวลาหน้างาน
   - จดว่า GAS ใช้กะ 1 07:00-19:00 และกะ 2 19:00-07:00
