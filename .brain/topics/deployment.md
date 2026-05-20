@@ -37,5 +37,6 @@
 5. ตรวจสอบ `/api/health` หลัง deploy
 
 ## Changelog
+- 2026-05-20: ตรวจ Vercel production failures จาก commit `dd3e3f1` และ `59ed862`; ทั้งคู่ fail ที่ TypeScript `shift is possibly null` ใน GAS close shift page, ส่วน production ล่าสุด `c98cecf` Ready และ `/api/health` ตอบ database connected
 - 2026-02-24: สร้างไฟล์ brain topic นี้
 - 2026-02-23: อัปเดต DATABASE_URL หลัง migrate Neon

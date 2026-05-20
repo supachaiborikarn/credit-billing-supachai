@@ -3,6 +3,14 @@
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
 ## 2026-05-20
+- ⛽ แก้ปั๊มแก๊สปิดกะแล้วหน้าเว็บ crash
+  - สาเหตุคือหน้า close shift อ่าน `shift.sales.cash` แต่ API ส่งยอดขายเป็น `data.sales`
+  - แก้หน้า close ให้ normalize sales และแก้ summary API ให้ส่ง `shift.sales` ด้วย
+  - ยืนยันด้วย `npx vitest run tests/gas-v2-routes.test.ts` และ `npm run build`
+- 🌐 ตรวจรายการ Vercel deployment error
+  - ยืนยันว่า deploy commit `dd3e3f1` และ `59ed862` fail เพราะ TypeScript มองว่า `shift` อาจเป็น `null` ในหน้า GAS close shift
+  - ยืนยันว่า deploy ล่าสุด commit `c98cecf` เป็น Production Ready แล้ว
+  - ตรวจ `/api/health` แล้วตอบ `status: ok` และ `database: connected`
 - 🖨️ ปรับปรุงดีไซน์รายงานสรุปวัน (Daily Work Report) ทั้งสองรูปแบบ
   - ปรับปรุงรายงาน A4 Landscape: ใช้ฟอนต์ Sarabun, จัดหน้าแบบ Grid Cards, ตาราง Zebra Striping, และระบบ Payment Chips สรุปยอดชำระแต่ละช่องทาง
   - ปรับปรุงรายงาน Thermal Receipt Fallback (80mm/58mm): เพิ่มกรอบยอดเงินสไตล์บิลเครื่อง POS, แถบเตือนผลต่างลิตรแบบ High-contrast, ตารางเลขมิเตอร์กะทัดรัด (Thermal Table), และจัดโครงสร้างรายการเติมน้ำมันเป็น 3 บรรทัดย่อย

@@ -744,6 +744,12 @@ describe('gas v2 route guards', () => {
                     id: 'shift-night',
                     dateKey: '2026-04-24',
                     businessDate: '2026-04-24',
+                    sales: {
+                        cash: 200,
+                        total: 200,
+                        liters: 10,
+                        transactionCount: 1,
+                    },
                 },
                 sales: {
                     cash: 200,

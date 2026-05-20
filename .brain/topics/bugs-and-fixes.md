@@ -27,7 +27,7 @@
      2026-05-12 ปรับ GAS shift schedule เป็น 07:00-19:00 และ 19:00-07:00 พร้อม business date ก่อน 07:00 และ analytics window ตามเวลาจริง;
      2026-05-03 แก้ mobile thermal daily print ของ Tank Loy โดย Android ส่ง ePOS-Print XML เข้า Epson TM Print Assistant โดยตรงแทนการให้ Android สร้าง A4 preview;
      2026-05-06 แก้ mobile thermal receipt/credit bill ของ Tank Loy ให้ Android ส่ง ePOS XML ที่มี cut หลังต้นฉบับและหลังสำเนาแทน page-break HTML;
-     2026-05-06 ปรับ mobile thermal daily summary ให้เน้นยอดรวม/มิเตอร์/ผลต่าง และให้ admin daily summary print ใช้ template A4 มืออาชีพแทน print modal; รอบ follow-up คืนความยาวกระดาษใกล้ compact เดิมโดยไม่ใช้ `width=2 height=2`, ปรับมิเตอร์เป็นหัว+ลิตร 1 บรรทัด ตามด้วยเปิด/ปิดแยกบรรทัดเพื่อกันเลขยาวล้น, เพิ่มปุ่มแอดมินแก้ยอดสรุปกะ GAS จากหน้ากระทบยอด/รายงานมิเตอร์เพื่อแก้เงินสดหรือเครดิตที่ลงซ้ำหลังปิดกะ, 2026-05-07 เพิ่มตัวกันกดซ้ำในหน้า GAS sell พร้อม backend guard กันรายการยอดเดียวกันในช่วงสั้น, และ 2026-05-11 เพิ่มยอดเงินสดควรส่งสุทธิหลังหักค่าใช้จ่ายในหน้า GAS close/reconciliation/shift report -->
+     2026-05-06 ปรับ mobile thermal daily summary ให้เน้นยอดรวม/มิเตอร์/ผลต่าง และให้ admin daily summary print ใช้ template A4 มืออาชีพแทน print modal; รอบ follow-up คืนความยาวกระดาษใกล้ compact เดิมโดยไม่ใช้ `width=2 height=2`, ปรับมิเตอร์เป็นหัว+ลิตร 1 บรรทัด ตามด้วยเปิด/ปิดแยกบรรทัดเพื่อกันเลขยาวล้น, เพิ่มปุ่มแอดมินแก้ยอดสรุปกะ GAS จากหน้ากระทบยอด/รายงานมิเตอร์เพื่อแก้เงินสดหรือเครดิตที่ลงซ้ำหลังปิดกะ, 2026-05-07 เพิ่มตัวกันกดซ้ำในหน้า GAS sell พร้อม backend guard กันรายการยอดเดียวกันในช่วงสั้น, 2026-05-11 เพิ่มยอดเงินสดควรส่งสุทธิหลังหักค่าใช้จ่ายในหน้า GAS close/reconciliation/shift report, และ 2026-05-20 แก้หน้า GAS close shift crash เพราะหน้าอ่าน `shift.sales` แต่ summary API ส่ง `sales` ไว้ top-level -->
 
 # Bugs & Fixes
 
@@ -235,6 +235,11 @@
 - **ปัญหา**: `/gas/[stationId]/sell` แสดง `เล่มที่`/`เลขที่บิล` เป็น required สำหรับเงินเชื่อ แต่ client/server ยังไม่บังคับจริง; DB จริงพบ GAS `CREDIT` 24 รายการที่ไม่มีเลขบิล และ 5 รายการไม่มี `truckId`. ฝั่งปิดกะยังรับยอดเงินสด/เงินเชื่อ/บัตร/โอนที่ติดลบหรือไม่ใช่ตัวเลขได้ถ้าส่งตรงเข้า API
 - **แก้ไข**: บังคับเงินเชื่อต้องมี owner, truck, `billBookNo`, `billNo` ทั้ง client และ `POST /api/v2/gas/[stationId]/sell`; backend ตรวจว่า truck อยู่ใต้ owner จริงและใช้ทะเบียนจาก DB แทนค่าที่ client ส่ง; `POST /api/v2/gas/[stationId]/shift/close` normalize/validate ยอดรับจริงทุกช่องเป็นจำนวนไม่ติดลบ และยังคงเก็บบัตรรวมใน `transferReceived` พร้อม `cardReceived` ใน variance note ตาม schema ปัจจุบัน
 - **สถานะ**: ✅ patch แล้วพร้อม tests route-level สำหรับ credit bill และ negative reconciliation amount
+
+### GAS Close Shift Client Crash (May 20, 2026)
+- **ปัญหา**: production หน้า `/gas/5/shift/close` โหลด route/API ได้ `200` แต่ขึ้น client-side exception เพราะหน้าอ่าน `shift.sales.cash` ขณะ summary API ส่งยอดขายไว้ที่ `data.sales` ไม่ได้อยู่ใน `data.shift.sales`
+- **แก้ไข**: หน้า close normalize `sales` จาก `data.shift.sales || data.sales || EMPTY_SALES`, ใช้ค่า fallback ตอนคำนวณเงินสดควรส่งสุทธิ, และ summary API เติม `sales` ใต้ `shift` เพื่อให้ contract ตรงกัน
+- **สถานะ**: ✅ patch แล้ว; `npx vitest run tests/gas-v2-routes.test.ts` และ `npm run build` ผ่าน
 
 ### GAS Stale Open Shift Date Guard and Smoke Verification (Apr 25, 2026)
 - **ปัญหา**: DB จริงวันที่ 2026-04-25 มี `DailyRecord` วันนี้ของ `station-5`/`station-6` แล้วแต่ยังไม่มีกะของวันนี้ ขณะเดียวกันมีกะ `OPEN` ค้างจากวันที่ 2026-04-24; หน้า staff summary/current บอกถูกว่า “ไม่มีกะที่เปิดอยู่” แต่ `POST /api/v2/gas/[stationId]/shift/open` ยังบล็อกเพราะเช็ก `OPEN` shift ทั้ง station โดยไม่ scope วันที่

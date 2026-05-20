@@ -176,7 +176,8 @@ export async function GET(
                     endReading: m.endReading !== null ? Number(m.endReading) : null,
                     soldQty: m.soldQty !== null ? Number(m.soldQty) : null
                 })),
-                gasPrice: dailyGasPrice
+                gasPrice: dailyGasPrice,
+                sales
             };
 
             if (detailed) {

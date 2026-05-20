@@ -38,6 +38,15 @@ interface ShiftData {
     gasPrice: number;
 }
 
+const EMPTY_SALES: ShiftData['sales'] = {
+    cash: 0,
+    credit: 0,
+    card: 0,
+    transfer: 0,
+    total: 0,
+    liters: 0,
+};
+
 function parseAmount(value: string): number {
     if (!value.trim()) {
         return 0;
@@ -82,13 +91,17 @@ export default function ShiftClosePage() {
                 if (res.ok) {
                     const data = await res.json();
                     if (data.shift && data.shift.status === 'OPEN') {
-                        setShift(data.shift);
+                        const sales = data.shift.sales || data.sales || EMPTY_SALES;
+                        setShift({
+                            ...data.shift,
+                            sales,
+                        });
 
                         // Pre-fill reconciliation from sales
-                        setCashReceived(String(data.sales?.cash || 0));
-                        setCreditReceived(String(data.sales?.credit || 0));
-                        setCardReceived(String(data.sales?.card || 0));
-                        setTransferReceived(String(data.sales?.transfer || 0));
+                        setCashReceived(String(sales.cash || 0));
+                        setCreditReceived(String(sales.credit || 0));
+                        setCardReceived(String(sales.card || 0));
+                        setTransferReceived(String(sales.transfer || 0));
                     }
                 }
             } catch (error) {
@@ -241,7 +254,7 @@ export default function ShiftClosePage() {
     const previewOtherExpensesAmount = parsePreviewAmount(otherExpensesAmount);
     const previewExpectedNetCashToSubmit = shift
         ? Number((
-            shift.sales.cash
+            (shift.sales?.cash || 0)
             + previewNonGasSalesAmount
             - previewOtherExpensesAmount
         ).toFixed(2))
