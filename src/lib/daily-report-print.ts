@@ -480,131 +480,138 @@ export function printDailyWorkReport({
             background: #ffffff;
             padding: 0;
             margin: 0;
-            font-size: 9.5px;
-            line-height: 1.4;
+            font-size: 8.5px;
+            line-height: 1.3;
         }
         .sheet {
-            padding: 6mm;
+            padding: 5mm;
             max-width: 297mm;
             margin: 0 auto;
         }
-        .header {
+        .header-compact {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 16px;
-            margin-bottom: 12px;
-            padding: 12px 16px;
-            border: 1px solid #e2e8f0;
+            gap: 12px;
+            margin-bottom: 8px;
+            padding: 8px 12px;
+            border: 1px solid #cbd5e1;
             border-left: 5px solid #f97316;
-            border-radius: 8px;
+            border-radius: 6px;
             background: #f8fafc;
         }
-        .header h1 {
-            margin: 0 0 4px;
-            font-size: 20px;
+        .header-compact h1 {
+            margin: 0 0 2px;
+            font-size: 16px;
             font-weight: 800;
             color: #0f172a;
             letter-spacing: -0.2px;
         }
-        .header p {
+        .header-compact p {
             margin: 0;
             color: #64748b;
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 500;
         }
-        .header .total {
+        .header-compact .total {
             text-align: right;
-            min-width: 180px;
         }
-        .header .total-label {
+        .header-compact .total-label {
             color: #64748b;
-            font-size: 9.5px;
+            font-size: 8px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-bottom: 2px;
         }
-        .header .total-value {
-            font-size: 24px;
+        .header-compact .total-value {
+            font-size: 20px;
             font-weight: 800;
             color: #f97316;
         }
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(5, minmax(0, 1fr));
-            gap: 8px;
-            margin-bottom: 10px;
+        .dashboard-layout {
+            display: flex;
+            gap: 10px;
         }
-        .summary-card {
+        .left-col {
+            flex: 4.3;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .right-col {
+            flex: 5.7;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 6px;
+        }
+        .stats-grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 6px;
+        }
+        .stat-card {
             border: 1px solid #e2e8f0;
             border-top: 3px solid #cbd5e1;
-            border-radius: 8px;
-            padding: 8px 10px;
+            border-radius: 6px;
+            padding: 4px 6px;
             background: #ffffff;
-            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02);
-            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.01);
         }
-        .summary-card.card-primary {
-            border-top-color: #f97316;
-        }
-        .summary-card.card-success {
-            border-top-color: #16a34a;
-        }
-        .summary-card.card-danger {
+        .stat-card.card-primary { border-top-color: #f97316; }
+        .stat-card.card-success { border-top-color: #16a34a; }
+        .stat-card.card-danger {
             border-top-color: #dc2626;
             background: #fef2f2;
         }
-        .summary-card .label {
+        .stat-card .label {
             color: #64748b;
-            font-size: 9px;
-            margin-bottom: 3px;
+            font-size: 8px;
+            margin-bottom: 1px;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.2px;
         }
-        .summary-card .value {
-            font-size: 15px;
+        .stat-card .value {
+            font-size: 12px;
             font-weight: 800;
             color: #0f172a;
         }
-        .summary-card .value.text-success {
-            color: #16a34a;
-        }
-        .summary-card .value.text-danger {
-            color: #dc2626;
-        }
+        .stat-card .value.text-success { color: #16a34a; }
+        .stat-card .value.text-danger { color: #dc2626; }
+
         .payment-summary-container {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin: 6px 0 12px;
-            padding: 8px 12px;
             border: 1px solid #e2e8f0;
-            border-radius: 8px;
+            border-radius: 6px;
             background: #f8fafc;
+            padding: 5px 8px;
         }
         .payment-title {
             font-weight: 800;
-            font-size: 10px;
+            font-size: 8.5px;
             color: #334155;
-            white-space: nowrap;
+            margin-bottom: 3px;
+            display: block;
         }
         .payment-chips {
             display: flex;
-            gap: 8px;
+            gap: 4px;
             flex-wrap: wrap;
         }
         .payment-chip {
             display: flex;
             align-items: center;
-            gap: 5px;
-            padding: 4px 10px;
+            gap: 4px;
+            padding: 2px 6px;
             background: #ffffff;
             border: 1px solid #cbd5e1;
-            border-radius: 6px;
-            font-size: 9.5px;
-            box-shadow: 0 1px 1px 0 rgba(0,0,0,0.02);
+            border-radius: 4px;
+            font-size: 8px;
         }
         .chip-label {
             font-weight: 700;
@@ -612,7 +619,7 @@ export function printDailyWorkReport({
         }
         .chip-count {
             color: #64748b;
-            font-size: 8.5px;
+            font-size: 7.5px;
         }
         .chip-value {
             font-weight: 800;
@@ -622,17 +629,16 @@ export function printDailyWorkReport({
             font-weight: 600;
             color: #475569;
             border-left: 1px solid #e2e8f0;
-            padding-left: 5px;
+            padding-left: 4px;
         }
         .reconcile-line {
-            margin: 0 0 12px;
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 10px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 8px;
             font-weight: 700;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
         }
         .reconcile-line.ok {
             background: #f0fdf4;
@@ -644,32 +650,28 @@ export function printDailyWorkReport({
             color: #991b1b;
             border: 1px solid #fecaca;
         }
-        .reconcile-line .icon {
-            font-size: 12px;
-        }
         .section-title {
-            margin: 14px 0 6px;
-            font-size: 11px;
+            margin: 4px 0 2px;
+            font-size: 9.5px;
             font-weight: 800;
             color: #0f172a;
-            border-left: 4px solid #f97316;
-            padding-left: 8px;
-            line-height: 1.2;
+            border-left: 3px solid #f97316;
+            padding-left: 6px;
+            line-height: 1.1;
             text-transform: uppercase;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 8.7px;
-            page-break-inside: auto;
+            font-size: 7.8px;
             border: 1px solid #e2e8f0;
-            border-radius: 6px;
+            border-radius: 4px;
             overflow: hidden;
         }
         th, td {
             border-bottom: 1px solid #e2e8f0;
             border-right: 1px solid #e2e8f0;
-            padding: 4px 6px;
+            padding: 3px 4px;
             vertical-align: middle;
         }
         th:last-child, td:last-child {
@@ -681,7 +683,6 @@ export function printDailyWorkReport({
             text-align: left;
             font-weight: 700;
             border-bottom: 2px solid #cbd5e1;
-            padding: 6px;
         }
         .text-center { text-align: center; }
         .text-right { text-align: right; }
@@ -696,20 +697,19 @@ export function printDailyWorkReport({
         }
         .total-row td {
             border-bottom: 2px solid #fdba74;
-            padding: 6px;
         }
         .empty-state {
             text-align: center;
             color: #64748b;
-            padding: 14px 8px;
+            padding: 8px;
             font-weight: 500;
         }
         .badge {
             display: inline-block;
-            padding: 2px 6px;
-            font-size: 8px;
+            padding: 1px 4px;
+            font-size: 7px;
             font-weight: 700;
-            border-radius: 4px;
+            border-radius: 3px;
             text-transform: uppercase;
         }
         .badge-CASH { background: #e0f2fe; color: #0369a1; }
@@ -719,21 +719,17 @@ export function printDailyWorkReport({
         .badge-BOX_TRUCK { background: #fef3c7; color: #92400e; }
         .badge-OIL_TRUCK_SUPACHAI { background: #ffedd5; color: #c2410c; }
         .footer {
-            margin-top: 10px;
+            margin-top: 6px;
             color: #94a3b8;
-            font-size: 8px;
+            font-size: 7.5px;
             text-align: right;
             border-top: 1px dashed #e2e8f0;
-            padding-top: 6px;
-        }
-        .avoid-break {
-            break-inside: avoid;
-            page-break-inside: avoid;
+            padding-top: 4px;
         }
         @media print {
             @page {
                 size: A4 landscape;
-                margin: 5mm;
+                margin: 4mm 5mm;
             }
             .sheet { padding: 0; }
             body { background: #ffffff; }
@@ -742,7 +738,7 @@ export function printDailyWorkReport({
 </head>
 <body>
     <div class="sheet">
-    <div class="header">
+    <div class="header-compact">
         <div>
             <h1>${escapeHtml(stationName)}</h1>
             <p>รายงานสรุปการทำงานทั้งวัน ประจำวันที่ ${escapeHtml(formatReportDate(reportDate))}</p>
@@ -753,103 +749,108 @@ export function printDailyWorkReport({
         </div>
     </div>
 
-    <div class="summary-grid">
-        <div class="summary-card card-primary">
-            <div class="label">จำนวนรายการเติม</div>
-            <div class="value">${escapeHtml(sortedTransactions.length)}</div>
-        </div>
-        <div class="summary-card">
-            <div class="label">รวมปริมาณลิตร (เติม)</div>
-            <div class="value">${escapeHtml(formatCurrency(totalLiters))} L</div>
-        </div>
-        <div class="summary-card">
-            <div class="label">รวมปริมาณลิตร (มิเตอร์)</div>
-            <div class="value">${escapeHtml(formatCurrency(totalMeterLiters))} L</div>
-        </div>
-        <div class="summary-card">
-            <div class="label">ยอดเงินตามมิเตอร์</div>
-            <div class="value">${hasMeterAmount ? `${escapeHtml(formatCurrency(totalMeterAmount))} ฿` : '-'}</div>
-        </div>
-        <div class="summary-card ${diffOk ? 'card-success' : 'card-danger'}">
-            <div class="label">ผลต่างลิตร (รายการ - มิเตอร์)</div>
-            <div class="value ${diffOk ? 'text-success' : 'text-danger'}">
-                ${litersDiff > 0 ? '+' : ''}${escapeHtml(formatCurrency(litersDiff))} L
+    <div class="dashboard-layout">
+        <div class="left-col">
+            <div class="stats-grid">
+                <div class="stat-card card-primary">
+                    <div class="label">จำนวนรายการเติม</div>
+                    <div class="value">${escapeHtml(sortedTransactions.length)}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">รวมปริมาณลิตร (เติม)</div>
+                    <div class="value">${escapeHtml(formatCurrency(totalLiters))} L</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">รวมปริมาณลิตร (มิเตอร์)</div>
+                    <div class="value">${escapeHtml(formatCurrency(totalMeterLiters))} L</div>
+                </div>
             </div>
-        </div>
-    </div>
-
-    <div class="payment-summary-container">
-        <span class="payment-title">สรุปการชำระเงิน:</span>
-        <div class="payment-chips">
-            ${Object.entries(paymentTotals)
-                .sort(([left], [right]) => getPaymentLabel(left).localeCompare(getPaymentLabel(right), 'th'))
-                .map(([paymentType, total]) => `
-                    <div class="payment-chip">
-                        <span class="chip-label">${escapeHtml(getPaymentLabel(paymentType))}</span>
-                        <span class="chip-count">(${escapeHtml(total.count)} รายการ)</span>
-                        <span class="chip-value">${escapeHtml(formatCurrency(total.amount))} ฿</span>
-                        <span class="chip-liters">${escapeHtml(formatCurrency(total.liters))} L</span>
+            <div class="stats-grid-2">
+                <div class="stat-card">
+                    <div class="label">ยอดเงินตามมิเตอร์</div>
+                    <div class="value">${hasMeterAmount ? `${escapeHtml(formatCurrency(totalMeterAmount))} ฿` : '-'}</div>
+                </div>
+                <div class="stat-card ${diffOk ? 'card-success' : 'card-danger'}">
+                    <div class="label">ผลต่างลิตร (เติม - มิเตอร์)</div>
+                    <div class="value ${diffOk ? 'text-success' : 'text-danger'}">
+                        ${litersDiff > 0 ? '+' : ''}${escapeHtml(formatCurrency(litersDiff))} L
                     </div>
-                `).join('') || '<div class="payment-chip"><span class="chip-label">ไม่มีรายการชำระ</span></div>'}
+                </div>
+            </div>
+
+            <div class="payment-summary-container">
+                <span class="payment-title">สรุปการชำระเงิน</span>
+                <div class="payment-chips">
+                    ${Object.entries(paymentTotals)
+                        .sort(([left], [right]) => getPaymentLabel(left).localeCompare(getPaymentLabel(right), 'th'))
+                        .map(([paymentType, total]) => `
+                            <div class="payment-chip">
+                                <span class="chip-label">${escapeHtml(getPaymentLabel(paymentType))}</span>
+                                <span class="chip-count">(${escapeHtml(total.count)} รายการ)</span>
+                                <span class="chip-value">${escapeHtml(formatCurrency(total.amount))} ฿</span>
+                                <span class="chip-liters">${escapeHtml(formatCurrency(total.liters))} L</span>
+                            </div>
+                        `).join('') || '<div class="payment-chip"><span class="chip-label">ไม่มีรายการชำระ</span></div>'}
+                </div>
+            </div>
+
+            <div class="reconcile-line ${diffOk ? 'ok' : 'warn'}">
+                <span>กระทบยอดมิเตอร์: ยอดเติม ${escapeHtml(formatCurrency(totalLiters))} L - มิเตอร์ ${escapeHtml(formatCurrency(totalMeterLiters))} L = <strong>${litersDiff > 0 ? '+' : ''}${escapeHtml(formatCurrency(litersDiff))} L</strong> ${diffOk ? '(ยอดตรงกัน)' : '(ตรวจสอบด่วน)'}</span>
+            </div>
+
+            <div class="section-title">เลขเปิด-ปิดมิเตอร์ (Meter Readings)</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th class="text-center" style="width: 8%">หัวจ่าย</th>
+                        <th style="width: 20%">ประเภทน้ำมัน</th>
+                        <th class="text-right" style="width: 17%">เปิด</th>
+                        <th class="text-right" style="width: 17%">ปิด</th>
+                        <th class="text-right" style="width: 12%">ลิตร</th>
+                        <th class="text-right" style="width: 11%">ราคา/ลิตร</th>
+                        <th class="text-right" style="width: 15%">รวมเงิน (บาท)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${meterRows}
+                    <tr class="total-row">
+                        <td colspan="4">รวมยอดจากมิเตอร์ทั้งหมด</td>
+                        <td class="text-right">${escapeHtml(formatCurrency(totalMeterLiters))} L</td>
+                        <td></td>
+                        <td class="text-right">${hasMeterAmount ? `${escapeHtml(formatCurrency(totalMeterAmount))} ฿` : '-'}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="right-col">
+            <div class="section-title">รายการเติมเงินทั้งหมด (Transactions)</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th class="text-center" style="width: 5%">ลำดับ</th>
+                        <th class="text-center" style="width: 7%">เวลา</th>
+                        <th class="text-center" style="width: 12%">เล่ม / เลขบิล</th>
+                        <th style="width: 10%">ทะเบียน</th>
+                        <th style="width: 20%">ชื่อลูกค้า / สังกัด</th>
+                        <th style="width: 12%">น้ำมัน</th>
+                        <th class="text-right" style="width: 10%">ลิตร</th>
+                        <th class="text-right" style="width: 12%">ยอดเงิน (บาท)</th>
+                        <th class="text-center" style="width: 12%">ชำระเงิน</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${transactionRows}
+                    <tr class="total-row">
+                        <td colspan="6">รวมยอดจากรายการทั้งหมด</td>
+                        <td class="text-right">${escapeHtml(formatCurrency(totalLiters))} L</td>
+                        <td class="text-right">${escapeHtml(formatCurrency(totalAmount))} ฿</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
-
-    <div class="reconcile-line ${diffOk ? 'ok' : 'warn'}">
-        <span class="icon">${diffOk ? '✓' : '⚠️'}</span>
-        <span>กระทบยอดมิเตอร์: ยอดรวมรายการเติม ${escapeHtml(formatCurrency(totalLiters))} L - ยอดมิเตอร์ ${escapeHtml(formatCurrency(totalMeterLiters))} L = <strong>${litersDiff > 0 ? '+' : ''}${escapeHtml(formatCurrency(litersDiff))} L</strong> ${diffOk ? '(ยอดตรงกันตามกำหนด)' : '(ตรวจสอบพบส่วนต่างเกินเกณฑ์)'}</span>
-    </div>
-
-    <div class="avoid-break">
-        <div class="section-title">เลขเปิด-ปิดมิเตอร์ (Meter Readings)</div>
-        <table>
-            <thead>
-                <tr>
-                    <th class="text-center" style="width: 6%">หัวจ่าย</th>
-                    <th style="width: 20%">ประเภทน้ำมัน</th>
-                    <th class="text-right" style="width: 18%">เลขเริ่มต้น (เปิด)</th>
-                    <th class="text-right" style="width: 18%">เลขสุดท้าย (ปิด)</th>
-                    <th class="text-right" style="width: 12%">รวมปริมาณ (ลิตร)</th>
-                    <th class="text-right" style="width: 11%">ราคาขาย/ลิตร</th>
-                    <th class="text-right" style="width: 15%">ยอดรวมเงิน (บาท)</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${meterRows}
-                <tr class="total-row">
-                    <td colspan="4">รวมยอดจากหัวจ่ายมิเตอร์ทั้งหมด</td>
-                    <td class="text-right">${escapeHtml(formatCurrency(totalMeterLiters))} L</td>
-                    <td></td>
-                    <td class="text-right">${hasMeterAmount ? `${escapeHtml(formatCurrency(totalMeterAmount))} ฿` : '-'}</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-
-    <div class="section-title">รายการเติมเงินทั้งหมด (Transactions)</div>
-    <table>
-        <thead>
-            <tr>
-                <th class="text-center" style="width: 5%">ลำดับ</th>
-                <th class="text-center" style="width: 7%">เวลา</th>
-                <th class="text-center" style="width: 13%">เล่ม / เลขที่บิล</th>
-                <th style="width: 12%">ทะเบียนรถ</th>
-                <th style="width: 20%">ชื่อเจ้าของ / สังกัด</th>
-                <th style="width: 13%">ประเภทน้ำมัน</th>
-                <th class="text-right" style="width: 10%">ปริมาณ (ลิตร)</th>
-                <th class="text-right" style="width: 10%">ยอดเงิน (บาท)</th>
-                <th class="text-center" style="width: 10%">ประเภทชำระ</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${transactionRows}
-            <tr class="total-row">
-                <td colspan="6">รวมยอดจากรายการเติมทั้งหมด</td>
-                <td class="text-right">${escapeHtml(formatCurrency(totalLiters))} L</td>
-                <td class="text-right">${escapeHtml(formatCurrency(totalAmount))} ฿</td>
-                <td></td>
-            </tr>
-        </tbody>
-    </table>
 
     <div class="footer">รายงานสรุปวัน • พิมพ์เมื่อ ${escapeHtml(new Date().toLocaleString('th-TH'))}</div>
     </div>
