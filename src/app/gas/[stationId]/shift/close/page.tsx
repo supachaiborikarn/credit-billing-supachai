@@ -239,11 +239,13 @@ export default function ShiftClosePage() {
     const expectedFuelAmount = calculateExpected();
     const previewNonGasSalesAmount = parsePreviewAmount(nonGasSalesAmount);
     const previewOtherExpensesAmount = parsePreviewAmount(otherExpensesAmount);
-    const previewExpectedNetCashToSubmit = Number((
-        shift.sales.cash
-        + previewNonGasSalesAmount
-        - previewOtherExpensesAmount
-    ).toFixed(2));
+    const previewExpectedNetCashToSubmit = shift
+        ? Number((
+            shift.sales.cash
+            + previewNonGasSalesAmount
+            - previewOtherExpensesAmount
+        ).toFixed(2))
+        : 0;
 
     if (loading) {
         return (
