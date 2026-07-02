@@ -10,6 +10,10 @@ import {
     serializeGasSupply,
     summarizeGasSupplies,
 } from '@/lib/gas/supply-utils';
+import {
+    buildStationStockForecast,
+    buildSupplyGaugeChecks,
+} from '@/lib/gas/stock-utils';
 import { resolveGasStation } from '@/lib/gas/station-resolver';
 import { prisma } from '@/lib/prisma';
 
@@ -61,12 +65,35 @@ export async function GET(request: NextRequest) {
                 };
             });
 
+        // ตรวจเทียบใบส่งกับเดลต้าเกจ + คาดการณ์สต็อกของแต่ละปั๊ม
+        const [gaugeChecks, stockForecasts] = await Promise.all([
+            buildSupplyGaugeChecks(supplies.map((supply) => ({
+                stationId: supply.stationId,
+                date: supply.date,
+                liters: supply.liters,
+            }))),
+            Promise.all(
+                Array.from(gasStationNameById.keys()).map(async (gasStationId) => ({
+                    stationName: gasStationNameById.get(gasStationId) ?? gasStationId,
+                    ...(await buildStationStockForecast(gasStationId)),
+                }))
+            ),
+        ]);
+
+        const suppliesWithGaugeCheck = supplies.map((supply) => ({
+            ...supply,
+            gaugeCheck: gaugeChecks.get(
+                `${supply.stationId}:${supply.date.split('T')[0]}`
+            ) ?? null,
+        }));
+
         return NextResponse.json({
             from: fromKey,
             to: toKey,
-            supplies,
+            supplies: suppliesWithGaugeCheck,
             summary: summarizeGasSupplies(supplies),
             stationSummary,
+            stockForecasts,
         });
     } catch (error) {
         console.error('[Admin Gas Supplies GET]:', error);

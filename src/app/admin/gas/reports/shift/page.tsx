@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Loader2, Clock, Download, Search, Eye, Edit2, Check, X } from 'lucide-react';
 import { formatCurrency, formatThaiTime, getGasBusinessDateKey, getShiftName, getVarianceColorClass, getVarianceText } from '@/lib/gas';
+import DateRangePresets from '@/app/admin/gas/components/DateRangePresets';
 
 interface ShiftReport {
     id: string;
@@ -33,6 +34,9 @@ interface ShiftReport {
         expectedFuelAmount: number;
         expectedOtherAmount: number;
         nonGasSalesAmount: number;
+        productSalesAmount?: number;
+        productTransferAmount?: number;
+        otherIncomeAmount?: number;
         otherExpensesAmount: number;
         expected: number;
         received: number;
@@ -272,6 +276,14 @@ export default function ShiftReportPage() {
                             value={toDate}
                             onChange={(e) => setToDate(e.target.value)}
                             className="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2"
+                        />
+                    </div>
+
+                    <div className="pb-1">
+                        <DateRangePresets
+                            fromDate={fromDate}
+                            toDate={toDate}
+                            onSelect={(from, to) => { setFromDate(from); setToDate(to); }}
                         />
                     </div>
 
@@ -531,6 +543,24 @@ export default function ShiftReportPage() {
                                             <div className="space-y-1">
                                                 <div className="flex justify-between"><span>แก๊สจากมิเตอร์</span><span className="font-mono">฿{formatCurrency(selectedShift.reconciliation.expectedFuelAmount)}</span></div>
                                                 <div className="flex justify-between"><span>ขายอื่น</span><span className="font-mono text-amber-300">฿{formatCurrency(selectedShift.reconciliation.nonGasSalesAmount)}</span></div>
+                                                {(selectedShift.reconciliation.productSalesAmount ?? 0) > 0 && (
+                                                    <>
+                                                        <div className="flex justify-between pl-3 text-xs text-gray-400">
+                                                            <span>• สินค้า (นับสต็อก)</span>
+                                                            <span className="font-mono">฿{formatCurrency(selectedShift.reconciliation.productSalesAmount ?? 0)}</span>
+                                                        </div>
+                                                        {(selectedShift.reconciliation.productTransferAmount ?? 0) > 0 && (
+                                                            <div className="flex justify-between pl-6 text-xs text-cyan-300">
+                                                                <span>รับโอน/สแกน</span>
+                                                                <span className="font-mono">฿{formatCurrency(selectedShift.reconciliation.productTransferAmount ?? 0)}</span>
+                                                            </div>
+                                                        )}
+                                                        <div className="flex justify-between pl-3 text-xs text-gray-400">
+                                                            <span>• รายรับอื่น</span>
+                                                            <span className="font-mono">฿{formatCurrency(selectedShift.reconciliation.otherIncomeAmount ?? 0)}</span>
+                                                        </div>
+                                                    </>
+                                                )}
                                                 <div className="flex justify-between"><span>หักค่าใช้จ่าย</span><span className="font-mono text-red-300">฿{formatCurrency(selectedShift.reconciliation.otherExpensesAmount)}</span></div>
                                                 <div className="my-2 border-t border-white/10" />
                                                 <div className="flex justify-between"><span>เงินสด</span><span className="font-mono">฿{formatCurrency(selectedShift.reconciliation.cashExpected)}</span></div>

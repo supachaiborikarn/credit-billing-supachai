@@ -16,7 +16,9 @@ import {
     Smartphone,
     AlertTriangle,
     ReceiptText,
-    ShoppingBag
+    ShoppingBag,
+    PlusCircle,
+    QrCode
 } from 'lucide-react';
 import {
     formatCurrency,
@@ -36,6 +38,16 @@ interface ShiftData {
     gauge: { start: { tankNumber: number; percentage: number }[]; end: { tankNumber: number; percentage: number }[] };
     sales: { cash: number; credit: number; card: number; transfer: number; total: number; liters: number };
     gasPrice: number;
+}
+
+interface ProductCountRow {
+    productId: string;
+    name: string;
+    unit: string;
+    salePrice: number;
+    openingQty: number; // ยกมา (สต็อกปัจจุบันในระบบ)
+    received: string;   // รับเข้าระหว่างกะ
+    closingQty: string; // นับคงเหลือตอนปิดกะ
 }
 
 const EMPTY_SALES: ShiftData['sales'] = {
@@ -61,6 +73,27 @@ function parsePreviewAmount(value: string): number {
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
 }
 
+function parseQty(value: string): number {
+    if (!value.trim()) {
+        return 0;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : NaN;
+}
+
+function isValidQty(value: string): boolean {
+    const parsed = parseQty(value);
+    return Number.isFinite(parsed) && parsed >= 0 && Number.isInteger(parsed);
+}
+
+function calcSoldQty(row: ProductCountRow): number {
+    const received = parseQty(row.received);
+    const closing = parseQty(row.closingQty);
+    if (!Number.isFinite(received) || !Number.isFinite(closing)) return 0;
+    return row.openingQty + received - closing;
+}
+
 export default function ShiftClosePage() {
     const params = useParams();
     const router = useRouter();
@@ -71,19 +104,26 @@ export default function ShiftClosePage() {
     const [success, setSuccess] = useState(false);
     const [shift, setShift] = useState<ShiftData | null>(null);
 
+    // Product stock count (เครื่องดื่ม/สินค้าอื่น)
+    const [productsEnabled, setProductsEnabled] = useState(false);
+    const [productRows, setProductRows] = useState<ProductCountRow[]>([]);
+
     // Reconciliation form
     const [cashReceived, setCashReceived] = useState<string>('');
     const [creditReceived, setCreditReceived] = useState<string>('');
     const [cardReceived, setCardReceived] = useState<string>('');
     const [transferReceived, setTransferReceived] = useState<string>('');
-    const [nonGasSalesAmount, setNonGasSalesAmount] = useState<string>('');
+    const [productTransferAmount, setProductTransferAmount] = useState<string>('');
+    const [otherIncomeAmount, setOtherIncomeAmount] = useState<string>('');
+    const [otherIncomeNote, setOtherIncomeNote] = useState<string>('');
     const [otherExpensesAmount, setOtherExpensesAmount] = useState<string>('');
+    const [otherExpenseNote, setOtherExpenseNote] = useState<string>('');
     const [varianceNote, setVarianceNote] = useState<string>('');
 
     const [errors, setErrors] = useState<string[]>([]);
     const [warnings, setWarnings] = useState<string[]>([]);
 
-    // Fetch shift data
+    // Fetch shift data + product inventory
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -104,6 +144,29 @@ export default function ShiftClosePage() {
                         setTransferReceived(String(sales.transfer || 0));
                     }
                 }
+
+                // โหลดรายการสินค้า (ถ้าสาขาเปิดใช้งานสินค้าเสริม)
+                const productRes = await fetch(`/api/gas-station/${stationId}/products`);
+                if (productRes.ok) {
+                    const inventory = await productRes.json();
+                    if (Array.isArray(inventory) && inventory.length > 0) {
+                        setProductsEnabled(true);
+                        setProductRows(inventory.map((inv: {
+                            productId: string;
+                            product: { name: string; unit: string; salePrice: number };
+                            quantity: number;
+                        }) => ({
+                            productId: inv.productId,
+                            name: inv.product.name,
+                            unit: inv.product.unit,
+                            salePrice: Number(inv.product.salePrice),
+                            openingQty: inv.quantity,
+                            received: '',
+                            // เริ่มต้น = ยกมา (ขาย 0) พนักงานแก้ตามที่นับได้จริง
+                            closingQty: String(inv.quantity),
+                        })));
+                    }
+                }
             } catch (error) {
                 console.error('Error fetching shift data:', error);
             } finally {
@@ -112,6 +175,12 @@ export default function ShiftClosePage() {
         };
         fetchData();
     }, [stationId]);
+
+    const updateProductRow = (productId: string, field: 'received' | 'closingQty', value: string) => {
+        setProductRows(rows => rows.map(row =>
+            row.productId === productId ? { ...row, [field]: value } : row
+        ));
+    };
 
     // Calculate expected amount from meters
     const calculateExpected = (): number => {
@@ -126,8 +195,16 @@ export default function ShiftClosePage() {
         return totalLiters * (shift.gasPrice || 16.09);
     };
 
+    // ยอดขายสินค้ารวมจากการนับสต็อก
+    const productSalesTotal = Number(productRows.reduce((sum, row) => {
+        const sold = calcSoldQty(row);
+        return sold > 0 ? sum + sold * row.salePrice : sum;
+    }, 0).toFixed(2));
+
     const calculateExpectedOtherAmount = (): number => Number((
-        parsePreviewAmount(nonGasSalesAmount) - parsePreviewAmount(otherExpensesAmount)
+        productSalesTotal
+        + parsePreviewAmount(otherIncomeAmount)
+        - parsePreviewAmount(otherExpensesAmount)
     ).toFixed(2));
 
     // Validate before closing
@@ -147,23 +224,40 @@ export default function ShiftClosePage() {
             newErrors.push('ยังไม่ได้เช็คเกจปิดกะ');
         }
 
+        // Validate product stock counts
+        for (const row of productRows) {
+            if (!isValidQty(row.received) || !isValidQty(row.closingQty)) {
+                newErrors.push(`"${row.name}" จำนวนรับเข้า/คงเหลือต้องเป็นจำนวนเต็มไม่ติดลบ`);
+                continue;
+            }
+            if (calcSoldQty(row) < 0) {
+                newErrors.push(`"${row.name}" นับคงเหลือมากกว่า ยกมา + รับเข้า กรุณาตรวจสอบ`);
+            }
+        }
+
         const parsedCashReceived = parseAmount(cashReceived);
         const parsedCreditReceived = parseAmount(creditReceived);
         const parsedCardReceived = parseAmount(cardReceived);
         const parsedTransferReceived = parseAmount(transferReceived);
-        const parsedNonGasSalesAmount = parseAmount(nonGasSalesAmount);
+        const parsedProductTransferAmount = parseAmount(productTransferAmount);
+        const parsedOtherIncomeAmount = parseAmount(otherIncomeAmount);
         const parsedOtherExpensesAmount = parseAmount(otherExpensesAmount);
         const parsedAmounts = [
             parsedCashReceived,
             parsedCreditReceived,
             parsedCardReceived,
             parsedTransferReceived,
-            parsedNonGasSalesAmount,
+            parsedProductTransferAmount,
+            parsedOtherIncomeAmount,
             parsedOtherExpensesAmount,
         ];
 
         if (parsedAmounts.some((amount) => !Number.isFinite(amount) || amount < 0)) {
-            newErrors.push('ยอดเงินรับจริง ยอดขายอื่น และค่าใช้จ่ายต้องเป็นตัวเลขไม่ติดลบ');
+            newErrors.push('ยอดเงินรับจริง รายรับอื่น และค่าใช้จ่ายต้องเป็นตัวเลขไม่ติดลบ');
+        }
+
+        if (Number.isFinite(parsedProductTransferAmount) && parsedProductTransferAmount > productSalesTotal) {
+            newErrors.push('ยอดสินค้าที่รับโอน/สแกนต้องไม่เกินยอดขายสินค้ารวม');
         }
 
         // Validate amounts
@@ -178,7 +272,8 @@ export default function ShiftClosePage() {
 
         // Calculate variance
         const expected = calculateExpected()
-            + (Number.isFinite(parsedNonGasSalesAmount) ? parsedNonGasSalesAmount : 0)
+            + productSalesTotal
+            + (Number.isFinite(parsedOtherIncomeAmount) ? parsedOtherIncomeAmount : 0)
             - (Number.isFinite(parsedOtherExpensesAmount) ? parsedOtherExpensesAmount : 0);
         const received = parsedAmounts.every((amount) => Number.isFinite(amount))
             ? parsedCashReceived + parsedCreditReceived + parsedCardReceived + parsedTransferReceived
@@ -216,8 +311,16 @@ export default function ShiftClosePage() {
                         transferReceived: parseAmount(transferReceived),
                         expectedFuelAmount: calculateExpected(),
                         expectedOtherAmount: calculateExpectedOtherAmount(),
-                        nonGasSalesAmount: parseAmount(nonGasSalesAmount),
+                        products: productRows.map(row => ({
+                            productId: row.productId,
+                            received: parseQty(row.received),
+                            closingQty: parseQty(row.closingQty),
+                        })),
+                        productTransferAmount: parseAmount(productTransferAmount),
+                        otherIncomeAmount: parseAmount(otherIncomeAmount),
+                        otherIncomeNote,
                         otherExpensesAmount: parseAmount(otherExpensesAmount),
+                        otherExpenseNote,
                         varianceNote
                     }
                 })
@@ -250,12 +353,15 @@ export default function ShiftClosePage() {
         expectedOtherAmount: calculateExpectedOtherAmount()
     });
     const expectedFuelAmount = calculateExpected();
-    const previewNonGasSalesAmount = parsePreviewAmount(nonGasSalesAmount);
+    const previewProductTransferAmount = Math.min(parsePreviewAmount(productTransferAmount), productSalesTotal);
+    const previewOtherIncomeAmount = parsePreviewAmount(otherIncomeAmount);
     const previewOtherExpensesAmount = parsePreviewAmount(otherExpensesAmount);
+    // เงินสดควรส่ง = เงินสดค่าแก๊ส + (ยอดสินค้า - ส่วนที่รับโอน) + รายรับอื่น - ค่าใช้จ่าย
     const previewExpectedNetCashToSubmit = shift
         ? Number((
             (shift.sales?.cash || 0)
-            + previewNonGasSalesAmount
+            + (productSalesTotal - previewProductTransferAmount)
+            + previewOtherIncomeAmount
             - previewOtherExpensesAmount
         ).toFixed(2))
         : 0;
@@ -358,6 +464,98 @@ export default function ShiftClosePage() {
                 </div>
             )}
 
+            {/* Product Stock Count (เครื่องดื่ม/สินค้าอื่น) */}
+            {productsEnabled && productRows.length > 0 && (
+                <div className="bg-[#1a1a24] rounded-xl p-4 mb-4 border border-white/10">
+                    <h3 className="font-medium mb-1 flex items-center gap-2 text-amber-400">
+                        <ShoppingBag size={18} />
+                        นับสต็อกสินค้า (เครื่องดื่ม/อื่นๆ)
+                    </h3>
+                    <p className="text-xs text-gray-500 mb-3">
+                        กรอก &quot;รับเข้า&quot; ถ้ามีของเข้าระหว่างกะ แล้วนับของจริงใส่ &quot;คงเหลือ&quot; ระบบจะคำนวณยอดขายให้
+                    </p>
+
+                    <div className="grid grid-cols-12 gap-2 text-[11px] text-gray-500 mb-1 px-1">
+                        <div className="col-span-4">สินค้า</div>
+                        <div className="col-span-2 text-center">ยกมา</div>
+                        <div className="col-span-2 text-center">รับเข้า</div>
+                        <div className="col-span-2 text-center">คงเหลือ</div>
+                        <div className="col-span-2 text-right">ขายได้</div>
+                    </div>
+
+                    <div className="space-y-2">
+                        {productRows.map((row) => {
+                            const sold = calcSoldQty(row);
+                            const invalid = !isValidQty(row.received) || !isValidQty(row.closingQty) || sold < 0;
+                            return (
+                                <div key={row.productId} className="grid grid-cols-12 gap-2 items-center">
+                                    <div className="col-span-4 min-w-0">
+                                        <div className="text-sm truncate">{row.name}</div>
+                                        <div className="text-[11px] text-gray-500">฿{formatCurrency(row.salePrice)}/{row.unit}</div>
+                                    </div>
+                                    <div className="col-span-2 text-center text-sm text-gray-300 font-mono">
+                                        {row.openingQty}
+                                    </div>
+                                    <div className="col-span-2">
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            inputMode="numeric"
+                                            value={row.received}
+                                            onChange={(e) => updateProductRow(row.productId, 'received', e.target.value)}
+                                            placeholder="0"
+                                            className="w-full bg-gray-800 border border-white/10 rounded-lg px-2 py-1.5 text-center text-sm font-mono focus:border-orange-500 focus:outline-none"
+                                        />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            inputMode="numeric"
+                                            value={row.closingQty}
+                                            onChange={(e) => updateProductRow(row.productId, 'closingQty', e.target.value)}
+                                            className={`w-full bg-gray-800 border rounded-lg px-2 py-1.5 text-center text-sm font-mono focus:outline-none ${invalid ? 'border-red-500/70 focus:border-red-500' : 'border-white/10 focus:border-orange-500'}`}
+                                        />
+                                    </div>
+                                    <div className={`col-span-2 text-right text-sm font-mono ${sold > 0 ? 'text-amber-300' : 'text-gray-500'} ${sold < 0 ? 'text-red-400' : ''}`}>
+                                        {sold}
+                                        {sold > 0 && (
+                                            <div className="text-[11px] text-gray-500">฿{formatCurrency(sold * row.salePrice)}</div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <div className="mt-3 pt-3 border-t border-white/10 flex justify-between items-center text-sm">
+                        <span className="text-gray-400">รวมยอดขายสินค้า</span>
+                        <span className="font-mono font-bold text-amber-300">฿{formatCurrency(productSalesTotal)}</span>
+                    </div>
+
+                    {productSalesTotal > 0 && (
+                        <div className="mt-3 flex items-center gap-3">
+                            <div className="w-40 flex items-center gap-2 text-cyan-400 text-sm">
+                                <QrCode size={16} />
+                                <span>ส่วนที่รับโอน/สแกน</span>
+                            </div>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                inputMode="decimal"
+                                value={productTransferAmount}
+                                onChange={(e) => setProductTransferAmount(e.target.value)}
+                                placeholder="0"
+                                className="flex-1 bg-gray-800 border border-white/10 rounded-lg px-4 py-2 text-right font-mono focus:border-orange-500 focus:outline-none"
+                            />
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Reconciliation Form */}
             <div className="bg-[#1a1a24] rounded-xl p-4 mb-4 border border-white/10">
                 <h3 className="font-medium mb-4">กระทบยอด</h3>
@@ -433,25 +631,35 @@ export default function ShiftClosePage() {
 
                     <div className="border-t border-white/10 pt-4 space-y-4">
                         <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                            รายการเพิ่มเติม
+                            รายรับอื่น / ค่าใช้จ่าย
                         </div>
 
                         <div className="flex items-center gap-3">
                             <div className="w-32 flex items-center gap-2 text-amber-400">
-                                <ShoppingBag size={18} />
-                                <span>ขายอื่น</span>
+                                <PlusCircle size={18} />
+                                <span>รายรับอื่น</span>
                             </div>
                             <input
                                 type="number"
                                 min="0"
                                 step="0.01"
                                 inputMode="decimal"
-                                value={nonGasSalesAmount}
-                                onChange={(e) => setNonGasSalesAmount(e.target.value)}
+                                value={otherIncomeAmount}
+                                onChange={(e) => setOtherIncomeAmount(e.target.value)}
                                 placeholder="0"
                                 className="flex-1 bg-gray-800 border border-white/10 rounded-lg px-4 py-2 text-right font-mono focus:border-orange-500 focus:outline-none"
                             />
                         </div>
+
+                        {parsePreviewAmount(otherIncomeAmount) > 0 && (
+                            <input
+                                type="text"
+                                value={otherIncomeNote}
+                                onChange={(e) => setOtherIncomeNote(e.target.value)}
+                                placeholder="รายรับอื่นจากอะไร เช่น ค่าเช่าพื้นที่..."
+                                className="w-full bg-gray-800 border border-white/10 rounded-lg px-4 py-2 text-sm focus:border-orange-500 focus:outline-none"
+                            />
+                        )}
 
                         <div className="flex items-center gap-3">
                             <div className="w-32 flex items-center gap-2 text-red-300">
@@ -469,6 +677,16 @@ export default function ShiftClosePage() {
                                 className="flex-1 bg-gray-800 border border-white/10 rounded-lg px-4 py-2 text-right font-mono focus:border-orange-500 focus:outline-none"
                             />
                         </div>
+
+                        {parsePreviewAmount(otherExpensesAmount) > 0 && (
+                            <input
+                                type="text"
+                                value={otherExpenseNote}
+                                onChange={(e) => setOtherExpenseNote(e.target.value)}
+                                placeholder="จ่ายค่าอะไร เช่น ค่าน้ำแข็ง ค่าไฟ..."
+                                className="w-full bg-gray-800 border border-white/10 rounded-lg px-4 py-2 text-sm focus:border-orange-500 focus:outline-none"
+                            />
+                        )}
                     </div>
                 </div>
             </div>
@@ -491,9 +709,15 @@ export default function ShiftClosePage() {
                         <span>ยอดแก๊สจากมิเตอร์</span>
                         <span className="font-mono text-gray-200">฿{formatCurrency(expectedFuelAmount)}</span>
                     </div>
+                    {productsEnabled && (
+                        <div className="flex justify-between">
+                            <span>+ ขายสินค้า (นับสต็อก)</span>
+                            <span className="font-mono text-amber-300">฿{formatCurrency(productSalesTotal)}</span>
+                        </div>
+                    )}
                     <div className="flex justify-between">
-                        <span>+ ยอดขายอื่นที่ไม่ใช่แก๊ส</span>
-                        <span className="font-mono text-amber-300">฿{formatCurrency(previewNonGasSalesAmount)}</span>
+                        <span>+ รายรับอื่น</span>
+                        <span className="font-mono text-amber-300">฿{formatCurrency(previewOtherIncomeAmount)}</span>
                     </div>
                     <div className="flex justify-between">
                         <span>- ค่าใช้จ่ายอื่นๆ</span>

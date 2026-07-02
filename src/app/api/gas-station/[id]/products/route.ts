@@ -67,7 +67,7 @@ export async function POST(
         const stationId = auth.station.dbId;
 
         const body = await request.json();
-        const { action, productId, quantity, alertLevel, paymentType } = body;
+        const { action, productId, quantity, alertLevel, paymentType, name, unit, salePrice, costPrice } = body;
         const normalizedPaymentType = normalizeGasPaymentType(paymentType || 'CASH');
         if (!normalizedPaymentType) {
             return NextResponse.json({ error: 'Invalid payment type' }, { status: 400 });
@@ -87,7 +87,111 @@ export async function POST(
             }
         });
 
-        if (action === 'add_to_inventory') {
+        if (action === 'create') {
+            // สร้างสินค้าใหม่พร้อมเพิ่มเข้าสต็อกสาขาในขั้นตอนเดียว
+            const trimmedName = typeof name === 'string' ? name.trim() : '';
+            const trimmedUnit = typeof unit === 'string' ? unit.trim() : '';
+            const parsedSalePrice = Number(salePrice);
+            const parsedCostPrice = costPrice !== undefined && costPrice !== null && costPrice !== ''
+                ? Number(costPrice)
+                : null;
+            const initialQty = Number(quantity) || 0;
+            const parsedAlertLevel = alertLevel !== undefined && alertLevel !== null && alertLevel !== ''
+                ? Number(alertLevel)
+                : null;
+
+            if (!trimmedName || !trimmedUnit) {
+                return NextResponse.json({ error: 'กรุณากรอกชื่อสินค้าและหน่วย' }, { status: 400 });
+            }
+            if (!Number.isFinite(parsedSalePrice) || parsedSalePrice <= 0) {
+                return NextResponse.json({ error: 'ราคาขายต้องมากกว่า 0' }, { status: 400 });
+            }
+            if (!Number.isInteger(initialQty) || initialQty < 0) {
+                return NextResponse.json({ error: 'จำนวนเริ่มต้นต้องเป็นจำนวนเต็มไม่ติดลบ' }, { status: 400 });
+            }
+
+            const inventory = await prisma.$transaction(async (tx) => {
+                const product = await tx.product.create({
+                    data: {
+                        name: trimmedName,
+                        unit: trimmedUnit,
+                        salePrice: parsedSalePrice,
+                        costPrice: Number.isFinite(parsedCostPrice ?? NaN) ? parsedCostPrice : null,
+                    }
+                });
+
+                const created = await tx.productInventory.create({
+                    data: {
+                        stationId: station.id,
+                        productId: product.id,
+                        quantity: initialQty,
+                        alertLevel: Number.isFinite(parsedAlertLevel ?? NaN) ? parsedAlertLevel : null,
+                    },
+                    include: { product: true }
+                });
+
+                if (initialQty > 0) {
+                    await tx.productReceipt.create({
+                        data: {
+                            productId: product.id,
+                            stationId: station.id,
+                            quantity: initialQty,
+                        }
+                    });
+                }
+
+                return created;
+            });
+
+            return NextResponse.json({
+                ...inventory,
+                product: {
+                    ...inventory.product,
+                    salePrice: Number(inventory.product.salePrice),
+                    costPrice: inventory.product.costPrice ? Number(inventory.product.costPrice) : null,
+                }
+            });
+
+        } else if (action === 'update') {
+            // แก้ไขราคาขาย/จุดแจ้งเตือนของสินค้า
+            const inventory = await prisma.productInventory.findFirst({
+                where: {
+                    stationId: station.id,
+                    productId,
+                }
+            });
+
+            if (!inventory) {
+                return NextResponse.json({ error: 'ไม่พบสินค้าในสต็อก' }, { status: 404 });
+            }
+
+            if (salePrice !== undefined) {
+                const parsedSalePrice = Number(salePrice);
+                if (!Number.isFinite(parsedSalePrice) || parsedSalePrice <= 0) {
+                    return NextResponse.json({ error: 'ราคาขายต้องมากกว่า 0' }, { status: 400 });
+                }
+                await prisma.product.update({
+                    where: { id: productId },
+                    data: { salePrice: parsedSalePrice }
+                });
+            }
+
+            if (alertLevel !== undefined) {
+                const parsedAlertLevel = alertLevel === null || alertLevel === ''
+                    ? null
+                    : Number(alertLevel);
+                if (parsedAlertLevel !== null && (!Number.isInteger(parsedAlertLevel) || parsedAlertLevel < 0)) {
+                    return NextResponse.json({ error: 'จุดแจ้งเตือนต้องเป็นจำนวนเต็มไม่ติดลบ' }, { status: 400 });
+                }
+                await prisma.productInventory.update({
+                    where: { id: inventory.id },
+                    data: { alertLevel: parsedAlertLevel }
+                });
+            }
+
+            return NextResponse.json({ success: true });
+
+        } else if (action === 'add_to_inventory') {
             // Add product to station inventory
             const existing = await prisma.productInventory.findFirst({
                 where: {

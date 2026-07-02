@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Loader2, Gauge, Search, Download } from 'lucide-react';
 import { getGasBusinessDateKey } from '@/lib/gas';
+import DateRangePresets from '@/app/admin/gas/components/DateRangePresets';
 
 interface GaugeReading {
     id: string;
@@ -73,6 +74,32 @@ export default function GaugeHistoryPage() {
         return 'text-red-400';
     };
 
+    // Export ข้อมูลตามฟิลเตอร์ที่เลือกอยู่ (ปั๊ม/ถัง/ช่วงวันที่)
+    const handleExportCSV = () => {
+        const rows = [
+            ['วันที่', 'ปั๊ม', 'กะ', 'ถัง', 'เปอร์เซ็นต์', 'จังหวะบันทึก', 'บันทึกเมื่อ'],
+            ...readings.map((r) => [
+                r.displayDate,
+                r.stationName,
+                `กะ ${r.shiftNumber}`,
+                `ถัง ${r.tankNumber}`,
+                String(r.percentage),
+                r.notes === 'start' ? 'เปิดกะ' : r.notes === 'end' ? 'ปิดกะ' : (r.notes || '-'),
+                new Date(r.createdAt).toLocaleString('th-TH'),
+            ]),
+        ];
+        const csv = rows
+            .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+            .join('\n');
+        const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `gauge-history-${fromDate}-to-${toDate}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -84,7 +111,9 @@ export default function GaugeHistoryPage() {
                 </div>
 
                 <button
-                    className="flex items-center gap-2 bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg text-sm"
+                    onClick={handleExportCSV}
+                    disabled={readings.length === 0}
+                    className="flex items-center gap-2 bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg text-sm disabled:opacity-50"
                 >
                     <Download size={18} />
                     Export CSV
@@ -139,6 +168,14 @@ export default function GaugeHistoryPage() {
                             value={toDate}
                             onChange={(e) => setToDate(e.target.value)}
                             className="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2"
+                        />
+                    </div>
+
+                    <div className="pb-1">
+                        <DateRangePresets
+                            fromDate={fromDate}
+                            toDate={toDate}
+                            onSelect={(from, to) => { setFromDate(from); setToDate(to); }}
                         />
                     </div>
 

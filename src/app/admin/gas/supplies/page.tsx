@@ -5,12 +5,43 @@ import {
     Download,
     Loader2,
     PackagePlus,
+    Pencil,
     RefreshCcw,
     Save,
     Search,
+    Trash2,
     Truck,
+    X,
 } from 'lucide-react';
 import { formatCurrency, getTodayBangkok } from '@/lib/gas';
+import { STATIONS } from '@/constants';
+
+interface SupplyGaugeCheck {
+    dateKey: string;
+    stationId: string;
+    startLiters: number | null;
+    endLiters: number | null;
+    soldLiters: number;
+    estimatedReceivedLiters: number | null;
+    invoiceLitersSameDay: number;
+    supplyCountSameDay: number;
+    diffLiters: number | null;
+    diffPercent: number | null;
+    status: 'OK' | 'WARN' | 'NO_GAUGE';
+}
+
+interface StockForecast {
+    stationId: string;
+    stationName: string;
+    currentStockLiters: number | null;
+    capacityLiters: number;
+    latestGaugeDateKey: string | null;
+    avgDailySoldLiters: number | null;
+    daysLeft: number | null;
+    projectedEmptyDateKey: string | null;
+    stockAlertLiters: number | null;
+    lowStock: boolean;
+}
 
 interface GasSupply {
     id: string;
@@ -25,6 +56,7 @@ interface GasSupply {
     totalCost: number | null;
     notes: string | null;
     createdAt: string;
+    gaugeCheck?: SupplyGaugeCheck | null;
 }
 
 interface SupplySummary {
@@ -39,10 +71,10 @@ interface StationSummary extends SupplySummary {
     stationName: string;
 }
 
-const GAS_STATIONS = [
-    { id: 'station-5', name: 'ปั๊มแก๊สพงษ์อนันต์' },
-    { id: 'station-6', name: 'ปั๊มแก๊สศุภชัย' },
-];
+// รายชื่อปั๊มแก๊สจากค่ากลาง (เพิ่มสาขาใหม่ที่ src/constants ที่เดียว)
+const GAS_STATIONS = STATIONS
+    .filter((station) => station.type === 'GAS')
+    .map((station) => ({ id: station.id, name: station.name }));
 
 const EMPTY_SUMMARY: SupplySummary = {
     totalLiters: 0,
@@ -68,10 +100,13 @@ export default function AdminGasSuppliesPage() {
     const [supplies, setSupplies] = useState<GasSupply[]>([]);
     const [summary, setSummary] = useState<SupplySummary>(EMPTY_SUMMARY);
     const [stationSummary, setStationSummary] = useState<StationSummary[]>([]);
+    const [stockForecasts, setStockForecasts] = useState<StockForecast[]>([]);
     const [stationId, setStationId] = useState('all');
     const [fromDate, setFromDate] = useState(getDefaultFromDate);
     const [toDate, setToDate] = useState(getTodayBangkok);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
     const [form, setForm] = useState({
         stationId: 'station-5',
         dateKey: getTodayBangkok(),
@@ -82,6 +117,11 @@ export default function AdminGasSuppliesPage() {
         totalCost: '',
         notes: '',
     });
+
+    // รายชื่อซัพพลายเออร์ที่เคยกรอก (autocomplete)
+    const supplierOptions = Array.from(
+        new Set(supplies.map((s) => s.supplier).filter((s): s is string => Boolean(s)))
+    );
 
     const estimatedTotalCost = (() => {
         const liters = parseInputNumber(form.liters);
@@ -106,6 +146,7 @@ export default function AdminGasSuppliesPage() {
             setSupplies(data.supplies || []);
             setSummary(data.summary || EMPTY_SUMMARY);
             setStationSummary(data.stationSummary || []);
+            setStockForecasts(data.stockForecasts || []);
         } catch (error) {
             setMessage({
                 type: 'error',
@@ -125,6 +166,36 @@ export default function AdminGasSuppliesPage() {
         setForm((current) => ({ ...current, [field]: value }));
     };
 
+    const resetForm = () => {
+        setEditingId(null);
+        setForm((current) => ({
+            ...current,
+            dateKey: getTodayBangkok(),
+            liters: '',
+            supplier: '',
+            invoiceNo: '',
+            pricePerLiter: '',
+            totalCost: '',
+            notes: '',
+        }));
+    };
+
+    const startEdit = (supply: GasSupply) => {
+        setEditingId(supply.id);
+        setForm({
+            stationId: supply.stationId,
+            dateKey: supply.date.split('T')[0] || supply.date,
+            liters: String(supply.liters),
+            supplier: supply.supplier || '',
+            invoiceNo: supply.invoiceNo || '',
+            pricePerLiter: supply.pricePerLiter !== null ? String(supply.pricePerLiter) : '',
+            totalCost: supply.totalCost !== null ? String(supply.totalCost) : '',
+            notes: supply.notes || '',
+        });
+        setMessage(null);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
     const handleSubmit = async () => {
         setMessage(null);
         const liters = parseInputNumber(form.liters);
@@ -135,8 +206,11 @@ export default function AdminGasSuppliesPage() {
 
         setSaving(true);
         try {
-            const res = await fetch('/api/v2/gas/admin/supplies', {
-                method: 'POST',
+            const url = editingId
+                ? `/api/v2/gas/admin/supplies/${editingId}`
+                : '/api/v2/gas/admin/supplies';
+            const res = await fetch(url, {
+                method: editingId ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...form,
@@ -150,17 +224,11 @@ export default function AdminGasSuppliesPage() {
                 throw new Error(data.error || 'บันทึกรับแก๊สไม่สำเร็จ');
             }
 
-            setMessage({ type: 'success', text: 'บันทึกข้อมูลรับแก๊สเรียบร้อย' });
-            setForm((current) => ({
-                ...current,
-                dateKey: getTodayBangkok(),
-                liters: '',
-                supplier: '',
-                invoiceNo: '',
-                pricePerLiter: '',
-                totalCost: '',
-                notes: '',
-            }));
+            setMessage({
+                type: 'success',
+                text: editingId ? 'แก้ไขข้อมูลรับแก๊สเรียบร้อย' : 'บันทึกข้อมูลรับแก๊สเรียบร้อย',
+            });
+            resetForm();
             await loadSupplies();
         } catch (error) {
             setMessage({
@@ -169,6 +237,34 @@ export default function AdminGasSuppliesPage() {
             });
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleDelete = async (supply: GasSupply) => {
+        const confirmed = window.confirm(
+            `ลบรายการรับแก๊ส ${supply.displayDate} จำนวน ${supply.liters.toLocaleString()} ลิตร`
+            + `${supply.invoiceNo ? ` (ใบส่ง ${supply.invoiceNo})` : ''} ใช่หรือไม่?`
+        );
+        if (!confirmed) return;
+
+        setDeletingId(supply.id);
+        setMessage(null);
+        try {
+            const res = await fetch(`/api/v2/gas/admin/supplies/${supply.id}`, { method: 'DELETE' });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data.error || 'ลบรายการไม่สำเร็จ');
+            }
+            if (editingId === supply.id) resetForm();
+            setMessage({ type: 'success', text: 'ลบรายการรับแก๊สแล้ว' });
+            await loadSupplies();
+        } catch (error) {
+            setMessage({
+                type: 'error',
+                text: error instanceof Error ? error.message : 'ลบรายการไม่สำเร็จ',
+            });
+        } finally {
+            setDeletingId(null);
         }
     };
 
@@ -258,11 +354,85 @@ export default function AdminGasSuppliesPage() {
                 </div>
             </div>
 
+            {/* คาดการณ์สต็อกคงเหลือจากเกจล่าสุด */}
+            {stockForecasts.length > 0 && (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    {stockForecasts.map((forecast) => (
+                        <div
+                            key={forecast.stationId}
+                            className={`rounded-xl border p-4 ${forecast.lowStock
+                                ? 'border-red-500/40 bg-red-500/10'
+                                : 'border-white/10 bg-[#1a1a24]'}`}
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="font-medium">{forecast.stationName}</div>
+                                {forecast.lowStock && (
+                                    <span className="rounded-full bg-red-500/20 px-3 py-1 text-xs font-medium text-red-300">
+                                        ⚠ ใกล้หมด ควรสั่งแก๊ส
+                                    </span>
+                                )}
+                            </div>
+                            {forecast.currentStockLiters !== null ? (
+                                <>
+                                    <div className="mt-2 flex items-end justify-between">
+                                        <div>
+                                            <div className="text-xs text-gray-400">
+                                                สต็อกโดยประมาณ (เกจ {forecast.latestGaugeDateKey || '-'})
+                                            </div>
+                                            <div className={`text-2xl font-bold ${forecast.lowStock ? 'text-red-300' : 'text-orange-300'}`}>
+                                                {forecast.currentStockLiters.toLocaleString()} L
+                                                <span className="ml-1 text-sm font-normal text-gray-500">
+                                                    / {forecast.capacityLiters.toLocaleString()} L
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="text-right text-sm">
+                                            <div className="text-gray-400">
+                                                ใช้เฉลี่ย {forecast.avgDailySoldLiters !== null ? `${forecast.avgDailySoldLiters.toLocaleString()} L/วัน` : '-'}
+                                            </div>
+                                            {forecast.daysLeft !== null && (
+                                                <div className={forecast.lowStock ? 'font-semibold text-red-300' : 'text-gray-300'}>
+                                                    เหลือ ~{forecast.daysLeft.toLocaleString()} วัน
+                                                    {forecast.projectedEmptyDateKey ? ` (หมด ${forecast.projectedEmptyDateKey})` : ''}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-800">
+                                        <div
+                                            className={`h-full rounded-full ${forecast.lowStock ? 'bg-red-500' : 'bg-orange-500'}`}
+                                            style={{
+                                                width: `${Math.min(100, Math.max(2, (forecast.currentStockLiters / forecast.capacityLiters) * 100))}%`,
+                                            }}
+                                        />
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="mt-2 text-sm text-gray-500">ยังไม่มีข้อมูลเกจ</div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-[400px_1fr]">
                 <section className="rounded-xl border border-white/10 bg-[#1a1a24] p-5">
-                    <div className="mb-4 flex items-center gap-2">
-                        <Truck className="text-orange-300" size={20} />
-                        <h2 className="text-lg font-semibold">เพิ่มรายการรับเข้า</h2>
+                    <div className="mb-4 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                            <Truck className="text-orange-300" size={20} />
+                            <h2 className="text-lg font-semibold">
+                                {editingId ? 'แก้ไขรายการรับเข้า' : 'เพิ่มรายการรับเข้า'}
+                            </h2>
+                        </div>
+                        {editingId && (
+                            <button
+                                onClick={resetForm}
+                                className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs hover:bg-white/10"
+                            >
+                                <X size={14} />
+                                ยกเลิกแก้ไข
+                            </button>
+                        )}
                     </div>
 
                     <div className="space-y-4">
@@ -271,7 +441,8 @@ export default function AdminGasSuppliesPage() {
                             <select
                                 value={form.stationId}
                                 onChange={(e) => updateForm('stationId', e.target.value)}
-                                className="w-full rounded-lg border border-white/10 bg-gray-800 px-3 py-2"
+                                disabled={Boolean(editingId)}
+                                className="w-full rounded-lg border border-white/10 bg-gray-800 px-3 py-2 disabled:opacity-60"
                             >
                                 {GAS_STATIONS.map((station) => (
                                     <option key={station.id} value={station.id}>{station.name}</option>
@@ -327,8 +498,14 @@ export default function AdminGasSuppliesPage() {
                                 <input
                                     value={form.supplier}
                                     onChange={(e) => updateForm('supplier', e.target.value)}
+                                    list="supplier-options"
                                     className="w-full rounded-lg border border-white/10 bg-gray-800 px-3 py-2"
                                 />
+                                <datalist id="supplier-options">
+                                    {supplierOptions.map((name) => (
+                                        <option key={name} value={name} />
+                                    ))}
+                                </datalist>
                             </div>
                             <div>
                                 <label className="mb-1 block text-sm text-gray-400">เลขใบส่ง</label>
@@ -356,7 +533,7 @@ export default function AdminGasSuppliesPage() {
                             className="flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 font-semibold hover:bg-orange-500 disabled:opacity-60"
                         >
                             {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-                            บันทึก
+                            {editingId ? 'บันทึกการแก้ไข' : 'บันทึก'}
                         </button>
                     </div>
                 </section>
@@ -436,18 +613,37 @@ export default function AdminGasSuppliesPage() {
                                             <th className="px-4 py-3 text-left font-medium text-gray-400">ใบส่ง</th>
                                             <th className="px-4 py-3 text-right font-medium text-gray-400">ทุน/ลิตร</th>
                                             <th className="px-4 py-3 text-right font-medium text-gray-400">ต้นทุนรวม</th>
+                                            <th className="px-4 py-3 text-center font-medium text-gray-400">จัดการ</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-white/5">
                                         {supplies.map((supply) => (
-                                            <tr key={supply.id} className="hover:bg-white/5">
+                                            <tr key={supply.id} className={`hover:bg-white/5 ${editingId === supply.id ? 'bg-orange-500/10' : ''}`}>
                                                 <td className="px-4 py-3">{supply.displayDate}</td>
                                                 <td className="px-4 py-3">
                                                     <div>{supply.stationName || supply.stationId}</div>
                                                     <div className="text-xs text-gray-500">{supply.supplier || '-'}</div>
                                                 </td>
-                                                <td className="px-4 py-3 text-right font-mono text-orange-300">
-                                                    {supply.liters.toLocaleString()}
+                                                <td className="px-4 py-3 text-right">
+                                                    <div className="font-mono text-orange-300">{supply.liters.toLocaleString()}</div>
+                                                    {supply.gaugeCheck && supply.gaugeCheck.status !== 'NO_GAUGE' && (
+                                                        <div
+                                                            title={`เกจยืนยันรับจริง ~${supply.gaugeCheck.estimatedReceivedLiters?.toLocaleString()} L (Δเกจ ${((supply.gaugeCheck.endLiters ?? 0) - (supply.gaugeCheck.startLiters ?? 0)).toLocaleString()} + ขาย ${supply.gaugeCheck.soldLiters.toLocaleString()})${supply.gaugeCheck.supplyCountSameDay > 1 ? ` เทียบใบส่งรวม ${supply.gaugeCheck.supplyCountSameDay} ใบของวัน` : ''}`}
+                                                            className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-[11px] ${supply.gaugeCheck.status === 'OK'
+                                                                ? 'bg-green-500/15 text-green-300'
+                                                                : 'bg-yellow-500/15 text-yellow-300'}`}
+                                                        >
+                                                            เกจ {supply.gaugeCheck.status === 'OK' ? '✓' : '⚠'}
+                                                            {supply.gaugeCheck.diffPercent !== null
+                                                                ? ` ${supply.gaugeCheck.diffPercent > 0 ? '+' : ''}${supply.gaugeCheck.diffPercent}%`
+                                                                : ''}
+                                                        </div>
+                                                    )}
+                                                    {supply.gaugeCheck && supply.gaugeCheck.status === 'NO_GAUGE' && (
+                                                        <div className="mt-0.5 inline-block rounded-full bg-gray-500/15 px-2 py-0.5 text-[11px] text-gray-400" title="วันนั้นบันทึกเกจไม่ครบ จึงเทียบปริมาณรับจริงไม่ได้">
+                                                            ไม่มีเกจเทียบ
+                                                        </div>
+                                                    )}
                                                 </td>
                                                 <td className="px-4 py-3">{supply.invoiceNo || '-'}</td>
                                                 <td className="px-4 py-3 text-right font-mono">
@@ -455,6 +651,27 @@ export default function AdminGasSuppliesPage() {
                                                 </td>
                                                 <td className="px-4 py-3 text-right font-mono text-blue-300">
                                                     ฿{formatCurrency(supply.totalCost || 0)}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <button
+                                                            onClick={() => startEdit(supply)}
+                                                            title="แก้ไข"
+                                                            className="rounded-lg p-2 text-blue-300 hover:bg-blue-500/10"
+                                                        >
+                                                            <Pencil size={15} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => void handleDelete(supply)}
+                                                            disabled={deletingId === supply.id}
+                                                            title="ลบ"
+                                                            className="rounded-lg p-2 text-red-300 hover:bg-red-500/10 disabled:opacity-50"
+                                                        >
+                                                            {deletingId === supply.id
+                                                                ? <Loader2 className="animate-spin" size={15} />
+                                                                : <Trash2 size={15} />}
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}

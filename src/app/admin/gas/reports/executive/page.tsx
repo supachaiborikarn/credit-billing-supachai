@@ -15,6 +15,7 @@ import {
     TrendingUp,
 } from 'lucide-react';
 import { getGasBusinessDateKey, getShiftName } from '@/lib/gas';
+import { STATIONS } from '@/constants';
 
 type Severity = 'INFO' | 'WARNING' | 'CRITICAL';
 
@@ -122,10 +123,12 @@ interface ExecutiveReport {
     }[];
 }
 
+// รายชื่อปั๊มแก๊สจากค่ากลาง (เพิ่มสาขาใหม่ที่ src/constants ที่เดียว)
 const GAS_STATIONS = [
     { id: 'all', name: 'ทุกปั๊มแก๊ส' },
-    { id: 'station-5', name: 'ปั๊มแก๊สพงษ์อนันต์' },
-    { id: 'station-6', name: 'ปั๊มแก๊สศุภชัย' },
+    ...STATIONS
+        .filter((station) => station.type === 'GAS')
+        .map((station) => ({ id: station.id, name: station.name })),
 ];
 
 function getDefaultFromDate() {

@@ -156,6 +156,13 @@ export async function PUT(
         const expectedFuelAmount = shift.reconciliation
             ? Number(shift.reconciliation.expectedFuelAmount)
             : analytics.sales.total;
+        // คงยอดขายสินค้าจากการนับสต็อกไว้ ส่วนที่แก้เกินจากนั้นถือเป็นรายรับอื่น
+        const currentProductSalesAmount = shift.reconciliation
+            ? Number(shift.reconciliation.productSalesAmount ?? 0)
+            : 0;
+        const otherIncomeAmount = Number(
+            Math.max(nonGasSalesAmount - currentProductSalesAmount, 0).toFixed(2)
+        );
         const expectedOtherAmount = Number((nonGasSalesAmount - otherExpensesAmount).toFixed(2));
         const totalExpected = Number((expectedFuelAmount + expectedOtherAmount).toFixed(2));
         const combinedTransferReceived = Number((transferReceived + cardReceived).toFixed(2));
@@ -185,6 +192,8 @@ export async function PUT(
                     cashReceived,
                     creditReceived,
                     transferReceived: combinedTransferReceived,
+                    otherIncomeAmount,
+                    otherExpensesAmount,
                     variance,
                     varianceStatus: getVarianceSeverity(variance),
                 },
@@ -197,6 +206,8 @@ export async function PUT(
                     cashReceived,
                     creditReceived,
                     transferReceived: combinedTransferReceived,
+                    otherIncomeAmount,
+                    otherExpensesAmount,
                     variance,
                     varianceStatus: getVarianceSeverity(variance),
                 },
@@ -208,6 +219,39 @@ export async function PUT(
                 },
             }),
         ]);
+
+        // เก็บประวัติการแก้ไข (ค่าเดิม → ค่าใหม่) ไว้ตรวจสอบย้อนหลัง
+        await prisma.auditLog.create({
+            data: {
+                userId: auth.user.id,
+                action: 'UPDATE',
+                model: 'ShiftReconciliation',
+                recordId: shiftId,
+                oldData: shift.reconciliation
+                    ? {
+                        cashReceived: Number(shift.reconciliation.cashReceived),
+                        creditReceived: Number(shift.reconciliation.creditReceived),
+                        transferReceived: Number(shift.reconciliation.transferReceived),
+                        totalReceived: Number(shift.reconciliation.totalReceived),
+                        expectedOtherAmount: Number(shift.reconciliation.expectedOtherAmount),
+                        variance: Number(shift.reconciliation.variance),
+                        varianceNote: shift.varianceNote,
+                    }
+                    : undefined,
+                newData: {
+                    cashReceived,
+                    creditReceived,
+                    cardReceived,
+                    transferReceived: combinedTransferReceived,
+                    nonGasSalesAmount,
+                    otherExpensesAmount,
+                    totalReceived,
+                    variance,
+                    varianceNote,
+                    source: 'gas-admin-reconciliation',
+                },
+            },
+        });
 
         return NextResponse.json({
             success: true,

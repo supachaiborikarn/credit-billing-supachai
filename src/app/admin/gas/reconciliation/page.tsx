@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Loader2, Scale, Search, Download, Check, AlertTriangle, Edit3, Save, X } from 'lucide-react';
 import { formatCurrency, getGasBusinessDateKey } from '@/lib/gas';
+import DateRangePresets from '@/app/admin/gas/components/DateRangePresets';
 
 interface ReconciliationRecord {
     id: string;
@@ -376,6 +377,14 @@ export default function ReconciliationPage() {
                             value={toDate}
                             onChange={(e) => setToDate(e.target.value)}
                             className="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2"
+                        />
+                    </div>
+
+                    <div className="pb-1">
+                        <DateRangePresets
+                            fromDate={fromDate}
+                            toDate={toDate}
+                            onSelect={(from, to) => { setFromDate(from); setToDate(to); }}
                         />
                     </div>
 

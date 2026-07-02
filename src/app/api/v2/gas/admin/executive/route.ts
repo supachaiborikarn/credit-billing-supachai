@@ -341,6 +341,29 @@ export async function GET() {
             stationId: anomaly.shift.dailyRecord.stationId,
         }));
 
+        // ต้นทุนแก๊สโดยประมาณ: ราคาทุนเฉลี่ยถ่วงน้ำหนักจากใบส่ง 30 วันล่าสุด
+        const recentSupplies = await prisma.gasSupply.findMany({
+            where: { date: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
+            select: { liters: true, totalCost: true },
+        });
+        const suppliesWithCost = recentSupplies.filter(
+            (supply) => supply.totalCost !== null && Number(supply.liters) > 0
+        );
+        const supplyLiters = suppliesWithCost.reduce((sum, supply) => sum + Number(supply.liters), 0);
+        const supplyCost = suppliesWithCost.reduce((sum, supply) => sum + Number(supply.totalCost), 0);
+        const avgCostPerLiter = supplyLiters > 0 ? supplyCost / supplyLiters : null;
+
+        const weekSalesTotal = sumBy(weekSummaries, (day) => day.totalSales);
+        const monthSalesTotal = sumBy(monthSummaries, (day) => day.totalSales);
+        const weekLiters = sumBy(weekSummaries, (day) => day.totalLiters);
+        const monthLiters = sumBy(monthSummaries, (day) => day.totalLiters);
+        const weekGrossMargin = avgCostPerLiter !== null
+            ? weekSalesTotal - weekLiters * avgCostPerLiter
+            : null;
+        const monthGrossMargin = avgCostPerLiter !== null
+            ? monthSalesTotal - monthLiters * avgCostPerLiter
+            : null;
+
         return NextResponse.json({
             financial: {
                 todaySales: todaySummary?.totalSales || 0,
@@ -349,8 +372,22 @@ export async function GET() {
                 todayLiters: todaySummary?.totalLiters || 0,
                 todayTransactions: todaySummary?.transactionCount || 0,
                 averageTicketToday: todaySummary?.averageTicket || 0,
-                weekSales: sumBy(weekSummaries, (day) => day.totalSales),
-                monthSales: sumBy(monthSummaries, (day) => day.totalSales),
+                weekSales: weekSalesTotal,
+                monthSales: monthSalesTotal,
+                // กำไรขั้นต้นประมาณการ (อิงราคาทุนเฉลี่ยจากใบส่งแก๊ส 30 วัน)
+                margin: {
+                    avgCostPerLiter,
+                    weekLiters,
+                    monthLiters,
+                    weekGrossMargin,
+                    weekMarginPercent: weekGrossMargin !== null && weekSalesTotal > 0
+                        ? (weekGrossMargin / weekSalesTotal) * 100
+                        : null,
+                    monthGrossMargin,
+                    monthMarginPercent: monthGrossMargin !== null && monthSalesTotal > 0
+                        ? (monthGrossMargin / monthSalesTotal) * 100
+                        : null,
+                },
                 salesTrend,
                 paymentMixToday: {
                     cash: todaySummary?.cashAmount || 0,

@@ -1,8 +1,22 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2, Calculator, Download, Search, Edit3 } from 'lucide-react';
-import { formatCurrency, getGasBusinessDateKey, getShiftTimeRangeLabel } from '@/lib/gas';
+import { Loader2, Calculator, Download, Search, Edit3, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { formatCurrency, getGasBusinessDateKey, getShiftTimeRangeLabel, NOZZLE_COUNT } from '@/lib/gas';
+import DateRangePresets from '@/app/admin/gas/components/DateRangePresets';
+
+// เกณฑ์ส่วนต่างลิตร (มิเตอร์ vs รายการขาย) — ต่ำกว่านี้ถือว่าปกติ ไม่ต้องเน้นสี
+const LITERS_VARIANCE_WARN = 5;   // เริ่มเตือน (เหลือง)
+const LITERS_VARIANCE_BAD = 20;   // ผิดปกติชัดเจน (แดง)
+
+type VarianceSeverity = 'ok' | 'warn' | 'bad';
+
+function getLitersVarianceSeverity(liters: number): VarianceSeverity {
+    const abs = Math.abs(liters);
+    if (abs <= LITERS_VARIANCE_WARN) return 'ok';
+    if (abs <= LITERS_VARIANCE_BAD) return 'warn';
+    return 'bad';
+}
 
 interface MeterReport {
     id: string;
@@ -92,9 +106,16 @@ async function loadMeterReports({
     }
 }
 
+function isAnomalyReport(report: MeterReport): boolean {
+    if (report.isSyntheticOrphan) return true;
+    if (report.continuity?.checked && !report.continuity.isContinuous) return true;
+    return getLitersVarianceSeverity(report.litersVariance) !== 'ok';
+}
+
 export default function MeterReportPage() {
     const [loading, setLoading] = useState(true);
     const [reports, setReports] = useState<MeterReport[]>([]);
+    const [showOnlyAnomalies, setShowOnlyAnomalies] = useState(false);
     const [stationId, setStationId] = useState<string>('all');
     const [fromDate, setFromDate] = useState<string>(() => {
         const d = new Date();
@@ -145,6 +166,9 @@ export default function MeterReportPage() {
 
         return `/admin/gas/reconciliation?${params}`;
     };
+
+    const anomalyCount = reports.filter(isAnomalyReport).length;
+    const displayedReports = showOnlyAnomalies ? reports.filter(isAnomalyReport) : reports;
 
     const totals = reports.reduce((sum, report) => ({
         meterLiters: sum.meterLiters + report.totalLiters,
@@ -232,14 +256,28 @@ export default function MeterReportPage() {
                 </div>
             )}
 
-            {totals.continuityIssues > 0 && (
-                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">
-                    <div className="font-semibold text-red-200">
-                        พบเลขมิเตอร์เริ่มกะไม่ต่อจากเลขปิดกะก่อน {totals.continuityIssues.toLocaleString()} จุด
+            {anomalyCount > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">
+                    <div className="flex items-start gap-2">
+                        <AlertTriangle className="mt-0.5 shrink-0 text-red-300" size={18} />
+                        <div>
+                            <div className="font-semibold text-red-200">
+                                พบความผิดปกติ {anomalyCount.toLocaleString()} กะ จากทั้งหมด {reports.length.toLocaleString()} กะ
+                            </div>
+                            <div className="mt-1 text-red-100/80">
+                                {totals.continuityIssues > 0 && `มิเตอร์ไม่ต่อจากกะก่อน ${totals.continuityIssues.toLocaleString()} จุด • `}
+                                แถวผิดปกติถูกไฮไลต์สีแดง หัวจ่ายที่มีปัญหามีกรอบแดงกำกับ
+                            </div>
+                        </div>
                     </div>
-                    <div className="mt-1 text-red-100/80">
-                        ให้ตรวจแถวที่ขึ้น “ไม่ต่อ” ในตารางด้านล่าง เพื่อดูหัวจ่ายและส่วนต่างจากกะก่อนหน้า
-                    </div>
+                    <button
+                        onClick={() => setShowOnlyAnomalies((v) => !v)}
+                        className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${showOnlyAnomalies
+                            ? 'bg-red-500 text-white hover:bg-red-400'
+                            : 'border border-red-400/40 bg-red-500/10 text-red-200 hover:bg-red-500/20'}`}
+                    >
+                        {showOnlyAnomalies ? 'แสดงทุกกะ' : `ดูเฉพาะผิดปกติ (${anomalyCount})`}
+                    </button>
                 </div>
             )}
 
@@ -280,6 +318,14 @@ export default function MeterReportPage() {
                         />
                     </div>
 
+                    <div className="pb-1">
+                        <DateRangePresets
+                            fromDate={fromDate}
+                            toDate={toDate}
+                            onSelect={(from, to) => { setFromDate(from); setToDate(to); }}
+                        />
+                    </div>
+
                     <button
                         onClick={() => {
                             void loadMeterReports({
@@ -304,9 +350,13 @@ export default function MeterReportPage() {
                     <div className="flex items-center justify-center p-12">
                         <Loader2 className="animate-spin text-purple-400" size={32} />
                     </div>
-                ) : reports.length === 0 ? (
+                ) : displayedReports.length === 0 ? (
                     <div className="p-12 text-center text-gray-500">
-                        ไม่พบข้อมูล
+                        {showOnlyAnomalies && reports.length > 0 ? (
+                            <span className="flex items-center justify-center gap-2 text-green-400">
+                                <CheckCircle2 size={20} /> ไม่มีกะผิดปกติในช่วงที่เลือก
+                            </span>
+                        ) : 'ไม่พบข้อมูล'}
                     </div>
                 ) : (
                     <div className="w-full overflow-hidden">
@@ -315,10 +365,9 @@ export default function MeterReportPage() {
                                 <tr>
                                     <th className="w-[13%] text-left px-3 py-3 font-medium text-gray-400">วันที่ / สถานี</th>
                                     <th className="w-[6%] text-center px-2 py-3 font-medium text-gray-400">กะ</th>
-                                    <th className="w-[10%] text-right px-2 py-3 font-medium text-gray-400">หัว 1</th>
-                                    <th className="w-[10%] text-right px-2 py-3 font-medium text-gray-400">หัว 2</th>
-                                    <th className="w-[10%] text-right px-2 py-3 font-medium text-gray-400">หัว 3</th>
-                                    <th className="w-[10%] text-right px-2 py-3 font-medium text-gray-400">หัว 4</th>
+                                    {Array.from({ length: NOZZLE_COUNT }, (_, i) => i + 1).map((n) => (
+                                        <th key={n} className="w-[10%] text-right px-2 py-3 font-medium text-gray-400">หัว {n}</th>
+                                    ))}
                                     <th className="w-[12%] text-left px-3 py-3 font-medium text-gray-400">ต่อกะก่อน</th>
                                     <th className="w-[12%] text-right px-3 py-3 font-medium text-gray-400">สรุปลิตร</th>
                                     <th className="w-[5%] text-right px-2 py-3 font-medium text-gray-400">รายการ</th>
@@ -326,15 +375,23 @@ export default function MeterReportPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5">
-                                {reports.map((r) => {
+                                {displayedReports.map((r) => {
                                     const shiftTimeRange = getShiftTimeRangeLabel(r.shiftNumber);
+                                    const varianceSeverity = getLitersVarianceSeverity(r.litersVariance);
+                                    const hasContinuityIssue = Boolean(r.continuity?.checked && !r.continuity.isContinuous);
+                                    const issueNozzles = new Set(
+                                        hasContinuityIssue ? r.continuity.issues.map((issue) => issue.nozzleNumber) : []
+                                    );
+                                    const anomaly = isAnomalyReport(r);
 
                                     return (
                                         <tr
                                             key={r.id}
                                             className={r.isSyntheticOrphan
-                                                ? 'bg-amber-500/5 hover:bg-amber-500/10'
-                                                : 'hover:bg-white/5'}
+                                                ? 'border-l-2 border-l-amber-500/70 bg-amber-500/5 hover:bg-amber-500/10'
+                                                : anomaly
+                                                    ? 'border-l-2 border-l-red-500/70 bg-red-500/5 hover:bg-red-500/10'
+                                                    : 'hover:bg-white/5'}
                                         >
                                         <td className="px-3 py-3 align-top">
                                             <div className="font-medium text-gray-100">{r.displayDate}</div>
@@ -355,18 +412,22 @@ export default function MeterReportPage() {
                                                 </div>
                                             )}
                                         </td>
-                                        {[1, 2, 3, 4].map(n => {
+                                        {Array.from({ length: NOZZLE_COUNT }, (_, i) => i + 1).map(n => {
                                             const nozzle = r.nozzles.find(z => z.nozzleNumber === n);
+                                            const nozzleHasIssue = issueNozzles.has(n);
                                             return (
                                                 <td key={n} className="px-2 py-2 text-right align-top">
                                                     {nozzle ? (
-                                                        <div className="space-y-0.5">
-                                                            <div className="font-mono font-bold leading-tight text-green-400">
+                                                        <div className={`space-y-0.5 rounded px-1 ${nozzleHasIssue ? 'bg-red-500/15 ring-1 ring-red-500/50' : ''}`}>
+                                                            <div className={`font-mono font-bold leading-tight ${nozzleHasIssue ? 'text-red-300' : 'text-green-400'}`}>
                                                                 {nozzle.soldQty.toLocaleString()}
                                                             </div>
                                                             <div className="break-words font-mono text-[11px] leading-tight text-gray-500">
                                                                 {nozzle.startReading.toLocaleString()} - {nozzle.endReading.toLocaleString()}
                                                             </div>
+                                                            {nozzleHasIssue && (
+                                                                <div className="text-[10px] font-medium leading-tight text-red-300">ไม่ต่อ</div>
+                                                            )}
                                                         </div>
                                                     ) : (
                                                         <span className="text-gray-600">-</span>
@@ -403,13 +464,17 @@ export default function MeterReportPage() {
                                             <div className="mt-1 text-cyan-400">ขาย {r.transactionLiters.toLocaleString()} L</div>
                                             <div className={r.isSyntheticOrphan
                                                 ? 'mt-1 text-amber-300'
-                                                : r.litersVariance >= 0
-                                                    ? 'mt-1 text-yellow-400'
-                                                    : 'mt-1 text-red-400'
+                                                : varianceSeverity === 'ok'
+                                                    ? 'mt-1 text-green-500/80'
+                                                    : varianceSeverity === 'warn'
+                                                        ? 'mt-1 text-yellow-400'
+                                                        : 'mt-1 font-bold text-red-400'
                                             }>
                                                 {r.isSyntheticOrphan
                                                     ? 'รอผูกกะ'
-                                                    : `ต่าง ${r.litersVariance >= 0 ? '+' : ''}${r.litersVariance.toLocaleString()}`}
+                                                    : varianceSeverity === 'ok'
+                                                        ? `✓ ตรง (${r.litersVariance >= 0 ? '+' : ''}${r.litersVariance.toLocaleString()})`
+                                                        : `ต่าง ${r.litersVariance >= 0 ? '+' : ''}${r.litersVariance.toLocaleString()} L`}
                                             </div>
                                         </td>
                                         <td className="px-2 py-3 text-right align-top">

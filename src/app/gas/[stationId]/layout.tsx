@@ -14,8 +14,10 @@ import {
     LogOut,
     ChevronLeft,
     Menu,
-    X
+    X,
+    ShoppingBag
 } from 'lucide-react';
+import { STATIONS } from '@/constants';
 
 interface StationInfo {
     id: string;
@@ -73,12 +75,25 @@ export default function GasStationLayout({
         fetchData();
     }, [stationId]);
 
+    // สาขานี้เปิดใช้งานสินค้าเสริม (เครื่องดื่มฯ) หรือไม่
+    // รองรับ stationId ทั้งแบบ id ('station-5'), index ('5') และ alias (uuid)
+    const stationConfig = STATIONS.find((s, idx) => {
+        if (s.id === stationId) return true;
+        if (String(idx + 1) === stationId) return true;
+        if ('aliases' in s && s.aliases) {
+            return (s.aliases as readonly string[]).includes(stationId);
+        }
+        return false;
+    });
+    const hasProducts = Boolean(stationConfig && 'hasProducts' in stationConfig && stationConfig.hasProducts === true);
+
     const navItems = [
         { href: `/gas/${stationId}`, icon: Home, label: 'หน้าหลัก', exact: true },
         { href: `/gas/${stationId}/sell`, icon: FuelIcon, label: 'บันทึกขาย' },
         { href: `/gas/${stationId}/supplies`, icon: PackagePlus, label: 'ลงแก๊ส' },
         { href: `/gas/${stationId}/meters`, icon: Calculator, label: 'มิเตอร์' },
         { href: `/gas/${stationId}/gauge`, icon: Gauge, label: 'เช็คเกจ' },
+        ...(hasProducts ? [{ href: `/gas/${stationId}/products`, icon: ShoppingBag, label: 'สินค้า' }] : []),
         { href: `/gas/${stationId}/summary`, icon: ClipboardList, label: 'สรุปกะ' },
         { href: `/gas/${stationId}/shift/close`, icon: Clock, label: 'ปิดกะ' },
     ];

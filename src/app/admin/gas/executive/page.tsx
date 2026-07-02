@@ -23,6 +23,15 @@ interface ExecutiveData {
         averageTicketToday: number;
         weekSales: number;
         monthSales: number;
+        margin?: {
+            avgCostPerLiter: number | null;
+            weekLiters: number;
+            monthLiters: number;
+            weekGrossMargin: number | null;
+            weekMarginPercent: number | null;
+            monthGrossMargin: number | null;
+            monthMarginPercent: number | null;
+        };
         salesTrend: { date: string; amount: number }[];
         paymentMixToday: {
             cash: number;
@@ -201,10 +210,30 @@ export default function ExecutiveDashboardPage() {
                         <div className="text-xs text-gray-500">
                             Avg ticket ฿{formatCurrency(data.financial.averageTicketToday)}
                         </div>
+                        {data.financial.margin?.weekGrossMargin !== null && data.financial.margin?.weekGrossMargin !== undefined && (
+                            <div className={`text-xs mt-0.5 ${data.financial.margin.weekGrossMargin >= 0 ? 'text-green-300' : 'text-red-300'}`}>
+                                กำไรขั้นต้น~ ฿{formatCurrency(data.financial.margin.weekGrossMargin)}
+                                {data.financial.margin.weekMarginPercent !== null
+                                    ? ` (${data.financial.margin.weekMarginPercent.toFixed(1)}%)`
+                                    : ''}
+                            </div>
+                        )}
                     </div>
                     <div className="bg-black/30 rounded-xl p-4">
                         <div className="text-sm text-gray-400">เดือนนี้</div>
                         <div className="text-2xl font-bold text-orange-400">฿{formatCurrency(data.financial.monthSales)}</div>
+                        {data.financial.margin?.monthGrossMargin !== null && data.financial.margin?.monthGrossMargin !== undefined ? (
+                            <div className={`text-xs mt-0.5 ${data.financial.margin.monthGrossMargin >= 0 ? 'text-green-300' : 'text-red-300'}`}>
+                                กำไรขั้นต้น~ ฿{formatCurrency(data.financial.margin.monthGrossMargin)}
+                                {data.financial.margin.monthMarginPercent !== null
+                                    ? ` (${data.financial.margin.monthMarginPercent.toFixed(1)}%)`
+                                    : ''}
+                            </div>
+                        ) : (
+                            <div className="text-xs mt-0.5 text-gray-600">
+                                ใส่ราคาทุนในใบส่งแก๊สเพื่อดูกำไรขั้นต้น
+                            </div>
+                        )}
                     </div>
                 </div>
 

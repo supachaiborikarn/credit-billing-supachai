@@ -246,6 +246,7 @@ model Shift {
   anomalies            MeterAnomaly[]
   meters               MeterReading[]
   transactions         Transaction[]        // NEW: transactions linked to this shift
+  productSales         ProductSale[]        // ยอดขายสินค้าอื่น (เครื่องดื่มฯ) ในกะนี้
   reconciliation       ShiftReconciliation?
   closedBy             User?                @relation("ShiftClosedBy", fields: [closedById], references: [id])
   dailyRecord          DailyRecord          @relation(fields: [dailyRecordId], references: [id])
@@ -266,6 +267,13 @@ model ShiftReconciliation {
   cashReceived        Decimal        @default(0)
   creditReceived      Decimal        @default(0)
   transferReceived    Decimal        @default(0)
+  // แยกยอดรับตามประเภท (แทนการฝังใน varianceNote)
+  productSalesAmount    Decimal @default(0) // ยอดขายสินค้าอื่น (เครื่องดื่มฯ) คำนวณจากนับสต็อก
+  productTransferAmount Decimal @default(0) // ส่วนของยอดขายสินค้าที่รับผ่านโอน/สแกน
+  otherIncomeAmount     Decimal @default(0) // รายรับอื่นที่ไม่ใช่แก๊ส/สินค้า
+  otherIncomeNote       String?
+  otherExpensesAmount   Decimal @default(0) // ค่าใช้จ่ายที่จ่ายจากเงินสดในกะ
+  otherExpenseNote      String?
   variance            Decimal
   varianceStatus      VarianceStatus @default(GREEN)
   createdAt           DateTime       @default(now())
@@ -484,13 +492,17 @@ model ProductSale {
   id          String      @id @default(uuid())
   productId   String
   stationId   String
+  shiftId     String? // กะที่ขาย (สำหรับรายงานแยกตามกะ)
   quantity    Int
   salePrice   Decimal
   paymentType PaymentType
   date        DateTime    @default(now())
   createdAt   DateTime    @default(now())
   product     Product     @relation(fields: [productId], references: [id])
+  shift       Shift?      @relation(fields: [shiftId], references: [id])
 
+  @@index([stationId, date])
+  @@index([shiftId])
   @@map("product_sales")
 }
 

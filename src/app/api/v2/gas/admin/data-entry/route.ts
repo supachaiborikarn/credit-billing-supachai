@@ -631,6 +631,16 @@ export async function POST(request: NextRequest) {
             );
 
             if (status === 'CLOSED') {
+                // คงยอดขายสินค้าจากการนับสต็อกไว้ (ถ้ามี) ส่วนที่กรอกเกินจากนั้นถือเป็นรายรับอื่น
+                const existingReconciliation = await tx.shiftReconciliation.findUnique({
+                    where: { shiftId: shift.id },
+                    select: { productSalesAmount: true },
+                });
+                const existingProductSalesAmount = Number(existingReconciliation?.productSalesAmount ?? 0);
+                const otherIncomeAmount = Number(
+                    Math.max(nonGasSalesAmount - existingProductSalesAmount, 0).toFixed(2)
+                );
+
                 await tx.shiftReconciliation.upsert({
                     where: { shiftId: shift.id },
                     update: {
@@ -641,6 +651,8 @@ export async function POST(request: NextRequest) {
                         creditReceived: creditAmount,
                         transferReceived: combinedTransferReceived,
                         totalReceived,
+                        otherIncomeAmount,
+                        otherExpensesAmount,
                         variance,
                         varianceStatus,
                     },
@@ -653,6 +665,8 @@ export async function POST(request: NextRequest) {
                         creditReceived: creditAmount,
                         transferReceived: combinedTransferReceived,
                         totalReceived,
+                        otherIncomeAmount,
+                        otherExpensesAmount,
                         variance,
                         varianceStatus,
                     },

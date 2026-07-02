@@ -11,8 +11,10 @@ export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const type = searchParams.get('type') || 'daily';
-        const startDateParam = searchParams.get('startDate');
-        const endDateParam = searchParams.get('endDate');
+        // รองรับทั้ง startDate/endDate และ from/to (หน้ารายงานส่ง from/to)
+        const startDateParam = searchParams.get('startDate') ?? searchParams.get('from');
+        const endDateParam = searchParams.get('endDate') ?? searchParams.get('to');
+        const stationIdParam = searchParams.get('stationId');
 
         // Set date range using Bangkok timezone
         const endStr = endDateParam || getTodayBangkok();
@@ -33,7 +35,8 @@ export async function GET(request: Request) {
             const shifts = await prisma.shift.findMany({
                 where: {
                     dailyRecord: {
-                        date: { gte: start, lte: end }
+                        date: { gte: start, lte: end },
+                        ...(stationIdParam ? { stationId: stationIdParam } : {})
                     }
                 },
                 include: {
@@ -214,7 +217,9 @@ export async function GET(request: Request) {
 
         if (SALES_REPORT_TYPES.has(type)) {
             const { rows: mergedRows } = await getOperationalSalesDataset({
-                stationIds: STATIONS.map((station) => station.id),
+                stationIds: stationIdParam
+                    ? [stationIdParam]
+                    : STATIONS.map((station) => station.id),
                 startDateKey: startStr,
                 endDateKey: endStr,
             });
@@ -255,7 +260,8 @@ export async function GET(request: Request) {
         // Fetch transactions
         const transactions = await prisma.transaction.findMany({
             where: {
-                date: { gte: start, lte: end }
+                date: { gte: start, lte: end },
+                ...(stationIdParam ? { stationId: stationIdParam } : {})
             },
             select: {
                 date: true,

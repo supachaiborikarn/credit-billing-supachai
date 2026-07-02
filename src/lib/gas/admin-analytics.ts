@@ -30,6 +30,13 @@ type AnalyticsReconciliationRecord = {
     transferReceived: NumericLike;
     variance: NumericLike;
     varianceStatus: string;
+    // คอลัมน์แยกยอดตามประเภท (แถวเก่าอาจเป็น 0 จะ fallback ไป parse จาก varianceNote)
+    productSalesAmount?: NumericLike | null;
+    productTransferAmount?: NumericLike | null;
+    otherIncomeAmount?: NumericLike | null;
+    otherIncomeNote?: string | null;
+    otherExpensesAmount?: NumericLike | null;
+    otherExpenseNote?: string | null;
 };
 
 type AnalyticsShiftRecord = {
@@ -130,6 +137,9 @@ export interface GasShiftAnalytics {
         expectedFuelAmount: number;
         expectedOtherAmount: number;
         nonGasSalesAmount: number;
+        productSalesAmount: number;
+        productTransferAmount: number;
+        otherIncomeAmount: number;
         otherExpensesAmount: number;
         expected: number;
         received: number;
@@ -720,12 +730,29 @@ export function buildGasShiftAnalytics(
         const expectedOtherAmount = reconciliation
             ? toNumber(reconciliation.expectedOtherAmount)
             : 0;
-        const nonGasSalesAmount = parsedVarianceNote.nonGasSalesAmount > 0
-            ? parsedVarianceNote.nonGasSalesAmount
-            : Math.max(expectedOtherAmount, 0);
-        const otherExpensesAmount = parsedVarianceNote.otherExpensesAmount > 0
-            ? parsedVarianceNote.otherExpensesAmount
-            : Math.max(-expectedOtherAmount, 0);
+
+        // ยอดแยกตามประเภท: ใช้คอลัมน์จริงก่อน (แถวใหม่) ถ้าไม่มีค่อย fallback ไป parse จาก varianceNote (แถวเก่า)
+        const columnProductSalesAmount = toNumber(reconciliation?.productSalesAmount);
+        const columnProductTransferAmount = toNumber(reconciliation?.productTransferAmount);
+        const columnOtherIncomeAmount = toNumber(reconciliation?.otherIncomeAmount);
+        const columnOtherExpensesAmount = toNumber(reconciliation?.otherExpensesAmount);
+        const hasBreakdownColumns = columnProductSalesAmount > 0
+            || columnOtherIncomeAmount > 0
+            || columnOtherExpensesAmount > 0;
+
+        const productSalesAmount = columnProductSalesAmount;
+        const productTransferAmount = columnProductTransferAmount;
+        const otherIncomeAmount = hasBreakdownColumns
+            ? columnOtherIncomeAmount
+            : (parsedVarianceNote.nonGasSalesAmount > 0
+                ? parsedVarianceNote.nonGasSalesAmount
+                : Math.max(expectedOtherAmount, 0));
+        const nonGasSalesAmount = roundGasCurrency(productSalesAmount + otherIncomeAmount);
+        const otherExpensesAmount = hasBreakdownColumns
+            ? columnOtherExpensesAmount
+            : (parsedVarianceNote.otherExpensesAmount > 0
+                ? parsedVarianceNote.otherExpensesAmount
+                : Math.max(-expectedOtherAmount, 0));
 
         const totalExpected = reconciliation
             ? toNumber(reconciliation.totalExpected)
@@ -795,6 +822,9 @@ export function buildGasShiftAnalytics(
                 expectedFuelAmount: roundGasCurrency(expectedFuelAmount),
                 expectedOtherAmount: roundGasCurrency(expectedOtherAmount),
                 nonGasSalesAmount: roundGasCurrency(nonGasSalesAmount),
+                productSalesAmount: roundGasCurrency(productSalesAmount),
+                productTransferAmount: roundGasCurrency(productTransferAmount),
+                otherIncomeAmount: roundGasCurrency(otherIncomeAmount),
                 otherExpensesAmount: roundGasCurrency(otherExpensesAmount),
                 expected: roundGasCurrency(totalExpected),
                 received: roundGasCurrency(totalReceived),
@@ -880,6 +910,9 @@ export function buildGasShiftAnalytics(
                 expectedFuelAmount: transactionAmount,
                 expectedOtherAmount: 0,
                 nonGasSalesAmount: 0,
+                productSalesAmount: 0,
+                productTransferAmount: 0,
+                otherIncomeAmount: 0,
                 otherExpensesAmount: 0,
                 expected: transactionAmount,
                 received: transactionAmount,

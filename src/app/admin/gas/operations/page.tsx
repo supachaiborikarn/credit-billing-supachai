@@ -127,6 +127,16 @@ export default function GasOperationsPage() {
             return;
         }
 
+        // ยืนยันก่อนเปลี่ยนราคา (กันกดพลาด เพราะมีผลกับการคำนวณยอดทันที)
+        if (gasPrice !== station.effectiveGasPrice) {
+            const confirmed = window.confirm(
+                `ยืนยันเปลี่ยนราคาแก๊ส "${station.name}"\n`
+                + `จาก ฿${station.effectiveGasPrice.toFixed(2)} → ฿${gasPrice.toFixed(2)} ต่อลิตร\n`
+                + `(มีผลกับวันที่ ${dateKey} และเป็นราคาหลักถัดไป)`
+            );
+            if (!confirmed) return;
+        }
+
         setSavingKey(`price:${station.id}`);
         setNotice(null);
         try {
