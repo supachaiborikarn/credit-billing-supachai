@@ -139,8 +139,11 @@ export default function MetersPage() {
                     if (r.photo) {
                         const formData = new FormData();
                         formData.append('file', r.photo);
-                        formData.append('type', 'meter');
+                        formData.append('type', recordType);
                         formData.append('nozzle', String(r.nozzle));
+                        formData.append('stationId', stationId.startsWith('station-') ? stationId : `station-${stationId}`);
+                        formData.append('date', new Date().toISOString().split('T')[0]);
+                        formData.append('shiftId', shiftId);
 
                         const uploadRes = await fetch('/api/upload/meter-photo', {
                             method: 'POST',

@@ -9,6 +9,7 @@
 import { prisma } from '@/lib/prisma';
 import { getStartOfDayBangkok, getEndOfDayBangkok, formatDateBangkok } from '@/lib/date-utils';
 import { getWatcharaExternalDailySummary } from '@/lib/operational-sales';
+import { buildFullStationDailyMeters } from '@/lib/full-station-shift-scope';
 
 const WARNING_THRESHOLD = 10;   // ผลต่าง 10 ลิตร = WARNING
 const CRITICAL_THRESHOLD = 50;  // ผลต่าง 50 ลิตร = CRITICAL
@@ -37,30 +38,35 @@ export async function checkDailyAnomaly(
     const endOfDay = getEndOfDayBangkok(dateStr);
 
 
-    // Get meter total for the day
-    const meterReadings = await prisma.meterReading.findMany({
+    // Get meter total for the day from one DailyRecord so FULL split shifts can
+    // use the first opening and final closing per nozzle.
+    const dailyRecord = await prisma.dailyRecord.findUnique({
         where: {
-            dailyRecord: {
-                stationId,
-                date: {
-                    gte: startOfDay,
-                    lte: endOfDay
-                }
-            }
+            stationId_date: { stationId, date: startOfDay },
         },
-        select: {
-            startReading: true,
-            endReading: true,
-            soldQty: true
-        }
+        include: {
+            station: { select: { type: true } },
+            meters: true,
+            shifts: { include: { meters: true } },
+        },
     });
+    const meterReadings = dailyRecord?.station.type === 'FULL'
+        ? buildFullStationDailyMeters(
+            dailyRecord.shifts,
+            dailyRecord.meters.filter(meter => !meter.shiftId)
+        )
+        : dailyRecord?.meters || [];
 
     // Calculate meter total - use soldQty if available, otherwise calculate from readings
     const meterTotal = meterReadings.reduce((sum, r) => {
-        if (r.soldQty !== null) {
+        if ('soldQty' in r && r.soldQty !== null && r.soldQty !== undefined) {
             return sum + Number(r.soldQty);
-        } else if (r.endReading !== null && r.startReading !== null) {
-            return sum + (Number(r.endReading) - Number(r.startReading));
+        }
+
+        const startReading = Number(r.startReading || 0);
+        const endReading = r.endReading == null ? null : Number(r.endReading);
+        if (startReading > 0 && endReading != null && endReading >= startReading) {
+            return sum + (endReading - startReading);
         }
         return sum;
     }, 0);

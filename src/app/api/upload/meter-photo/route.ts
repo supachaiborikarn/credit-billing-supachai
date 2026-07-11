@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v2 as cloudinary } from 'cloudinary';
-import { prisma } from '@/lib/prisma';
-import { getStartOfDayBangkok } from '@/lib/date-utils';
 import { requireApiSession } from '@/lib/api-auth';
 import { canAccessStation } from '@/lib/auth-utils';
-import { ensureOpenFullStationShiftForDailyRecord } from '@/lib/full-station-shift-sync';
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 
@@ -26,6 +23,7 @@ export async function POST(request: NextRequest) {
         const nozzle = formData.get('nozzle') as string; // 1-4
         const date = formData.get('date') as string;
         const stationId = (formData.get('stationId') as string) || 'unknown';
+        const requestedShiftId = formData.get('shiftId');
 
         if (!file) {
             return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
@@ -37,6 +35,14 @@ export async function POST(request: NextRequest) {
 
         if (file.size > MAX_UPLOAD_BYTES) {
             return NextResponse.json({ error: 'File is too large' }, { status: 413 });
+        }
+
+        if (!['start', 'end', 'transfer'].includes(type)) {
+            return NextResponse.json({ error: 'Upload type is invalid' }, { status: 400 });
+        }
+
+        if ((type === 'start' || type === 'end') && !['1', '2', '3', '4'].includes(nozzle)) {
+            return NextResponse.json({ error: 'Meter nozzle is invalid' }, { status: 400 });
         }
 
         if ((type === 'start' || type === 'end') && !canAccessStation(auth.user, stationId)) {
@@ -56,15 +62,18 @@ export async function POST(request: NextRequest) {
 
         // Generate public_id for organization
         const timestamp = Date.now();
+        const shiftScope = typeof requestedShiftId === 'string' && requestedShiftId.trim()
+            ? requestedShiftId.trim().replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80)
+            : 'unassigned';
         const publicId = type === 'transfer'
             ? `transfers/${stationId}/${date}/slip_${timestamp}`
-            : `meters/${stationId}/${date}/nozzle${nozzle}_${type}`;
+            : `meters/${stationId}/${date}/${shiftScope}/nozzle${nozzle}_${type}_${timestamp}`;
 
         // Upload to Cloudinary
         const result = await cloudinary.uploader.upload(dataUri, {
             public_id: publicId,
             folder: 'credit-billing',
-            overwrite: true,
+            overwrite: false,
             resource_type: 'image',
             transformation: [
                 { width: 1200, height: 1200, crop: 'limit' }, // Limit size to save space
@@ -72,83 +81,6 @@ export async function POST(request: NextRequest) {
                 { format: 'webp' } // Convert to WebP for smaller size
             ]
         });
-
-        // If it's a meter photo (not transfer), save to database
-        if (type === 'start' || type === 'end') {
-            // Extract station number from stationId (station-1 -> 1)
-            const stationNum = stationId.replace('station-', '');
-            const fullStationId = `station-${stationNum}`;
-
-            // Find or create daily record using Bangkok timezone
-            const dateObj = getStartOfDayBangkok(date);
-
-            const dailyRecord = await prisma.dailyRecord.upsert({
-                where: { stationId_date: { stationId: fullStationId, date: dateObj } },
-                update: {},
-                create: {
-                    stationId: fullStationId,
-                    date: dateObj,
-                    retailPrice: 31.34,
-                    wholesalePrice: 30.5,
-                    status: 'OPEN',
-                }
-            });
-
-            // Update meter reading with photo URL
-            const nozzleNum = parseInt(nozzle);
-            const shift = await ensureOpenFullStationShiftForDailyRecord({
-                dailyRecordId: dailyRecord.id,
-                userId: auth.user.id,
-                requireStartedMeters: false,
-            });
-            const updateData = type === 'start'
-                ? { startPhoto: result.secure_url }
-                : { endPhoto: result.secure_url };
-
-            if (shift) {
-                await prisma.meterReading.upsert({
-                    where: {
-                        shiftId_nozzleNumber: {
-                            shiftId: shift.id,
-                            nozzleNumber: nozzleNum,
-                        },
-                    },
-                    update: updateData,
-                    create: {
-                        dailyRecordId: dailyRecord.id,
-                        shiftId: shift.id,
-                        nozzleNumber: nozzleNum,
-                        startReading: 0,
-                        startPhoto: type === 'start' ? result.secure_url : null,
-                        endPhoto: type === 'end' ? result.secure_url : null,
-                    },
-                });
-            } else {
-                const existingMeter = await prisma.meterReading.findFirst({
-                    where: {
-                        dailyRecordId: dailyRecord.id,
-                        nozzleNumber: nozzleNum,
-                    },
-                });
-
-                if (existingMeter) {
-                    await prisma.meterReading.update({
-                        where: { id: existingMeter.id },
-                        data: updateData,
-                    });
-                } else {
-                    await prisma.meterReading.create({
-                        data: {
-                            dailyRecordId: dailyRecord.id,
-                            nozzleNumber: nozzleNum,
-                            startReading: 0,
-                            startPhoto: type === 'start' ? result.secure_url : null,
-                            endPhoto: type === 'end' ? result.secure_url : null,
-                        },
-                    });
-                }
-            }
-        }
 
         return NextResponse.json({
             success: true,

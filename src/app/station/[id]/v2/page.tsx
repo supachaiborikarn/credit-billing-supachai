@@ -51,7 +51,13 @@ interface DailyRecord {
     retailPrice: number;
     wholesalePrice: number;
     status: string;
+    meterShiftId?: string | null;
+    meterShiftStatus?: string | null;
+    meterStartShiftId?: string | null;
+    meterEndShiftId?: string | null;
+    isHistoricalDate?: boolean;
     meters: MeterReading[];
+    shiftMeters?: MeterReading[];
 }
 
 type TabType = 'home' | 'list' | 'meter' | 'summary' | 'history';
@@ -141,6 +147,26 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
 
     const dayStatus = getDayStatus();
     const isDayClosed = dayStatus === 'closed';
+    const useHistoricalAdminMeterScope = Boolean(isAdmin && dailyRecord?.isHistoricalDate);
+    const operationalShiftMeters = dailyRecord?.shiftMeters || dailyRecord?.meters || [];
+    const meterSectionMeters = useHistoricalAdminMeterScope
+        ? dailyRecord?.meters || []
+        : operationalShiftMeters;
+    const meterSectionDayStatus: DayStatus = useHistoricalAdminMeterScope
+        ? dayStatus
+        : dailyRecord?.isHistoricalDate && !isAdmin
+            ? 'closed'
+        : dailyRecord?.meterShiftStatus === 'CLOSED'
+            ? 'closed'
+            : operationalShiftMeters.some(meter => Number(meter.startReading) > 0)
+                ? 'recording'
+                : 'not_started';
+    const meterSectionStartShiftId = useHistoricalAdminMeterScope
+        ? dailyRecord?.meterStartShiftId || dailyRecord?.meterShiftId || null
+        : dailyRecord?.meterShiftId || null;
+    const meterSectionEndShiftId = useHistoricalAdminMeterScope
+        ? dailyRecord?.meterEndShiftId || dailyRecord?.meterShiftId || null
+        : dailyRecord?.meterShiftId || null;
 
     const meterTotal = dailyRecord?.meters?.reduce((sum, m) => {
         const end = m.endReading || 0;
@@ -319,12 +345,15 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
             case 'meter':
                 return (
                     <MeterSection
+                        key={`${selectedDate}-${dailyRecord?.meterShiftId || dailyRecord?.id || 'new'}-${useHistoricalAdminMeterScope ? 'history' : 'live'}`}
                         stationId={id}
                         date={selectedDate}
-                        meters={dailyRecord?.meters || []}
+                        startShiftId={meterSectionStartShiftId}
+                        endShiftId={meterSectionEndShiftId}
+                        meters={meterSectionMeters}
                         previousDayMeters={previousDayMeters}
                         onSave={fetchDailyData}
-                        dayStatus={dayStatus}
+                        dayStatus={meterSectionDayStatus}
                         isAdmin={isAdmin}
                     />
                 );

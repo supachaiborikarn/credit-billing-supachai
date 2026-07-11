@@ -38,7 +38,12 @@ interface DailyRecord {
     retailPrice: number;
     wholesalePrice: number;
     status: string;
+    meterShiftId?: string | null;
+    meterStartShiftId?: string | null;
+    meterEndShiftId?: string | null;
+    isHistoricalDate?: boolean;
     meters: MeterReading[];
+    shiftMeters?: MeterReading[];
 }
 
 interface MeterReading {
@@ -197,6 +202,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
     // Meter continuity check
     const [previousDayMeters, setPreviousDayMeters] = useState<{ nozzle: number; endReading: number }[]>([]);
     const [meterWarnings, setMeterWarnings] = useState<string[]>([]);
+    const [meterSavingType, setMeterSavingType] = useState<'start' | 'end' | null>(null);
 
     // Delete confirmation
     const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; transactionId: string | null; licensePlate: string }>({
@@ -360,8 +366,13 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                     setRetailPrice(data.dailyRecord.retailPrice);
                     setWholesalePrice(data.dailyRecord.wholesalePrice);
                     // Only update meters if API returns non-empty array
-                    if (data.dailyRecord.meters && data.dailyRecord.meters.length > 0) {
-                        const apiMeters = data.dailyRecord.meters.map((m: MeterReading) => ({
+                    const editableMeters = data.dailyRecord.isHistoricalDate
+                        ? data.dailyRecord.meters
+                        : data.dailyRecord.shiftMeters?.length > 0
+                            ? data.dailyRecord.shiftMeters
+                            : data.dailyRecord.meters;
+                    if (editableMeters && editableMeters.length > 0) {
+                        const apiMeters = editableMeters.map((m: MeterReading) => ({
                             nozzle: m.nozzleNumber,
                             start: Number(m.startReading),
                             end: Number(m.endReading) || 0,
@@ -444,25 +455,43 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
     };
 
     const saveMeters = async (type: 'start' | 'end') => {
+        setMeterSavingType(type);
         try {
             const res = await fetch(`/api/station/${id}/meters`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     date: selectedDate,
+                    shiftId: dailyRecord?.isHistoricalDate
+                        ? type === 'start'
+                            ? dailyRecord.meterStartShiftId || dailyRecord.meterShiftId || null
+                            : dailyRecord.meterEndShiftId || dailyRecord.meterShiftId || null
+                        : dailyRecord?.meterShiftId || null,
                     type,
                     meters: meters.map(m => ({
                         nozzleNumber: m.nozzle,
                         reading: type === 'start' ? m.start : m.end,
+                        photo: type === 'start' ? m.startPhoto : m.endPhoto,
                     })),
                 }),
             });
             if (res.ok) {
                 alert(`บันทึกมิเตอร์${type === 'start' ? 'เริ่มต้น' : 'สิ้นสุด'}เรียบร้อย`);
-                fetchDailyData();
+                await fetchDailyData();
+                return;
+            }
+
+            const errorBody = await res.json().catch(() => null);
+            alert(errorBody?.error || `บันทึกมิเตอร์ไม่สำเร็จ (${res.status})`);
+
+            if (res.status === 401) {
+                window.location.href = `/login?reason=relogin&redirect=${encodeURIComponent(`/station/${id}`)}`;
             }
         } catch (error) {
             console.error('Error saving meters:', error);
+            alert('เชื่อมต่อระบบไม่สำเร็จ กรุณาลองบันทึกอีกครั้ง');
+        } finally {
+            setMeterSavingType(null);
         }
     };
 
@@ -683,7 +712,16 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
         }
     };
 
-    const meterTotal = meters.reduce((sum, m) => sum + (m.end - m.start), 0);
+    const reportMeters = dailyRecord?.meters?.length
+        ? dailyRecord.meters.map(meter => ({
+            nozzle: meter.nozzleNumber,
+            start: Number(meter.startReading || 0),
+            end: Number(meter.endReading || 0),
+            startPhoto: meter.startPhoto || undefined,
+            endPhoto: meter.endPhoto || undefined,
+        }))
+        : meters;
+    const meterTotal = reportMeters.reduce((sum, m) => sum + (m.end - m.start), 0);
     const transactionsTotal = transactions.reduce((sum, t) => sum + Number(t.liters), 0);
     const meterDiff = transactionsTotal - meterTotal;
 
@@ -696,8 +734,8 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
     const creditCompleteCount = creditTransactions.filter(t =>
         !!t.ownerName?.trim() && !!t.billBookNo?.trim() && !!t.billNo?.trim()
     ).length;
-    const startPhotoCount = meters.filter(m => !!m.startPhoto).length;
-    const endPhotoCount = meters.filter(m => !!m.endPhoto).length;
+    const startPhotoCount = reportMeters.filter(m => !!m.startPhoto).length;
+    const endPhotoCount = reportMeters.filter(m => !!m.endPhoto).length;
     const dataHealthIssues = [
         startPhotoCount < 4 ? `รูปมิเตอร์เปิดยังไม่ครบ ${startPhotoCount}/4` : null,
         dailyRecord?.status === 'CLOSED' && endPhotoCount < 4 ? `รูปมิเตอร์ปิดยังไม่ครบ ${endPhotoCount}/4` : null,
@@ -717,7 +755,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
             stationName: station.name,
             reportDate: selectedDate,
             transactions,
-            meters: meters.map((meter) => ({
+            meters: reportMeters.map((meter) => ({
                 nozzleNumber: meter.nozzle,
                 fuelType: 'ดีเซล B7',
                 startReading: Number(meter.start || 0),
@@ -1032,6 +1070,12 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                                     formData.append('nozzle', String(m.nozzle));
                                                                     formData.append('date', selectedDate);
                                                                     formData.append('stationId', `station-${id}`);
+                                                                    const startShiftId = dailyRecord?.isHistoricalDate
+                                                                        ? dailyRecord.meterStartShiftId || dailyRecord.meterShiftId
+                                                                        : dailyRecord?.meterShiftId;
+                                                                    if (startShiftId) {
+                                                                        formData.append('shiftId', startShiftId);
+                                                                    }
                                                                     try {
                                                                         const res = await fetch('/api/upload/meter-photo', {
                                                                             method: 'POST',
@@ -1077,9 +1121,13 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                 </div>
                                             ))}
                                         </div>
-                                        <button onClick={() => saveMeters('start')} className="btn btn-success w-full mt-4">
+                                        <button
+                                            onClick={() => saveMeters('start')}
+                                            disabled={meterSavingType !== null}
+                                            className="btn btn-success w-full mt-4 disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
                                             <Save size={18} />
-                                            บันทึกมิเตอร์เริ่มต้น
+                                            {meterSavingType === 'start' ? 'กำลังบันทึก...' : 'บันทึกมิเตอร์เริ่มต้น'}
                                         </button>
                                     </div>
 
@@ -1108,6 +1156,12 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                                     formData.append('nozzle', String(m.nozzle));
                                                                     formData.append('date', selectedDate);
                                                                     formData.append('stationId', `station-${id}`);
+                                                                    const endShiftId = dailyRecord?.isHistoricalDate
+                                                                        ? dailyRecord.meterEndShiftId || dailyRecord.meterShiftId
+                                                                        : dailyRecord?.meterShiftId;
+                                                                    if (endShiftId) {
+                                                                        formData.append('shiftId', endShiftId);
+                                                                    }
                                                                     try {
                                                                         const res = await fetch('/api/upload/meter-photo', {
                                                                             method: 'POST',
@@ -1153,9 +1207,13 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
                                                 </div>
                                             ))}
                                         </div>
-                                        <button onClick={() => saveMeters('end')} className="btn btn-success w-full mt-4">
+                                        <button
+                                            onClick={() => saveMeters('end')}
+                                            disabled={meterSavingType !== null}
+                                            className="btn btn-success w-full mt-4 disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
                                             <Save size={18} />
-                                            บันทึกมิเตอร์สิ้นสุด
+                                            {meterSavingType === 'end' ? 'กำลังบันทึก...' : 'บันทึกมิเตอร์สิ้นสุด'}
                                         </button>
                                     </div>
                                 </div>

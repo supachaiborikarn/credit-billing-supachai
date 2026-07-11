@@ -3,6 +3,11 @@ import { prisma } from '@/lib/prisma';
 import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
 import { buildTruckCodeMap, findCodeByPlate } from '@/lib/truck-utils';
 import { requireStationAccessApi } from '@/lib/api-auth';
+import {
+    buildFullStationDailyMeters,
+    selectCanonicalFullStationShift,
+    selectFullStationDailyEditShifts,
+} from '@/lib/full-station-shift-scope';
 
 export async function GET(
     request: NextRequest,
@@ -13,6 +18,7 @@ export async function GET(
         const stationId = `station-${id}`;
         const { searchParams } = new URL(request.url);
         const dateStr = searchParams.get('date') || getTodayBangkok();
+        const isHistoricalDate = dateStr !== getTodayBangkok();
         const auth = await requireStationAccessApi(stationId);
         if (auth.response) return auth.response;
 
@@ -27,28 +33,32 @@ export async function GET(
             where: {
                 stationId_date: { stationId, date }
             },
-            include: { meters: true }
+            include: {
+                meters: true,
+                shifts: {
+                    include: {
+                        meters: true,
+                        _count: { select: { transactions: true } },
+                    },
+                },
+            }
         });
 
-        // For FULL stations, ensure all 4 nozzle records exist
-        if (id === '1' && dailyRecord && dailyRecord.meters.length > 0 && dailyRecord.meters.length < 4) {
-            const existingNozzles = dailyRecord.meters.map(m => m.nozzleNumber);
-            const missingNozzles = [1, 2, 3, 4].filter(n => !existingNozzles.includes(n));
-            if (missingNozzles.length > 0) {
-                await prisma.meterReading.createMany({
-                    data: missingNozzles.map(nozzleNumber => ({
-                        dailyRecordId: dailyRecord.id,
-                        nozzleNumber,
-                        startReading: 0,
-                    }))
-                });
-                // Re-fetch meters after auto-creating missing ones
-                const updatedMeters = await prisma.meterReading.findMany({
-                    where: { dailyRecordId: dailyRecord.id }
-                });
-                dailyRecord.meters = updatedMeters;
-            }
-        }
+        const canonicalShift = id === '1' && dailyRecord
+            ? selectCanonicalFullStationShift(dailyRecord.shifts)
+            : null;
+        const dailyEditShifts = id === '1' && dailyRecord
+            ? selectFullStationDailyEditShifts(dailyRecord.shifts)
+            : { startShift: null, endShift: null };
+        const shiftMeters = canonicalShift
+            ? canonicalShift.meters
+            : dailyRecord?.meters.filter(meter => !meter.shiftId) || [];
+        const dailyMeters = id === '1' && dailyRecord
+            ? buildFullStationDailyMeters(
+                dailyRecord.shifts,
+                dailyRecord.meters.filter(meter => !meter.shiftId)
+            )
+            : dailyRecord?.meters || [];
 
         // Get transactions for the day (Bangkok timezone range)
         const startOfDay = getStartOfDayBangkok(dateStr);
@@ -88,13 +98,27 @@ export async function GET(
             where: {
                 stationId_date: { stationId, date: prevDate }
             },
-            include: { meters: true }
+            include: {
+                meters: true,
+                shifts: {
+                    include: {
+                        meters: true,
+                        _count: { select: { transactions: true } },
+                    },
+                },
+            }
         });
 
-        const previousDayMeters = previousDayRecord?.meters?.map((m: { nozzleNumber: number; endReading: unknown }) => ({
+        const previousScopedMeters = id === '1' && previousDayRecord
+            ? buildFullStationDailyMeters(
+                previousDayRecord.shifts,
+                previousDayRecord.meters.filter(meter => !meter.shiftId)
+            )
+            : previousDayRecord?.meters || [];
+        const previousDayMeters = previousScopedMeters.map((m: { nozzleNumber: number; endReading: unknown }) => ({
             nozzle: m.nozzleNumber,
             endReading: Number(m.endReading) || 0
-        })) || [];
+        }));
 
         // Build truck code map for C-Code lookup
         const truckCodeMap = await buildTruckCodeMap();
@@ -107,7 +131,25 @@ export async function GET(
                 status: dailyRecord.status,
                 retailPrice: Number(dailyRecord.retailPrice),
                 wholesalePrice: Number(dailyRecord.wholesalePrice),
-                meters: dailyRecord.meters
+                meterShiftId: canonicalShift?.id || null,
+                meterShiftStatus: canonicalShift?.status || null,
+                meterStartShiftId: isHistoricalDate
+                    ? dailyEditShifts.startShift?.id || canonicalShift?.id || null
+                    : canonicalShift?.id || null,
+                meterEndShiftId: isHistoricalDate
+                    ? dailyEditShifts.endShift?.id || canonicalShift?.id || null
+                    : canonicalShift?.id || null,
+                isHistoricalDate,
+                meters: dailyMeters
+                    .sort((a, b) => a.nozzleNumber - b.nozzleNumber)
+                    .map(m => ({
+                        nozzleNumber: m.nozzleNumber,
+                        startReading: Number(m.startReading),
+                        endReading: Number(m.endReading) || 0,
+                        startPhoto: m.startPhoto,
+                        endPhoto: m.endPhoto,
+                    })),
+                shiftMeters: shiftMeters
                     .sort((a, b) => a.nozzleNumber - b.nozzleNumber)
                     .map(m => ({
                         id: m.id,

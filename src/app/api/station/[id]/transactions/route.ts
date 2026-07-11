@@ -197,20 +197,10 @@ export async function POST(
             });
             dailyRecordId = dailyRecord.id;
 
-            let openShift = await prisma.shift.findFirst({
-                where: {
-                    dailyRecordId: dailyRecord.id,
-                    status: 'OPEN',
-                },
-                orderBy: { shiftNumber: 'desc' },
+            const openShift = await ensureOpenFullStationShiftForDailyRecord({
+                dailyRecordId: dailyRecord.id,
+                userId,
             });
-
-            if (!openShift) {
-                openShift = await ensureOpenFullStationShiftForDailyRecord({
-                    dailyRecordId: dailyRecord.id,
-                    userId,
-                });
-            }
 
             if (!openShift) {
                 return HttpErrors.badRequest('กรุณาเปิดกะก่อนบันทึกรายการของแท๊งลอย');

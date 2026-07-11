@@ -27,7 +27,7 @@
      2026-05-12 ปรับ GAS shift schedule เป็น 07:00-19:00 และ 19:00-07:00 พร้อม business date ก่อน 07:00 และ analytics window ตามเวลาจริง;
      2026-05-03 แก้ mobile thermal daily print ของ Tank Loy โดย Android ส่ง ePOS-Print XML เข้า Epson TM Print Assistant โดยตรงแทนการให้ Android สร้าง A4 preview;
      2026-05-06 แก้ mobile thermal receipt/credit bill ของ Tank Loy ให้ Android ส่ง ePOS XML ที่มี cut หลังต้นฉบับและหลังสำเนาแทน page-break HTML;
-     2026-05-06 ปรับ mobile thermal daily summary ให้เน้นยอดรวม/มิเตอร์/ผลต่าง และให้ admin daily summary print ใช้ template A4 มืออาชีพแทน print modal; รอบ follow-up คืนความยาวกระดาษใกล้ compact เดิมโดยไม่ใช้ `width=2 height=2`, ปรับมิเตอร์เป็นหัว+ลิตร 1 บรรทัด ตามด้วยเปิด/ปิดแยกบรรทัดเพื่อกันเลขยาวล้น, เพิ่มปุ่มแอดมินแก้ยอดสรุปกะ GAS จากหน้ากระทบยอด/รายงานมิเตอร์เพื่อแก้เงินสดหรือเครดิตที่ลงซ้ำหลังปิดกะ, 2026-05-07 เพิ่มตัวกันกดซ้ำในหน้า GAS sell พร้อม backend guard กันรายการยอดเดียวกันในช่วงสั้น, 2026-05-11 เพิ่มยอดเงินสดควรส่งสุทธิหลังหักค่าใช้จ่ายในหน้า GAS close/reconciliation/shift report, และ 2026-05-20 แก้หน้า GAS close shift crash เพราะหน้าอ่าน `shift.sales` แต่ summary API ส่ง `sales` ไว้ top-level -->
+     2026-05-06 ปรับ mobile thermal daily summary ให้เน้นยอดรวม/มิเตอร์/ผลต่าง และให้ admin daily summary print ใช้ template A4 มืออาชีพแทน print modal; รอบ follow-up คืนความยาวกระดาษใกล้ compact เดิมโดยไม่ใช้ `width=2 height=2`, ปรับมิเตอร์เป็นหัว+ลิตร 1 บรรทัด ตามด้วยเปิด/ปิดแยกบรรทัดเพื่อกันเลขยาวล้น, เพิ่มปุ่มแอดมินแก้ยอดสรุปกะ GAS จากหน้ากระทบยอด/รายงานมิเตอร์เพื่อแก้เงินสดหรือเครดิตที่ลงซ้ำหลังปิดกะ, 2026-05-07 เพิ่มตัวกันกดซ้ำในหน้า GAS sell พร้อม backend guard กันรายการยอดเดียวกันในช่วงสั้น, 2026-05-11 เพิ่มยอดเงินสดควรส่งสุทธิหลังหักค่าใช้จ่ายในหน้า GAS close/reconciliation/shift report, 2026-05-20 แก้หน้า GAS close shift crash เพราะหน้าอ่าน `shift.sales` แต่ summary API ส่ง `sales` ไว้ top-level, และ 2026-07-11 แก้ Tank Loy กะ OPEN ซ้ำ/แอดมินบันทึกมิเตอร์ย้อนหลังไม่ติดด้วย atomic shift+meter writes, exact shift IDs, daily boundary aggregation และ production repair พร้อม audit -->
 
 # Bugs & Fixes
 
@@ -35,6 +35,14 @@
 บันทึกประวัติ bugs ที่เจอและวิธีแก้ไข เพื่อป้องกันการเกิดซ้ำ
 
 ## Resolved Bugs
+
+### 🐛 Tank Loy Retroactive Meter Save and Duplicate Open Shift (Jul 11, 2026)
+- **ปัญหา**: วันที่ธุรกิจ 2026-07-10 มี `Shift OPEN` ซ้ำ 2 กะจากคำขออัปโหลดรูปที่ชนกัน; กะหลงมีมิเตอร์หัว 1 ค่า 0 และไม่มีรายการขาย ส่วนกะจริงมีมิเตอร์ครบ 4 หัวและรายการขาย 10 รายการ ทำให้ daily API flatten มิเตอร์ 5 แถวและหน้าแอดมินอ่านหัว 1 จากกะหลง จึงดูเหมือนบันทึกย้อนหลังไม่ติด
+- **สาเหตุ**: `full-station-shift-sync` ตรวจและสร้างกะแยกหลาย query, upload route เขียนรูปลง DB ทันที, daily route ไม่แยก live shift กับขอบเขตเปิด/ปิดรายวัน, และ classic admin ไม่แสดง error body จาก API
+- **แก้ไขโค้ด**: ครอบการเลือก/สร้างกะด้วย Serializable transaction+retry, ใช้ resolver เดียวกันกับ meter/transaction/bulk writes, ให้ upload คืน URL อย่างเดียวและใช้ชื่อไฟล์ unique, บันทึกเลข+รูป 4 หัว+Audit Log ใน transaction เดียว, ส่ง exact shift ID แยกเลขเปิด/ปิดสำหรับการแก้ย้อนหลัง, รวม daily meter จากเลขเปิดแรกกับเลขปิดสุดท้ายโดยยังคง transactions ทั้งวัน, ล็อก staff ไม่ให้แก้มิเตอร์ย้อนหลัง, และแสดง error ในหน้า classic
+- **ซ่อมข้อมูลจริง**: ใช้กะ 2 เป็นกะจริง, ใส่เลขปิดจากรูปหัว 1-4 เป็น `6,054,256.50`, `6,467,087.89`, `10,186,199.52`, `7,120,757.98`, ปิดกะหลงโดยไม่ลบแถวหลักฐาน และสร้าง Audit Log 5 รายการ
+- **ข้อควรตรวจต่อ**: มิเตอร์รวม 2,372.41 ลิตร แต่รายการที่ควรเทียบมิเตอร์รวม 1,968.75 ลิตร จึงต่าง 403.66 ลิตร โดยหัว 2 ขาดรายการประมาณ 404 ลิตร; ยังไม่ปิดกะจริงหรือสร้าง reconciliation อัตโนมัติ
+- **Verification**: regression tests ใหม่ 14 tests ผ่าน, `npx tsc --noEmit` ผ่าน, targeted ESLint 0 errors, production build ผ่าน, และ production dry-run ยืนยันเลข/สถานะ/Audit Log ครบ
 
 ### 🐛 Billing Sort Order (Feb 2026)
 - **ปัญหา**: บิลเรียงผิดเพราะใช้ string comparison → "9" > "10"
@@ -362,8 +370,10 @@
 49. **GAS Staff Sell Duplicate Guard**: หน้า `/gas/[stationId]/sell` ต้องกันการ submit ซ้ำทันทีด้วย local submit lock และ API `/api/v2/gas/[stationId]/sell` ต้อง block รายการ LPG ที่ station/shift/payment/amount/liters/book/bill เหมือนกันในช่วงสั้น เพราะเงินสด/บัตรไม่มีเลขบิลเป็น unique key และการแตะปุ่มซ้ำจะสร้าง transaction ใหม่จริง
 50. **GAS Net Cash After Expenses**: หน้า `/gas/[stationId]/shift/close`, `/admin/gas/reconciliation`, และ `/admin/gas/reports/shift` ต้องแสดง “เงินสดควรส่งสุทธิ” จากสูตร `cashExpected + nonGasSalesAmount - otherExpensesAmount` เพราะพนักงานอาจใช้เงินสดรับจริงจ่ายค่าใช้จ่ายก่อนส่งเงิน และยอดรวมกระทบยอดยังต้องคงสูตรเดิม `expectedFuelAmount + nonGasSalesAmount - otherExpensesAmount`
 51. **GAS Fixed Shift Schedule**: GAS ทุกสถานีใช้กะ 1 = 07:00-19:00 และกะ 2 = 19:00-07:00; helper กลางคือ `src/lib/gas/shift-utils.ts` และ `getGasBusinessDateKey`; ช่วง 00:00-06:59 ต้องนับเป็น business date ของวันก่อนหน้า และ admin analytics ต้อง match transaction ที่ไม่ผูกกะด้วย schedule นี้ก่อนสร้าง orphan row
+52. **Tank Loy Daily vs Shift Meter Scope**: `/api/station/[id]/daily` ต้องคง transactions ตาม station+Bangkok day ทั้งวัน; daily meter ใช้เลขเปิดแรก+เลขปิดสุดท้ายต่อหัวและ fallback legacy unscoped ต่อหัว, ส่วน live form ใช้ canonical OPEN shift และ admin historical form ใช้ start/end boundary shift IDs แยกกัน; upload รูปห้ามเขียน MeterReading ก่อนกดบันทึก และ meter+photo+audit 4 หัวต้อง atomic
 
 ## Changelog
+- 2026-07-11: แก้ Tank Loy กะซ้ำและ admin meter backfill, ซ่อม production วันที่ 10 ก.ค. จากรูปพร้อม Audit Log, เพิ่ม daily/shift scope helpers, atomic writes, historical admin guard และ regression tests
 - 2026-05-12: ปรับ GAS shift schedule/business date/report analytics ให้ยึดกะ 07:00-19:00 และ 19:00-07:00 พร้อมเพิ่ม tests กัน regression
 - 2026-05-11: เพิ่มยอด “เงินสดควรส่งสุทธิ” ในหน้า GAS ปิดกะ, admin reconciliation และรายงานตามกะ เพื่อให้เห็นเงินสดที่ควรส่งจริงหลังใช้เงินสดจ่ายค่าใช้จ่าย
 - 2026-05-07: ตรวจ live `station-5` กะ 2 หลังพบยอดเงินสดซ้ำในรูปหน้างาน; ยืนยันว่าเป็น transaction ซ้ำจริง และเพิ่ม guard กัน submit ซ้ำในหน้า GAS sell + backend duplicate window ใน API sell

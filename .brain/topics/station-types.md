@@ -1,4 +1,4 @@
-<!-- SUMMARY: 6 สถานี: แท๊งลอยวัชรเกียรติ (FULL) ใช้ staff route เดียว `/station/1/v2` และคง classic admin ที่ `/station/1`;
+<!-- SUMMARY: 6 สถานี: แท๊งลอยวัชรเกียรติ (FULL) ใช้ staff route เดียว `/station/1/v2` และคง classic admin ที่ `/station/1`; admin แก้มิเตอร์ย้อนหลังใช้ exact start/end shift scope และ daily report รวมเลขเปิดแรกกับเลขปิดสุดท้าย;
      วัชรเกียรติออยล์/พงษ์อนันต์/ศุภชัยบริการ (SIMPLE), ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS) ใช้ staff route หลัก `/gas/[id]` พร้อม open-shift guard, GAS มี 2 กะตายตัว 07:00-19:00 และ 19:00-07:00 โดยกะ 2 ข้ามวันได้, supply receiving `/gas/[id]/supplies`, meter continuity ใน admin report, admin reconciliation edit จากรายงานมิเตอร์, executive print report `/admin/gas/reports/executive`, และ admin `/admin/gas/*`; legacy admin gas-control redirect ไป v2 -->
 
 # Station Types
@@ -59,6 +59,7 @@
 - **Constants**: `/src/constants/index.ts`
 
 ## Changelog
+- 2026-07-11: แก้ Tank Loy admin meter backfill ให้แยก live shift กับ daily start/end scope, รวมมิเตอร์รายวันข้าม split shift และกัน duplicate OPEN shift race
 - 2026-02-24: สร้างไฟล์ brain topic นี้
 - 2026-01: แยกมิเตอร์ตามกะ, แก้ shift filter, fuel price sync
 - 2026-04-23: Modernized GAS UI (Linear-inspired, card-based layout) for /gas-station/[id]

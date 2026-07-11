@@ -21,6 +21,8 @@ const firstUrl = (...urls: Array<string | null | undefined>) =>
 interface MeterSectionProps {
     stationId: string;
     date: string;
+    startShiftId?: string | null;
+    endShiftId?: string | null;
     meters: MeterReading[];
     previousDayMeters: { nozzle: number; endReading: number }[];
     onSave: () => void;
@@ -31,6 +33,8 @@ interface MeterSectionProps {
 export default function MeterSection({
     stationId,
     date,
+    startShiftId,
+    endShiftId,
     meters: initialMeters,
     previousDayMeters,
     onSave,
@@ -122,6 +126,10 @@ export default function MeterSection({
             formData.append('nozzle', String(nozzle));
             formData.append('date', date);
             formData.append('stationId', `station-${stationId}`);
+            const activeShiftId = activeTab === 'start' ? startShiftId : endShiftId;
+            if (activeShiftId) {
+                formData.append('shiftId', activeShiftId);
+            }
 
             const res = await fetch('/api/upload/meter-photo', {
                 method: 'POST',
@@ -202,6 +210,7 @@ export default function MeterSection({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     date,
+                    shiftId: activeTab === 'start' ? startShiftId || null : endShiftId || null,
                     type: activeTab,
                     meters: meters.map(m => ({
                         nozzleNumber: m.nozzleNumber,
