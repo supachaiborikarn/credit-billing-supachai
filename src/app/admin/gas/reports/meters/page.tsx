@@ -167,6 +167,10 @@ export default function MeterReportPage() {
         return `/admin/gas/reconciliation?${params}`;
     };
 
+    const getEditMetersUrl = (report: MeterReport): string => (
+        `/admin/gas/meters/${encodeURIComponent(report.id)}/edit`
+    );
+
     const anomalyCount = reports.filter(isAnomalyReport).length;
     const displayedReports = showOnlyAnomalies ? reports.filter(isAnomalyReport) : reports;
 
@@ -486,13 +490,22 @@ export default function MeterReportPage() {
                                                 {r.isSyntheticOrphan ? 'รอมิเตอร์' : `คาด ฿${formatCurrency(r.expectedSales)}`}
                                             </div>
                                             {!r.isSyntheticOrphan && (
-                                                <a
-                                                    href={getEditReconciliationUrl(r)}
-                                                    className="mt-2 inline-flex items-center gap-1 rounded bg-orange-600 px-2 py-1 font-sans text-[11px] font-semibold text-white hover:bg-orange-500"
-                                                >
-                                                    <Edit3 size={12} />
-                                                    แก้ยอด
-                                                </a>
+                                                <div className="mt-2 flex flex-wrap justify-end gap-1">
+                                                    <a
+                                                        href={getEditMetersUrl(r)}
+                                                        className="inline-flex items-center gap-1 rounded border border-orange-400/40 bg-orange-500/10 px-2 py-1 font-sans text-[11px] font-semibold text-orange-200 hover:bg-orange-500/20"
+                                                    >
+                                                        <Edit3 size={12} />
+                                                        แก้มิเตอร์
+                                                    </a>
+                                                    <a
+                                                        href={getEditReconciliationUrl(r)}
+                                                        className="inline-flex items-center gap-1 rounded bg-orange-600 px-2 py-1 font-sans text-[11px] font-semibold text-white hover:bg-orange-500"
+                                                    >
+                                                        <Edit3 size={12} />
+                                                        แก้ยอด
+                                                    </a>
+                                                </div>
                                             )}
                                         </td>
                                         </tr>

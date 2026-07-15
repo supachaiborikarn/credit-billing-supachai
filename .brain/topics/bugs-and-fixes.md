@@ -9,7 +9,7 @@
      และ fix หน้าใหม่ของแท๊งลอยให้เชื่อมทั้ง daily price, transaction contract, receipt/slip flow กับ backend/source ชุดเดียวกับหน้าเก่า;
      audit ปั๊มแก๊ส 2026-04-23 พบ route/API ซ้อนกันและกะ GAS ค้างจำนวนมาก; hardening รอบเดียวกันเติม v2 gauge route,
      auth/ownership guard, shift-scoped v2 sell/summary, payment type `CREDIT_CARD`, product guard เฉพาะ station-5, admin stale-shift cleanup tool,
-     follow-up analytics/reporting ให้ GAS admin ใช้ shared shift/day facts ชุดเดียวกันพร้อมเติม payment mix/reconciliation edit flow,
+     follow-up analytics/reporting ให้ GAS admin ใช้ shared shift/day facts ชุดเดียวกันพร้อมเติม payment mix/reconciliation edit flow และ admin opening-meter edit พร้อม Audit Log 2026-07-15,
      และ 2026-04-24 พบ live incident จาก `/gas-station/[id]/new/home` ที่เรียก legacy open shift โดยไม่ส่ง meter/gauge ทำให้เกิดกะว่าง;
      2026-04-25 เพิ่ม staff daily GAS price edit ให้แก้ `dailyRecord.gasPrice` ผ่าน v2 route พร้อม audit;
      ปิด gap เงินเชื่อ GAS ที่ไม่บังคับเลขบิล/รถ พร้อม validate ยอดรับจริงตอนปิดกะไม่ให้ติดลบ;
@@ -371,8 +371,10 @@
 50. **GAS Net Cash After Expenses**: หน้า `/gas/[stationId]/shift/close`, `/admin/gas/reconciliation`, และ `/admin/gas/reports/shift` ต้องแสดง “เงินสดควรส่งสุทธิ” จากสูตร `cashExpected + nonGasSalesAmount - otherExpensesAmount` เพราะพนักงานอาจใช้เงินสดรับจริงจ่ายค่าใช้จ่ายก่อนส่งเงิน และยอดรวมกระทบยอดยังต้องคงสูตรเดิม `expectedFuelAmount + nonGasSalesAmount - otherExpensesAmount`
 51. **GAS Fixed Shift Schedule**: GAS ทุกสถานีใช้กะ 1 = 07:00-19:00 และกะ 2 = 19:00-07:00; helper กลางคือ `src/lib/gas/shift-utils.ts` และ `getGasBusinessDateKey`; ช่วง 00:00-06:59 ต้องนับเป็น business date ของวันก่อนหน้า และ admin analytics ต้อง match transaction ที่ไม่ผูกกะด้วย schedule นี้ก่อนสร้าง orphan row
 52. **Tank Loy Daily vs Shift Meter Scope**: `/api/station/[id]/daily` ต้องคง transactions ตาม station+Bangkok day ทั้งวัน; daily meter ใช้เลขเปิดแรก+เลขปิดสุดท้ายต่อหัวและ fallback legacy unscoped ต่อหัว, ส่วน live form ใช้ canonical OPEN shift และ admin historical form ใช้ start/end boundary shift IDs แยกกัน; upload รูปห้ามเขียน MeterReading ก่อนกดบันทึก และ meter+photo+audit 4 หัวต้อง atomic
+53. **GAS Admin Opening Meter Repair**: start meter ของ GAS ที่มีกิจกรรมแล้วต้องแก้ผ่าน `/admin/gas/meters/[shiftId]/edit` และ API `/api/v2/gas/admin/meters/[shiftId]`; ต้องบันทึกเหตุผลกับค่าเดิม/ค่าใหม่ใน Audit Log, ห้ามเปลี่ยน `capturedById` เดิม, ต้องกันเลขเปิดมากกว่าเลขปิด, คำนวณ `soldQty` ใหม่ และถ้ามี reconciliation ต้องปรับ `expectedFuelAmount`, `totalExpected`, `variance`, `varianceStatus` ใน transaction เดียวกัน
 
 ## Changelog
+- 2026-07-15: ซ่อม live `station-5` กะ 1 วันที่ 15 ก.ค. ที่คัดเลขเปิดจากเลขเปิดกะ 2 วันก่อนแทนเลขปิดล่าสุด; แก้เป็น 33,818.39 / 42,103.20 / 58,146.98 / 112,910.67 พร้อม Audit Log 4 รายการ และเพิ่ม admin opening-meter edit flow พร้อม regression tests
 - 2026-07-11: แก้ Tank Loy กะซ้ำและ admin meter backfill, ซ่อม production วันที่ 10 ก.ค. จากรูปพร้อม Audit Log, เพิ่ม daily/shift scope helpers, atomic writes, historical admin guard และ regression tests
 - 2026-05-12: ปรับ GAS shift schedule/business date/report analytics ให้ยึดกะ 07:00-19:00 และ 19:00-07:00 พร้อมเพิ่ม tests กัน regression
 - 2026-05-11: เพิ่มยอด “เงินสดควรส่งสุทธิ” ในหน้า GAS ปิดกะ, admin reconciliation และรายงานตามกะ เพื่อให้เห็นเงินสดที่ควรส่งจริงหลังใช้เงินสดจ่ายค่าใช้จ่าย

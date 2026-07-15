@@ -12,6 +12,9 @@ const prismaMock = {
     shiftReconciliation: {
         upsert: vi.fn(),
     },
+    auditLog: {
+        create: vi.fn(),
+    },
 };
 
 const requireAdminApiMock = vi.fn();
@@ -44,6 +47,7 @@ beforeEach(() => {
     prismaMock.$transaction.mockImplementation(async (operations: Promise<unknown>[]) => Promise.all(operations));
     prismaMock.shiftReconciliation.upsert.mockResolvedValue({});
     prismaMock.shift.update.mockResolvedValue({});
+    prismaMock.auditLog.create.mockResolvedValue({});
     requireAdminApiMock.mockResolvedValue({
         user: { id: 'admin-1', role: 'ADMIN' },
     });

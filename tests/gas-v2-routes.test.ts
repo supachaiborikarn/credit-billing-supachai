@@ -33,6 +33,7 @@ const txMock = {
         create: vi.fn(),
     },
     shiftReconciliation: {
+        findUnique: vi.fn(),
         upsert: vi.fn(),
     },
     auditLog: {
@@ -101,6 +102,7 @@ vi.mock('@/lib/prisma', () => ({
 
 vi.mock('@/lib/gas/api-guards', () => ({
     requireGasStationAccess: requireGasStationAccessMock,
+    gasStationSupportsProducts: () => false,
     shiftBelongsToStation: (shift: { dailyRecord?: { stationId: string } | null } | null, station: { dbId: string }) =>
         Boolean(shift?.dailyRecord?.stationId === station.dbId),
 }));
@@ -1076,7 +1078,7 @@ describe('gas v2 route guards', () => {
         });
 
         expect(response.status).toBe(200);
-        expect(prismaMock.shiftReconciliation.upsert).toHaveBeenCalledWith(expect.objectContaining({
+        expect(txMock.shiftReconciliation.upsert).toHaveBeenCalledWith(expect.objectContaining({
             update: expect.objectContaining({
                 expectedFuelAmount: 740,
                 expectedOtherAmount: 75,
@@ -1086,7 +1088,7 @@ describe('gas v2 route guards', () => {
                 variance: 75,
             }),
         }));
-        expect(prismaMock.shift.update).toHaveBeenCalledWith({
+        expect(txMock.shift.update).toHaveBeenCalledWith({
             where: { id: 'shift-1' },
             data: expect.objectContaining({
                 status: 'CLOSED',
