@@ -42,6 +42,7 @@ git push origin main
 | `CLOUDINARY_CLOUD_NAME` | `your-cloud` | ชื่อ Cloudinary cloud |
 | `CLOUDINARY_API_KEY` | `123456789` | API key |
 | `CLOUDINARY_API_SECRET` | `xxx` | API secret |
+| `TANK_LOY_PRINT_AGENT_TOKEN` | `รหัสสุ่มอย่างน้อย 32 bytes` | รหัสสำหรับ Windows ที่พิมพ์สรุปวันแท๊งลอยอัตโนมัติ |
 
 ---
 

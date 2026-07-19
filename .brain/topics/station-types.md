@@ -1,4 +1,4 @@
-<!-- SUMMARY: 6 สถานี: แท๊งลอยวัชรเกียรติ (FULL) ใช้ staff route เดียว `/station/1/v2` และคง classic admin ที่ `/station/1`; admin แก้มิเตอร์ย้อนหลังใช้ exact start/end shift scope และ daily report รวมเลขเปิดแรกกับเลขปิดสุดท้าย;
+<!-- SUMMARY: 6 สถานี: แท๊งลอยวัชรเกียรติ (FULL) ใช้ staff route เดียว `/station/1/v2` และคง classic admin ที่ `/station/1`; admin แก้มิเตอร์ย้อนหลังใช้ exact start/end shift scope, daily report รวมเลขเปิดแรกกับเลขปิดสุดท้าย, และ Windows agent พิมพ์สรุปเมื่อวานเข้า Epson TM-m30III ผ่าน Wi-Fi เวลา 07:00;
      วัชรเกียรติออยล์/พงษ์อนันต์/ศุภชัยบริการ (SIMPLE), ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS) ใช้ staff route หลัก `/gas/[id]` พร้อม open-shift guard, GAS มี 2 กะตายตัว 07:00-19:00 และ 19:00-07:00 โดยกะ 2 ข้ามวันได้, supply receiving `/gas/[id]/supplies`, meter continuity ใน admin report, admin แก้เลขเปิดมิเตอร์และยอดกระทบยอดจากรายงานมิเตอร์พร้อม Audit Log, executive print report `/admin/gas/reports/executive`, และ admin `/admin/gas/*`; legacy admin gas-control redirect ไป v2 -->
 
 # Station Types
@@ -29,6 +29,7 @@
 - Admin classic route: `/station/1`
 - Legacy `/station/1/new/*` และ `/simple-station/1/new/*` ต้อง redirect เข้า `/station/1/v2` เพื่อปิดทางเข้าหน้าดำ ยกเว้น `/station/1/new/receipt` ที่ V2 ยังใช้เป็น thermal print surface
 - V2 meter start ต้องสร้าง/ผูก `Shift OPEN` ด้วยเสมอ เพราะ transaction API ต้องผูก `shiftId`; ถ้ามี daily meter start แล้วแต่ shift หาย ให้ auto-repair ผ่าน `full-station-shift-sync`
+- Windows auto print รัน 07:00 ทุกวัน ดึง station-wide report ของเมื่อวาน รอเลขเปิด-ปิดมิเตอร์ครบ 4 หัว แล้วส่ง ePOS XML เข้า Epson TM-m30III ผ่าน Wi-Fi
 
 ### SIMPLE Station
 - บันทึกบิลอย่างเดียว
@@ -51,6 +52,7 @@
 - **FULL staff UI implementation**: `/src/app/station/[id]/v2/page.tsx` และ components ใต้ `/src/app/station/[id]/v2/components` โดยมี `OperationsCommandPanel` เป็น command center สำหรับสถานะมิเตอร์/หลักฐาน/ยอดขาย
 - **FULL admin health implementation**: `/src/app/station/[id]/page.tsx` มี `Admin Data Health` panel เพื่อแสดงข้อมูลจาก V2 ครบทั้งรูปมิเตอร์, สลิปโอน, เลขบิล, ลูกค้าเงินเชื่อ, ยอดลิตร/เงิน และผลต่างมิเตอร์
 - **FULL daily print report**: `/src/lib/daily-report-print.ts` ใช้กับ V2 และ classic admin เพื่อพิมพ์สรุปวันพร้อมเลขเปิด-ปิดมิเตอร์, รายการเติมทั้งหมด, ยอดเงินรวม และผลต่างลิตรระหว่างมิเตอร์กับรายการเติม ทั้ง A4 professional report และ Android Epson direct thermal 58/80mm สำหรับ TM-m30III
+- **FULL Windows auto print**: API `/src/app/api/automation/tank-loy/daily-report/route.ts`, report source `/src/lib/tank-loy-auto-print.ts`, Windows worker/installer `/scripts/tank-loy-auto-print.ps1` + `/scripts/install-tank-loy-auto-print.ps1` + `/scripts/install-tank-loy-auto-print.cmd`, และคู่มือ `/docs/TANK_LOY_AUTO_PRINT_WINDOWS.md`
 - **FULL thermal receipt implementation**: `/src/app/station/[id]/new/receipt/page.tsx` (re-export จาก simple receipt สำหรับ V2 print) และ Android Epson direct XML helper `/src/lib/thermal-receipt-print.ts` สำหรับตัดต้นฉบับ/สำเนาอัตโนมัติ
 - **GAS staff UI**: `/src/app/gas/[stationId]/page.tsx`
 - **GAS staff supply receiving**: `/src/app/gas/[stationId]/supplies/page.tsx`
@@ -61,6 +63,7 @@
 - **Constants**: `/src/constants/index.ts`
 
 ## Changelog
+- 2026-07-19: เพิ่ม Windows Scheduled Task พิมพ์สรุปวันแท๊งลอยของเมื่อวานเวลา 07:00 เข้า Epson TM-m30III ผ่าน Wi-Fi พร้อม retry เมื่อมิเตอร์ยังไม่ครบและ duplicate guard
 - 2026-07-15: ซ่อมเลขเปิดกะ 1 ของ `station-5` ให้ต่อจากเลขปิดกะก่อนหน้า 4 หัวพร้อม Audit Log และเพิ่มหน้า admin แก้เลขเปิดมิเตอร์จากรายงานมิเตอร์โดยคำนวณลิตร/reconciliation ใหม่อัตโนมัติ
 - 2026-07-11: แก้ Tank Loy admin meter backfill ให้แยก live shift กับ daily start/end scope, รวมมิเตอร์รายวันข้าม split shift และกัน duplicate OPEN shift race
 - 2026-02-24: สร้างไฟล์ brain topic นี้

@@ -12,6 +12,7 @@ const OPTIONAL_ENV_VARS = [
     'CLOUDINARY_API_SECRET',
     'LOG_LEVEL',
     'WATCHARA_DISPENSER_DATABASE_URL',
+    'TANK_LOY_PRINT_AGENT_TOKEN',
 ];
 
 interface EnvValidationResult {

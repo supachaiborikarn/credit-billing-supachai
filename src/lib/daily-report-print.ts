@@ -24,14 +24,14 @@ export interface PrintableDailyMeter {
     amount?: number | null;
 }
 
-interface PrintDailyWorkReportInput {
+export interface PrintDailyWorkReportInput {
     stationName: string;
     reportDate: string;
     transactions: PrintableDailyTransaction[];
     meters?: PrintableDailyMeter[];
 }
 
-type ThermalPaperSize = '58' | '80';
+export type ThermalPaperSize = '58' | '80';
 
 const THERMAL_DAILY_PRINTER_PROFILE = {
     model: 'Epson TM-m30III',
@@ -108,6 +108,10 @@ function formatShortReportDate(dateStr: string): string {
         month: '2-digit',
         year: '2-digit',
     });
+}
+
+function formatPrintedAt(date = new Date()): string {
+    return date.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
 }
 
 function getPaymentLabel(paymentType: string): string {
@@ -222,7 +226,7 @@ function buildCompactTransactionLines(
     ];
 }
 
-function buildEpsonAssistantDailyReportXml({
+export function buildEpsonAssistantDailyReportXml({
     stationName,
     reportDate,
     transactions,
@@ -278,7 +282,7 @@ function buildEpsonAssistantDailyReportXml({
         padReceiptLine('รวมลิตร', formatCurrency(totalLiters), columns),
         padReceiptLine('รวมเงิน', formatCurrency(totalAmount), columns),
     ];
-    const footerPrintedAtLine = centerReceiptLine(`พิมพ์ ${new Date().toLocaleString('th-TH')}`, columns);
+    const footerPrintedAtLine = centerReceiptLine(`พิมพ์ ${formatPrintedAt()}`, columns);
 
     return [
         '<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">',
@@ -852,7 +856,7 @@ export function printDailyWorkReport({
         </div>
     </div>
 
-    <div class="footer">รายงานสรุปวัน • พิมพ์เมื่อ ${escapeHtml(new Date().toLocaleString('th-TH'))}</div>
+    <div class="footer">รายงานสรุปวัน • พิมพ์เมื่อ ${escapeHtml(formatPrintedAt())}</div>
     </div>
 
     <script>
@@ -1223,7 +1227,7 @@ export function printThermalDailyWorkReport({
             <span>รวมยอดเงินทั้งหมด</span>
             <strong>฿ ${escapeHtml(formatCurrency(totalAmount))}</strong>
         </div>
-        <div class="footer">พิมพ์เมื่อ ${escapeHtml(new Date().toLocaleString('th-TH'))}<br/>ขอบคุณที่ใช้บริการ</div>
+        <div class="footer">พิมพ์เมื่อ ${escapeHtml(formatPrintedAt())}<br/>ขอบคุณที่ใช้บริการ</div>
     </div>
     <script>
         window.onload = function () {
@@ -1238,4 +1242,3 @@ export function printThermalDailyWorkReport({
     printWindow.document.close();
     return true;
 }
-

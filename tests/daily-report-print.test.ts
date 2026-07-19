@@ -1,8 +1,25 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildEpsonAssistantDailyReportUrl } from '@/lib/daily-report-print';
+import {
+    buildEpsonAssistantDailyReportUrl,
+    buildEpsonAssistantDailyReportXml,
+} from '@/lib/daily-report-print';
 
 describe('daily report thermal printing', () => {
+    it('exposes the same ePOS XML for the Windows network print agent', () => {
+        const xml = buildEpsonAssistantDailyReportXml({
+            stationName: 'แท๊งลอยวัชรเกียรติ',
+            reportDate: '2026-07-18',
+            paperSize: '80',
+            meters: [],
+            transactions: [],
+        });
+
+        expect(xml).toContain('<epos-print');
+        expect(xml).toContain('รายงานสรุปวัน');
+        expect(xml).toContain('<cut type="feed" />');
+    });
+
     it('builds an Epson TM Print Assistant ePOS XML URL for Android direct printing', () => {
         const url = buildEpsonAssistantDailyReportUrl({
             stationName: 'แท๊งลอยวัชรเกียรติ',
