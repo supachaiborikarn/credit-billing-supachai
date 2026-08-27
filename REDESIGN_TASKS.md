@@ -598,6 +598,7 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S65: review GAS `/gas/[id]/gauge` → **KEEP** เป็น guarded correction/recovery route; ยังไม่ redirect
 - [x] S66: review GAS `/gas/[id]/supplies` → **KEEP** เป็น LPG inventory receipt/history domain; ยังไม่มี canonical replacement
 - [x] S67: review station-5 `/gas/5/products` → **KEEP** เป็น product master/stock/history domain; ยังไม่มี canonical replacement
+- [x] S68: review GAS landing `/gas/5|6` → **KEEP ชั่วคราว** จนย้าย price update + secondary tool entry เข้า canonical overview
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุด
 - [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S60
 
@@ -2000,6 +2001,29 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Session ถัดไปที่แนะนำ: `S68` review GAS landing route disposition
 - หมายเหตุ/Decision:
   - station-5 product inventory เป็น domain แยกจาก LPG SaleFlow
+  - ไม่ deploy production
+
+
+## 2026-08-27 — S68 — Review active GAS landing `/gas/5|6`
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - ตรวจ current GAS landing/layout เทียบ canonical Station Overview/Operations
+  - sale/open/close หลักถูกย้าย canonical แล้ว แต่ landing ยังมี staff action แก้ราคาขายผ่าน `/api/v2/gas/[stationId]/price`
+  - price API เป็น audited write path: update/create DailyRecord + Station default ใน transaction และรองรับ active GAS business-date
+  - landing/layout ยังเป็นทางเข้าหลักที่มองเห็นได้ของ meter/gauge correction และ supplies/products ที่ S64-S67 ตัดสินใจ KEEP
+  - canonical overview ปัจจุบันมีเพียง Sales / Operations / History จึง redirect landing ตอนนี้แล้วจะทำ secondary tools หาได้ยากและทำ price action หาย
+- Decision:
+  - **ยังไม่ redirect `/gas/5|6` ใน S68**; เพิ่ม `KEEP_GAS_WORKSPACE` ชั่วคราว
+  - migrate secondary GAS tool links + price update เข้า canonical overview ก่อน แล้วค่อย review landing retirement อีกรอบ
+- ตรวจสอบแล้ว:
+  - review/docs-only; ไม่มี production behavior เปลี่ยนและไม่ rerun financial gate
+  - `git diff --check` ผ่านก่อน commit
+- สิ่งที่ยังค้าง:
+  - S69 เพิ่ม discoverable GAS secondary tools ใน canonical overview
+  - S70 ย้าย staff price-update UX เข้า canonical surface พร้อม regression
+- Session ถัดไปที่แนะนำ: `S69` canonical GAS secondary-tool entry
+- หมายเหตุ/Decision:
+  - ไม่ซ่อน correction/inventory tools เพียงเพื่อให้ route retirement ดูครบ
   - ไม่ deploy production
 
 

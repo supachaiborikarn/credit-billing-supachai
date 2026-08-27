@@ -34,6 +34,7 @@ Canonical station IDs are `station-1` … `station-6`. URL structure must not en
 - **KEEP_FULL_ADMIN_COMPAT** — keep FULL legacy workspace while it still owns admin edit/print/audit/historical correction capabilities not yet migrated.
 - **KEEP_GAS_CORRECTION** — keep a GAS operational correction surface when canonical normal workflow cannot yet repair the same guarded state safely.
 - **KEEP_GAS_INVENTORY** — keep GAS supply/product inventory workflows until their create/edit/receive/history capabilities have a canonical replacement.
+- **KEEP_GAS_WORKSPACE** — keep the current GAS landing while it is still the only discoverable entry for retained correction/inventory tools or an active staff capability such as price update.
 - **KEEP_READ_COMPAT** — keep for historical/receipt/summary/print compatibility until the canonical read path proves parity.
 - **KEEP_MASTER_DATA** — still contains create/edit administration not yet moved into Customer 360.
 - **KEEP_ADMIN_REPORT** — admin/reporting tool; not part of the first station-route retirement wave.
@@ -68,7 +69,7 @@ Applicable active stations: station numbers `5`, `6` (legacy URL parameters may 
 
 | Legacy route | Future route | Disposition | Notes |
 | --- | --- | --- | --- |
-| `/gas/5`, `/gas/6` | `/stations/station-5`, `/stations/station-6` | KEEP_UNTIL_S38_S40 | Current GAS operations landing. |
+| `/gas/5`, `/gas/6` | `/stations/station-5`, `/stations/station-6` | **KEEP_GAS_WORKSPACE (S68 REVIEWED)** | Keep temporarily: landing still exposes staff gas-price update and discoverability for correction/inventory routes retained in S64-S67. Migrate those capabilities to canonical overview before redirecting landing. |
 | `/gas/5/sell`, `/gas/6/sell` | `/stations/station-5/sales`, `/stations/station-6/sales` | **S53 IMPLEMENTED** | Server-side redirect to canonical SaleFlow; legacy source preserved in `LegacyGasSellPage.tsx`. |
 | `/gas/[id]/shift/open` | `/stations/station-[id]/operations` | **S62 IMPLEMENTED** | station-5/6 redirect to canonical Operations. Canonical uses the same atomic GAS open API with price + 4 meters + 3 gauges and derives next shift from actual business-day shifts. |
 | `/gas/[id]/shift/close` | `/stations/station-[id]/operations` | **S63 IMPLEMENTED** | station-5/6 redirect to canonical Closing after parity guard. Canonical saves end meters + gauges, then uses the same GAS close/reconciliation API; legacy source preserved. |
