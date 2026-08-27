@@ -601,6 +601,7 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S68: review GAS landing `/gas/5|6` → **KEEP ชั่วคราว** จนย้าย price update + secondary tool entry เข้า canonical overview
 - [x] S69: canonical GAS Overview แสดง secondary tools ที่ตั้งใจ KEEP (meter/gauge correction, supplies, station-5 products)
 - [x] S70: canonical GAS Overview ย้าย staff gas-price update มาใช้ audited API เดิม + fail-closed ระหว่าง context refresh
+- [x] S71: review GAS landing read/dashboard parity → KEEP เพราะ payment buckets + gauge percentages + low-tank alerts ยังไม่มี canonical replacement
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุด
 - [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S69
 
@@ -2068,6 +2069,28 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Session ถัดไปที่แนะนำ: `S71` GAS landing final parity review ก่อนตัดสินใจ redirect
 - หมายเหตุ/Decision:
   - price API behavior และ financial source of truth ไม่เปลี่ยน; S70 ย้ายเฉพาะ UX entry
+  - ไม่ deploy production
+
+
+## 2026-08-27 — S71 — GAS landing final read/dashboard parity review
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - เทียบ `/gas/5|6` landing + `/api/v2/gas/[stationId]/summary` กับ canonical Station Overview, Today และ History
+  - ยืนยันว่า Today มี transaction count/liters/amount รวมและตรวจ completeness ของ start/end gauge แต่ไม่ได้โหลดเปอร์เซ็นต์เกจล่าสุด
+  - legacy landing ยังแสดงยอดขายแยก CASH/CREDIT/CARD/TRANSFER, ระดับถังล่าสุด 3 ถัง และ low-tank alert เมื่อ <20%
+  - canonical Overview หลัง S69-S70 มี tool links + price update แล้ว แต่ยังไม่มี 3 read/dashboard capabilities ข้างต้น
+- Decision:
+  - **ยังไม่ redirect `/gas/5|6` ใน S71**; คง `KEEP_GAS_WORKSPACE` เพื่อไม่ทำ operational visibility หาย
+  - ก่อน retire landing ให้เพิ่ม compact GAS live-status summary ใน canonical Overview โดย reuse summary/read model แบบ side-effect-free
+- ตรวจสอบแล้ว:
+  - review/docs-only ไม่มี production source behavior เปลี่ยน; financial gate ล่าสุด S70 = 16 files / 81 tests
+  - source comparison ยืนยัน Today gauge query อ่านเฉพาะ `tankNumber` + `notes` จึงไม่สามารถแทน latest gauge percentage/low-tank alert ได้
+- สิ่งที่ยังค้าง:
+  - S72 migrate compact GAS live summary: payment buckets, transaction/liters total, latest 3 tank percentages + low-tank alerts
+  - หลัง S72 ค่อย review `/gas/5|6` redirect อีกครั้ง โดย correction/inventory subroutes ยัง KEEP ตาม S64-S67
+- Session ถัดไปที่แนะนำ: `S72` canonical GAS live-status summary
+- หมายเหตุ/Decision:
+  - ไม่ตีความข้อมูล read-only ว่าไม่สำคัญเพียงเพื่อปิด legacy landing ให้เร็วขึ้น
   - ไม่ deploy production
 
 

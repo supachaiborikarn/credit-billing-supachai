@@ -3,6 +3,9 @@
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
 ## 2026-08-27
+- 🧭 S71 GAS landing read/dashboard parity review
+  - ยัง KEEP `/gas/5|6`: Today/canonical มียอดรวมและ gauge completeness แต่ยังไม่มี payment buckets, latest tank percentages และ low-tank <20% alerts แบบ legacy landing
+  - วาง S72 ให้ย้าย compact live summary ก่อน review redirect อีกครั้ง; ไม่มี production behavior เปลี่ยนและยังไม่ deploy
 - 💰 S70 canonical GAS staff price update
   - ย้าย staff gas-price action เข้า canonical Overview โดย reuse `PUT /api/v2/gas/[stationId]/price` เดิม; API ยัง update DailyRecord + Station default แบบ transaction + AuditLog
   - UI fail-closed ระหว่าง StationContext refresh/error และ refresh context หลัง save; targeted 41/41 + financial 81/81 + TypeScript/ESLint ผ่าน
