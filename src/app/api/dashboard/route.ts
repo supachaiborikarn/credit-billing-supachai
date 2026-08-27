@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok, formatDateBangkok } from '@/lib/date-utils';
+import { requireAdminApi } from '@/lib/api-auth';
 
 export async function GET(request: Request) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const { searchParams } = new URL(request.url);
         const dateStr = searchParams.get('date') || getTodayBangkok();
 

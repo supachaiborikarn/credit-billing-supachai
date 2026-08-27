@@ -17,6 +17,7 @@ import {
     ArrowRight
 } from 'lucide-react';
 import { formatCurrency, getGaugeColorClass } from '@/lib/gas';
+import { resolveStationDefinition } from '@/lib/stations/station-context';
 
 interface ShiftData {
     id: string;
@@ -68,6 +69,10 @@ const EMPTY_GAUGE: GaugeData = {
 export default function GasStationHomePage() {
     const params = useParams();
     const stationId = params.stationId as string;
+    const stationDefinition = resolveStationDefinition(stationId);
+    const canonicalSalesHref = stationDefinition?.type === 'GAS'
+        ? `/stations/${stationDefinition.id}/sales`
+        : `/gas/${stationId}/sell`;
 
     const [loading, setLoading] = useState(true);
     const [currentShift, setCurrentShift] = useState<ShiftData | null>(null);
@@ -392,7 +397,7 @@ export default function GasStationHomePage() {
             {/* Quick Actions */}
             <div className="grid grid-cols-2 gap-4 mb-8">
                 <Link
-                    href={`/gas/${stationId}/sell`}
+                    href={canonicalSalesHref}
                     className="bg-gradient-to-br from-green-600 to-green-700 rounded-2xl p-6 text-center hover:from-green-500 hover:to-green-600 transition-all shadow-lg"
                 >
                     <FuelIcon size={40} className="mx-auto mb-3" />

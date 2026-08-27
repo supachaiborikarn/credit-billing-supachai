@@ -36,6 +36,13 @@
 
 ## Resolved Bugs
 
+### 🐛 Dashboard/Auth Role Drift (Aug 27, 2026)
+- **ปัญหา**: legacy `/dashboard` hard-code `userRole = 'ADMIN'`, มีร่องรอย `OWNER` เป็น user role และ `/api/dashboard` ไม่มี auth guard; หน้า `/users` ยังเสนอ `MANAGER` ทั้งที่ Prisma `UserRole` รองรับเพียง ADMIN/STAFF
+- **ความเสี่ยง**: anonymous/staff สามารถเรียก aggregate dashboard API ได้โดยตรง และการเลือก MANAGER ทำให้ create/update user ล้มที่ Prisma แทนที่จะถูก validate ที่ขอบ API
+- **แก้ไข**: ใส่ `requireAdminApi()` ที่ `/api/dashboard`, redirect client ตาม 401/403, ลบ fake OWNER/MANAGER role UI, เพิ่ม `isUserRole()` และ reject unsupported roles ด้วย 400 ใน Users API
+- **ขอบเขตที่ห้ามสับสน**: `Owner` model/คำศัพท์ที่เหลือหมายถึงลูกค้า/เจ้าของรถและยังเป็น domain หลักของ billing/credit ไม่ใช่ auth role
+- **Verification**: permission + redesign regressions 53/53, TypeScript ผ่าน, targeted ESLint 0 errors และ source scan ไม่พบ MANAGER/PURCHASE/OWNER-as-role ใน production code
+
 ### 🐛 Tank Loy Retroactive Meter Save and Duplicate Open Shift (Jul 11, 2026)
 - **ปัญหา**: วันที่ธุรกิจ 2026-07-10 มี `Shift OPEN` ซ้ำ 2 กะจากคำขออัปโหลดรูปที่ชนกัน; กะหลงมีมิเตอร์หัว 1 ค่า 0 และไม่มีรายการขาย ส่วนกะจริงมีมิเตอร์ครบ 4 หัวและรายการขาย 10 รายการ ทำให้ daily API flatten มิเตอร์ 5 แถวและหน้าแอดมินอ่านหัว 1 จากกะหลง จึงดูเหมือนบันทึกย้อนหลังไม่ติด
 - **สาเหตุ**: `full-station-shift-sync` ตรวจและสร้างกะแยกหลาย query, upload route เขียนรูปลง DB ทันที, daily route ไม่แยก live shift กับขอบเขตเปิด/ปิดรายวัน, และ classic admin ไม่แสดง error body จาก API

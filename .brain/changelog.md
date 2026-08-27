@@ -2,6 +2,85 @@
 
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
+## 2026-08-27
+- 🧭 S57 retire active FULL `/station/1/new/open-shift`
+  - legacy FULL open-shift entry redirect โดยตรงไป canonical `/stations/station-1/operations` ทั้ง middleware/page wrapper; login normalization preserve query
+  - canonical opening ใช้ daily/shift API เดิม + Bangkok StationContext และบังคับ start meter 4 หัวพร้อมรูปก่อนขาย; V2/close/shift-end/receipt/simple alias ยัง compatibility
+  - operational+financial pre-gate 19 files / 123 tests, targeted 78/78, final financial 81/81, TypeScript/lint และ authenticated/unauthenticated boundary smoke ผ่าน
+- 🧭 S56 retire active FULL `/station/1/new/oil-sell`
+  - legacy FULL oil-sell entry ซึ่งเดิมเป็น redirect-only ไป home/V2 ถูก flatten ให้ไป canonical `/stations/station-1/sales` โดยตรงทั้ง middleware/page wrapper; login normalization preserve query
+  - ไม่เพิ่ม engine-oil/product capability และคง V2/home/receipt/S55 sell กับ simple-station oil-sell compatibility ตามเดิม
+  - S44 financial gate final 16 files / 81 tests + targeted 49/49 + TypeScript/lint + authenticated/unauthenticated boundary smoke ผ่าน
+- 🧭 S55 retire active FULL `/station/1/new/sell`
+  - legacy FULL sell entry redirect โดยตรงไป canonical `/stations/station-1/sales` ทั้ง middleware/page wrapper; login normalization preserve query
+  - เก็บ `/station/1/v2` เป็น supported operational workspace รวมถึง home/receipt/oil-sell และ simple-station alias compatibility ตามเดิม
+  - S44 financial gate final 16 files / 81 tests + targeted 49/49 + TypeScript/lint + authenticated/unauthenticated boundary smoke ผ่าน
+- 🧭 S54 retire older GAS `/gas-station/[id]/new/sell`
+  - station-5/6 older GAS sell redirect โดยตรงไป canonical `/stations/station-5|6/sales`; middleware และ login redirect normalization ไม่ผ่าน current GAS sell อีกต่อไป
+  - เก็บ older home/meters/supplies/summary mappings, v2 sell API และข้อมูล transaction/shift ไว้ทั้งหมด
+  - S44 financial gate final 16 files / 81 tests + targeted 54/54 + TypeScript/lint + authenticated/unauthenticated smoke ผ่าน
+- 🧭 S53 retire current GAS sell `/gas/[stationId]/sell`
+  - station-5/6 current GAS sell redirect server-side ไป canonical `/stations/station-5|6/sales`; legacy sell source และ v2 API ยังเก็บไว้
+  - current GAS landing/layout ชี้ canonical sales ตรง และ canonical GAS ไม่แสดง legacy-sales fallback เพื่อกัน redirect loop
+  - S44 financial gate rerun หลังแก้ผ่าน 16 files / 81 tests; targeted 54/54 + TypeScript/lint + HTTP smoke ผ่าน โดย GAS landing/open-shift และ older gas-station sell family ยังไม่ retire
+- 🧭 S52 complete retired-SIMPLE operational retirement
+  - `/simple-station/2|3|4/new/products` redirect server-side ไป canonical `/stations/station-[id]` ก่อน hydrate ทำให้ operational/create routes ของ station-2/3/4 ปิดครบตาม migration plan
+  - เก็บ legacy products source/API และ read-only shift-history/meter-summary/summary/receipt compatibility ไว้
+  - HTTP smoke ยืนยัน products 2/3/4 = 307 canonical และ read compatibility 4 routes ของ station-2 = 200; TypeScript + 17/17 tests + targeted lint 0 errors + diff check ผ่าน
+- 🧭 S51 retire retired-SIMPLE `/new/shift-end`
+  - `/simple-station/2|3|4/new/shift-end` redirect server-side ไป canonical `/stations/station-[id]` ก่อน hydrate
+  - เก็บ legacy shift-end component/source และ API compatibility ไว้; `/new/products` และ `/new/shift-history` ยังไม่ redirect
+  - HTTP smoke ยืนยัน shift-end 2/3/4 = 307 canonical ขณะที่ products/history ของ station-2 ยัง 200; TypeScript + targeted tests/lint/diff ผ่าน
+- 🧭 S50 retire retired-SIMPLE `/new/close-shift`
+  - `/simple-station/2|3|4/new/close-shift` redirect server-side ไป canonical `/stations/station-[id]` ก่อน hydrate
+  - เก็บ legacy close-shift component/source และ API compatibility ไว้; `/new/shift-end` และ `/new/shift-history` ยังไม่ redirect
+  - HTTP smoke ยืนยัน close-shift 2/3/4 = 307 canonical ขณะที่ shift-end/history ของ station-2 ยัง 200; TypeScript + targeted tests/lint/diff ผ่าน
+- 🧭 S49 retire retired-SIMPLE `/new/open-shift`
+  - `/simple-station/2|3|4/new/open-shift` redirect server-side ไป canonical `/stations/station-[id]` ก่อน hydrate
+  - เก็บ legacy open-shift component/source และ API compatibility ไว้; `/new/close-shift`, `/new/shift-end`, `/new/shift-history` ยังไม่ redirect
+  - HTTP smoke ยืนยัน open-shift 2/3/4 = 307 canonical ขณะที่ close-shift/shift-end/history ของ station-2 ยัง 200; TypeScript + targeted tests/lint/diff ผ่าน
+- 🧭 S48 retire retired-SIMPLE `/new/oil-sell`
+  - `/simple-station/2|3|4/new/oil-sell` redirect server-side ไป canonical `/stations/station-[id]` ก่อน hydrate
+  - เก็บ legacy oil-sell component/source และ API compatibility ไว้; `/new/open-shift` และ `/new/shift-history` ยังไม่ redirect
+  - HTTP smoke ยืนยัน oil-sell 2/3/4 = 307 canonical ขณะที่ open-shift/history ของ station-2 ยัง 200; TypeScript + targeted tests/lint/diff ผ่าน
+- 🧭 S47 retire retired-SIMPLE `/new/sell`
+  - `/simple-station/2|3|4/new/sell` redirect server-side ไป canonical `/stations/station-[id]` ก่อน hydrate
+  - เก็บ legacy sell component/source และ API compatibility ไว้; `/new/oil-sell`, `/new/open-shift` และ `/new/shift-history` ยังไม่ redirect
+  - HTTP smoke ยืนยัน sell 2/3/4 = 307 canonical ขณะที่ oil-sell/open-shift/history ของ station-2 ยัง 200; TypeScript + targeted tests/lint/diff ผ่าน
+- 🧭 S46 retire retired-SIMPLE `/new/home`
+  - `/simple-station/2|3|4/new/home` redirect server-side ไป canonical `/stations/station-[id]` ก่อน hydrate
+  - เก็บ legacy home component/source และ API compatibility ไว้; `/new/sell` และ `/new/shift-history` ยังไม่ redirect
+  - HTTP smoke ยืนยัน home 2/3/4 = 307 canonical ขณะที่ sell/history ของ station-2 ยัง 200; TypeScript + targeted tests/lint/diff ผ่าน
+- 🧭 S45 retire first legacy route
+  - retired SIMPLE landing `/simple-station/[id]` ของ station-2/3/4 redirect server-side ไป canonical `/stations/station-[id]`
+  - เก็บ legacy component/source ไว้และไม่แตะ read-only `/new/shift-history` หรือ API compatibility
+  - HTTP smoke ยืนยัน landing 2/3/4 = 307 canonical และ shift-history ยัง 200; TypeScript + targeted tests/lint/diff ผ่าน
+- 💰 S44 financial regression gate ของ redesign
+  - สร้าง `FINANCIAL_REGRESSION_CHECKLIST.md`; baseline financial suite ผ่าน 16 files / 81 tests
+  - ยืนยัน FULL canonical price parity กับ current Tank Loy V2 และ GAS amount/business-date/shift server source of truth
+  - เพิ่ม regression bill sequence/payment bucket/Bangkok boundary
+  - เพิ่ม rollback guard ตอน VERIFY BillingCollection slip ถ้า verified total เกินยอดใบวางบิล
+  - ล็อกว่า Invoice/Collection/unbilled/currentCredit ห้ามรวม grand total และ canonical ห้ามใช้ legacy `/api/payments`
+- 🔐 S43 permission cleanup
+  - ยืนยัน runtime user roles เหลือ `ADMIN` / `STAFF` ตาม Prisma และเพิ่ม `isUserRole()` เป็น validation กลาง
+  - ลบ MANAGER จากหน้า Users, ลบ OWNER-as-role จาก legacy dashboard และยืนยัน PURCHASE ไม่มีใน production source
+  - ปิด `/api/dashboard` ด้วย admin guard; staff/anonymous ไม่สามารถอ่าน aggregate financial dashboard ผ่าน API ได้อีก
+  - create/update user API reject role อื่นด้วย 400 ก่อน Prisma; `Owner` ที่เหลือคือ customer/vehicle entity ไม่ใช่ auth role
+  - verification: TypeScript ผ่าน, targeted ESLint 0 errors, regression tests 53/53 และ `git diff --check` ผ่าน
+- 🔄 S42 loading/empty/error consistency ของ redesign
+  - เพิ่ม shared LoadingState / AsyncRefreshState / FatalErrorState
+  - Today/Billing/Customers เก็บ last-successful data ระหว่าง refresh และแสดง stale warning+retry เมื่อ refresh ล้ม
+  - Customers search/filter และ Sale customer lookup ใช้ loading/error/empty semantics ที่สอดคล้องกัน
+  - canonical Sales/Operations fail-closed เมื่อ station context กำลัง refresh หรือ refresh ล้ม เพื่อกัน write ด้วย shift/price/context เก่า
+  - verification: TypeScript ผ่าน, targeted ESLint ผ่าน, regression tests 49/49 และ `git diff --check` ผ่าน
+- ♿ S41 accessibility pass ของ redesign
+  - เพิ่ม keyboard-visible focus ให้ shell/navigation/raw links และ shared controls ที่เกี่ยวข้อง
+  - ทำ More drawer และ Dialog ให้ trap focus, Escape ปิด, คืน focus กลับ trigger และ lock background scroll
+  - เพิ่ม accessible names/`aria-pressed`/`aria-required`, fieldset สำหรับ nozzle และ focus ไป first invalid/error summary เมื่อ validation ไม่ผ่าน
+  - แยก brand orange ออกจาก `primary-action`/`primary-text` และ semantic `*-text` เพื่อให้ข้อความ/CTA light mode ผ่าน contrast ได้ดีขึ้น
+  - ปรับ Today/Sale/Billing/Customers/Station Operations/History ใน scope redesign โดยไม่เปลี่ยน financial/operational business logic
+  - verification: TypeScript ผ่าน, targeted ESLint ผ่าน, regression tests 49/49 ผ่าน และ `git diff --check` ผ่าน
+
 ## 2026-07-19
 - 🖨️ เพิ่มพิมพ์สรุปวันแท๊งลอยอัตโนมัติบน Windows
   - ตั้ง Windows Scheduled Task รันทุกวันเวลา 07:00 น. และเริ่มย้อนหลังเมื่อคอมพิวเตอร์กลับมาเปิด

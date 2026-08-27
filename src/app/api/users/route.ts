@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdminApi } from '@/lib/api-auth';
 import bcrypt from 'bcryptjs';
+import { isUserRole, UserRole } from '@/constants/user-roles';
 
 async function hashPassword(password: string): Promise<string> {
     return bcrypt.hash(password, 10);
@@ -46,6 +47,10 @@ export async function POST(request: NextRequest) {
 
         const body = await request.json();
         const { username, password, fullName, role, stationId } = body;
+        const requestedRole = role ?? UserRole.STAFF;
+        if (!isUserRole(requestedRole)) {
+            return NextResponse.json({ error: 'บทบาทผู้ใช้ไม่ถูกต้อง' }, { status: 400 });
+        }
 
         // Check if username exists
         const existing = await prisma.user.findUnique({ where: { username } });
@@ -59,7 +64,7 @@ export async function POST(request: NextRequest) {
                 username,
                 password: hashedPassword,
                 name: fullName,
-                role: role || 'STAFF',
+                role: requestedRole,
                 station: stationId ? { connect: { id: stationId } } : undefined,
             },
             select: {

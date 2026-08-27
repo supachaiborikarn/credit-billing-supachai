@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { UserRole, Prisma } from '@prisma/client';
 import { requireAdminApi } from '@/lib/api-auth';
 import bcrypt from 'bcryptjs';
+import { isUserRole } from '@/constants/user-roles';
 
 interface UserUpdateData {
     name?: string;
@@ -58,8 +59,12 @@ export async function PUT(
         const { id } = await params;
         const body = await request.json();
         const { fullName, role, stationId, password } = body;
+        if (role !== undefined && !isUserRole(role)) {
+            return NextResponse.json({ error: 'บทบาทผู้ใช้ไม่ถูกต้อง' }, { status: 400 });
+        }
 
-        const data: UserUpdateData = { name: fullName, role };
+        const data: UserUpdateData = { name: fullName };
+        if (role !== undefined) data.role = role;
         if (password) {
             data.password = await hashPassword(password);
         }

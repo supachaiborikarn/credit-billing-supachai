@@ -11,6 +11,7 @@ function normalizeGasRedirectPath(path: string) {
     const stationNum = match[1];
     const legacyPage = match[2] || '';
 
+    if (legacyPage === 'sell' && (stationNum === '5' || stationNum === '6')) return `/stations/station-${stationNum}/sales`;
     if (legacyPage === 'sell') return `/gas/${stationNum}/sell`;
     if (legacyPage === 'supplies') return `/gas/${stationNum}/supplies`;
     if (legacyPage === 'meters') return `/gas/${stationNum}/meters`;
@@ -33,6 +34,8 @@ function normalizeTankLoyRedirectPath(path: string) {
 
     const legacyPage = match[1] || 'home';
     if (legacyPage === 'receipt') return '/station/1/new/receipt';
+    if (legacyPage === 'sell' || legacyPage === 'oil-sell') return '/stations/station-1/sales';
+    if (legacyPage === 'open-shift') return '/stations/station-1/operations';
 
     return '/station/1/v2';
 }

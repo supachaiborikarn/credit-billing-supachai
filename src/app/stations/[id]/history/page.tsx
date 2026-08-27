@@ -1,0 +1,6 @@
+import { CanonicalStationWorkspace } from '@/components/stations/CanonicalStationWorkspace';
+
+export default async function StationHistoryPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
+    return <CanonicalStationWorkspace stationId={id} mode="HISTORY" />;
+}

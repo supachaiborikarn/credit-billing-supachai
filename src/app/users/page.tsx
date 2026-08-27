@@ -3,12 +3,13 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { Users, Plus, Pencil, Trash2, Search, Shield, User as UserIcon, X, Sparkles } from 'lucide-react';
+import { UserRole, UserRoleLabels, type UserRoleValue } from '@/constants/user-roles';
 
 interface User {
     id: string;
     username: string;
     fullName: string;
-    role: string;
+    role: UserRoleValue;
     station: { id: string; name: string } | null;
     createdAt: string;
 }
@@ -25,7 +26,7 @@ export default function UsersPage() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [fullName, setFullName] = useState('');
-    const [role, setRole] = useState('STAFF');
+    const [role, setRole] = useState<UserRoleValue>(UserRole.STAFF);
     const [stationId, setStationId] = useState('');
     const [stations, setStations] = useState<{ id: string; name: string }[]>([]);
 
@@ -68,7 +69,13 @@ export default function UsersPage() {
             const url = editingUser ? `/api/users/${editingUser.id}` : '/api/users';
             const method = editingUser ? 'PUT' : 'POST';
 
-            const body: any = { username, fullName, role };
+            const body: {
+                username: string;
+                fullName: string;
+                role: UserRoleValue;
+                password?: string;
+                stationId?: string;
+            } = { username, fullName, role };
             if (password) body.password = password;
             if (stationId) body.stationId = stationId;
 
@@ -118,7 +125,7 @@ export default function UsersPage() {
         setUsername('');
         setPassword('');
         setFullName('');
-        setRole('STAFF');
+        setRole(UserRole.STAFF);
         setStationId('');
     };
 
@@ -127,21 +134,14 @@ export default function UsersPage() {
         u.fullName.toLowerCase().includes(search.toLowerCase())
     );
 
-    const getRoleStyle = (role: string) => {
-        switch (role) {
-            case 'ADMIN': return { bg: 'from-purple-500/20 to-pink-500/20', border: 'border-purple-500/30', text: 'text-purple-400', icon: '👑' };
-            case 'MANAGER': return { bg: 'from-blue-500/20 to-cyan-500/20', border: 'border-blue-500/30', text: 'text-blue-400', icon: '🔷' };
-            default: return { bg: 'from-green-500/20 to-emerald-500/20', border: 'border-green-500/30', text: 'text-green-400', icon: '👤' };
+    const getRoleStyle = (role: UserRoleValue) => {
+        if (role === UserRole.ADMIN) {
+            return { bg: 'from-purple-500/20 to-pink-500/20', border: 'border-purple-500/30', text: 'text-purple-400', icon: '👑' };
         }
+        return { bg: 'from-green-500/20 to-emerald-500/20', border: 'border-green-500/30', text: 'text-green-400', icon: '👤' };
     };
 
-    const getRoleLabel = (role: string) => {
-        switch (role) {
-            case 'ADMIN': return 'ผู้ดูแลระบบ';
-            case 'MANAGER': return 'ผู้จัดการ';
-            default: return 'พนักงาน';
-        }
-    };
+    const getRoleLabel = (role: UserRoleValue) => UserRoleLabels[role];
 
     return (
         <Sidebar>
@@ -221,11 +221,10 @@ export default function UsersPage() {
                                         </div>
                                         <div>
                                             <label className="block text-sm text-gray-400 mb-2">ตำแหน่ง</label>
-                                            <select value={role} onChange={(e) => setRole(e.target.value)}
+                                            <select value={role} onChange={(e) => setRole(e.target.value as UserRoleValue)}
                                                 className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 transition-all duration-300">
-                                                <option value="STAFF">พนักงาน</option>
-                                                <option value="MANAGER">ผู้จัดการ</option>
-                                                <option value="ADMIN">ผู้ดูแลระบบ</option>
+                                                <option value={UserRole.STAFF}>{UserRoleLabels.STAFF}</option>
+                                                <option value={UserRole.ADMIN}>{UserRoleLabels.ADMIN}</option>
                                             </select>
                                         </div>
                                         <div className="md:col-span-2">

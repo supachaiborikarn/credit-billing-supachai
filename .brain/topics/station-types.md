@@ -1,5 +1,5 @@
-<!-- SUMMARY: 6 สถานี: แท๊งลอยวัชรเกียรติ (FULL) ใช้ staff route เดียว `/station/1/v2` และคง classic admin ที่ `/station/1`; admin แก้มิเตอร์ย้อนหลังใช้ exact start/end shift scope, daily report รวมเลขเปิดแรกกับเลขปิดสุดท้าย, และ Windows agent พิมพ์สรุปเมื่อวานเข้า Epson TM-m30III ผ่าน Wi-Fi เวลา 07:00;
-     วัชรเกียรติออยล์/พงษ์อนันต์/ศุภชัยบริการ (SIMPLE), ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS) ใช้ staff route หลัก `/gas/[id]` พร้อม open-shift guard, GAS มี 2 กะตายตัว 07:00-19:00 และ 19:00-07:00 โดยกะ 2 ข้ามวันได้, supply receiving `/gas/[id]/supplies`, meter continuity ใน admin report, admin แก้เลขเปิดมิเตอร์และยอดกระทบยอดจากรายงานมิเตอร์พร้อม Audit Log, executive print report `/admin/gas/reports/executive`, และ admin `/admin/gas/*`; legacy admin gas-control redirect ไป v2 -->
+<!-- SUMMARY: 6 สถานี: แท๊งลอยวัชรเกียรติ (FULL) ยังคง operational workspace `/station/1/v2` และ classic admin `/station/1`, S55-S56 retire legacy sale entries ไป canonical sales และ S57 retire `/station/1/new/open-shift` ไป canonical `/stations/station-1/operations`; admin แก้มิเตอร์ย้อนหลังใช้ exact start/end shift scope, daily report รวมเลขเปิดแรกกับเลขปิดสุดท้าย, และ Windows agent พิมพ์สรุปเมื่อวานเข้า Epson TM-m30III ผ่าน Wi-Fi เวลา 07:00;
+     วัชรเกียรติออยล์/พงษ์อนันต์ปิโตรเลียม/ศุภชัยบริการ (SIMPLE) ย้ายงานหน้าปั๊มไป POS แล้ว โดย S45 redirect legacy landing `/simple-station/[id]` ของ 2/3/4 ไป canonical read-only workspace, ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS) ใช้ operational landing `/gas/[id]` แต่ S53-S54 retire ทั้ง current `/gas/5|6/sell` และ older `/gas-station/5|6/new/sell` ไป canonical `/stations/station-5|6/sales`, GAS มี 2 กะตายตัว 07:00-19:00 และ 19:00-07:00 โดยกะ 2 ข้ามวันได้, supply receiving `/gas/[id]/supplies`, meter continuity ใน admin report, admin แก้เลขเปิดมิเตอร์และยอดกระทบยอดจากรายงานมิเตอร์พร้อม Audit Log, executive print report `/admin/gas/reports/executive`, และ admin `/admin/gas/*`; legacy admin gas-control redirect ไป v2 -->
 
 # Station Types
 
@@ -11,9 +11,9 @@
 | # | สถานี | ประเภท | Route | คุณสมบัติ |
 |---|-------|--------|-------|-----------|
 | 1 | แท๊งลอยวัชรเกียรติ | FULL | `/station/1/v2` | มิเตอร์ 4 หัวจ่าย + บันทึกบิล + สรุปยอด |
-| 2 | วัชรเกียรติออยล์ | SIMPLE | `/simple-station/[id]` | บันทึกบิลอย่างเดียว |
-| 3 | พงษ์อนันต์ปิโตรเลียม | SIMPLE | `/simple-station/[id]` | บันทึกบิลอย่างเดียว |
-| 4 | ศุภชัยบริการ | SIMPLE | `/simple-station/[id]` | บันทึกบิลอย่างเดียว |
+| 2 | วัชรเกียรติออยล์ | SIMPLE | canonical `/stations/station-2` | ย้ายงานหน้าปั๊มไป POS; legacy landing/home redirect แล้ว |
+| 3 | พงษ์อนันต์ปิโตรเลียม | SIMPLE | canonical `/stations/station-3` | ย้ายงานหน้าปั๊มไป POS; legacy landing/home redirect แล้ว |
+| 4 | ศุภชัยบริการ | SIMPLE | canonical `/stations/station-4` | ย้ายงานหน้าปั๊มไป POS; legacy landing/home redirect แล้ว |
 | 5 | ปั๊มแก๊สพงษ์อนันต์ | GAS | `/gas/[id]` | แก๊ส + สินค้า |
 | 6 | ปั๊มแก๊สศุภชัย | GAS | `/gas/[id]` | แก๊สอย่างเดียว |
 
@@ -25,18 +25,21 @@
 - Meter reading (มิเตอร์เริ่มต้น/สิ้นสุด)
 - Daily anomaly detection
 - Shift reconciliation (ตรวจยอดปิดกะ)
-- Staff canonical route: `/station/1/v2`
+- Supported operational workspace: `/station/1/v2`; S55-S56 ทำให้ legacy sale entries ไป canonical SaleFlow และ S57 ทำให้ `/station/1/new/open-shift` ไป canonical `/stations/station-1/operations` โดยตรงหลัง S38-S40 parity/regression
 - Admin classic route: `/station/1`
-- Legacy `/station/1/new/*` และ `/simple-station/1/new/*` ต้อง redirect เข้า `/station/1/v2` เพื่อปิดทางเข้าหน้าดำ ยกเว้น `/station/1/new/receipt` ที่ V2 ยังใช้เป็น thermal print surface
+- Legacy `/station/1/new/*` อื่นและ `/simple-station/1/new/*` ยัง redirect เข้า `/station/1/v2` เพื่อปิดทางเข้าหน้าดำ; `/station/1/new/receipt` ยังเป็น thermal print surface, sale entries ไป canonical sales และ `/station/1/new/open-shift` ไป canonical operations (simple-station aliases ยังไป V2)
 - V2 meter start ต้องสร้าง/ผูก `Shift OPEN` ด้วยเสมอ เพราะ transaction API ต้องผูก `shiftId`; ถ้ามี daily meter start แล้วแต่ shift หาย ให้ auto-repair ผ่าน `full-station-shift-sync`
 - Windows auto print รัน 07:00 ทุกวัน ดึง station-wide report ของเมื่อวาน รอเลขเปิด-ปิดมิเตอร์ครบ 4 หัว แล้วส่ง ePOS XML เข้า Epson TM-m30III ผ่าน Wi-Fi
 
 ### SIMPLE Station
-- บันทึกบิลอย่างเดียว
-- เลือก: ชนิดน้ำมัน (ดีเซล, เบนซิน91, เบนซิน95)
-- ไม่มีระบบมิเตอร์/กะ
+- station-2/3/4 ย้ายงานหน้าปั๊มไป POS แล้ว; S45-S52 retire legacy operational/create routes ครบทั้งหมด (`landing`, `home`, `sell`, `oil-sell`, `open-shift`, `close-shift`, `shift-end`, `products`) ด้วย server redirect ไป canonical `/stations/station-[id]` ก่อน hydrate
+- canonical station-2/3/4 เป็น read-only workspace; ระบบนี้คงข้อมูลเดิมเพื่อ history/report/customer/billing และยังเก็บ legacy API/source compatibility
+- read-only `/new/shift-history`, `/new/meter-summary`, `/new/summary`, `/new/receipt` ยังไม่ retire จนมี explicit read-compatibility task
+- historical capability เดิม: บันทึกบิลอย่างเดียว, เลือกชนิดน้ำมัน และไม่มี meter workflow แบบ FULL
 
 ### GAS Station
+- S53: current sell entry `/gas/5/sell` และ `/gas/6/sell` redirect server-side ไป canonical `/stations/station-5/sales` และ `/stations/station-6/sales`; current GAS landing/layout ชี้ canonical sales ตรง และเก็บ v2 sell API/legacy source ไว้
+- S54: older `/gas-station/5|6/new/sell` redirect canonical sales โดยตรงทั้ง middleware/page และ login redirect normalization; ไม่ผ่าน current GAS sell อีกต่อไป และ non-sell older routes ยัง compatibility ตามเดิม
 - บันทึกแก๊ส (กิโลกรัม + ราคา/กก.)
 - Shift management (กะ 1 = 07:00-19:00, กะ 2 = 19:00-07:00; กะ 2 ข้ามวันได้และ business date ช่วง 00:00-06:59 ยังนับเป็นวันก่อนหน้า)
 - Gauge reading (เกจวัดถังแก๊ส)
@@ -63,6 +66,11 @@
 - **Constants**: `/src/constants/index.ts`
 
 ## Changelog
+- 2026-08-27: S57 retire FULL `/station/1/new/open-shift` ไป canonical `/stations/station-1/operations` หลัง operational pre-gate 123/123 + financial gate 81/81; canonical ใช้ daily/shift APIs เดิมและบังคับ start meter 4 หัว + รูปก่อนขาย ขณะที่ V2/close/shift-end/receipt ยัง compatibility
+- 2026-08-27: S56 retire FULL `/station/1/new/oil-sell` ไป canonical `/stations/station-1/sales` หลัง financial gate 81/81; route เดิมเป็น redirect-only และไม่เพิ่ม product capability; คง V2/home/receipt/simple-station alias compatibility
+- 2026-08-27: S55 retire FULL `/station/1/new/sell` ไป canonical `/stations/station-1/sales` หลัง financial gate 81/81; คง V2/home/receipt/oil-sell และ simple-station alias compatibility ตามเดิม
+- 2026-08-27: S54 retire older GAS `/gas-station/5|6/new/sell` ไป canonical sales โดยตรงหลัง final financial gate 81/81; preserve older non-sell routes และ API/read/report compatibility
+- 2026-08-27: S53 retire current GAS sell `/gas/5|6/sell` ไป canonical sales หลัง rerun financial gate 81/81; เก็บ current GAS landing/open/close และ older `/gas-station/[id]/new/sell` เป็น compatibility/future retirement แยก family
 - 2026-07-19: เพิ่ม Windows Scheduled Task พิมพ์สรุปวันแท๊งลอยของเมื่อวานเวลา 07:00 เข้า Epson TM-m30III ผ่าน Wi-Fi พร้อม retry เมื่อมิเตอร์ยังไม่ครบและ duplicate guard
 - 2026-07-15: ซ่อมเลขเปิดกะ 1 ของ `station-5` ให้ต่อจากเลขปิดกะก่อนหน้า 4 หัวพร้อม Audit Log และเพิ่มหน้า admin แก้เลขเปิดมิเตอร์จากรายงานมิเตอร์โดยคำนวณลิตร/reconciliation ใหม่อัตโนมัติ
 - 2026-07-11: แก้ Tank Loy admin meter backfill ให้แยก live shift กับ daily start/end scope, รวมมิเตอร์รายวันข้าม split shift และกัน duplicate OPEN shift race

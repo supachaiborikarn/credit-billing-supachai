@@ -134,6 +134,8 @@ export async function GET(
                     startReading: meter.startReading,
                     endReading: meter.endReading,
                     soldQty: meter.soldQty,
+                    startPhoto: meter.startPhoto,
+                    endPhoto: meter.endPhoto,
                 }))
             ) || [],
             transactions,

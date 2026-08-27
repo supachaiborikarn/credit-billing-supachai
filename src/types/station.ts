@@ -1,67 +1,80 @@
-// Station Types for API Routes
-// Shared types for station-related API endpoints
+export type CanonicalStationId =
+    | 'station-1'
+    | 'station-2'
+    | 'station-3'
+    | 'station-4'
+    | 'station-5'
+    | 'station-6';
 
-export interface StationConfig {
+export type CanonicalStationType = 'FULL' | 'SIMPLE' | 'GAS';
+export type StationOperationalStatus = 'ACTIVE' | 'RETIRED';
+export type StationOpeningStatus = 'NO_SHIFT' | 'NEEDS_OPENING_DATA' | 'READY' | 'DAY_COMPLETE';
+
+export interface StationCurrentShift {
     id: string;
-    name: string;
-    type: 'FULL' | 'SIMPLE' | 'GAS';
-    hasProducts?: boolean;
-    aliases?: readonly string[];
-}
-
-export interface Station {
-    id: string;
-    name: string;
-    type: string;
-    gasPrice?: number | null;
-    gasStockAlert?: number | null;
-    hasProducts?: boolean;
-}
-
-export interface TransactionInput {
-    date: string;
-    licensePlate?: string;
-    ownerName?: string;
-    ownerId?: string | null;
-    paymentType: string;
-    nozzleNumber?: number | null;
-    liters: number;
-    pricePerLiter: number;
-    amount: number;
-    productType?: string;
-    shiftNumber?: number;
-    billBookNo?: string;
-    billNo?: string;
-    transferProofUrl?: string | null;
-}
-
-export interface MeterInput {
-    nozzleNumber: number;
-    reading: number;
-}
-
-export interface GaugeInput {
-    tankNumber: number;
-    percentage: number;
-    type: 'start' | 'end';
-    shiftNumber?: number;
-}
-
-export interface ShiftInput {
     shiftNumber: number;
-    staffName?: string;
-    meters?: { nozzleNumber: number; startReading: number }[];
+    status: 'OPEN' | 'CLOSED' | 'LOCKED';
+    businessDate: string;
+    openedAt: string;
+    closedAt: string | null;
+    staffName: string | null;
 }
 
-// API Response common types
-export interface ApiSuccessResponse<T> {
-    success: true;
-    data: T;
+export interface StationOpeningState {
+    status: StationOpeningStatus;
+    requiredMeters: number;
+    completedMeters: number;
+    requiredGauges: number;
+    completedGauges: number;
+    requiresMeterPhotos: boolean;
+    nextShiftNumber: 1 | 2 | null;
 }
 
-export interface ApiErrorResponse {
-    error: string;
-    details?: string;
+export interface StationContextPermissions {
+    canView: boolean;
+    canViewHistory: boolean;
+    canOperate: boolean;
+    canSell: boolean;
+    canOpenShift: boolean;
+    canCloseShift: boolean;
+    canManageStation: boolean;
 }
 
-export type ApiResponse<T> = ApiSuccessResponse<T> | ApiErrorResponse;
+export interface StationCanonicalPaths {
+    base: string;
+    sales: string;
+    operations: string;
+    history: string;
+}
+
+export interface StationContextPayload {
+    station: {
+        id: CanonicalStationId;
+        number: number;
+        name: string;
+        type: CanonicalStationType;
+        operationalStatus: StationOperationalStatus;
+        hasProducts: boolean;
+    };
+    currentShift: StationCurrentShift | null;
+    openingState: StationOpeningState;
+    permissions: StationContextPermissions;
+    paths: StationCanonicalPaths;
+    user: {
+        id: string;
+        name: string;
+        role: 'ADMIN' | 'STAFF';
+        stationId: string | null;
+    };
+    capabilities: {
+        saleFlow: boolean;
+        shiftOperations: boolean;
+        readOnlyHistory: boolean;
+    };
+    saleContext: {
+        businessDate: string;
+        retailPrice: number | null;
+        wholesalePrice: number | null;
+        gasPrice: number | null;
+    } | null;
+}

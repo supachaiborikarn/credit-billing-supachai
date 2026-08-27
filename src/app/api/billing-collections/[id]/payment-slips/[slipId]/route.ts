@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdminApi } from '@/lib/api-auth';
 
+const PAYMENT_TOLERANCE = 0.01;
+const COLLECTION_OVERPAYMENT = 'BILLING_COLLECTION_OVERPAYMENT';
+
 // PATCH /api/billing-collections/[id]/payment-slips/[slipId] — ยืนยัน/ปฏิเสธสลิป
 export async function PATCH(
     request: Request,
@@ -63,6 +66,9 @@ export async function PATCH(
 
             let newStatus: 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE' = 'PENDING';
             const totalAmount = Number(collection.totalAmount);
+            if (totalPaid > totalAmount + PAYMENT_TOLERANCE) {
+                throw new Error(COLLECTION_OVERPAYMENT);
+            }
             if (totalPaid >= totalAmount) {
                 newStatus = 'PAID';
             } else if (totalPaid > 0) {
@@ -86,6 +92,12 @@ export async function PATCH(
             collectionStatus: newStatus,
         });
     } catch (error) {
+        if (error instanceof Error && error.message === COLLECTION_OVERPAYMENT) {
+            return NextResponse.json(
+                { error: 'ยอดสลิปที่ยืนยันรวมกันเกินยอดใบวางบิล กรุณาตรวจสอบสลิปก่อนยืนยัน' },
+                { status: 409 }
+            );
+        }
         console.error('Error verifying payment slip:', error);
         return NextResponse.json({ error: 'เกิดข้อผิดพลาด' }, { status: 500 });
     }

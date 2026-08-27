@@ -10,6 +10,10 @@ export const UserRole = {
 
 export type UserRoleValue = typeof UserRole[keyof typeof UserRole];
 
+export function isUserRole(value: unknown): value is UserRoleValue {
+    return value === UserRole.ADMIN || value === UserRole.STAFF;
+}
+
 /**
  * Thai labels for user roles
  */

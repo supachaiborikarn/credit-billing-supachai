@@ -86,10 +86,13 @@ export default function GasStationLayout({
         return false;
     });
     const hasProducts = Boolean(stationConfig && 'hasProducts' in stationConfig && stationConfig.hasProducts === true);
+    const canonicalSalesHref = stationConfig?.type === 'GAS'
+        ? `/stations/${stationConfig.id}/sales`
+        : `/gas/${stationId}/sell`;
 
     const navItems = [
         { href: `/gas/${stationId}`, icon: Home, label: 'หน้าหลัก', exact: true },
-        { href: `/gas/${stationId}/sell`, icon: FuelIcon, label: 'บันทึกขาย' },
+        { href: canonicalSalesHref, icon: FuelIcon, label: 'บันทึกขาย' },
         { href: `/gas/${stationId}/supplies`, icon: PackagePlus, label: 'ลงแก๊ส' },
         { href: `/gas/${stationId}/meters`, icon: Calculator, label: 'มิเตอร์' },
         { href: `/gas/${stationId}/gauge`, icon: Gauge, label: 'เช็คเกจ' },

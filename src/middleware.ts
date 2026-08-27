@@ -24,6 +24,7 @@ function getGasV2RedirectPath(pathname: string) {
     const stationId = match[1];
     const legacyPage = match[2] || '';
 
+    if (legacyPage === 'sell' && (stationId === '5' || stationId === '6')) return `/stations/station-${stationId}/sales`;
     if (legacyPage === 'sell') return `/gas/${stationId}/sell`;
     if (legacyPage === 'supplies') return `/gas/${stationId}/supplies`;
     if (legacyPage === 'meters') return `/gas/${stationId}/meters`;
@@ -45,6 +46,8 @@ function getTankLoyRedirectPath(pathname: string) {
     if (stationNewMatch) {
         const page = stationNewMatch[1] || 'home';
         if (page === 'receipt') return null;
+        if (page === 'sell' || page === 'oil-sell') return '/stations/station-1/sales';
+        if (page === 'open-shift') return '/stations/station-1/operations';
         return '/station/1/v2';
     }
 

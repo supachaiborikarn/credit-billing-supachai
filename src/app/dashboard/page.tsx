@@ -80,9 +80,6 @@ export default function DashboardPage() {
     const [heatMapMonth, setHeatMapMonth] = useState(new Date());
     const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
 
-    // TODO: Get actual user role from auth context
-    const userRole = 'ADMIN'; // 'ADMIN' | 'STAFF' | 'OWNER'
-
     useEffect(() => {
         setMounted(true);
         fetchStats();
@@ -92,10 +89,19 @@ export default function DashboardPage() {
         setLoading(true);
         try {
             const res = await fetch(`/api/dashboard?date=${selectedDate}`);
-            if (res.ok) {
-                const data = await res.json();
-                setStats(data);
+            if (res.status === 401) {
+                router.replace('/login');
+                return;
             }
+            if (res.status === 403) {
+                router.replace('/today');
+                return;
+            }
+            if (!res.ok) {
+                throw new Error('โหลด Dashboard ไม่สำเร็จ');
+            }
+            const data = await res.json();
+            setStats(data);
         } catch (error) {
             console.error('Error fetching stats:', error);
         } finally {
@@ -443,8 +449,7 @@ export default function DashboardPage() {
                         </div>
 
                         {/* =============== ZONE 4: TOP PERFORMANCE =============== */}
-                        {(userRole === 'ADMIN' || userRole === 'OWNER') && (
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                                 {/* Top Customers */}
                                 <Card delay="500ms">
                                     <SectionTitle icon={Award} title="🏆 Top 5 ลูกค้า (30 วัน)" iconGradient="from-yellow-500 to-orange-500" />
@@ -497,8 +502,7 @@ export default function DashboardPage() {
                                         })}
                                     </div>
                                 </Card>
-                            </div>
-                        )}
+                        </div>
 
                         {/* =============== ZONE 5: RECENT ACTIVITY + CALENDAR =============== */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -578,8 +582,7 @@ export default function DashboardPage() {
                         </div>
 
                         {/* =============== ADMIN ONLY: Stats Overview =============== */}
-                        {userRole === 'ADMIN' && (
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                                 <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
                                     <Users className="mx-auto text-purple-400 mb-2" size={24} />
                                     <p className="text-2xl font-bold text-white font-mono">{formatNumber(stats?.totalOwners || 0)}</p>
@@ -600,8 +603,7 @@ export default function DashboardPage() {
                                     <p className="text-2xl font-bold text-white font-mono">{formatCurrency(stats?.yesterdayAmount || 0)}</p>
                                     <p className="text-xs text-gray-400">ยอดเมื่อวาน</p>
                                 </div>
-                            </div>
-                        )}
+                        </div>
                     </>
                 )}
             </div>

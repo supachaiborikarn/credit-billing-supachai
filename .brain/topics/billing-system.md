@@ -97,12 +97,22 @@
 - Patch `/api/invoices/[id]/payments` ให้ validate amount > 0, ห้ามจ่ายเกินยอดคงค้าง, และ create payment + update invoice ใน transaction เดียว
 - Patch billing collection payment slip verify/delete ให้ recalc paid/status ใน transaction เดียว และเช็กว่า slipId อยู่ใต้ collectionId นั้นจริงก่อน delete
 
+
+### Redesign Financial Regression Gate (Aug 27, 2026)
+- S44 สร้าง `FINANCIAL_REGRESSION_CHECKLIST.md` เป็น gate ก่อน retire active legacy routes; baseline ผ่าน 16 test files / 81 tests
+- Invoice และ BillingCollection ยังเป็นคนละ financial model และห้ามรวมกับ unbilled/currentCredit เป็น grand total
+- `/api/invoices/[id]/payments` เป็น canonical Invoice payment write: validate overpay + optimistic concurrency + payment/invoice update atomic
+- BillingCollection payment ยังใช้ evidence-first: create PENDING slip ก่อน; S44 เพิ่ม guard ตอน VERIFY ให้ rollback และ 409 ถ้า VERIFIED slips รวมเกิน `totalAmount`
+- `/api/payments` เก่าไม่พบ production caller ใน source และไม่ใช่ canonical payment endpoint
+- FULL canonical price parity ยึด current Tank Loy V2: CASH/CREDIT retail, payment อื่น wholesale; classic `/station/[id]` มี rule เก่ากว่าและไม่ใช้เป็น parity baseline
+
 ## Owner & Truck Management
 - **Owner groups**: SUGAR_FACTORY, GENERAL_CREDIT, BOX_TRUCK, OIL_TRUCK, OOY_TRUCK
 - **Credit system**: `creditLimit` + `currentCredit` ใน Owner model
 - **Truck**: ผูกกับ Owner ผ่าน `ownerId`
 
 ## Changelog
+- 2026-08-27: S44 financial regression gate ผ่าน 16 files/81 tests, เพิ่ม BillingCollection verification overpay rollback, ล็อก canonical Invoice payment endpoint และ current FULL V2 price parity
 - 2026-04-27: เพิ่ม helper เลขบิลถัดไปสำหรับ station transactions และ Tank Loy UI เติมเลขที่บิลอัตโนมัติจากเล่มล่าสุด/เล่มที่เลือก
 - 2026-04-25: audit ระบบบิลเงินเชื่อและ connection จริง พบ invoice/pending/debt report ตก `OIL_TRUCK_SUPACHAI`, search APIs ไม่มี auth, credit-like entry ยังพึ่ง ownerName/ทะเบียนแบบไม่ enforce, `owners.currentCredit` drift จากยอดค้างจริง 168 owners, และ patch hardening หลักโดยไม่แก้ข้อมูลเก่า
 - 2026-04-21: บันทึกว่าใบวางบิล/ใบแจ้งหนี้ยึด `ownerId` เป็นหลัก, เพิ่มผล audit live DB เรื่อง missing `ownerId`, duplicate owner names, duplicate owner codes, `venderCode` ที่ยังว่าง, และย้ำว่าการเชื่อม external system ต้อง map ลูกค้าด้วย stable key ก่อน
