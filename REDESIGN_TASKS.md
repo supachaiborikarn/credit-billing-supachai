@@ -588,6 +588,7 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S55: active FULL `/station/1/new/sell` → canonical `/stations/station-1/sales` โดยตรง
 - [x] S56: active FULL `/station/1/new/oil-sell` → canonical `/stations/station-1/sales` โดยตรง
 - [x] S57: active FULL `/station/1/new/open-shift` → canonical `/stations/station-1/operations` โดยตรง
+- [x] S58: active FULL `/station/1/new/close-shift` → canonical `/stations/station-1/operations` โดยตรง
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุด
 - [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S57
 
@@ -1781,6 +1782,25 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
   - S38-S40 parity gate ของ FULL opening ผ่านแล้ว; migration note เดิมที่รอ S39/S40 จึงถูก supersede สำหรับ open-shift ใน S57
   - canonical opening ใช้ StationContext Bangkok business date แทน legacy `toISOString()` calendar date และ fail-closed เมื่อ context ไม่สด
   - S57 เป็น UI-route retirement เท่านั้น; daily/shift/meter APIs และ historical data ไม่ถูกลบหรือเปลี่ยน schema
+
+
+## 2026-08-27 — S58 — Retire active FULL `/station/1/new/close-shift`
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - ย้าย `/station/1/new/close-shift` ไป canonical `/stations/station-1/operations` แบบ server-side ก่อน hydrate
+  - reuse `getActiveFullOperationsRedirect()` เดียวกับ S57 เพื่อจำกัดเฉพาะ active FULL station
+  - ปรับ middleware และ login redirect normalization ให้ authenticated/unauthenticated flow ไป canonical Operations โดย preserve query string
+  - คง `/station/1/v2`, shift-end, meters, history, receipt และ legacy APIs/data ไว้ตาม compatibility gate
+- ตรวจสอบแล้ว:
+  - targeted closing/opening/context/history/SaleFlow regression ผ่าน 7 files / 74 tests
+  - S44 financial gate ผ่าน 16 files / 81 tests
+  - final typecheck + diff check รันหลังอัปเดตเอกสาร
+- สิ่งที่ยังค้าง:
+  - FULL `/station/1/new/shift-end` เป็น bounded candidate ถัดไป
+  - read/history/receipt routes ยังเก็บ compatibility
+- Session ถัดไปที่แนะนำ: `S59` review FULL `/station/1/new/shift-end` แบบ bounded
+- หมายเหตุ/Decision:
+  - S58 เป็น UI-route retirement เท่านั้น ไม่ลบ API/schema/history และไม่ deploy production
 
 
 ## Template

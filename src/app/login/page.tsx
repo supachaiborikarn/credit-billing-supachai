@@ -35,7 +35,7 @@ function normalizeTankLoyRedirectPath(path: string) {
     const legacyPage = match[1] || 'home';
     if (legacyPage === 'receipt') return '/station/1/new/receipt';
     if (legacyPage === 'sell' || legacyPage === 'oil-sell') return '/stations/station-1/sales';
-    if (legacyPage === 'open-shift') return '/stations/station-1/operations';
+    if (legacyPage === 'open-shift' || legacyPage === 'close-shift') return '/stations/station-1/operations';
 
     return '/station/1/v2';
 }
