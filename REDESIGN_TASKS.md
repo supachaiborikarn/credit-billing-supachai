@@ -596,6 +596,7 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S63: active GAS `/gas/5|6/shift/close` → canonical `/stations/station-5|6/operations` โดยตรง หลังเติม zero-received parity guard
 - [x] S64: review GAS `/gas/[id]/meters` → **KEEP** เป็น guarded correction/recovery route; ยังไม่ redirect
 - [x] S65: review GAS `/gas/[id]/gauge` → **KEEP** เป็น guarded correction/recovery route; ยังไม่ redirect
+- [x] S66: review GAS `/gas/[id]/supplies` → **KEEP** เป็น LPG inventory receipt/history domain; ยังไม่มี canonical replacement
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุด
 - [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S60
 
@@ -1956,6 +1957,27 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Session ถัดไปที่แนะนำ: `S66` review GAS supplies ว่า canonical มี replacement หรือยัง
 - หมายเหตุ/Decision:
   - normal shift open/close ยังคง canonical Operations; legacy gauge มีไว้สำหรับ correction/recovery เท่านั้น
+  - ไม่ deploy production
+
+
+## 2026-08-27 — S66 — Review GAS `/gas/[id]/supplies` inventory workflow
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - ตรวจ supply page + `/api/v2/gas/[stationId]/supplies` และเทียบกับ canonical station Operations
+  - ยืนยันว่าเป็น domain รับแก๊สเข้าถัง ไม่ใช่ shift sub-step: บันทึกวันที่, ลิตร, supplier, invoice, ราคาทุน/ลิตร, total cost, notes
+  - API เขียน `GasSupply` พร้อม AuditLog และหน้าเดิมมี date filter + summary ลิตร/ต้นทุน/จำนวนใบส่ง/ต้นทุนเฉลี่ย + history
+  - canonical Opening/Closing ไม่มี LPG supply receipt/history และไม่ควรยัด capability นี้เข้า SaleFlow/shift form โดยไม่มี design แยก
+- Decision:
+  - **ไม่ redirect `/gas/[id]/supplies` ใน S66**
+  - เพิ่ม `KEEP_GAS_INVENTORY`; migration รอบหลังควรสร้าง inventory/receiving workspace แล้วค่อย retire route
+- ตรวจสอบแล้ว:
+  - review/docs-only ไม่มี production behavior เปลี่ยน; financial gate ล่าสุด S63 ยังเป็น baseline
+  - `git diff --check` ผ่านก่อน commit
+- สิ่งที่ยังค้าง:
+  - station-5 `/gas/5/products` ต้อง audit master-data/receive/history capability แยก
+- Session ถัดไปที่แนะนำ: `S67` review GAS products inventory/master-data route
+- หมายเหตุ/Decision:
+  - supplies เป็น operational inventory domain แยกจาก fuel sale และ shift reconciliation
   - ไม่ deploy production
 
 

@@ -33,6 +33,7 @@ Canonical station IDs are `station-1` … `station-6`. URL structure must not en
 - **KEEP_UNTIL_S38_S40** — active operational/open-close/history parity is not complete yet.
 - **KEEP_FULL_ADMIN_COMPAT** — keep FULL legacy workspace while it still owns admin edit/print/audit/historical correction capabilities not yet migrated.
 - **KEEP_GAS_CORRECTION** — keep a GAS operational correction surface when canonical normal workflow cannot yet repair the same guarded state safely.
+- **KEEP_GAS_INVENTORY** — keep GAS supply/product inventory workflows until their create/edit/receive/history capabilities have a canonical replacement.
 - **KEEP_READ_COMPAT** — keep for historical/receipt/summary/print compatibility until the canonical read path proves parity.
 - **KEEP_MASTER_DATA** — still contains create/edit administration not yet moved into Customer 360.
 - **KEEP_ADMIN_REPORT** — admin/reporting tool; not part of the first station-route retirement wave.
@@ -73,7 +74,7 @@ Applicable active stations: station numbers `5`, `6` (legacy URL parameters may 
 | `/gas/[id]/shift/close` | `/stations/station-[id]/operations` | **S63 IMPLEMENTED** | station-5/6 redirect to canonical Closing after parity guard. Canonical saves end meters + gauges, then uses the same GAS close/reconciliation API; legacy source preserved. |
 | `/gas/[id]/meters` | future canonical recovery/correction | **KEEP_GAS_CORRECTION (S64 REVIEWED)** | Keep: legacy page can safely correct START baselines while server lock allows it, and can save standalone END readings. Canonical Operations handles normal atomic opening/closing but does not yet expose this recovery/correction capability. |
 | `/gas/[id]/gauge` | future canonical recovery/correction | **KEEP_GAS_CORRECTION (S65 REVIEWED)** | Keep: supports guarded START-gauge correction while baseline lock allows it plus standalone END-gauge save/retry; canonical normal open/close does not yet expose equivalent recovery UI. |
-| `/gas/[id]/supplies` | future operations/history | KEEP_UNTIL_S38_S40 | Supply workflow must remain separate from sale flow. |
+| `/gas/[id]/supplies` | future inventory/operations domain | **KEEP_GAS_INVENTORY (S66 REVIEWED)** | Keep: records LPG deliveries with liters, supplier, invoice, cost, notes, audit log, date filtering and supply history. Canonical shift Operations has no equivalent receive-stock workflow. |
 | `/gas/5/products` | future operations | KEEP_UNTIL_S38_S40 | station-5 supplemental stock remains separate. |
 | `/gas/[id]/summary` | `/stations/station-[id]/history` | KEEP_READ_COMPAT | S40 must prove summary parity. |
 
