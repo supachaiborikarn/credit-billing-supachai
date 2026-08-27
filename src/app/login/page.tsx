@@ -22,6 +22,7 @@ function normalizeGasRedirectPath(path: string) {
     if (legacyPage === 'sell') return `/gas/${stationNum}/sell`;
     if (legacyPage === 'products' && stationNum === '5') return '/gas/5/products';
     if (legacyPage === 'products' && stationNum === '6') return '/stations/station-6';
+    if (legacyPage === 'monthly-balance' && (stationNum === '5' || stationNum === '6')) return `/stations/station-${stationNum}`;
     if (legacyPage === 'supplies') return `/gas/${stationNum}/supplies`;
     if (legacyPage === 'meters') return `/gas/${stationNum}/meters`;
     if (legacyPage === 'summary' || legacyPage === 'shift-summary') return `/gas/${stationNum}/summary`;

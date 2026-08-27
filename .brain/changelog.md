@@ -2,6 +2,12 @@
 
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
+## 2026-08-28
+- 🧭 S78 review older GAS read-summary family
+  - KEEP older `summary`/`shift-summary` → current `/gas/[id]/summary` เพราะ current summary ยังมี meter 4 หัว + recent transactions ที่ canonical S72 ยังไม่มี
+  - flatten เฉพาะ redirect-only `/new/monthly-balance` ของ station-5/6 ไป canonical Overview; คง guarded read-only `/api/gas-station/[id]/monthly-balance` เป็น API_COMPAT
+  - regression 125/125 + TypeScript/ESLint ผ่าน; ไม่มี financial write/formula เปลี่ยนและยังไม่ deploy
+
 ## 2026-08-27
 - 🧭 S77 fix older GAS products mapping by capability
   - พบ older `/new/products` ส่ง station-5 ไป root ทำให้ bookmark ไม่เข้าสต็อกหลัง S73; แก้ station-5 → `/gas/5/products` และ station-6 → canonical Overview เพราะ `hasProducts=false`

@@ -608,8 +608,9 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S75: older GAS `/new/meters` → current `/gas/[id]/meters` guarded correction route; ไม่ย้ายไป canonical Operations
 - [x] S76: older GAS `/new/supplies` → current `/gas/[id]/supplies` LPG inventory route
 - [x] S77: fix older GAS `/new/products` mapping — station-5 → `/gas/5/products`, station-6 → canonical Overview
+- [x] S78: review older GAS read family — KEEP summary/shift-summary; flatten redirect-only monthly-balance UI โดยคง monthly-balance API
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุด
-- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S77
+- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S78
 
 ---
 
@@ -2223,6 +2224,28 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Session ถัดไปที่แนะนำ: `S78` review older GAS read-summary family โดยห้ามลด historical/print parity
 - หมายเหตุ/Decision:
   - S77 แก้ navigation/capability mapping เท่านั้น ไม่เปลี่ยน product inventory API หรือ financial calculation
+  - ไม่ deploy production
+
+
+## 2026-08-28 — S78 — Review older GAS read-summary family
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - audit `/gas-station/[id]/new/summary`, `/new/shift-summary`, `/new/monthly-balance` เทียบ current GAS summary, canonical Overview/History และ monthly-balance API
+  - ยืนยัน `/new/summary` + `/new/shift-summary` เป็น redirect-only ไป current `/gas/[id]/summary` แต่ current summary ยังมี capability ที่ canonical S72 ไม่มี: ตารางมิเตอร์ 4 หัว (start/end/liters/amount) และรายการขายล่าสุด
+  - จึง KEEP older summary/shift-summary mapping ไป current summary พร้อม preserve query; ไม่ retire `/gas/[id]/summary` ในรอบนี้
+  - ยืนยัน `/new/monthly-balance` เป็น redirect-only ไป GAS root และไม่ได้ render monthly report เอง จึง flatten station-5/6 ไป canonical Overview โดยตรงทั้ง page wrapper/middleware/login
+  - คง `GET /api/gas-station/[id]/monthly-balance` เป็น API_COMPAT/read-only; route นี้ยังมี station access guard และคำนวณ opening/closing stock, supplies, LPG sales และ variance รายเดือน จึงห้ามลบตาม UI redirect
+- ตรวจสอบแล้ว:
+  - route/middleware/GAS/context regression ผ่าน 4 files / 125 tests
+  - `npx tsc --noEmit` ผ่าน
+  - targeted ESLint ของไฟล์ที่แก้ผ่าน
+  - financial logic ไม่เปลี่ยน; baseline ล่าสุด S70 = 16 files / 81 tests
+- สิ่งที่ยังค้าง:
+  - current `/gas/[id]/summary` ยัง KEEP_READ_COMPAT จน canonical มี meter detail + recent transactions parity หรือมี dedicated read detail ที่เหมาะสม
+  - monthly-balance API ยัง compatibility; ถ้าจะ retire ต้อง review ผู้เรียกและสูตร stock/variance แยกจาก UI route
+- Session ถัดไปที่แนะนำ: `S79` canonical GAS summary-detail parity review (meter rows + recent transactions) ก่อนตัดสินใจ current summary route
+- หมายเหตุ/Decision:
+  - S78 เป็น read/redirect cleanup ไม่มี financial write หรือสูตรคำนวณถูกแก้
   - ไม่ deploy production
 
 

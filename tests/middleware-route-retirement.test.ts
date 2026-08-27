@@ -63,7 +63,8 @@ describe('middleware legacy route retirement boundaries', () => {
         ['/gas-station/5/new/meters?from=older', '/gas/5/meters?from=older'],
         ['/gas-station/5/new/supplies?from=older', '/gas/5/supplies?from=older'],
         ['/gas-station/5/new/products?from=older', '/gas/5/products?from=older'],
-        ['/gas-station/6/new/summary?from=older', '/gas/6/summary?from=older'],
+        ['/gas-station/5/new/summary?from=older', '/gas/5/summary?from=older'],
+        ['/gas-station/6/new/shift-summary?from=older', '/gas/6/summary?from=older'],
     ])('keeps older GAS compatibility mapping for %s and preserves query', (path, expectedPath) => {
         const response = middleware(request(path));
 
@@ -77,6 +78,15 @@ describe('middleware legacy route retirement boundaries', () => {
         expect(response.status).toBe(307);
         expect(response.headers.get('location')).toBe(
             'https://credit-billing-supachai.local/stations/station-6?from=older'
+        );
+    });
+
+    it.each(['5', '6'])('flattens redirect-only older monthly-balance page for GAS %s to canonical overview', (stationNumber) => {
+        const response = middleware(request(`/gas-station/${stationNumber}/new/monthly-balance?from=older`));
+
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(
+            `https://credit-billing-supachai.local/stations/station-${stationNumber}?from=older`
         );
     });
 
