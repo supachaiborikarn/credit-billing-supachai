@@ -17,6 +17,12 @@ const protectedRoutes = [
     '/settings',
 ];
 
+function getCurrentGasRedirectPath(pathname: string) {
+    const match = pathname.match(/^\/gas\/(5|6)\/shift\/open(?:\/|$)/);
+    if (!match) return null;
+    return `/stations/station-${match[1]}/operations`;
+}
+
 function getGasV2RedirectPath(pathname: string) {
     const match = pathname.match(/^\/gas-station\/(\d+)(?:\/new(?:\/([^/]+))?)?/);
     if (!match) return null;
@@ -58,6 +64,7 @@ function getTankLoyRedirectPath(pathname: string) {
 export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
     const sessionCookie = request.cookies.get('session');
+    const currentGasRedirectPath = getCurrentGasRedirectPath(pathname);
     const gasV2RedirectPath = getGasV2RedirectPath(pathname);
     const tankLoyRedirectPath = getTankLoyRedirectPath(pathname);
 
@@ -69,9 +76,15 @@ export function middleware(request: NextRequest) {
     // If protected route and no session, redirect to login
     if (isProtectedRoute && !sessionCookie) {
         const loginUrl = new URL('/login', request.url);
-        const redirectPath = gasV2RedirectPath || tankLoyRedirectPath || pathname;
+        const redirectPath = currentGasRedirectPath || gasV2RedirectPath || tankLoyRedirectPath || pathname;
         loginUrl.searchParams.set('redirect', `${redirectPath}${request.nextUrl.search}`);
         return NextResponse.redirect(loginUrl);
+    }
+
+    if (currentGasRedirectPath) {
+        const redirectUrl = new URL(currentGasRedirectPath, request.url);
+        redirectUrl.search = request.nextUrl.search;
+        return NextResponse.redirect(redirectUrl);
     }
 
     if (gasV2RedirectPath) {

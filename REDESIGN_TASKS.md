@@ -592,6 +592,7 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S59: active FULL `/station/1/new/shift-end` → canonical `/stations/station-1/operations` โดยตรง
 - [x] S60: active FULL `/station/1/new/meters` → canonical `/stations/station-1/operations` โดยตรง (legacy route เดิมเป็น redirect-only)
 - [x] S61: active FULL `/station/1/new/home` → canonical `/stations/station-1` โดยตรง; คง `/station/1` + `/station/1/v2` เป็น admin compatibility
+- [x] S62: active GAS `/gas/5|6/shift/open` → canonical `/stations/station-5|6/operations` โดยตรง
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุด
 - [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S60
 
@@ -1865,6 +1866,28 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Session ถัดไปที่แนะนำ: `S62` review GAS `/gas/[id]/shift/open` หลัง S38-S40 parity โดยจำกัดเฉพาะ open-shift family
 - หมายเหตุ/Decision:
   - S61 เป็น navigation-route retirement เท่านั้น ไม่ deploy production
+
+
+## 2026-08-27 — S62 — Retire active GAS `/gas/[id]/shift/open`
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - เทียบ legacy GAS open กับ canonical S38 flow และยืนยัน request parity: business date 07:00, shift number, daily gas price, 4 opening meters, 3 opening gauges
+  - canonical `openGasStationShift()` ใช้ `/api/v2/gas/[station]/shift/open` เดียวกับ legacy และ backend ยังเป็น atomic source of truth
+  - StationContext หา next shift จาก Shift rows ของ GAS business-day โดยตรง แทน manual fallback choice ของหน้าเดิม
+  - ย้าย legacy client implementation ไป `LegacyGasShiftOpenPage.tsx` และทำ server wrapper redirect active GAS ไป canonical Operations; non-active/non-GAS ยัง fallback source เดิม
+  - เพิ่ม `getActiveGasOperationsRedirect()` พร้อม numeric/canonical/alias regression และปรับ middleware/login normalization สำหรับ `/gas/5|6/shift/open` โดย preserve query
+  - ไม่แตะ GAS close/meters/gauge/supplies/products/read routes และไม่ลบ API/data
+- ตรวจสอบแล้ว:
+  - targeted GAS/opening/closing/context/history/SaleFlow regression ผ่าน 8 files / 116 tests
+  - S44 financial gate ผ่าน 16 files / 81 tests
+  - final typecheck + diff check ผ่านหลังอัปเดตเอกสาร
+- สิ่งที่ยังค้าง:
+  - GAS `/gas/[id]/shift/close` เป็น bounded candidate ถัดไป
+  - meters/gauge/supplies/products ต้อง review แยกตาม capability ก่อน redirect
+  - GAS summary/read compatibility ยังเก็บไว้
+- Session ถัดไปที่แนะนำ: `S63` review GAS `/gas/[id]/shift/close` แบบ bounded หลัง closing parity/regression
+- หมายเหตุ/Decision:
+  - S62 เป็น UI-route retirement เท่านั้น ไม่ deploy production
 
 
 ## Template

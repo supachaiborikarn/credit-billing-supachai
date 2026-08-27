@@ -14,6 +14,12 @@ export function getActiveGasSellRedirect(stationParam: string): string | null {
     return `/stations/${station.id}/sales`;
 }
 
+export function getActiveGasOperationsRedirect(stationParam: string): string | null {
+    const station = resolveStationDefinition(stationParam.trim());
+    if (!station || station.type !== 'GAS' || station.operationalStatus !== 'ACTIVE') return null;
+    return `/stations/${station.id}/operations`;
+}
+
 export function getActiveFullOverviewRedirect(stationParam: string): string | null {
     const station = resolveStationDefinition(stationParam.trim());
     if (!station || station.type !== 'FULL' || station.operationalStatus !== 'ACTIVE') return null;

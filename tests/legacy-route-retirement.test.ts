@@ -4,13 +4,20 @@ import {
     getActiveFullOperationsRedirect,
     getActiveFullOverviewRedirect,
     getActiveFullSellRedirect,
+    getActiveGasOperationsRedirect,
     getActiveGasSellRedirect,
     getRetiredSimpleStationRedirect,
 } from '../src/lib/stations/legacy-route-retirement';
 
-const gasAliasCases = STATIONS.flatMap((station) =>
+const gasSellAliasCases = STATIONS.flatMap((station) =>
     station.type === 'GAS' && 'aliases' in station
         ? station.aliases.map((alias) => [alias, `/stations/${station.id}/sales`] as const)
+        : []
+);
+
+const gasOperationsAliasCases = STATIONS.flatMap((station) =>
+    station.type === 'GAS' && 'aliases' in station
+        ? station.aliases.map((alias) => [alias, `/stations/${station.id}/operations`] as const)
         : []
 );
 
@@ -32,12 +39,29 @@ describe('legacy route retirement', () => {
         expect(getActiveGasSellRedirect(stationParam)).toBe(expected);
     });
 
-    it.each(gasAliasCases)('redirects GAS alias to canonical sales', (stationParam, expected) => {
+    it.each(gasSellAliasCases)('redirects GAS alias to canonical sales', (stationParam, expected) => {
         expect(getActiveGasSellRedirect(stationParam)).toBe(expected);
     });
 
     it.each(['1', '2', '3', '4', '7', '', 'station-2'])('does not redirect non-GAS sell param %s', (stationParam) => {
         expect(getActiveGasSellRedirect(stationParam)).toBeNull();
+    });
+
+    it.each([
+        ['5', '/stations/station-5/operations'],
+        ['6', '/stations/station-6/operations'],
+        ['station-5', '/stations/station-5/operations'],
+        ['station-6', '/stations/station-6/operations'],
+    ])('redirects active GAS operations param %s to canonical operations', (stationParam, expected) => {
+        expect(getActiveGasOperationsRedirect(stationParam)).toBe(expected);
+    });
+
+    it.each(gasOperationsAliasCases)('redirects GAS alias to canonical operations', (stationParam, expected) => {
+        expect(getActiveGasOperationsRedirect(stationParam)).toBe(expected);
+    });
+
+    it.each(['1', '2', '3', '4', '7', '', 'station-2'])('does not redirect non-GAS operations param %s', (stationParam) => {
+        expect(getActiveGasOperationsRedirect(stationParam)).toBeNull();
     });
 
     it.each([
