@@ -18,9 +18,12 @@ const protectedRoutes = [
 ];
 
 function getCurrentGasRedirectPath(pathname: string) {
-    const match = pathname.match(/^\/gas\/(5|6)\/shift\/(?:open|close)(?:\/|$)/);
-    if (!match) return null;
-    return `/stations/station-${match[1]}/operations`;
+    const overviewMatch = pathname.match(/^\/gas\/(5|6)\/?$/);
+    if (overviewMatch) return `/stations/station-${overviewMatch[1]}`;
+
+    const shiftMatch = pathname.match(/^\/gas\/(5|6)\/shift\/(?:open|close)(?:\/|$)/);
+    if (!shiftMatch) return null;
+    return `/stations/station-${shiftMatch[1]}/operations`;
 }
 
 function getGasV2RedirectPath(pathname: string) {

@@ -3,6 +3,10 @@
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
 ## 2026-08-27
+- 🧭 S73 retire active GAS landing `/gas/5|6`
+  - root station-5/6 GAS landing ไป canonical Overview หลัง tool/price/live-summary parity ครบ; legacy dashboard source เก็บใน `LegacyGasStationHomePage.tsx`
+  - middleware + login preserve query/auth boundary และ default GAS staff landing ใช้ canonical โดยตรง; meter/gauge/supplies/products/summary compatibility routes ไม่ถูกแตะ
+  - route/context/GAS 100/100 + middleware boundary 88/88 + TypeScript/ESLint ผ่าน; financial logic ไม่เปลี่ยนและยังไม่ deploy
 - 📊 S72 canonical GAS live-status summary
   - canonical Overview reuse read-only GAS summary API เพื่อแสดง CASH/CREDIT/CARD/TRANSFER, จำนวนรายการ/ลิตร/ยอดรวม, latest tank 1-3 percentages และ low-tank alerts
   - refresh ทุก 30 วินาทีและเก็บ last-successful data เมื่อ refresh ล้ม; GAS summary/context tests 23/23 + TypeScript/ESLint ผ่าน

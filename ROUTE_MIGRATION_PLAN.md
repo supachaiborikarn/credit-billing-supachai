@@ -69,7 +69,7 @@ Applicable active stations: station numbers `5`, `6` (legacy URL parameters may 
 
 | Legacy route | Future route | Disposition | Notes |
 | --- | --- | --- | --- |
-| `/gas/5`, `/gas/6` | `/stations/station-5`, `/stations/station-6` | **READY_FOR_S73 (S72 PARITY COMPLETE)** | S69 migrated retained tool links, S70 migrated audited price update, and S72 added payment buckets + live tank percentages + low-tank alerts. Keep route only until bounded S73 redirect/auth-query smoke; correction/inventory/summary subroutes remain separate compatibility routes. |
+| `/gas/5`, `/gas/6` | `/stations/station-5`, `/stations/station-6` | **S73 IMPLEMENTED** | Root GAS landing now redirects directly to canonical Station Overview after S69/S70/S72 parity. Middleware/login preserve query and normalize auth redirects; legacy dashboard source is retained. Correction/inventory/summary subroutes remain separate compatibility routes. |
 | `/gas/5/sell`, `/gas/6/sell` | `/stations/station-5/sales`, `/stations/station-6/sales` | **S53 IMPLEMENTED** | Server-side redirect to canonical SaleFlow; legacy source preserved in `LegacyGasSellPage.tsx`. |
 | `/gas/[id]/shift/open` | `/stations/station-[id]/operations` | **S62 IMPLEMENTED** | station-5/6 redirect to canonical Operations. Canonical uses the same atomic GAS open API with price + 4 meters + 3 gauges and derives next shift from actual business-day shifts. |
 | `/gas/[id]/shift/close` | `/stations/station-[id]/operations` | **S63 IMPLEMENTED** | station-5/6 redirect to canonical Closing after parity guard. Canonical saves end meters + gauges, then uses the same GAS close/reconciliation API; legacy source preserved. |

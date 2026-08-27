@@ -20,6 +20,12 @@ export function getActiveGasOperationsRedirect(stationParam: string): string | n
     return `/stations/${station.id}/operations`;
 }
 
+export function getActiveGasOverviewRedirect(stationParam: string): string | null {
+    const station = resolveStationDefinition(stationParam.trim());
+    if (!station || station.type !== 'GAS' || station.operationalStatus !== 'ACTIVE') return null;
+    return `/stations/${station.id}`;
+}
+
 export function getActiveFullOverviewRedirect(stationParam: string): string | null {
     const station = resolveStationDefinition(stationParam.trim());
     if (!station || station.type !== 'FULL' || station.operationalStatus !== 'ACTIVE') return null;

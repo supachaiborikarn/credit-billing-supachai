@@ -5,6 +5,7 @@ import {
     getActiveFullOverviewRedirect,
     getActiveFullSellRedirect,
     getActiveGasOperationsRedirect,
+    getActiveGasOverviewRedirect,
     getActiveGasSellRedirect,
     getRetiredSimpleStationRedirect,
 } from '../src/lib/stations/legacy-route-retirement';
@@ -18,6 +19,12 @@ const gasSellAliasCases = STATIONS.flatMap((station) =>
 const gasOperationsAliasCases = STATIONS.flatMap((station) =>
     station.type === 'GAS' && 'aliases' in station
         ? station.aliases.map((alias) => [alias, `/stations/${station.id}/operations`] as const)
+        : []
+);
+
+const gasOverviewAliasCases = STATIONS.flatMap((station) =>
+    station.type === 'GAS' && 'aliases' in station
+        ? station.aliases.map((alias) => [alias, `/stations/${station.id}`] as const)
         : []
 );
 
@@ -62,6 +69,23 @@ describe('legacy route retirement', () => {
 
     it.each(['1', '2', '3', '4', '7', '', 'station-2'])('does not redirect non-GAS operations param %s', (stationParam) => {
         expect(getActiveGasOperationsRedirect(stationParam)).toBeNull();
+    });
+
+    it.each([
+        ['5', '/stations/station-5'],
+        ['6', '/stations/station-6'],
+        ['station-5', '/stations/station-5'],
+        ['station-6', '/stations/station-6'],
+    ])('redirects active GAS overview param %s to canonical overview', (stationParam, expected) => {
+        expect(getActiveGasOverviewRedirect(stationParam)).toBe(expected);
+    });
+
+    it.each(gasOverviewAliasCases)('redirects GAS alias to canonical overview', (stationParam, expected) => {
+        expect(getActiveGasOverviewRedirect(stationParam)).toBe(expected);
+    });
+
+    it.each(['1', '2', '3', '4', '7', '', 'station-2'])('does not redirect non-GAS overview param %s', (stationParam) => {
+        expect(getActiveGasOverviewRedirect(stationParam)).toBeNull();
     });
 
     it.each([

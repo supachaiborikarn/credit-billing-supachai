@@ -603,8 +603,9 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S70: canonical GAS Overview ย้าย staff gas-price update มาใช้ audited API เดิม + fail-closed ระหว่าง context refresh
 - [x] S71: review GAS landing read/dashboard parity → KEEP เพราะ payment buckets + gauge percentages + low-tank alerts ยังไม่มี canonical replacement
 - [x] S72: canonical GAS Overview เพิ่ม live payment/gauge/alert summary จาก read-only summary API + auto-refresh 30 วินาที
+- [x] S73: active GAS landing `/gas/5|6` → canonical `/stations/station-5|6` โดย preserve auth/query และคง compatibility subroutes
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุด
-- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S69
+- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S73
 
 ---
 
@@ -2113,6 +2114,29 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Session ถัดไปที่แนะนำ: `S73` retire GAS landing `/gas/5|6` หลัง final boundary smoke
 - หมายเหตุ/Decision:
   - S72 เป็น read/UI parity เท่านั้น ไม่เปลี่ยน financial logic จึงไม่ rerun full S44 gate; financial baseline ล่าสุด S70 = 81/81
+  - ไม่ deploy production
+
+
+## 2026-08-27 — S73 — Retire active GAS landing `/gas/5|6`
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - หลัง S69 tool entry + S70 audited price update + S72 live summary ปิด capability gaps ของ legacy GAS landing แล้ว จึง redirect เฉพาะ root `/gas/5` และ `/gas/6` ไป canonical Station Overview
+  - เก็บ legacy dashboard source ไว้ใน `LegacyGasStationHomePage.tsx`; page wrapper ใช้ `getActiveGasOverviewRedirect()` และ fallback source เดิมสำหรับ non-active/non-GAS param
+  - middleware normalize authenticated + unauthenticated root GAS landing ไป canonical โดย preserve query; login normalization และ default GAS staff landing ใช้ canonical โดยตรงเพื่อลด redirect chain
+  - ไม่แตะ `/meters`, `/gauge`, `/supplies`, `/products`, `/summary`; open/close และ sell ยังคง canonical disposition เดิม
+  - เพิ่ม middleware boundary regression เพื่อพิสูจน์ root-only redirect, login redirect query preservation และ compatibility subroute passthrough
+- ตรวจสอบแล้ว:
+  - route/context/GAS regression ผ่าน 3 files / 100 tests
+  - middleware + route-retirement boundary regression ผ่าน 2 files / 88 tests
+  - `npx tsc --noEmit` ผ่าน
+  - targeted ESLint ของไฟล์ที่แก้ผ่าน
+  - `git diff --check` ผ่านก่อน commit
+- สิ่งที่ยังค้าง:
+  - older `/gas-station/[id]` landing/new-home family ยังต้อง review/flatten แยก; ห้ามพ่วง correction/inventory/read routesโดยอัตโนมัติ
+  - GAS correction/inventory subroutes S64-S67 และ `/gas/[id]/summary` ยัง KEEP ตามเดิม
+- Session ถัดไปที่แนะนำ: `S74` review older GAS `/gas-station/[id]` + `/new/home` entry family
+- หมายเหตุ/Decision:
+  - S73 เป็น route retirement/UI entry change ไม่มี financial calculation เปลี่ยน; financial baseline ล่าสุด S70 = 81/81
   - ไม่ deploy production
 
 

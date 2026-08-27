@@ -1,0 +1,53 @@
+import { describe, expect, it } from 'vitest';
+import { NextRequest } from 'next/server';
+import { middleware } from '../src/middleware';
+
+function request(path: string, authenticated = true) {
+    return new NextRequest(`https://credit-billing-supachai.local${path}`, authenticated
+        ? { headers: { cookie: 'session=test-session' } }
+        : undefined);
+}
+
+describe('middleware legacy route retirement boundaries', () => {
+    it.each(['5', '6'])('redirects authenticated GAS %s landing to canonical overview and preserves query', (stationNumber) => {
+        const response = middleware(request(`/gas/${stationNumber}?from=legacy&tab=now`));
+
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(
+            `https://credit-billing-supachai.local/stations/station-${stationNumber}?from=legacy&tab=now`
+        );
+    });
+
+    it.each(['5', '6'])('normalizes unauthenticated GAS %s landing before login and preserves query', (stationNumber) => {
+        const response = middleware(request(`/gas/${stationNumber}?from=bookmark`, false));
+        const location = response.headers.get('location');
+
+        expect(response.status).toBe(307);
+        expect(location).not.toBeNull();
+        const loginUrl = new URL(location!);
+        expect(loginUrl.pathname).toBe('/login');
+        expect(loginUrl.searchParams.get('redirect')).toBe(`/stations/station-${stationNumber}?from=bookmark`);
+    });
+
+    it.each([
+        '/gas/5/meters?source=test',
+        '/gas/5/gauge?source=test',
+        '/gas/5/supplies?source=test',
+        '/gas/5/products?source=test',
+        '/gas/6/summary?source=test',
+    ])('keeps compatibility subroute %s untouched', (path) => {
+        const response = middleware(request(path));
+
+        expect(response.headers.get('location')).toBeNull();
+        expect(response.headers.get('x-middleware-next')).toBe('1');
+    });
+
+    it.each(['5', '6'])('keeps active GAS shift redirect behavior and preserves query for station %s', (stationNumber) => {
+        const response = middleware(request(`/gas/${stationNumber}/shift/open?source=old`));
+
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(
+            `https://credit-billing-supachai.local/stations/station-${stationNumber}/operations?source=old`
+        );
+    });
+});

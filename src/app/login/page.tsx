@@ -8,6 +8,9 @@ function normalizeGasRedirectPath(path: string) {
     const currentMatch = path.match(/^\/gas\/(5|6)\/shift\/(?:open|close)(?:[/?#]|$)/);
     if (currentMatch) return `/stations/station-${currentMatch[1]}/operations`;
 
+    const overviewMatch = path.match(/^\/gas\/(5|6)\/?$/);
+    if (overviewMatch) return `/stations/station-${overviewMatch[1]}`;
+
     const match = path.match(/^\/gas-station\/(\d+)(?:\/new(?:\/([^/?#]+))?)?/);
     if (!match) return path;
 
@@ -90,7 +93,7 @@ function LoginContent() {
                                 if (data.user.stationType === 'FULL') {
                                     router.push(stationNum === 1 ? '/station/1/v2' : `/station/${stationNum}/new/home`);
                                 } else if (data.user.stationType === 'GAS') {
-                                    router.push(`/gas/${stationNum}`);
+                                    router.push((stationNum === 5 || stationNum === 6) ? `/stations/station-${stationNum}` : `/gas/${stationNum}`);
                                 } else {
                                     router.push(`/simple-station/${stationNum}/new/home`);
                                 }
@@ -185,7 +188,7 @@ function LoginContent() {
                         if (stationType === 'FULL') {
                             router.push(stationNum === 1 ? '/station/1/v2' : `/station/${stationNum}/new/home`);
                         } else if (stationType === 'GAS') {
-                            router.push(`/gas/${stationNum}`);
+                            router.push((stationNum === 5 || stationNum === 6) ? `/stations/station-${stationNum}` : `/gas/${stationNum}`);
                         } else {
                             router.push(`/simple-station/${stationNum}/new/home`);
                         }
