@@ -75,7 +75,7 @@ Applicable active stations: station numbers `5`, `6` (legacy URL parameters may 
 | `/gas/[id]/meters` | future canonical recovery/correction | **KEEP_GAS_CORRECTION (S64 REVIEWED)** | Keep: legacy page can safely correct START baselines while server lock allows it, and can save standalone END readings. Canonical Operations handles normal atomic opening/closing but does not yet expose this recovery/correction capability. |
 | `/gas/[id]/gauge` | future canonical recovery/correction | **KEEP_GAS_CORRECTION (S65 REVIEWED)** | Keep: supports guarded START-gauge correction while baseline lock allows it plus standalone END-gauge save/retry; canonical normal open/close does not yet expose equivalent recovery UI. |
 | `/gas/[id]/supplies` | future inventory/operations domain | **KEEP_GAS_INVENTORY (S66 REVIEWED)** | Keep: records LPG deliveries with liters, supplier, invoice, cost, notes, audit log, date filtering and supply history. Canonical shift Operations has no equivalent receive-stock workflow. |
-| `/gas/5/products` | future operations | KEEP_UNTIL_S38_S40 | station-5 supplemental stock remains separate. |
+| `/gas/5/products` | future inventory/master-data domain | **KEEP_GAS_INVENTORY (S67 REVIEWED)** | Keep: create product, receive stock, edit sale price/alert level and view IN/OUT history. Legacy GET also upserts Station, so do not reuse it as a canonical read model without cleanup. |
 | `/gas/[id]/summary` | `/stations/station-[id]/history` | KEEP_READ_COMPAT | S40 must prove summary parity. |
 
 ## GAS — older `/gas-station/[id]/new/*`

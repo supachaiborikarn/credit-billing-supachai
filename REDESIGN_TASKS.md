@@ -597,6 +597,7 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S64: review GAS `/gas/[id]/meters` → **KEEP** เป็น guarded correction/recovery route; ยังไม่ redirect
 - [x] S65: review GAS `/gas/[id]/gauge` → **KEEP** เป็น guarded correction/recovery route; ยังไม่ redirect
 - [x] S66: review GAS `/gas/[id]/supplies` → **KEEP** เป็น LPG inventory receipt/history domain; ยังไม่มี canonical replacement
+- [x] S67: review station-5 `/gas/5/products` → **KEEP** เป็น product master/stock/history domain; ยังไม่มี canonical replacement
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุด
 - [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S60
 
@@ -1978,6 +1979,27 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Session ถัดไปที่แนะนำ: `S67` review GAS products inventory/master-data route
 - หมายเหตุ/Decision:
   - supplies เป็น operational inventory domain แยกจาก fuel sale และ shift reconciliation
+  - ไม่ deploy production
+
+
+## 2026-08-27 — S67 — Review station-5 GAS products inventory/master-data
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - ตรวจ `/gas/[stationId]/products` และ product inventory/history APIs
+  - ยืนยัน capability ที่ canonical ยังไม่มี: สร้างสินค้า, initial stock, รับสต็อกเพิ่ม, แก้ราคาขาย, แก้ alert level, ดู IN/OUT history
+  - close-shift product count ใช้เพียง subset ของ domain นี้และไม่ทดแทน master/receiving/history actions
+  - พบ legacy debt: GET `/api/gas-station/[id]/products` ใช้ `station.upsert()` เพื่อ ensure Station/hasProducts; จึงไม่ควรนำ endpoint นี้ไปเป็น canonical GET read model โดยตรงในอนาคต
+- Decision:
+  - **ไม่ redirect `/gas/5/products` ใน S67**; คง `KEEP_GAS_INVENTORY`
+  - future migration ควรแยก side-effect-free inventory read API และ permission-aware create/update/receive actions ก่อน
+- ตรวจสอบแล้ว:
+  - review/docs-only ไม่มี production behavior เปลี่ยน; financial gate ล่าสุด S63 ยังเป็น baseline
+  - `git diff --check` ผ่านก่อน commit
+- สิ่งที่ยังค้าง:
+  - GAS landing `/gas/5|6` ต้อง review ว่ายังจำเป็นเพื่อเข้าถึง correction/inventory routes หรือ canonical overview สามารถเป็น primary entry ได้โดยเก็บ secondary routes ไว้
+- Session ถัดไปที่แนะนำ: `S68` review GAS landing route disposition
+- หมายเหตุ/Decision:
+  - station-5 product inventory เป็น domain แยกจาก LPG SaleFlow
   - ไม่ deploy production
 
 
