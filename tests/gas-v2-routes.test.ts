@@ -759,6 +759,15 @@ describe('gas v2 route guards', () => {
                     liters: 10,
                     transactionCount: 1,
                 },
+                meters: [
+                    {
+                        nozzle: 1,
+                        startReading: 1000,
+                        endReading: null,
+                        liters: 0,
+                        amount: 0,
+                    },
+                ],
                 transactions: [
                     expect.objectContaining({
                         id: 'tx-night',

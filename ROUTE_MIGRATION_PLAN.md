@@ -77,7 +77,7 @@ Applicable active stations: station numbers `5`, `6` (legacy URL parameters may 
 | `/gas/[id]/gauge` | future canonical recovery/correction | **KEEP_GAS_CORRECTION (S65 REVIEWED)** | Keep: supports guarded START-gauge correction while baseline lock allows it plus standalone END-gauge save/retry; canonical normal open/close does not yet expose equivalent recovery UI. |
 | `/gas/[id]/supplies` | future inventory/operations domain | **KEEP_GAS_INVENTORY (S66 REVIEWED)** | Keep: records LPG deliveries with liters, supplier, invoice, cost, notes, audit log, date filtering and supply history. Canonical shift Operations has no equivalent receive-stock workflow. |
 | `/gas/5/products` | future inventory/master-data domain | **KEEP_GAS_INVENTORY (S67 REVIEWED)** | Keep: create product, receive stock, edit sale price/alert level and view IN/OUT history. Legacy GET also upserts Station, so do not reuse it as a canonical read model without cleanup. |
-| `/gas/[id]/summary` | future canonical GAS read detail | **KEEP_READ_COMPAT (S78 REVIEWED)** | Keep: current summary still shows 4-nozzle start/end/liters/amount plus recent transactions; S72 canonical live summary has payment totals, gauges and alerts but not these details. |
+| `/gas/[id]/summary` | `/stations/station-[id]` | **PARITY_READY — KEEP until S80 (S79)** | S79 canonical live summary now reuses the same summary API and renders 4-nozzle start/end/liters/amount plus up to 10 recent transactions. Keep route for one more bounded session so S80 can verify redirect/auth/query boundaries before retirement. |
 
 ## GAS — older `/gas-station/[id]/new/*`
 
@@ -91,7 +91,7 @@ These are an older GAS route family. Do not remove by naming alone; some links/b
 | `/gas-station/[id]/new/meters` | `/gas/[id]/meters` guarded correction | **S75 CONFIRMED COMPAT MAPPING** |
 | `/gas-station/[id]/new/supplies` | `/gas/[id]/supplies` LPG inventory | **S76 CONFIRMED COMPAT MAPPING** |
 | `/gas-station/[id]/new/products` | station-5 → `/gas/5/products`; station-6 → canonical overview | **S77 CAPABILITY MAPPING FIXED** |
-| `/gas-station/[id]/new/summary`, `/new/shift-summary` | `/gas/[id]/summary` | **KEEP_READ_COMPAT (S78 REVIEWED)** |
+| `/gas-station/[id]/new/summary`, `/new/shift-summary` | canonical Overview after current-summary retirement | **PARITY_READY — KEEP until S80 (S79)** |
 | `/gas-station/[id]/new/monthly-balance` | `/stations/station-[id]` | **S78 IMPLEMENTED for station-5/6** |
 
 ## SIMPLE — retired `/simple-station/[id]`

@@ -609,8 +609,9 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S76: older GAS `/new/supplies` → current `/gas/[id]/supplies` LPG inventory route
 - [x] S77: fix older GAS `/new/products` mapping — station-5 → `/gas/5/products`, station-6 → canonical Overview
 - [x] S78: review older GAS read family — KEEP summary/shift-summary; flatten redirect-only monthly-balance UI โดยคง monthly-balance API
+- [x] S79: canonical GAS Overview เพิ่ม meter detail + recent transactions จาก summary API เดิม; current summary parity ready แต่ยัง KEEP จน S80
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุด
-- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S78
+- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S79
 
 ---
 
@@ -2246,6 +2247,27 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Session ถัดไปที่แนะนำ: `S79` canonical GAS summary-detail parity review (meter rows + recent transactions) ก่อนตัดสินใจ current summary route
 - หมายเหตุ/Decision:
   - S78 เป็น read/redirect cleanup ไม่มี financial write หรือสูตรคำนวณถูกแก้
+  - ไม่ deploy production
+
+
+## 2026-08-28 — S79 — Add canonical GAS summary-detail parity
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - audit current `/gas/[id]/summary` เทียบ canonical `GasLiveSummary` และยืนยันว่าทั้งสองหน้าอ่าน `GET /api/v2/gas/[stationId]/summary` source เดียวกันอยู่แล้ว
+  - ขยาย canonical Overview ให้ใช้ `meters` ที่ API ส่งอยู่แล้ว แสดงหัวจ่าย, เลขเปิด, เลขปิด, ลิตร และมูลค่า โดยไม่เพิ่ม query/API
+  - เพิ่ม recent transactions สูงสุด 10 รายการจาก response เดิม พร้อมประเภทชำระ, owner, ทะเบียน, เวลา, ลิตร และยอดเงิน
+  - คง polling/stale-on-error behavior เดิมของ S72; ไม่มี financial formula หรือ write path เปลี่ยน
+  - เพิ่ม regression assertion ให้ summary API ล็อก meter payload ที่ canonical ใช้ โดยยังครอบ overnight shift ตาม `shiftId`
+- ตรวจสอบแล้ว:
+  - route/middleware/GAS/context regression ผ่าน 4 files / 125 tests
+  - `npx tsc --noEmit` ผ่าน
+  - targeted ESLint ผ่าน
+- สิ่งที่ยังค้าง:
+  - `/gas/[id]/summary` ยัง KEEP_READ_COMPAT ใน S79 เพื่อแยก parity implementation ออกจาก route retirement
+  - S80 ต้องตรวจ page wrapper + middleware/login normalization + query/auth boundary ของ current/older summary bookmark ก่อน redirect
+- Session ถัดไปที่แนะนำ: `S80` retire current/older GAS summary entry ไป canonical Overview ถ้า boundary review ผ่าน
+- หมายเหตุ/Decision:
+  - S79 reuse read source เดิมทั้งหมด จึงไม่ rerun financial gate; baseline ล่าสุด S70 = 16 files / 81 tests
   - ไม่ deploy production
 
 

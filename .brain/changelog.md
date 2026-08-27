@@ -3,6 +3,10 @@
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
 ## 2026-08-28
+- 📊 S79 canonical GAS summary-detail parity
+  - canonical Overview reuse summary API เดิมเพื่อแสดงมิเตอร์ 4 หัว (เปิด/ปิด/ลิตร/มูลค่า) + recent transactions สูงสุด 10 รายการ โดยไม่เพิ่ม query หรือ financial formula
+  - regression เพิ่ม meter response contract; 125/125 + TypeScript/ESLint ผ่าน
+  - current/older summary ยัง KEEP ใน S79; S80 จะ review redirect/auth/query boundary ก่อน retire และยังไม่ deploy
 - 🧭 S78 review older GAS read-summary family
   - KEEP older `summary`/`shift-summary` → current `/gas/[id]/summary` เพราะ current summary ยังมี meter 4 หัว + recent transactions ที่ canonical S72 ยังไม่มี
   - flatten เฉพาะ redirect-only `/new/monthly-balance` ของ station-5/6 ไป canonical Overview; คง guarded read-only `/api/gas-station/[id]/monthly-balance` เป็น API_COMPAT

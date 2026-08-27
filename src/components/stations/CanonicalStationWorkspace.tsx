@@ -176,10 +176,36 @@ interface GasLiveSummaryPayload {
         tank3: number | null;
         average: number;
     };
+    meters?: Array<{
+        nozzle: number;
+        nozzleNumber?: number;
+        startReading: number | null;
+        endReading: number | null;
+        liters: number;
+        amount: number;
+    }>;
+    transactions?: Array<{
+        id: string;
+        paymentType: string;
+        amount: number;
+        liters: number;
+        ownerName?: string | null;
+        truckPlate?: string | null;
+        licensePlate?: string | null;
+        createdAt: string;
+    }>;
     alerts: string[];
 }
 
 const gasNumberFormatter = new Intl.NumberFormat('th-TH', { maximumFractionDigits: 2 });
+
+function getGasPaymentLabel(paymentType: string) {
+    if (paymentType === 'CASH') return 'เงินสด';
+    if (paymentType === 'CREDIT') return 'เงินเชื่อ';
+    if (paymentType === 'CREDIT_CARD' || paymentType === 'CARD') return 'บัตร';
+    if (paymentType === 'TRANSFER') return 'โอน';
+    return paymentType;
+}
 
 function GasLiveSummary({ context }: { context: StationContextPayload }) {
     const [data, setData] = React.useState<GasLiveSummaryPayload | null>(null);
@@ -208,7 +234,7 @@ function GasLiveSummary({ context }: { context: StationContextPayload }) {
 
     if (loading && !data) {
         return (
-            <Section title="สถานะ GAS ตอนนี้" description="ยอดขายและระดับถังของกะปัจจุบัน">
+            <Section title="สถานะ GAS ตอนนี้" description="ยอดขาย ระดับถัง มิเตอร์ และรายการล่าสุดของกะปัจจุบัน">
                 <div className="h-28 animate-pulse rounded-[var(--ui-radius-md)] bg-[var(--ui-surface-subtle)]" />
             </Section>
         );
@@ -216,7 +242,7 @@ function GasLiveSummary({ context }: { context: StationContextPayload }) {
 
     if (!data) {
         return (
-            <Section title="สถานะ GAS ตอนนี้" description="ยอดขายและระดับถังของกะปัจจุบัน">
+            <Section title="สถานะ GAS ตอนนี้" description="ยอดขาย ระดับถัง มิเตอร์ และรายการล่าสุดของกะปัจจุบัน">
                 <Notice tone="danger" title="โหลดข้อมูลสรุปไม่สำเร็จ">{error || 'ไม่พบข้อมูลสรุป'}</Notice>
             </Section>
         );
@@ -229,9 +255,11 @@ function GasLiveSummary({ context }: { context: StationContextPayload }) {
         ['โอน', data.sales.transfer],
     ] as const;
     const tanks = [data.gauge.tank1, data.gauge.tank2, data.gauge.tank3];
+    const meters = data.meters ?? [];
+    const recentTransactions = (data.transactions ?? []).slice(0, 10);
 
     return (
-        <Section title="สถานะ GAS ตอนนี้" description="อ่านจาก summary เดิมและอัปเดตอัตโนมัติทุก 30 วินาที">
+        <Section title="สถานะ GAS ตอนนี้" description="อ่านจาก summary source เดิมและอัปเดตอัตโนมัติทุก 30 วินาที">
             <div className="space-y-4" aria-live="polite">
                 {error && <Notice tone="warning" title="รีเฟรชล่าสุดไม่สำเร็จ">กำลังแสดงข้อมูลล่าสุดที่โหลดสำเร็จ · {error}</Notice>}
                 {data.alerts.length > 0 && (
@@ -287,6 +315,77 @@ function GasLiveSummary({ context }: { context: StationContextPayload }) {
                         </div>
                     </div>
                 </div>
+
+                {(meters.length > 0 || recentTransactions.length > 0) && (
+                    <div className="grid gap-4 lg:grid-cols-2">
+                        {meters.length > 0 && (
+                            <div className="min-w-0 rounded-[var(--ui-radius-md)] border border-[var(--ui-border)] p-4">
+                                <div className="flex items-center gap-2 text-sm font-semibold">
+                                    <Calculator className="h-4 w-4 text-[var(--ui-text-muted)]" aria-hidden="true" />
+                                    มิเตอร์หัวจ่าย
+                                </div>
+                                <div className="mt-3 overflow-x-auto">
+                                    <table className="w-full min-w-[520px] text-sm">
+                                        <thead className="text-xs text-[var(--ui-text-muted)]">
+                                            <tr className="border-b border-[var(--ui-border)]">
+                                                <th className="pb-2 text-left font-semibold">หัว</th>
+                                                <th className="pb-2 text-right font-semibold">เปิด</th>
+                                                <th className="pb-2 text-right font-semibold">ปิด</th>
+                                                <th className="pb-2 text-right font-semibold">ลิตร</th>
+                                                <th className="pb-2 text-right font-semibold">มูลค่า</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {meters.map((meter) => (
+                                                <tr key={meter.nozzle} className="border-b border-[var(--ui-border)] last:border-b-0">
+                                                    <td className="py-2 font-semibold">{meter.nozzle}</td>
+                                                    <td className="py-2 text-right tabular-nums text-[var(--ui-text-secondary)]">{meter.startReading === null ? '-' : gasNumberFormatter.format(meter.startReading)}</td>
+                                                    <td className="py-2 text-right tabular-nums text-[var(--ui-text-secondary)]">{meter.endReading === null ? '-' : gasNumberFormatter.format(meter.endReading)}</td>
+                                                    <td className="py-2 text-right font-semibold tabular-nums">{gasNumberFormatter.format(meter.liters)}</td>
+                                                    <td className="py-2 text-right font-semibold tabular-nums">฿{gasNumberFormatter.format(meter.amount)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {recentTransactions.length > 0 && (
+                            <div className="min-w-0 rounded-[var(--ui-radius-md)] border border-[var(--ui-border)] p-4">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2 text-sm font-semibold">
+                                        <Fuel className="h-4 w-4 text-[var(--ui-text-muted)]" aria-hidden="true" />
+                                        รายการขายล่าสุด
+                                    </div>
+                                    <span className="text-xs text-[var(--ui-text-muted)]">สูงสุด 10 รายการ</span>
+                                </div>
+                                <div className="mt-2 divide-y divide-[var(--ui-border)]">
+                                    {recentTransactions.map((transaction) => {
+                                        const plate = transaction.truckPlate || transaction.licensePlate;
+                                        return (
+                                            <div key={transaction.id} className="flex items-start justify-between gap-3 py-3">
+                                                <div className="min-w-0">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <Badge variant="default">{getGasPaymentLabel(transaction.paymentType)}</Badge>
+                                                        {transaction.ownerName && <span className="truncate text-sm font-semibold">{transaction.ownerName}</span>}
+                                                    </div>
+                                                    <div className="mt-1 text-xs text-[var(--ui-text-muted)]">
+                                                        {plate ? `${plate} · ` : ''}{new Date(transaction.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                                                    </div>
+                                                </div>
+                                                <div className="shrink-0 text-right">
+                                                    <div className="font-bold tabular-nums">฿{gasNumberFormatter.format(transaction.amount)}</div>
+                                                    <div className="text-xs tabular-nums text-[var(--ui-text-muted)]">{gasNumberFormatter.format(transaction.liters)} ลิตร</div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         </Section>
     );
