@@ -600,6 +600,7 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S67: review station-5 `/gas/5/products` → **KEEP** เป็น product master/stock/history domain; ยังไม่มี canonical replacement
 - [x] S68: review GAS landing `/gas/5|6` → **KEEP ชั่วคราว** จนย้าย price update + secondary tool entry เข้า canonical overview
 - [x] S69: canonical GAS Overview แสดง secondary tools ที่ตั้งใจ KEEP (meter/gauge correction, supplies, station-5 products)
+- [x] S70: canonical GAS Overview ย้าย staff gas-price update มาใช้ audited API เดิม + fail-closed ระหว่าง context refresh
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุด
 - [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S69
 
@@ -2045,6 +2046,28 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Session ถัดไปที่แนะนำ: `S70` canonical GAS staff price update
 - หมายเหตุ/Decision:
   - S69 เป็น navigation/discoverability parity เท่านั้น ไม่มี financial calculation เปลี่ยน จึงไม่ rerun full S44 financial gate
+  - ไม่ deploy production
+
+
+## 2026-08-27 — S70 — Canonical GAS staff price update
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - เพิ่ม price-update panel ใน canonical Station Overview เฉพาะ active GAS + `canOperate`
+  - reuse audited `PUT /api/v2/gas/[stationId]/price` เดิม ไม่สร้าง write path ใหม่; API ยังคง update/create DailyRecord + Station default ใน transaction และเขียน AuditLog
+  - หลังบันทึกสำเร็จ refresh StationContext เพื่อให้ SaleFlow เห็นราคาปัจจุบัน และแจ้งชัดว่ารายการที่บันทึกไปแล้วไม่เปลี่ยนราคา
+  - fail-closed ปุ่มแก้ราคาเมื่อ StationContext กำลัง refresh หรือ refresh ล่าสุดล้มเหลว ตาม S42 operational-write rule
+  - ไม่ redirect `/gas/5|6` ใน session นี้ เพราะ legacy landing ยังมี live sales summary, gauge status และ alerts ที่ต้อง review read/dashboard parity แยก
+- ตรวจสอบแล้ว:
+  - targeted GAS price/route/context/open/close regression ผ่าน 5 files / 41 tests
+  - S44 financial gate ผ่าน 16 files / 81 tests
+  - `npx tsc --noEmit` ผ่าน
+  - targeted ESLint ของ `CanonicalStationWorkspace.tsx` ผ่าน
+- สิ่งที่ยังค้าง:
+  - S71 review GAS landing read/dashboard parity: live sales buckets/count/liters, gauge status และ alerts เทียบ canonical surfaces
+  - correction/inventory routes S64-S67 ยัง KEEP ต่อแม้ canonical Overview มี entry แล้ว
+- Session ถัดไปที่แนะนำ: `S71` GAS landing final parity review ก่อนตัดสินใจ redirect
+- หมายเหตุ/Decision:
+  - price API behavior และ financial source of truth ไม่เปลี่ยน; S70 ย้ายเฉพาะ UX entry
   - ไม่ deploy production
 
 

@@ -66,7 +66,101 @@ function ShiftStatus({ context }: { context: StationContextPayload }) {
     );
 }
 
-function Overview({ context }: { context: StationContextPayload }) {
+function GasPriceUpdate({
+    context,
+    onRefresh,
+    disabled,
+}: {
+    context: StationContextPayload;
+    onRefresh: () => Promise<void>;
+    disabled: boolean;
+}) {
+    const currentPrice = context.saleContext?.gasPrice ?? null;
+    const [price, setPrice] = React.useState(currentPrice !== null ? currentPrice.toFixed(2) : '');
+    const [saving, setSaving] = React.useState(false);
+    const [message, setMessage] = React.useState<{ tone: 'success' | 'danger'; text: string } | null>(null);
+
+    React.useEffect(() => {
+        if (!saving) setPrice(currentPrice !== null ? currentPrice.toFixed(2) : '');
+    }, [currentPrice, saving]);
+
+    const save = async () => {
+        const parsed = Number(price.trim().replace(/,/g, ''));
+        if (!Number.isFinite(parsed) || parsed <= 0) {
+            setMessage({ tone: 'danger', text: 'ราคาขายต้องเป็นตัวเลขมากกว่า 0' });
+            return;
+        }
+
+        setSaving(true);
+        setMessage(null);
+        try {
+            const response = await fetch(`/api/v2/gas/${context.station.number}/price`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ gasPrice: parsed }),
+            });
+            const payload = await response.json().catch(() => null) as { gasPrice?: number; error?: string } | null;
+            if (!response.ok) throw new Error(payload?.error || 'อัปเดตราคาขายไม่สำเร็จ');
+
+            const savedPrice = Number(payload?.gasPrice ?? parsed);
+            if (Number.isFinite(savedPrice)) setPrice(savedPrice.toFixed(2));
+            setMessage({ tone: 'success', text: 'อัปเดตราคาขายแก๊สแล้ว รายการที่บันทึกไปก่อนหน้านี้ยังคงราคาเดิม' });
+            await onRefresh();
+        } catch (error) {
+            setMessage({ tone: 'danger', text: error instanceof Error ? error.message : 'อัปเดตราคาขายไม่สำเร็จ' });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <Section
+            title="ราคาขายแก๊ส"
+            description={`วันที่งาน ${context.saleContext?.businessDate || '-'} · ราคานี้ใช้กับรายการขายใหม่และบันทึกเป็นราคาหลักของสถานี`}
+        >
+            <div className="space-y-3">
+                {message && (
+                    <Notice tone={message.tone} title={message.tone === 'success' ? 'บันทึกแล้ว' : 'บันทึกไม่สำเร็จ'}>
+                        {message.text}
+                    </Notice>
+                )}
+                {disabled && (
+                    <Notice tone="warning" title="กำลังตรวจสถานะสถานี">
+                        ปิดการแก้ราคาไว้ชั่วคราวจนกว่าจะรีเฟรช StationContext สำเร็จ
+                    </Notice>
+                )}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                    <label className="block flex-1">
+                        <span className="mb-1 block text-sm font-semibold text-[var(--ui-text-secondary)]">ราคาขาย / ลิตร</span>
+                        <div className="relative">
+                            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[var(--ui-text-muted)]">฿</span>
+                            <input
+                                type="text"
+                                inputMode="decimal"
+                                value={price}
+                                onChange={(event) => setPrice(event.target.value)}
+                                disabled={disabled || saving}
+                                className="h-[var(--ui-control-md)] w-full rounded-[var(--ui-radius-md)] border border-[var(--ui-border-strong)] bg-[var(--ui-surface)] pl-8 pr-3 text-right font-mono text-base text-[var(--ui-text)] outline-none focus-visible:shadow-[var(--ui-shadow-focus)] disabled:cursor-not-allowed disabled:opacity-60"
+                                aria-label="ราคาขายแก๊สต่อลิตร"
+                            />
+                        </div>
+                    </label>
+                    <button
+                        type="button"
+                        onClick={() => void save()}
+                        disabled={disabled || saving}
+                        className="inline-flex h-[var(--ui-control-md)] items-center justify-center rounded-[var(--ui-radius-md)] bg-[var(--ui-primary-700)] px-4 text-sm font-semibold text-white hover:bg-[var(--ui-primary-800)] focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        {saving ? 'กำลังบันทึก…' : 'บันทึกราคา'}
+                    </button>
+                </div>
+                <p className="text-xs text-[var(--ui-text-muted)]">API เดิมจะอัปเดต DailyRecord ของ business date ปัจจุบันและ Station default พร้อม AuditLog</p>
+            </div>
+        </Section>
+    );
+}
+
+function Overview({ context, onRefresh, writeBlocked }: { context: StationContextPayload; onRefresh: () => Promise<void>; writeBlocked: boolean }) {
     const actions = [
         context.permissions.canSell
             ? { label: 'ขาย', href: context.paths.sales, icon: Fuel, description: 'บันทึกรายการขายของสถานีนี้' }
@@ -125,6 +219,10 @@ function Overview({ context }: { context: StationContextPayload }) {
                     </div>
                 )}
             </Section>
+
+            {context.station.type === 'GAS' && context.station.operationalStatus === 'ACTIVE' && context.permissions.canOperate && (
+                <GasPriceUpdate context={context} onRefresh={onRefresh} disabled={writeBlocked} />
+            )}
 
             {context.station.type === 'GAS' && context.station.operationalStatus === 'ACTIVE' && context.permissions.canOperate && (() => {
                 const gasTools = [
@@ -346,7 +444,7 @@ export function CanonicalStationWorkspace({ stationId, mode }: { stationId: stri
                         <span>/</span>
                         {mode !== 'OVERVIEW' && <span>{titles[mode]}</span>}
                     </div>
-                    {mode === 'OVERVIEW' && <Overview context={context} />}
+                    {mode === 'OVERVIEW' && <Overview context={context} onRefresh={load} writeBlocked={loading || Boolean(error)} />}
                     {mode === 'SALES' && !writeModeBlocked && <SalesSkeleton context={context} />}
                     {mode === 'OPERATIONS' && !writeModeBlocked && <OperationsSkeleton context={context} onRefresh={load} />}
                     {mode === 'HISTORY' && <HistorySkeleton context={context} />}

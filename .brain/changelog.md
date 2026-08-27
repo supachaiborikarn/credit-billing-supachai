@@ -3,6 +3,10 @@
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
 ## 2026-08-27
+- 💰 S70 canonical GAS staff price update
+  - ย้าย staff gas-price action เข้า canonical Overview โดย reuse `PUT /api/v2/gas/[stationId]/price` เดิม; API ยัง update DailyRecord + Station default แบบ transaction + AuditLog
+  - UI fail-closed ระหว่าง StationContext refresh/error และ refresh context หลัง save; targeted 41/41 + financial 81/81 + TypeScript/ESLint ผ่าน
+  - GAS landing ยัง KEEP เพื่อ S71 review live sales/gauge/alerts dashboard parity; ยังไม่ deploy
 - 🧭 S69 canonical GAS secondary-tool entry
   - canonical Station Overview ของ active GAS แสดง meter/gauge correction, LPG supplies และ station-5 products ตาม capability ที่ S64-S67 ตั้งใจ KEEP
   - normal open/close ยังใช้ canonical Operations; ไม่มี API/financial logic เปลี่ยน, targeted 82/82 + TypeScript ผ่าน และยังไม่ deploy
