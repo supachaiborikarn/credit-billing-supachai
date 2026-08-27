@@ -593,6 +593,7 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S60: active FULL `/station/1/new/meters` → canonical `/stations/station-1/operations` โดยตรง (legacy route เดิมเป็น redirect-only)
 - [x] S61: active FULL `/station/1/new/home` → canonical `/stations/station-1` โดยตรง; คง `/station/1` + `/station/1/v2` เป็น admin compatibility
 - [x] S62: active GAS `/gas/5|6/shift/open` → canonical `/stations/station-5|6/operations` โดยตรง
+- [x] S63: active GAS `/gas/5|6/shift/close` → canonical `/stations/station-5|6/operations` โดยตรง หลังเติม zero-received parity guard
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุด
 - [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S60
 
@@ -1888,6 +1889,28 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Session ถัดไปที่แนะนำ: `S63` review GAS `/gas/[id]/shift/close` แบบ bounded หลัง closing parity/regression
 - หมายเหตุ/Decision:
   - S62 เป็น UI-route retirement เท่านั้น ไม่ deploy production
+
+
+## 2026-08-27 — S63 — Retire active GAS `/gas/[id]/shift/close`
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - เทียบ legacy GAS close กับ canonical S39 flow ทั้ง meter/gauge, product count, reconciliation, variance และ backend write path
+  - ยืนยัน `/api/v2/gas/[station]/shift/close` คำนวณ expected fuel/other/variance จาก DB และ submitted product counts ใหม่เอง ไม่เชื่อ expected totals จาก UI
+  - พบ behavior gap 1 จุด: legacy บล็อกเมื่อ cash/credit/card/transfer เป็นศูนย์ทั้งหมด; เพิ่ม guard เดียวกันใน canonical ก่อน retire route
+  - canonical บันทึก end meters + end gauges ก่อนเรียก close API เดิม และ backend ยังตรวจ station/shift scope + meter/gauge completeness + product inventory + over/invalid amounts
+  - ย้าย legacy client source ไป `LegacyGasShiftClosePage.tsx`, ทำ server wrapper active GAS → canonical Operations และขยาย middleware/login normalization จาก open ให้ครอบคลุม close โดย preserve query
+  - ไม่แตะ standalone meters/gauge/supplies/products และ read/summary routes
+- ตรวจสอบแล้ว:
+  - targeted GAS/closing/opening/context/history/SaleFlow regression ผ่าน 8 files / 116 tests
+  - S44 financial gate ผ่าน 16 files / 81 tests
+  - final typecheck + diff check ผ่านหลังอัปเดตเอกสาร
+- สิ่งที่ยังค้าง:
+  - GAS `/gas/[id]/meters` และ `/gauge` ต้อง review ว่ามี admin/manual correction capability นอก canonical close หรือไม่ก่อน redirect
+  - supplies/products เป็น separate operational domains ยังไม่ควรพ่วง
+  - GAS summary/read compatibility ยังเก็บไว้
+- Session ถัดไปที่แนะนำ: `S64` review GAS `/gas/[id]/meters` แบบ capability audit ก่อนตัดสินใจ retire
+- หมายเหตุ/Decision:
+  - S63 เป็น UI-route retirement เท่านั้น ไม่ deploy production
 
 
 ## Template

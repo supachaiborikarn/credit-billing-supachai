@@ -69,7 +69,7 @@ Applicable active stations: station numbers `5`, `6` (legacy URL parameters may 
 | `/gas/5`, `/gas/6` | `/stations/station-5`, `/stations/station-6` | KEEP_UNTIL_S38_S40 | Current GAS operations landing. |
 | `/gas/5/sell`, `/gas/6/sell` | `/stations/station-5/sales`, `/stations/station-6/sales` | **S53 IMPLEMENTED** | Server-side redirect to canonical SaleFlow; legacy source preserved in `LegacyGasSellPage.tsx`. |
 | `/gas/[id]/shift/open` | `/stations/station-[id]/operations` | **S62 IMPLEMENTED** | station-5/6 redirect to canonical Operations. Canonical uses the same atomic GAS open API with price + 4 meters + 3 gauges and derives next shift from actual business-day shifts. |
-| `/gas/[id]/shift/close` | `/stations/station-[id]/operations` | KEEP_UNTIL_S38_S40 | Closing + reconciliation not yet migrated. |
+| `/gas/[id]/shift/close` | `/stations/station-[id]/operations` | **S63 IMPLEMENTED** | station-5/6 redirect to canonical Closing after parity guard. Canonical saves end meters + gauges, then uses the same GAS close/reconciliation API; legacy source preserved. |
 | `/gas/[id]/meters` | `/stations/station-[id]/operations` | KEEP_UNTIL_S38_S40 | Operational meter editing. |
 | `/gas/[id]/gauge` | `/stations/station-[id]/operations` | KEEP_UNTIL_S38_S40 | LPG gauge workflow. |
 | `/gas/[id]/supplies` | future operations/history | KEEP_UNTIL_S38_S40 | Supply workflow must remain separate from sale flow. |
@@ -149,7 +149,7 @@ All `/api/station/*`, `/api/v2/gas/*`, `/api/simple-station/*`, invoice/payment,
 
 ## Retirement gates
 
-**S44 status (2026-08-27): PASS.** See `FINANCIAL_REGRESSION_CHECKLIST.md`. S62 reran the full financial gate after GAS `/gas/5|6/shift/open` direct-canonical Operations retirement changes: 16 files / 81 tests passed; GAS route/opening/context regression also passed. Remaining active operational/money routes are still eligible only for bounded one-family review.
+**S44 status (2026-08-27): PASS.** See `FINANCIAL_REGRESSION_CHECKLIST.md`. S63 reran the full financial gate after GAS `/gas/5|6/shift/close` direct-canonical Operations retirement changes: 16 files / 81 tests passed; GAS closing/opening/context regression also passed. Remaining active operational/money routes are still eligible only for bounded one-family review.
 
 Before redirecting an **active FULL/GAS** legacy route:
 
@@ -167,5 +167,5 @@ Before redirecting an **active FULL/GAS** legacy route:
 3. Active FULL sale-entry pair → canonical sales — **S55 `/station/1/new/sell` complete** and **S56 `/station/1/new/oil-sell` complete**.
 4. Active FULL operational entries → canonical operations — **S57 `/station/1/new/open-shift`**, **S58 `/station/1/new/close-shift`**, **S59 `/station/1/new/shift-end`**, and **S60 `/station/1/new/meters` complete** after S38-S40 parity/regression.
 5. Active FULL navigation shell → canonical overview — **S61 `/station/1/new/home` complete**; keep `/station/1` and `/station/1/v2` as admin compatibility workspaces until their remaining edit/print/audit capabilities move.
-6. Active GAS opening → canonical operations — **S62 `/gas/5|6/shift/open` complete**; keep close/meters/gauge/supplies/products as separate bounded reviews.
+6. Active GAS shift operations → canonical operations — **S62 `/gas/5|6/shift/open`** and **S63 `/gas/5|6/shift/close` complete**; keep meters/gauge/supplies/products as separate bounded reviews.
 7. History/summary/receipt routes last, after explicit read/print parity review.

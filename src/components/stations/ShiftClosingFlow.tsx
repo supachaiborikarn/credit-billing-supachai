@@ -253,6 +253,11 @@ export function ShiftClosingFlow({ context, onRefresh }: { context: StationConte
             ])) {
                 nextErrors.push('ยอดเงินกระทบยอดต้องเป็นตัวเลขไม่ติดลบ');
             }
+            if ([
+                gasMoney.cashReceived, gasMoney.creditReceived, gasMoney.cardReceived, gasMoney.transferReceived,
+            ].every((value) => (parseClosingNumber(value) || 0) === 0)) {
+                nextErrors.push('ต้องกรอกยอดเงินอย่างน้อย 1 ช่อง');
+            }
             if (gasPreview && (parseClosingNumber(gasMoney.productTransferAmount) || 0) > gasPreview.productSalesAmount) {
                 nextErrors.push('ยอดสินค้าที่รับโอน/สแกนต้องไม่เกินยอดขายสินค้ารวม');
             }
