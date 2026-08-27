@@ -69,7 +69,7 @@ Applicable active stations: station numbers `5`, `6` (legacy URL parameters may 
 
 | Legacy route | Future route | Disposition | Notes |
 | --- | --- | --- | --- |
-| `/gas/5`, `/gas/6` | `/stations/station-5`, `/stations/station-6` | **KEEP_GAS_WORKSPACE (S71 REVIEWED)** | S69 migrated retained tool links and S70 migrated audited price update, but S71 confirmed remaining read parity gaps: payment buckets, latest tank percentages and <20% low-tank alerts. Keep landing until compact canonical GAS live summary exists. |
+| `/gas/5`, `/gas/6` | `/stations/station-5`, `/stations/station-6` | **READY_FOR_S73 (S72 PARITY COMPLETE)** | S69 migrated retained tool links, S70 migrated audited price update, and S72 added payment buckets + live tank percentages + low-tank alerts. Keep route only until bounded S73 redirect/auth-query smoke; correction/inventory/summary subroutes remain separate compatibility routes. |
 | `/gas/5/sell`, `/gas/6/sell` | `/stations/station-5/sales`, `/stations/station-6/sales` | **S53 IMPLEMENTED** | Server-side redirect to canonical SaleFlow; legacy source preserved in `LegacyGasSellPage.tsx`. |
 | `/gas/[id]/shift/open` | `/stations/station-[id]/operations` | **S62 IMPLEMENTED** | station-5/6 redirect to canonical Operations. Canonical uses the same atomic GAS open API with price + 4 meters + 3 gauges and derives next shift from actual business-day shifts. |
 | `/gas/[id]/shift/close` | `/stations/station-[id]/operations` | **S63 IMPLEMENTED** | station-5/6 redirect to canonical Closing after parity guard. Canonical saves end meters + gauges, then uses the same GAS close/reconciliation API; legacy source preserved. |
@@ -170,5 +170,5 @@ Before redirecting an **active FULL/GAS** legacy route:
 3. Active FULL sale-entry pair → canonical sales — **S55 `/station/1/new/sell` complete** and **S56 `/station/1/new/oil-sell` complete**.
 4. Active FULL operational entries → canonical operations — **S57 `/station/1/new/open-shift`**, **S58 `/station/1/new/close-shift`**, **S59 `/station/1/new/shift-end`**, and **S60 `/station/1/new/meters` complete** after S38-S40 parity/regression.
 5. Active FULL navigation shell → canonical overview — **S61 `/station/1/new/home` complete**; keep `/station/1` and `/station/1/v2` as admin compatibility workspaces until their remaining edit/print/audit capabilities move.
-6. Active GAS shift operations → canonical operations — **S62 `/gas/5|6/shift/open`** and **S63 `/gas/5|6/shift/close` complete**; S64-S67 keep correction/inventory subroutes, S69-S70 migrate their entry + price action, and S71 keeps the GAS landing until payment-bucket/gauge/low-tank read parity is added.
+6. Active GAS workspace → **S62-S63 open/close canonical**, S64-S67 keep correction/inventory subroutes, S69 tool entry + S70 price + S72 live payment/gauge/alert summary complete; `/gas/5|6` landing is now bounded S73 redirect candidate while its subroutes remain compatibility surfaces.
 7. History/summary/receipt routes last, after explicit read/print parity review.

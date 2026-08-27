@@ -602,6 +602,7 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S69: canonical GAS Overview แสดง secondary tools ที่ตั้งใจ KEEP (meter/gauge correction, supplies, station-5 products)
 - [x] S70: canonical GAS Overview ย้าย staff gas-price update มาใช้ audited API เดิม + fail-closed ระหว่าง context refresh
 - [x] S71: review GAS landing read/dashboard parity → KEEP เพราะ payment buckets + gauge percentages + low-tank alerts ยังไม่มี canonical replacement
+- [x] S72: canonical GAS Overview เพิ่ม live payment/gauge/alert summary จาก read-only summary API + auto-refresh 30 วินาที
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุด
 - [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S69
 
@@ -2091,6 +2092,27 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Session ถัดไปที่แนะนำ: `S72` canonical GAS live-status summary
 - หมายเหตุ/Decision:
   - ไม่ตีความข้อมูล read-only ว่าไม่สำคัญเพียงเพื่อปิด legacy landing ให้เร็วขึ้น
+  - ไม่ deploy production
+
+
+## 2026-08-27 — S72 — Canonical GAS live-status summary
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - เพิ่ม compact live-status section ใน canonical Station Overview เฉพาะ active GAS ที่ผู้ใช้ `canView`
+  - reuse read-only `GET /api/v2/gas/[stationId]/summary` เดิม; ไม่สร้าง API/read model ใหม่และไม่มี write side effect
+  - แสดง payment buckets CASH/CREDIT/CARD/TRANSFER, transaction count, liters, total amount, latest tank 1-3 percentages และ average
+  - แสดง low-tank alerts จาก server summary และเน้นถัง <20% ใน UI
+  - auto-refresh ทุก 30 วินาที; ถ้า refresh รอบหลังล้มจะเก็บ last-successful summary และแสดง stale warning แทนการล้างข้อมูล
+- ตรวจสอบแล้ว:
+  - GAS summary/context regression ผ่าน 2 files / 23 tests
+  - `npx tsc --noEmit` ผ่าน
+  - targeted ESLint ของ `CanonicalStationWorkspace.tsx` ผ่าน
+- สิ่งที่ยังค้าง:
+  - หลัง S69 tool entry + S70 price + S72 live summary ความสามารถเฉพาะของ GAS landing ที่ audit ใน S68/S71 ถูกย้าย canonical แล้ว
+  - S73 review redirect `/gas/5|6` landing แบบ bounded พร้อม auth/query smoke โดยไม่แตะ correction/inventory/summary subroutes
+- Session ถัดไปที่แนะนำ: `S73` retire GAS landing `/gas/5|6` หลัง final boundary smoke
+- หมายเหตุ/Decision:
+  - S72 เป็น read/UI parity เท่านั้น ไม่เปลี่ยน financial logic จึงไม่ rerun full S44 gate; financial baseline ล่าสุด S70 = 81/81
   - ไม่ deploy production
 
 

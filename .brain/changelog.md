@@ -3,6 +3,10 @@
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
 ## 2026-08-27
+- 📊 S72 canonical GAS live-status summary
+  - canonical Overview reuse read-only GAS summary API เพื่อแสดง CASH/CREDIT/CARD/TRANSFER, จำนวนรายการ/ลิตร/ยอดรวม, latest tank 1-3 percentages และ low-tank alerts
+  - refresh ทุก 30 วินาทีและเก็บ last-successful data เมื่อ refresh ล้ม; GAS summary/context tests 23/23 + TypeScript/ESLint ผ่าน
+  - S69/S70/S72 ปิด capability gaps ของ GAS landing ที่ audit ไว้แล้ว; S73 เป็น bounded landing redirect candidate และยังไม่ deploy
 - 🧭 S71 GAS landing read/dashboard parity review
   - ยัง KEEP `/gas/5|6`: Today/canonical มียอดรวมและ gauge completeness แต่ยังไม่มี payment buckets, latest tank percentages และ low-tank <20% alerts แบบ legacy landing
   - วาง S72 ให้ย้าย compact live summary ก่อน review redirect อีกครั้ง; ไม่มี production behavior เปลี่ยนและยังไม่ deploy

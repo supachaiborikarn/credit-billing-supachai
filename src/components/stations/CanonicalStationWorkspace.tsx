@@ -160,6 +160,138 @@ function GasPriceUpdate({
     );
 }
 
+interface GasLiveSummaryPayload {
+    sales: {
+        cash: number;
+        credit: number;
+        card: number;
+        transfer: number;
+        total: number;
+        transactionCount: number;
+        liters: number;
+    };
+    gauge: {
+        tank1: number | null;
+        tank2: number | null;
+        tank3: number | null;
+        average: number;
+    };
+    alerts: string[];
+}
+
+const gasNumberFormatter = new Intl.NumberFormat('th-TH', { maximumFractionDigits: 2 });
+
+function GasLiveSummary({ context }: { context: StationContextPayload }) {
+    const [data, setData] = React.useState<GasLiveSummaryPayload | null>(null);
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState<string | null>(null);
+
+    const load = React.useCallback(async () => {
+        try {
+            const response = await fetch(`/api/v2/gas/${context.station.number}/summary`, { cache: 'no-store' });
+            const payload = await response.json().catch(() => null) as (GasLiveSummaryPayload & { error?: string }) | null;
+            if (!response.ok || !payload) throw new Error(payload?.error || 'โหลดสรุป GAS ไม่สำเร็จ');
+            setData(payload);
+            setError(null);
+        } catch (loadError) {
+            setError(loadError instanceof Error ? loadError.message : 'โหลดสรุป GAS ไม่สำเร็จ');
+        } finally {
+            setLoading(false);
+        }
+    }, [context.station.number]);
+
+    React.useEffect(() => {
+        void load();
+        const interval = window.setInterval(() => void load(), 30_000);
+        return () => window.clearInterval(interval);
+    }, [load]);
+
+    if (loading && !data) {
+        return (
+            <Section title="สถานะ GAS ตอนนี้" description="ยอดขายและระดับถังของกะปัจจุบัน">
+                <div className="h-28 animate-pulse rounded-[var(--ui-radius-md)] bg-[var(--ui-surface-subtle)]" />
+            </Section>
+        );
+    }
+
+    if (!data) {
+        return (
+            <Section title="สถานะ GAS ตอนนี้" description="ยอดขายและระดับถังของกะปัจจุบัน">
+                <Notice tone="danger" title="โหลดข้อมูลสรุปไม่สำเร็จ">{error || 'ไม่พบข้อมูลสรุป'}</Notice>
+            </Section>
+        );
+    }
+
+    const paymentBuckets = [
+        ['เงินสด', data.sales.cash],
+        ['เงินเชื่อ', data.sales.credit],
+        ['บัตร', data.sales.card],
+        ['โอน', data.sales.transfer],
+    ] as const;
+    const tanks = [data.gauge.tank1, data.gauge.tank2, data.gauge.tank3];
+
+    return (
+        <Section title="สถานะ GAS ตอนนี้" description="อ่านจาก summary เดิมและอัปเดตอัตโนมัติทุก 30 วินาที">
+            <div className="space-y-4" aria-live="polite">
+                {error && <Notice tone="warning" title="รีเฟรชล่าสุดไม่สำเร็จ">กำลังแสดงข้อมูลล่าสุดที่โหลดสำเร็จ · {error}</Notice>}
+                {data.alerts.length > 0 && (
+                    <Notice tone="danger" title="ระดับถังต้องตรวจสอบ">
+                        <ul className="list-disc space-y-1 pl-5">
+                            {data.alerts.map((alert) => <li key={alert}>{alert}</li>)}
+                        </ul>
+                    </Notice>
+                )}
+
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    {paymentBuckets.map(([label, amount]) => (
+                        <div key={label} className="rounded-[var(--ui-radius-md)] border border-[var(--ui-border)] p-3">
+                            <div className="text-xs font-semibold text-[var(--ui-text-muted)]">{label}</div>
+                            <div className="mt-1 font-bold tabular-nums">฿{gasNumberFormatter.format(amount)}</div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-[var(--ui-radius-md)] border border-[var(--ui-border)] p-4">
+                        <div className="text-sm font-semibold">ยอดกะปัจจุบัน</div>
+                        <div className="mt-3 grid grid-cols-3 divide-x divide-[var(--ui-border)] text-center">
+                            <div className="px-2">
+                                <div className="font-bold tabular-nums">{data.sales.transactionCount}</div>
+                                <div className="text-xs text-[var(--ui-text-muted)]">รายการ</div>
+                            </div>
+                            <div className="px-2">
+                                <div className="font-bold tabular-nums">{gasNumberFormatter.format(data.sales.liters)}</div>
+                                <div className="text-xs text-[var(--ui-text-muted)]">ลิตร</div>
+                            </div>
+                            <div className="px-2">
+                                <div className="font-bold tabular-nums">฿{gasNumberFormatter.format(data.sales.total)}</div>
+                                <div className="text-xs text-[var(--ui-text-muted)]">รวม</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="rounded-[var(--ui-radius-md)] border border-[var(--ui-border)] p-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="text-sm font-semibold">ระดับถังล่าสุด</div>
+                            <div className="text-xs text-[var(--ui-text-muted)]">เฉลี่ย {gasNumberFormatter.format(data.gauge.average)}%</div>
+                        </div>
+                        <div className="mt-3 grid grid-cols-3 gap-2">
+                            {tanks.map((value, index) => (
+                                <div key={index} className="rounded-[var(--ui-radius-sm)] bg-[var(--ui-surface-subtle)] p-2 text-center">
+                                    <div className="text-xs text-[var(--ui-text-muted)]">ถัง {index + 1}</div>
+                                    <div className={`mt-1 font-bold tabular-nums ${value !== null && value < 20 ? 'text-[var(--ui-danger-text)]' : 'text-[var(--ui-text)]'}`}>
+                                        {value === null ? '-' : `${gasNumberFormatter.format(value)}%`}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </Section>
+    );
+}
+
 function Overview({ context, onRefresh, writeBlocked }: { context: StationContextPayload; onRefresh: () => Promise<void>; writeBlocked: boolean }) {
     const actions = [
         context.permissions.canSell
@@ -219,6 +351,10 @@ function Overview({ context, onRefresh, writeBlocked }: { context: StationContex
                     </div>
                 )}
             </Section>
+
+            {context.station.type === 'GAS' && context.station.operationalStatus === 'ACTIVE' && context.permissions.canView && (
+                <GasLiveSummary context={context} />
+            )}
 
             {context.station.type === 'GAS' && context.station.operationalStatus === 'ACTIVE' && context.permissions.canOperate && (
                 <GasPriceUpdate context={context} onRefresh={onRefresh} disabled={writeBlocked} />
