@@ -605,8 +605,9 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S72: canonical GAS Overview เพิ่ม live payment/gauge/alert summary จาก read-only summary API + auto-refresh 30 วินาที
 - [x] S73: active GAS landing `/gas/5|6` → canonical `/stations/station-5|6` โดย preserve auth/query และคง compatibility subroutes
 - [x] S74: older GAS `/gas-station/5|6`, `/new`, `/new/home` → canonical Overview โดยตรง; subroute mappings ยัง compatibility
+- [x] S75: older GAS `/new/meters` → current `/gas/[id]/meters` guarded correction route; ไม่ย้ายไป canonical Operations
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุด
-- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S74
+- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S75
 
 ---
 
@@ -2159,6 +2160,27 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Session ถัดไปที่แนะนำ: `S75` review older GAS `/gas-station/[id]/new/meters` mapping เทียบ current guarded meter correction
 - หมายเหตุ/Decision:
   - S74 เป็น redirect-chain cleanup ไม่มี financial logic เปลี่ยน; financial baseline ล่าสุด S70 = 81/81
+  - ไม่ deploy production
+
+
+## 2026-08-27 — S75 — Confirm older GAS meter compatibility mapping
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - audit `/gas-station/[id]/new/meters` และยืนยันว่า route เป็น redirect-only ไป current `/gas/[id]/meters` อยู่แล้ว ไม่มี meter UI ซ้ำอีกชุด
+  - current `/gas/[id]/meters` คือ guarded correction/recovery surface ที่ S64 ตั้งใจ KEEP: แก้ START baseline ได้เฉพาะก่อน server lock, บันทึก standalone END readings และรองรับ meter photos
+  - ยืนยัน middleware mapping หลัง S74 preserve query แล้ว จึงใช้ older bookmark ต่อได้โดยไป current correction route โดยตรง
+- Decision:
+  - **ไม่ redirect older meters ไป canonical Operations** เพราะจะทำ recovery/correction semantics หาย
+  - เปลี่ยน migration disposition ให้ชัดว่า S75 ยืนยัน mapping ไป current guarded correction route จน canonical มี explicit repair UI
+- ตรวจสอบแล้ว:
+  - review/docs-only; S74 middleware boundary test ครอบ `/gas-station/5/new/meters?from=older` → `/gas/5/meters?from=older` แล้ว
+  - ไม่มี production source behavior เปลี่ยนและไม่ rerun financial gate
+  - `git diff --check` ผ่านก่อน commit
+- สิ่งที่ยังค้าง:
+  - S76 review older `/gas-station/[id]/new/supplies` เทียบ current LPG supply/inventory route
+- Session ถัดไปที่แนะนำ: `S76` older GAS supplies compatibility review
+- หมายเหตุ/Decision:
+  - normal GAS open/close ยัง canonical Operations; meters route มีไว้ correction/recovery เท่านั้น
   - ไม่ deploy production
 
 

@@ -3,6 +3,9 @@
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
 ## 2026-08-27
+- 🧭 S75 confirm older GAS meter compatibility mapping
+  - `/gas-station/[id]/new/meters` เป็น redirect-only ไป current `/gas/[id]/meters`; current route ยัง KEEP เป็น guarded correction/recovery ตาม S64
+  - ไม่ย้ายไป canonical Operations เพราะ START-baseline repair/server lock + standalone END meter ยังเป็น capability เฉพาะ; ไม่มี production behavior เปลี่ยน
 - 🧭 S74 flatten older GAS landing/new-home entries
   - `/gas-station/5|6`, `/new`, `/new/home` เป็น redirect-only จึง flatten ไป canonical Overview โดยตรง; non-active fallback เดิมยังอยู่
   - middleware/login preserve query และลด redirect chain; older meters/supplies/summary compatibility mappings ยังไม่ retire
