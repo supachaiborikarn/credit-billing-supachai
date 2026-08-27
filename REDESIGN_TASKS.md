@@ -590,8 +590,9 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S57: active FULL `/station/1/new/open-shift` → canonical `/stations/station-1/operations` โดยตรง
 - [x] S58: active FULL `/station/1/new/close-shift` → canonical `/stations/station-1/operations` โดยตรง
 - [x] S59: active FULL `/station/1/new/shift-end` → canonical `/stations/station-1/operations` โดยตรง
+- [x] S60: active FULL `/station/1/new/meters` → canonical `/stations/station-1/operations` โดยตรง (legacy route เดิมเป็น redirect-only)
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุด
-- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S57
+- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S60
 
 ---
 
@@ -1821,6 +1822,27 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Session ถัดไปที่แนะนำ: `S60` review FULL `/station/1/new/meters` ก่อนตัดสินใจ redirect
 - หมายเหตุ/Decision:
   - S59 เป็น UI-route retirement เท่านั้น ไม่ deploy production
+
+
+## 2026-08-27 — S60 — Retire active FULL `/station/1/new/meters`
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - ตรวจ source จริงและยืนยันว่า `/station/1/new/meters` ไม่มี standalone meter UI; เดิม redirect ไป `/station/1/new/shift-end` เท่านั้น
+  - หลัง S59 shift-end ไป canonical Operations แล้ว จึง flatten `/new/meters` ไป `/stations/station-1/operations` โดยตรงแบบ server-side
+  - reuse `getActiveFullOperationsRedirect()` เพื่อจำกัด canonical redirect เฉพาะ active FULL station และคง fallback เดิมสำหรับ station อื่น
+  - ปรับ middleware + login normalization ให้ preserve query และไม่ผ่าน redirect chain เก่า
+  - ไม่ลบ meter/shift API, historical evidence หรือ read/print route ใด
+- ตรวจสอบแล้ว:
+  - targeted closing/opening/context/history/SaleFlow regression ผ่าน 7 files / 74 tests
+  - S44 financial gate ผ่าน 16 files / 81 tests
+  - final typecheck + diff check ผ่านหลังอัปเดตเอกสาร
+- สิ่งที่ยังค้าง:
+  - FULL landing `/station/1`, `/station/1/v2`, `/station/1/new/home` ต้อง review แยก เพราะเป็น workspace/navigation ไม่ใช่ bounded action route
+  - meter-summary/shift-history/summary/list/record/receipt ยังเก็บ read/print compatibility
+  - GAS non-sell operational routes ยังไม่ retire
+- Session ถัดไปที่แนะนำ: `S61` review FULL landing/home/V2 disposition โดยยังไม่รวม read/print routes
+- หมายเหตุ/Decision:
+  - S60 เป็น UI-route retirement เท่านั้น ไม่ deploy production
 
 
 ## Template

@@ -4,7 +4,7 @@
 
 Status: **PASS — 2026-08-27**
 
-Latest active-route rerun: **S59 — 16 files / 81 tests passed after FULL `/station/1/new/shift-end` direct-canonical Operations retirement changes.**
+Latest active-route rerun: **S60 — 16 files / 81 tests passed after FULL `/station/1/new/meters` direct-canonical Operations retirement changes.**
 
 ## Release gate
 

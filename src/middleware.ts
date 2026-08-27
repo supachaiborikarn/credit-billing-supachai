@@ -47,7 +47,7 @@ function getTankLoyRedirectPath(pathname: string) {
         const page = stationNewMatch[1] || 'home';
         if (page === 'receipt') return null;
         if (page === 'sell' || page === 'oil-sell') return '/stations/station-1/sales';
-        if (page === 'open-shift' || page === 'close-shift' || page === 'shift-end') return '/stations/station-1/operations';
+        if (page === 'open-shift' || page === 'close-shift' || page === 'shift-end' || page === 'meters') return '/stations/station-1/operations';
         return '/station/1/v2';
     }
 
