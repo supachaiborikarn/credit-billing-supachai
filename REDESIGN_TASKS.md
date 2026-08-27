@@ -606,8 +606,9 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S73: active GAS landing `/gas/5|6` → canonical `/stations/station-5|6` โดย preserve auth/query และคง compatibility subroutes
 - [x] S74: older GAS `/gas-station/5|6`, `/new`, `/new/home` → canonical Overview โดยตรง; subroute mappings ยัง compatibility
 - [x] S75: older GAS `/new/meters` → current `/gas/[id]/meters` guarded correction route; ไม่ย้ายไป canonical Operations
+- [x] S76: older GAS `/new/supplies` → current `/gas/[id]/supplies` LPG inventory route
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุด
-- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S75
+- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S76
 
 ---
 
@@ -2181,6 +2182,24 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Session ถัดไปที่แนะนำ: `S76` older GAS supplies compatibility review
 - หมายเหตุ/Decision:
   - normal GAS open/close ยัง canonical Operations; meters route มีไว้ correction/recovery เท่านั้น
+  - ไม่ deploy production
+
+
+## 2026-08-27 — S76 — Confirm older GAS supplies compatibility mapping
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - audit `/gas-station/[id]/new/supplies` และยืนยันว่าเป็น redirect-only ไป current `/gas/[id]/supplies` ไม่มี receive UI ซ้ำ
+  - current supplies route คือ LPG receiving/inventory domain ที่ S66 ตั้งใจ KEEP: liters, supplier, invoice, cost, notes, history/filter และ AuditLog ผ่าน v2 supplies API
+  - S74 middleware preserve query สำหรับ older supplies mapping แล้ว จึงคง bookmark เดิมได้โดยไม่เสีย filter/query
+- Decision:
+  - ยืนยัน older supplies → current supplies compatibility route; ยังไม่ย้ายเข้า canonical shift Operations เพราะเป็น inventory domain แยก
+- ตรวจสอบแล้ว:
+  - review/docs-only; S74 boundary regression ครอบ `/gas-station/5/new/supplies?from=older` → `/gas/5/supplies?from=older`
+  - ไม่มี production source behavior เปลี่ยน; `git diff --check` ผ่านก่อน commit
+- สิ่งที่ยังค้าง:
+  - S77 review older `/gas-station/[id]/new/products`; current mapping ตอนนี้ไม่ได้ชี้ product inventory โดยตรง จึงต้องตัดสินใจตาม `hasProducts`
+- Session ถัดไปที่แนะนำ: `S77` older GAS products mapping review/fix
+- หมายเหตุ/Decision:
   - ไม่ deploy production
 
 

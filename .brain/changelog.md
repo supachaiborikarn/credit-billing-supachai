@@ -3,6 +3,9 @@
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
 ## 2026-08-27
+- 🧭 S76 confirm older GAS supplies compatibility mapping
+  - `/gas-station/[id]/new/supplies` เป็น redirect-only ไป current `/gas/[id]/supplies`; current route ยัง KEEP เป็น LPG receiving/history domain ตาม S66
+  - S74 query-preserving middleware mapping ครอบ bookmark เดิมแล้ว; ไม่มี production behavior เปลี่ยนและยังไม่ deploy
 - 🧭 S75 confirm older GAS meter compatibility mapping
   - `/gas-station/[id]/new/meters` เป็น redirect-only ไป current `/gas/[id]/meters`; current route ยัง KEEP เป็น guarded correction/recovery ตาม S64
   - ไม่ย้ายไป canonical Operations เพราะ START-baseline repair/server lock + standalone END meter ยังเป็น capability เฉพาะ; ไม่มี production behavior เปลี่ยน
