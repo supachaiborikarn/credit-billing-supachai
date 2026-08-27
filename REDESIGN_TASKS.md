@@ -599,8 +599,9 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S66: review GAS `/gas/[id]/supplies` → **KEEP** เป็น LPG inventory receipt/history domain; ยังไม่มี canonical replacement
 - [x] S67: review station-5 `/gas/5/products` → **KEEP** เป็น product master/stock/history domain; ยังไม่มี canonical replacement
 - [x] S68: review GAS landing `/gas/5|6` → **KEEP ชั่วคราว** จนย้าย price update + secondary tool entry เข้า canonical overview
+- [x] S69: canonical GAS Overview แสดง secondary tools ที่ตั้งใจ KEEP (meter/gauge correction, supplies, station-5 products)
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุด
-- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S60
+- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S69
 
 ---
 
@@ -2024,6 +2025,26 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Session ถัดไปที่แนะนำ: `S69` canonical GAS secondary-tool entry
 - หมายเหตุ/Decision:
   - ไม่ซ่อน correction/inventory tools เพียงเพื่อให้ route retirement ดูครบ
+  - ไม่ deploy production
+
+
+## 2026-08-27 — S69 — Canonical GAS secondary-tool entry
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - เพิ่ม section `เครื่องมือ GAS เพิ่มเติม` ใน canonical Station Overview เฉพาะ active GAS ที่ผู้ใช้มี `canOperate`
+  - ทำ link ที่มองเห็นได้ไป `/gas/[id]/meters`, `/gauge`, `/supplies` และ `/products` เฉพาะสถานีที่ `hasProducts`
+  - ระบุชัดว่า normal open/close ให้ใช้ canonical Operations; links เหล่านี้เป็น correction/recovery และ inventory compatibility surfaces ที่ S64-S67 ตั้งใจ KEEP
+  - ไม่เปลี่ยน API/write contract, ไม่ redirect GAS landing และไม่ย้าย price-update action ใน session นี้
+- ตรวจสอบแล้ว:
+  - `npx tsc --noEmit` ผ่าน
+  - targeted station/route/opening/closing regression ผ่าน 4 files / 82 tests
+  - `git diff --check` ผ่านก่อนอัปเดตเอกสาร
+- สิ่งที่ยังค้าง:
+  - GAS landing `/gas/5|6` ยังต้อง KEEP จน staff gas-price update ย้ายเข้า canonical surface
+  - S70 ย้าย price-update UX โดย reuse audited `/api/v2/gas/[stationId]/price` แล้วค่อย review landing retirement อีกครั้ง
+- Session ถัดไปที่แนะนำ: `S70` canonical GAS staff price update
+- หมายเหตุ/Decision:
+  - S69 เป็น navigation/discoverability parity เท่านั้น ไม่มี financial calculation เปลี่ยน จึงไม่ rerun full S44 financial gate
   - ไม่ deploy production
 
 

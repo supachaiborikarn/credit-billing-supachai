@@ -5,11 +5,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
     ArrowRight,
+    Calculator,
     Clock3,
     Fuel,
+    Gauge,
     History,
     LockKeyhole,
+    PackagePlus,
     Settings2,
+    ShoppingBag,
 } from 'lucide-react';
 import { RedesignAppShell } from '@/components/layout';
 import { SaleFlowForm } from '@/components/sales/SaleFlowForm';
@@ -121,6 +125,68 @@ function Overview({ context }: { context: StationContextPayload }) {
                     </div>
                 )}
             </Section>
+
+            {context.station.type === 'GAS' && context.station.operationalStatus === 'ACTIVE' && context.permissions.canOperate && (() => {
+                const gasTools = [
+                    {
+                        label: 'มิเตอร์ (แก้ไข/กู้ข้อมูล)',
+                        href: `/gas/${context.station.number}/meters`,
+                        icon: Calculator,
+                        description: 'ใช้เมื่อต้องแก้ค่าเริ่มกะแบบมี server lock หรือบันทึก end meter แยก',
+                    },
+                    {
+                        label: 'เกจ (แก้ไข/กู้ข้อมูล)',
+                        href: `/gas/${context.station.number}/gauge`,
+                        icon: Gauge,
+                        description: 'แก้ start gauge ที่ยังไม่ถูก lock หรือบันทึก end gauge แยก',
+                    },
+                    {
+                        label: 'ลงแก๊สเข้าถัง',
+                        href: `/gas/${context.station.number}/supplies`,
+                        icon: PackagePlus,
+                        description: 'บันทึกรับ LPG ต้นทุน ซัพพลายเออร์ และประวัติใบส่ง',
+                    },
+                    context.station.hasProducts
+                        ? {
+                            label: 'สินค้าและสต็อก',
+                            href: `/gas/${context.station.number}/products`,
+                            icon: ShoppingBag,
+                            description: 'เพิ่มสินค้า รับสต็อก แก้ราคา/ระดับเตือน และดูประวัติ',
+                        }
+                        : null,
+                ].filter(Boolean) as Array<{ label: string; href: string; icon: typeof Calculator; description: string }>;
+
+                return (
+                    <Section title="เครื่องมือ GAS เพิ่มเติม" description="งาน correction และ inventory ที่ยังคงเป็น compatibility surface ระหว่าง migration">
+                        <div className="mb-3">
+                            <Notice tone="info" title="งานเปิด/ปิดกะปกติให้ใช้ Operations">
+                                เครื่องมือด้านล่างมีไว้สำหรับแก้ข้อมูลที่ backend ยังอนุญาต หรือจัดการ inventory ที่ยังไม่ได้ย้ายเข้า canonical workflow
+                            </Notice>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            {gasTools.map((tool) => {
+                                const Icon = tool.icon;
+                                return (
+                                    <Link
+                                        key={tool.href}
+                                        href={tool.href}
+                                        className="flex items-start gap-3 rounded-[var(--ui-radius-md)] border border-[var(--ui-border)] p-4 transition-colors hover:bg-[var(--ui-surface-subtle)] focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]"
+                                    >
+                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--ui-radius-md)] bg-[var(--ui-surface-subtle)]">
+                                            <Icon className="h-4 w-4" aria-hidden="true" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <div className="font-semibold text-[var(--ui-text)]">{tool.label}</div>
+                                            <div className="mt-1 text-sm text-[var(--ui-text-muted)]">{tool.description}</div>
+                                        </div>
+                                        <ArrowRight className="ml-auto mt-1 h-4 w-4 shrink-0 text-[var(--ui-text-muted)]" aria-hidden="true" />
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    </Section>
+                );
+            })()}
         </div>
     );
 }

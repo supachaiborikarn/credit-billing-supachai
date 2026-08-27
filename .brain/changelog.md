@@ -3,6 +3,34 @@
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
 ## 2026-08-27
+- 🧭 S69 canonical GAS secondary-tool entry
+  - canonical Station Overview ของ active GAS แสดง meter/gauge correction, LPG supplies และ station-5 products ตาม capability ที่ S64-S67 ตั้งใจ KEEP
+  - normal open/close ยังใช้ canonical Operations; ไม่มี API/financial logic เปลี่ยน, targeted 82/82 + TypeScript ผ่าน และยังไม่ deploy
+- 🧭 S68 review GAS landing `/gas/5|6`
+  - KEEP ชั่วคราว เพราะยังมี staff gas-price update และเป็นทางเข้าของ correction/inventory; วางแผน S69 tool links + S70 price action ก่อน review redirect
+- 🧭 S67 review station-5 GAS products
+  - KEEP product master/stock/history: create, receive, price/alert edit, IN/OUT history; ไม่ reuse legacy GET เป็น canonical read model เพราะมี Station upsert side effect
+- 🧭 S66 review GAS supplies
+  - KEEP LPG receiving/history domain: liters, cost, supplier, invoice, notes, audit log และ history/filter; canonical shift Operations ยังไม่มี replacement
+- 🧭 S65 review GAS gauge correction
+  - KEEP guarded START-gauge correction + standalone END-gauge save/retry จน canonical recovery flow รองรับ server baseline lock semantics
+- 🧭 S64 review GAS meter correction
+  - KEEP guarded START-meter correction + standalone END-meter save/retry; backend lock เมื่อมี transaction/end/reconciliation แล้ว
+- 🧭 S63 retire active GAS `/gas/[id]/shift/close`
+  - canonical Closing ใช้ meter/gauge + product count + reconciliation API เดิม; เติม zero-received parity guard ก่อน redirect station-5/6 เข้า canonical Operations
+  - targeted 116/116 + financial gate 81/81 + TypeScript ผ่าน; legacy source/API/data เก็บ compatibility และยังไม่ deploy
+- 🧭 S62 retire active GAS `/gas/[id]/shift/open`
+  - station-5/6 redirect เข้า canonical Operations; reuse atomic open API เดิมพร้อม price + 4 meters + 3 gauges และ StationContext หา next shift ตาม GAS business day
+  - targeted 116/116 + financial gate 81/81 + TypeScript ผ่าน; ยังไม่ deploy
+- 🧭 S61 retire FULL `/station/1/new/home` + review landing/V2
+  - `/new/home` ไป canonical overview; คง classic `/station/1` และ `/station/1/v2` เพราะยังมี admin edit/print/audit/historical correction
+  - targeted 84/84 + financial gate 81/81 + TypeScript ผ่าน; ยังไม่ deploy
+- 🧭 S60 retire FULL `/station/1/new/meters`
+  - legacy route เป็น redirect-only ไป shift-end จึง flatten ไป canonical Operations โดยตรง; targeted 74/74 + financial gate 81/81 + TypeScript ผ่าน
+- 🧭 S59 retire FULL `/station/1/new/shift-end`
+  - redirect active FULL ไป canonical Operations; targeted 74/74 + financial gate 81/81 + TypeScript ผ่าน
+- 🧭 S58 retire FULL `/station/1/new/close-shift`
+  - redirect active FULL ไป canonical Operations หลัง closing parity; targeted 74/74 + financial gate 81/81 + TypeScript ผ่าน
 - 🧭 S57 retire active FULL `/station/1/new/open-shift`
   - legacy FULL open-shift entry redirect โดยตรงไป canonical `/stations/station-1/operations` ทั้ง middleware/page wrapper; login normalization preserve query
   - canonical opening ใช้ daily/shift API เดิม + Bangkok StationContext และบังคับ start meter 4 หัวพร้อมรูปก่อนขาย; V2/close/shift-end/receipt/simple alias ยัง compatibility
