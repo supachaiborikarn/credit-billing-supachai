@@ -595,6 +595,7 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S62: active GAS `/gas/5|6/shift/open` → canonical `/stations/station-5|6/operations` โดยตรง
 - [x] S63: active GAS `/gas/5|6/shift/close` → canonical `/stations/station-5|6/operations` โดยตรง หลังเติม zero-received parity guard
 - [x] S64: review GAS `/gas/[id]/meters` → **KEEP** เป็น guarded correction/recovery route; ยังไม่ redirect
+- [x] S65: review GAS `/gas/[id]/gauge` → **KEEP** เป็น guarded correction/recovery route; ยังไม่ redirect
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุด
 - [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S60
 
@@ -1933,6 +1934,28 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Session ถัดไปที่แนะนำ: `S65` review GAS `/gas/[id]/gauge` ก่อนตัดสินใจ redirect
 - หมายเหตุ/Decision:
   - การเก็บ legacy correction route ไม่ได้เปลี่ยน canonical เป็น fallback หลัก; normal open/close ยังใช้ canonical Operations
+  - ไม่ deploy production
+
+
+## 2026-08-27 — S65 — Review GAS `/gas/[id]/gauge` correction capability
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - ตรวจ legacy gauge page, current-shift contract และ `/api/v2/gas/[stationId]/gauge` เทียบ canonical Opening/Closing
+  - ยืนยัน route เดิมสามารถแก้ START gauge ได้เฉพาะช่วงที่ backend `getGasStartBaselineLock()` ยังไม่ล็อก
+  - lock ใช้สัญญาณเดียวกับ meter correction: transaction, end meter, end gauge, reconciliation หรือ shift state ที่ไม่ปลอดภัย
+  - route เดิมยังรองรับ standalone END-gauge save/retry และอ่าน start/end evidence แยกกัน
+  - canonical GAS Opening/Closing ครอบคลุม normal path แต่ยังไม่มี explicit repair UI เมื่อ atomic opening data ไม่ครบหรือจำเป็นต้อง correction ก่อนถูก lock
+- Decision:
+  - **ไม่ redirect `/gas/[id]/gauge` ใน S65**; ใช้ `KEEP_GAS_CORRECTION` เช่นเดียวกับ meters
+  - retire ได้เมื่อ canonical recovery flow รองรับ meter+gauge correction พร้อม server-lock semantics เดิม
+- ตรวจสอบแล้ว:
+  - review/docs-only; ไม่มี production behavior เปลี่ยน และ financial gate ล่าสุดจาก S63 ยังใช้ได้
+  - `git diff --check` ผ่านก่อน commit
+- สิ่งที่ยังค้าง:
+  - GAS `/gas/[id]/supplies` เป็น capability audit ถัดไป
+- Session ถัดไปที่แนะนำ: `S66` review GAS supplies ว่า canonical มี replacement หรือยัง
+- หมายเหตุ/Decision:
+  - normal shift open/close ยังคง canonical Operations; legacy gauge มีไว้สำหรับ correction/recovery เท่านั้น
   - ไม่ deploy production
 
 

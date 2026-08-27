@@ -72,7 +72,7 @@ Applicable active stations: station numbers `5`, `6` (legacy URL parameters may 
 | `/gas/[id]/shift/open` | `/stations/station-[id]/operations` | **S62 IMPLEMENTED** | station-5/6 redirect to canonical Operations. Canonical uses the same atomic GAS open API with price + 4 meters + 3 gauges and derives next shift from actual business-day shifts. |
 | `/gas/[id]/shift/close` | `/stations/station-[id]/operations` | **S63 IMPLEMENTED** | station-5/6 redirect to canonical Closing after parity guard. Canonical saves end meters + gauges, then uses the same GAS close/reconciliation API; legacy source preserved. |
 | `/gas/[id]/meters` | future canonical recovery/correction | **KEEP_GAS_CORRECTION (S64 REVIEWED)** | Keep: legacy page can safely correct START baselines while server lock allows it, and can save standalone END readings. Canonical Operations handles normal atomic opening/closing but does not yet expose this recovery/correction capability. |
-| `/gas/[id]/gauge` | `/stations/station-[id]/operations` | KEEP_UNTIL_S38_S40 | LPG gauge workflow. |
+| `/gas/[id]/gauge` | future canonical recovery/correction | **KEEP_GAS_CORRECTION (S65 REVIEWED)** | Keep: supports guarded START-gauge correction while baseline lock allows it plus standalone END-gauge save/retry; canonical normal open/close does not yet expose equivalent recovery UI. |
 | `/gas/[id]/supplies` | future operations/history | KEEP_UNTIL_S38_S40 | Supply workflow must remain separate from sale flow. |
 | `/gas/5/products` | future operations | KEEP_UNTIL_S38_S40 | station-5 supplemental stock remains separate. |
 | `/gas/[id]/summary` | `/stations/station-[id]/history` | KEEP_READ_COMPAT | S40 must prove summary parity. |
