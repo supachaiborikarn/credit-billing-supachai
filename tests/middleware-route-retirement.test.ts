@@ -42,6 +42,34 @@ describe('middleware legacy route retirement boundaries', () => {
         expect(response.headers.get('x-middleware-next')).toBe('1');
     });
 
+    it.each([
+        '/gas-station/5',
+        '/gas-station/5/new',
+        '/gas-station/5/new/home',
+        '/gas-station/6',
+        '/gas-station/6/new',
+        '/gas-station/6/new/home',
+    ])('flattens older GAS entry %s to canonical overview and preserves query', (path) => {
+        const response = middleware(request(`${path}?from=older`));
+        const stationNumber = path.includes('/6') ? '6' : '5';
+
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(
+            `https://credit-billing-supachai.local/stations/station-${stationNumber}?from=older`
+        );
+    });
+
+    it.each([
+        ['/gas-station/5/new/meters?from=older', '/gas/5/meters?from=older'],
+        ['/gas-station/5/new/supplies?from=older', '/gas/5/supplies?from=older'],
+        ['/gas-station/6/new/summary?from=older', '/gas/6/summary?from=older'],
+    ])('keeps older GAS compatibility mapping for %s and preserves query', (path, expectedPath) => {
+        const response = middleware(request(path));
+
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(`https://credit-billing-supachai.local${expectedPath}`);
+    });
+
     it.each(['5', '6'])('keeps active GAS shift redirect behavior and preserves query for station %s', (stationNumber) => {
         const response = middleware(request(`/gas/${stationNumber}/shift/open?source=old`));
 

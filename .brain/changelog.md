@@ -3,6 +3,10 @@
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
 ## 2026-08-27
+- 🧭 S74 flatten older GAS landing/new-home entries
+  - `/gas-station/5|6`, `/new`, `/new/home` เป็น redirect-only จึง flatten ไป canonical Overview โดยตรง; non-active fallback เดิมยังอยู่
+  - middleware/login preserve query และลด redirect chain; older meters/supplies/summary compatibility mappings ยังไม่ retire
+  - boundary regression 97/97 + TypeScript/ESLint ผ่าน; financial logic ไม่เปลี่ยนและยังไม่ deploy
 - 🧭 S73 retire active GAS landing `/gas/5|6`
   - root station-5/6 GAS landing ไป canonical Overview หลัง tool/price/live-summary parity ครบ; legacy dashboard source เก็บใน `LegacyGasStationHomePage.tsx`
   - middleware + login preserve query/auth boundary และ default GAS staff landing ใช้ canonical โดยตรง; meter/gauge/supplies/products/summary compatibility routes ไม่ถูกแตะ

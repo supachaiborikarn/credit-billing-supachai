@@ -85,8 +85,8 @@ These are an older GAS route family. Do not remove by naming alone; some links/b
 
 | Legacy route family | Future route | Disposition |
 | --- | --- | --- |
-| `/gas-station/[id]` | `/stations/station-[id]` | KEEP_UNTIL_S38_S40 |
-| `/gas-station/[id]/new`, `/new/home` | `/stations/station-[id]` | KEEP_UNTIL_S38_S40 |
+| `/gas-station/[id]` | `/stations/station-[id]` | **S74 IMPLEMENTED for station-5/6** |
+| `/gas-station/[id]/new`, `/new/home` | `/stations/station-[id]` | **S74 IMPLEMENTED for station-5/6** |
 | `/gas-station/[id]/new/sell` | `/stations/station-[id]/sales` | **S54 IMPLEMENTED** |
 | `/gas-station/[id]/new/meters` | `/stations/station-[id]/operations` | KEEP_UNTIL_S38_S40 |
 | `/gas-station/[id]/new/supplies` | future operations/history | KEEP_UNTIL_S38_S40 |

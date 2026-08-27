@@ -604,8 +604,9 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S71: review GAS landing read/dashboard parity → KEEP เพราะ payment buckets + gauge percentages + low-tank alerts ยังไม่มี canonical replacement
 - [x] S72: canonical GAS Overview เพิ่ม live payment/gauge/alert summary จาก read-only summary API + auto-refresh 30 วินาที
 - [x] S73: active GAS landing `/gas/5|6` → canonical `/stations/station-5|6` โดย preserve auth/query และคง compatibility subroutes
+- [x] S74: older GAS `/gas-station/5|6`, `/new`, `/new/home` → canonical Overview โดยตรง; subroute mappings ยัง compatibility
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุด
-- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S73
+- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S74
 
 ---
 
@@ -2137,6 +2138,27 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Session ถัดไปที่แนะนำ: `S74` review older GAS `/gas-station/[id]` + `/new/home` entry family
 - หมายเหตุ/Decision:
   - S73 เป็น route retirement/UI entry change ไม่มี financial calculation เปลี่ยน; financial baseline ล่าสุด S70 = 81/81
+  - ไม่ deploy production
+
+
+## 2026-08-27 — S74 — Flatten older GAS landing/new-home entries
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - audit `/gas-station/[id]`, `/gas-station/[id]/new`, `/gas-station/[id]/new/home` และยืนยันว่าทั้ง 3 route เป็น redirect-only ไป `/gas/[id]` ไม่มี unique operational/read capability
+  - station-5/6 จึง flatten ไป canonical `/stations/station-5|6` โดยตรงทั้ง page wrapper, middleware และ login normalization; non-active/non-GAS param ยัง fallback `/gas/[id]`
+  - middleware preserve query สำหรับ older GAS mapping ทุกชนิด ลด query loss ที่เคยเกิดระหว่าง redirect
+  - older `/new/meters`, `/new/supplies`, `/new/summary` ยัง map ไป current compatibility route เดิม และ `/new/sell` ยังคง S54 canonical sales
+- ตรวจสอบแล้ว:
+  - middleware + legacy route regression ผ่าน 2 files / 97 tests
+  - `npx tsc --noEmit` ผ่าน
+  - targeted ESLint ของไฟล์ที่แก้ผ่าน
+  - `git diff --check` ผ่านก่อน commit
+- สิ่งที่ยังค้าง:
+  - older `/gas-station/[id]/new/meters`, `/new/supplies`, `/new/products` ต้อง review ตาม capability จริงทีละ route; ห้าม redirect จากชื่ออย่างเดียว
+  - older read routes `/new/summary`, `/new/shift-summary`, `/new/monthly-balance` ยัง KEEP_READ_COMPAT
+- Session ถัดไปที่แนะนำ: `S75` review older GAS `/gas-station/[id]/new/meters` mapping เทียบ current guarded meter correction
+- หมายเหตุ/Decision:
+  - S74 เป็น redirect-chain cleanup ไม่มี financial logic เปลี่ยน; financial baseline ล่าสุด S70 = 81/81
   - ไม่ deploy production
 
 

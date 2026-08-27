@@ -33,6 +33,7 @@ function getGasV2RedirectPath(pathname: string) {
     const stationId = match[1];
     const legacyPage = match[2] || '';
 
+    if ((stationId === '5' || stationId === '6') && (legacyPage === '' || legacyPage === 'home')) return `/stations/station-${stationId}`;
     if (legacyPage === 'sell' && (stationId === '5' || stationId === '6')) return `/stations/station-${stationId}/sales`;
     if (legacyPage === 'sell') return `/gas/${stationId}/sell`;
     if (legacyPage === 'supplies') return `/gas/${stationId}/supplies`;
@@ -91,7 +92,9 @@ export function middleware(request: NextRequest) {
     }
 
     if (gasV2RedirectPath) {
-        return NextResponse.redirect(new URL(gasV2RedirectPath, request.url));
+        const redirectUrl = new URL(gasV2RedirectPath, request.url);
+        redirectUrl.search = request.nextUrl.search;
+        return NextResponse.redirect(redirectUrl);
     }
 
     if (tankLoyRedirectPath) {
