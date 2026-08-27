@@ -36,6 +36,8 @@ function getGasV2RedirectPath(pathname: string) {
     if ((stationId === '5' || stationId === '6') && (legacyPage === '' || legacyPage === 'home')) return `/stations/station-${stationId}`;
     if (legacyPage === 'sell' && (stationId === '5' || stationId === '6')) return `/stations/station-${stationId}/sales`;
     if (legacyPage === 'sell') return `/gas/${stationId}/sell`;
+    if (legacyPage === 'products' && stationId === '5') return '/gas/5/products';
+    if (legacyPage === 'products' && stationId === '6') return '/stations/station-6';
     if (legacyPage === 'supplies') return `/gas/${stationId}/supplies`;
     if (legacyPage === 'meters') return `/gas/${stationId}/meters`;
     if (legacyPage === 'summary' || legacyPage === 'shift-summary') return `/gas/${stationId}/summary`;

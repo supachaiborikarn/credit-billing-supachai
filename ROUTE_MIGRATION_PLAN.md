@@ -90,7 +90,7 @@ These are an older GAS route family. Do not remove by naming alone; some links/b
 | `/gas-station/[id]/new/sell` | `/stations/station-[id]/sales` | **S54 IMPLEMENTED** |
 | `/gas-station/[id]/new/meters` | `/gas/[id]/meters` guarded correction | **S75 CONFIRMED COMPAT MAPPING** |
 | `/gas-station/[id]/new/supplies` | `/gas/[id]/supplies` LPG inventory | **S76 CONFIRMED COMPAT MAPPING** |
-| `/gas-station/[id]/new/products` | future operations | KEEP_UNTIL_S38_S40 |
+| `/gas-station/[id]/new/products` | station-5 → `/gas/5/products`; station-6 → canonical overview | **S77 CAPABILITY MAPPING FIXED** |
 | `/gas-station/[id]/new/summary`, `/new/shift-summary`, `/new/monthly-balance` | `/stations/station-[id]/history` | KEEP_READ_COMPAT |
 
 ## SIMPLE — retired `/simple-station/[id]`

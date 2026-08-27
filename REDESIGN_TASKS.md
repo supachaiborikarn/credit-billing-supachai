@@ -607,8 +607,9 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S74: older GAS `/gas-station/5|6`, `/new`, `/new/home` → canonical Overview โดยตรง; subroute mappings ยัง compatibility
 - [x] S75: older GAS `/new/meters` → current `/gas/[id]/meters` guarded correction route; ไม่ย้ายไป canonical Operations
 - [x] S76: older GAS `/new/supplies` → current `/gas/[id]/supplies` LPG inventory route
+- [x] S77: fix older GAS `/new/products` mapping — station-5 → `/gas/5/products`, station-6 → canonical Overview
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุด
-- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S76
+- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S77
 
 ---
 
@@ -2200,6 +2201,28 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
   - S77 review older `/gas-station/[id]/new/products`; current mapping ตอนนี้ไม่ได้ชี้ product inventory โดยตรง จึงต้องตัดสินใจตาม `hasProducts`
 - Session ถัดไปที่แนะนำ: `S77` older GAS products mapping review/fix
 - หมายเหตุ/Decision:
+  - ไม่ deploy production
+
+
+## 2026-08-27 — S77 — Fix older GAS products mapping by capability
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - audit `/gas-station/[id]/new/products` แล้วพบว่า route เดิม redirect ไป `/gas/[id]`; หลัง S73 ทำให้ bookmark station-5 หลุดไป canonical Overview แทน product inventory
+  - แก้ station-5 older products → current `/gas/5/products` ซึ่ง S67 ตั้งใจ KEEP เป็น product master/stock/history domain
+  - station-6 `hasProducts=false` จึง normalize older products ไป canonical `/stations/station-6` ไม่เปิด product route ที่ไม่มี capability
+  - page wrapper ใช้ station definition เป็น source of truth; middleware + login normalization ใช้ mapping เดียวกันสำหรับ numeric legacy URLs และ preserve query จาก S74
+  - เพิ่ม boundary regression ทั้ง station-5 products compatibility และ station-6 no-products behavior
+- ตรวจสอบแล้ว:
+  - middleware + legacy route regression ผ่าน 2 files / 99 tests
+  - `npx tsc --noEmit` ผ่าน
+  - targeted ESLint ผ่าน
+  - `git diff --check` ผ่านก่อน commit
+- สิ่งที่ยังค้าง:
+  - older GAS read family `/new/summary`, `/new/shift-summary`, `/new/monthly-balance` ยัง KEEP_READ_COMPAT และควร review แยกเป็น S78+
+  - current `/gas/5/products` ยังเป็น legacy inventory surface ตาม S67; ยังไม่ migrate master-data domain เข้า canonical
+- Session ถัดไปที่แนะนำ: `S78` review older GAS read-summary family โดยห้ามลด historical/print parity
+- หมายเหตุ/Decision:
+  - S77 แก้ navigation/capability mapping เท่านั้น ไม่เปลี่ยน product inventory API หรือ financial calculation
   - ไม่ deploy production
 
 

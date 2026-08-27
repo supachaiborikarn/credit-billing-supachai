@@ -62,12 +62,22 @@ describe('middleware legacy route retirement boundaries', () => {
     it.each([
         ['/gas-station/5/new/meters?from=older', '/gas/5/meters?from=older'],
         ['/gas-station/5/new/supplies?from=older', '/gas/5/supplies?from=older'],
+        ['/gas-station/5/new/products?from=older', '/gas/5/products?from=older'],
         ['/gas-station/6/new/summary?from=older', '/gas/6/summary?from=older'],
     ])('keeps older GAS compatibility mapping for %s and preserves query', (path, expectedPath) => {
         const response = middleware(request(path));
 
         expect(response.status).toBe(307);
         expect(response.headers.get('location')).toBe(`https://credit-billing-supachai.local${expectedPath}`);
+    });
+
+    it('sends older station-6 products bookmark to canonical overview because products are disabled there', () => {
+        const response = middleware(request('/gas-station/6/new/products?from=older'));
+
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(
+            'https://credit-billing-supachai.local/stations/station-6?from=older'
+        );
     });
 
     it.each(['5', '6'])('keeps active GAS shift redirect behavior and preserves query for station %s', (stationNumber) => {

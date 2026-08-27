@@ -3,6 +3,9 @@
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
 ## 2026-08-27
+- 🧭 S77 fix older GAS products mapping by capability
+  - พบ older `/new/products` ส่ง station-5 ไป root ทำให้ bookmark ไม่เข้าสต็อกหลัง S73; แก้ station-5 → `/gas/5/products` และ station-6 → canonical Overview เพราะ `hasProducts=false`
+  - page/middleware/login mapping สอดคล้องกันและ preserve query; regression 99/99 + TypeScript/ESLint ผ่าน, ไม่เปลี่ยน inventory API และยังไม่ deploy
 - 🧭 S76 confirm older GAS supplies compatibility mapping
   - `/gas-station/[id]/new/supplies` เป็น redirect-only ไป current `/gas/[id]/supplies`; current route ยัง KEEP เป็น LPG receiving/history domain ตาม S66
   - S74 query-preserving middleware mapping ครอบ bookmark เดิมแล้ว; ไม่มี production behavior เปลี่ยนและยังไม่ deploy
