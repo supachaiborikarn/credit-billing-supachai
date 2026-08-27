@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { STATIONS } from '../src/constants';
 import {
     getActiveFullOperationsRedirect,
+    getActiveFullOverviewRedirect,
     getActiveFullSellRedirect,
     getActiveGasSellRedirect,
     getRetiredSimpleStationRedirect,
@@ -39,6 +40,16 @@ describe('legacy route retirement', () => {
         expect(getActiveGasSellRedirect(stationParam)).toBeNull();
     });
 
+    it.each([
+        ['1', '/stations/station-1'],
+        ['station-1', '/stations/station-1'],
+    ])('redirects active FULL overview param %s to canonical station overview', (stationParam, expected) => {
+        expect(getActiveFullOverviewRedirect(stationParam)).toBe(expected);
+    });
+
+    it.each(['2', '3', '4', '5', '6', '7', '', 'station-5'])('does not redirect non-FULL overview param %s', (stationParam) => {
+        expect(getActiveFullOverviewRedirect(stationParam)).toBeNull();
+    });
 
     it.each([
         ['1', '/stations/station-1/sales'],
@@ -50,7 +61,6 @@ describe('legacy route retirement', () => {
     it.each(['2', '3', '4', '5', '6', '7', '', 'station-5'])('does not redirect non-FULL sell param %s', (stationParam) => {
         expect(getActiveFullSellRedirect(stationParam)).toBeNull();
     });
-
 
     it.each([
         ['1', '/stations/station-1/operations'],

@@ -31,6 +31,7 @@ Canonical station IDs are `station-1` … `station-6`. URL structure must not en
 - **REDIRECT_NOW_RETIRED** — safe to remove the create/operate entry for station-2/3/4 because the business has retired that workflow.
 - **REDIRECT_AFTER_S44** — new equivalent exists, but keep legacy until the financial regression checklist is complete; S45+ retires one route at a time.
 - **KEEP_UNTIL_S38_S40** — active operational/open-close/history parity is not complete yet.
+- **KEEP_FULL_ADMIN_COMPAT** — keep FULL legacy workspace while it still owns admin edit/print/audit/historical correction capabilities not yet migrated.
 - **KEEP_READ_COMPAT** — keep for historical/receipt/summary/print compatibility until the canonical read path proves parity.
 - **KEEP_MASTER_DATA** — still contains create/edit administration not yet moved into Customer 360.
 - **KEEP_ADMIN_REPORT** — admin/reporting tool; not part of the first station-route retirement wave.
@@ -42,9 +43,9 @@ Applicable active station: `station-1`.
 
 | Legacy route | Future route | Disposition | Notes |
 | --- | --- | --- | --- |
-| `/station/1` | `/stations/station-1` | KEEP_UNTIL_S38_S40 | Legacy landing contains operational state. |
-| `/station/1/v2` | `/stations/station-1` | KEEP_UNTIL_S38_S40 | Current FULL operational workspace. |
-| `/station/1/new/home` | `/stations/station-1` | KEEP_UNTIL_S38_S40 | Old navigation shell. |
+| `/station/1` | `/stations/station-1` | KEEP_FULL_ADMIN_COMPAT | Classic page is admin-only and still owns direct transaction/daily-record correction and report actions; do not retire yet. |
+| `/station/1/v2` | `/stations/station-1` | KEEP_FULL_ADMIN_COMPAT | V2 still owns admin settings, transaction edit/delete, print, history/audit and historical meter correction; keep as explicit fallback. |
+| `/station/1/new/home` | `/stations/station-1` | **S61 IMPLEMENTED** | Old navigation entry now redirects directly to canonical Station Overview; no unique capability lived in this route. |
 | `/station/1/new/sell` | `/stations/station-1/sales` | **S55 IMPLEMENTED** | Direct canonical SaleFlow redirect; V2 remains a supported operational workspace. |
 | `/station/1/new/oil-sell` | `/stations/station-1/sales` | **S56 IMPLEMENTED** | Direct canonical SaleFlow redirect; prior route was redirect-only because Tank Loy has no engine-oil/product flow. |
 | `/station/1/new/open-shift` | `/stations/station-1/operations` | **S57 IMPLEMENTED** | Direct canonical Operations redirect after S38-S40 parity + operational/financial regression; canonical opening preserves daily-price + shift APIs and requires 4 start meters with photos before sale. |
@@ -148,7 +149,7 @@ All `/api/station/*`, `/api/v2/gas/*`, `/api/simple-station/*`, invoice/payment,
 
 ## Retirement gates
 
-**S44 status (2026-08-27): PASS.** See `FINANCIAL_REGRESSION_CHECKLIST.md`. S60 reran the full financial gate after FULL `/station/1/new/meters` direct-canonical retirement changes: 16 files / 81 tests passed; opening/closing/history operational regression also passed. Remaining active operational/money routes are still eligible only for bounded one-family review.
+**S44 status (2026-08-27): PASS.** See `FINANCIAL_REGRESSION_CHECKLIST.md`. S61 reran the full financial gate after FULL `/station/1/new/home` direct-canonical Station Overview retirement changes: 16 files / 81 tests passed; route/context/operations regression also passed. Remaining active operational/money routes are still eligible only for bounded one-family review.
 
 Before redirecting an **active FULL/GAS** legacy route:
 
@@ -164,5 +165,6 @@ Before redirecting an **active FULL/GAS** legacy route:
 1. Retired SIMPLE operational/create family — **S45-S52 complete** for station-2/3/4; read/history/receipt compatibility remains.
 2. Active GAS sell entries → canonical sales — **S53 current `/gas/[id]/sell` complete** and **S54 older `/gas-station/[id]/new/sell` complete** for station-5/6.
 3. Active FULL sale-entry pair → canonical sales — **S55 `/station/1/new/sell` complete** and **S56 `/station/1/new/oil-sell` complete**.
-4. Active FULL operational entries → canonical operations — **S57 `/station/1/new/open-shift`**, **S58 `/station/1/new/close-shift`**, and **S59 `/station/1/new/shift-end` complete** after S38-S40 parity/regression; meters/read routes remain separate reviews.
-5. History/summary/receipt routes last, after S40 read parity.
+4. Active FULL operational entries → canonical operations — **S57 `/station/1/new/open-shift`**, **S58 `/station/1/new/close-shift`**, **S59 `/station/1/new/shift-end`**, and **S60 `/station/1/new/meters` complete** after S38-S40 parity/regression.
+5. Active FULL navigation shell → canonical overview — **S61 `/station/1/new/home` complete**; keep `/station/1` and `/station/1/v2` as admin compatibility workspaces until their remaining edit/print/audit capabilities move.
+6. History/summary/receipt routes last, after explicit read/print parity review.

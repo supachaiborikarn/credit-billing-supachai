@@ -591,6 +591,7 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S58: active FULL `/station/1/new/close-shift` → canonical `/stations/station-1/operations` โดยตรง
 - [x] S59: active FULL `/station/1/new/shift-end` → canonical `/stations/station-1/operations` โดยตรง
 - [x] S60: active FULL `/station/1/new/meters` → canonical `/stations/station-1/operations` โดยตรง (legacy route เดิมเป็น redirect-only)
+- [x] S61: active FULL `/station/1/new/home` → canonical `/stations/station-1` โดยตรง; คง `/station/1` + `/station/1/v2` เป็น admin compatibility
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุด
 - [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S60
 
@@ -1843,6 +1844,27 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Session ถัดไปที่แนะนำ: `S61` review FULL landing/home/V2 disposition โดยยังไม่รวม read/print routes
 - หมายเหตุ/Decision:
   - S60 เป็น UI-route retirement เท่านั้น ไม่ deploy production
+
+
+## 2026-08-27 — S61 — Retire active FULL `/station/1/new/home` + review landing/V2
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - review `/station/1`, `/station/1/v2`, `/station/1/new/home` แยกตาม capability จริง
+  - ยืนยันว่า `/station/1/new/home` เป็น navigation entry ที่ middleware เดิมส่งไป V2 อยู่แล้ว ไม่มี unique write/read capability จึง redirect ไป canonical `/stations/station-1` ได้
+  - เพิ่ม `getActiveFullOverviewRedirect()` และ route wrapper เพื่อจำกัด direct canonical redirect เฉพาะ active FULL station; station อื่นยัง fallback เดิม
+  - ปรับ middleware + login normalization ให้ `/station/1/new/home` ไป canonical overview โดย preserve query
+  - ตัดสินใจคง `/station/1` และ `/station/1/v2`: classic ยังมี admin direct correction/report; V2 ยังมี admin settings, edit/delete transaction, print, history/audit และ historical meter correction
+- ตรวจสอบแล้ว:
+  - targeted route/closing/opening/context/history/SaleFlow regression ผ่าน 7 files / 84 tests
+  - S44 financial gate ผ่าน 16 files / 81 tests
+  - final typecheck + diff check ผ่านหลังอัปเดตเอกสาร
+- สิ่งที่ยังค้าง:
+  - FULL classic/V2 ไม่ retire จน admin edit/print/audit/historical correction มี canonical replacement
+  - FULL read/print compatibility routes ยังไม่ retire
+  - GAS non-sell operational routes เป็น candidate ชุดถัดไป
+- Session ถัดไปที่แนะนำ: `S62` review GAS `/gas/[id]/shift/open` หลัง S38-S40 parity โดยจำกัดเฉพาะ open-shift family
+- หมายเหตุ/Decision:
+  - S61 เป็น navigation-route retirement เท่านั้น ไม่ deploy production
 
 
 ## Template
