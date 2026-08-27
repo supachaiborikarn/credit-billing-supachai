@@ -32,6 +32,7 @@ Canonical station IDs are `station-1` … `station-6`. URL structure must not en
 - **REDIRECT_AFTER_S44** — new equivalent exists, but keep legacy until the financial regression checklist is complete; S45+ retires one route at a time.
 - **KEEP_UNTIL_S38_S40** — active operational/open-close/history parity is not complete yet.
 - **KEEP_FULL_ADMIN_COMPAT** — keep FULL legacy workspace while it still owns admin edit/print/audit/historical correction capabilities not yet migrated.
+- **KEEP_GAS_CORRECTION** — keep a GAS operational correction surface when canonical normal workflow cannot yet repair the same guarded state safely.
 - **KEEP_READ_COMPAT** — keep for historical/receipt/summary/print compatibility until the canonical read path proves parity.
 - **KEEP_MASTER_DATA** — still contains create/edit administration not yet moved into Customer 360.
 - **KEEP_ADMIN_REPORT** — admin/reporting tool; not part of the first station-route retirement wave.
@@ -70,7 +71,7 @@ Applicable active stations: station numbers `5`, `6` (legacy URL parameters may 
 | `/gas/5/sell`, `/gas/6/sell` | `/stations/station-5/sales`, `/stations/station-6/sales` | **S53 IMPLEMENTED** | Server-side redirect to canonical SaleFlow; legacy source preserved in `LegacyGasSellPage.tsx`. |
 | `/gas/[id]/shift/open` | `/stations/station-[id]/operations` | **S62 IMPLEMENTED** | station-5/6 redirect to canonical Operations. Canonical uses the same atomic GAS open API with price + 4 meters + 3 gauges and derives next shift from actual business-day shifts. |
 | `/gas/[id]/shift/close` | `/stations/station-[id]/operations` | **S63 IMPLEMENTED** | station-5/6 redirect to canonical Closing after parity guard. Canonical saves end meters + gauges, then uses the same GAS close/reconciliation API; legacy source preserved. |
-| `/gas/[id]/meters` | `/stations/station-[id]/operations` | KEEP_UNTIL_S38_S40 | Operational meter editing. |
+| `/gas/[id]/meters` | future canonical recovery/correction | **KEEP_GAS_CORRECTION (S64 REVIEWED)** | Keep: legacy page can safely correct START baselines while server lock allows it, and can save standalone END readings. Canonical Operations handles normal atomic opening/closing but does not yet expose this recovery/correction capability. |
 | `/gas/[id]/gauge` | `/stations/station-[id]/operations` | KEEP_UNTIL_S38_S40 | LPG gauge workflow. |
 | `/gas/[id]/supplies` | future operations/history | KEEP_UNTIL_S38_S40 | Supply workflow must remain separate from sale flow. |
 | `/gas/5/products` | future operations | KEEP_UNTIL_S38_S40 | station-5 supplemental stock remains separate. |

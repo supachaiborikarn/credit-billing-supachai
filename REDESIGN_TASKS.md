@@ -594,6 +594,7 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S61: active FULL `/station/1/new/home` → canonical `/stations/station-1` โดยตรง; คง `/station/1` + `/station/1/v2` เป็น admin compatibility
 - [x] S62: active GAS `/gas/5|6/shift/open` → canonical `/stations/station-5|6/operations` โดยตรง
 - [x] S63: active GAS `/gas/5|6/shift/close` → canonical `/stations/station-5|6/operations` โดยตรง หลังเติม zero-received parity guard
+- [x] S64: review GAS `/gas/[id]/meters` → **KEEP** เป็น guarded correction/recovery route; ยังไม่ redirect
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุด
 - [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S60
 
@@ -1911,6 +1912,28 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Session ถัดไปที่แนะนำ: `S64` review GAS `/gas/[id]/meters` แบบ capability audit ก่อนตัดสินใจ retire
 - หมายเหตุ/Decision:
   - S63 เป็น UI-route retirement เท่านั้น ไม่ deploy production
+
+
+## 2026-08-27 — S64 — Review GAS `/gas/[id]/meters` correction capability
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - ตรวจ legacy meter page + `/api/v2/gas/[stationId]/meters` เทียบ canonical Opening/Closing
+  - ยืนยันว่า route นี้ไม่ได้เป็นเพียงทางเข้าปกติ: สามารถแก้ START meter หลังเปิดกะได้ตราบใดที่ backend `getGasStartBaselineLock()` ยังอนุญาต
+  - backend จะล็อก START baseline เมื่อมี transaction, end meter, end gauge หรือ reconciliation แล้ว และยังตรวจ station/shift scope + OPEN status
+  - route เดิมยังรองรับ standalone END-meter save/retry แยกจาก full close flow
+  - canonical GAS Opening เปิด meter+gauge แบบ atomic และถ้าพบ opening data ไม่ครบจะ fail-closed; ยังไม่มี UI repair START baseline แบบเดียวกัน
+- Decision:
+  - **ไม่ redirect `/gas/[id]/meters` ใน S64** เพื่อไม่ทำ recovery/correction capability หาย
+  - เพิ่ม disposition `KEEP_GAS_CORRECTION`; จะ retire ได้เมื่อ canonical มี explicit guarded correction flow และ regression ครบ
+- ตรวจสอบแล้ว:
+  - เป็น review/docs-only session; ไม่มี production source behavior เปลี่ยนและไม่ต้อง rerun financial gate จาก S63
+  - `git diff --check` ผ่านก่อน commit
+- สิ่งที่ยังค้าง:
+  - GAS `/gas/[id]/gauge` ต้อง capability audit แบบเดียวกัน
+- Session ถัดไปที่แนะนำ: `S65` review GAS `/gas/[id]/gauge` ก่อนตัดสินใจ redirect
+- หมายเหตุ/Decision:
+  - การเก็บ legacy correction route ไม่ได้เปลี่ยน canonical เป็น fallback หลัก; normal open/close ยังใช้ canonical Operations
+  - ไม่ deploy production
 
 
 ## Template
