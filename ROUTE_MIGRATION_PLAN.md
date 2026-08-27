@@ -49,7 +49,7 @@ Applicable active station: `station-1`.
 | `/station/1/new/oil-sell` | `/stations/station-1/sales` | **S56 IMPLEMENTED** | Direct canonical SaleFlow redirect; prior route was redirect-only because Tank Loy has no engine-oil/product flow. |
 | `/station/1/new/open-shift` | `/stations/station-1/operations` | **S57 IMPLEMENTED** | Direct canonical Operations redirect after S38-S40 parity + operational/financial regression; canonical opening preserves daily-price + shift APIs and requires 4 start meters with photos before sale. |
 | `/station/1/new/close-shift` | `/stations/station-1/operations` | **S58 IMPLEMENTED** | Direct canonical Operations redirect after S39 closing/reconciliation parity + operational/financial regression; legacy APIs/history preserved. |
-| `/station/1/new/shift-end` | `/stations/station-1/operations` | KEEP_UNTIL_S38_S40 | Closing/reconciliation compatibility. |
+| `/station/1/new/shift-end` | `/stations/station-1/operations` | **S59 IMPLEMENTED** | Direct canonical Operations redirect after S39 closing/reconciliation parity; legacy APIs/read compatibility preserved. |
 | `/station/1/new/meters` | `/stations/station-1/operations` | KEEP_UNTIL_S38_S40 | Meter workflow not migrated yet. |
 | `/station/1/new/meter-summary` | `/stations/station-1/history` | KEEP_READ_COMPAT | Historical meter evidence. |
 | `/station/1/new/shift-history` | `/stations/station-1/history` | KEEP_READ_COMPAT | S40 must prove parity. |
@@ -148,7 +148,7 @@ All `/api/station/*`, `/api/v2/gas/*`, `/api/simple-station/*`, invoice/payment,
 
 ## Retirement gates
 
-**S44 status (2026-08-27): PASS.** See `FINANCIAL_REGRESSION_CHECKLIST.md`. S58 reran the full financial gate after FULL `/station/1/new/close-shift` direct-canonical retirement changes: 16 files / 81 tests passed; opening/closing/history operational regression also passed. Remaining active operational/money routes are still eligible only for bounded one-family review.
+**S44 status (2026-08-27): PASS.** See `FINANCIAL_REGRESSION_CHECKLIST.md`. S59 reran the full financial gate after FULL `/station/1/new/shift-end` direct-canonical retirement changes: 16 files / 81 tests passed; opening/closing/history operational regression also passed. Remaining active operational/money routes are still eligible only for bounded one-family review.
 
 Before redirecting an **active FULL/GAS** legacy route:
 
@@ -164,5 +164,5 @@ Before redirecting an **active FULL/GAS** legacy route:
 1. Retired SIMPLE operational/create family — **S45-S52 complete** for station-2/3/4; read/history/receipt compatibility remains.
 2. Active GAS sell entries → canonical sales — **S53 current `/gas/[id]/sell` complete** and **S54 older `/gas-station/[id]/new/sell` complete** for station-5/6.
 3. Active FULL sale-entry pair → canonical sales — **S55 `/station/1/new/sell` complete** and **S56 `/station/1/new/oil-sell` complete**.
-4. Active FULL operational entries → canonical operations — **S57 `/station/1/new/open-shift` complete** and **S58 `/station/1/new/close-shift` complete** after S38-S40 parity/regression; shift-end remains a separate bounded review.
+4. Active FULL operational entries → canonical operations — **S57 `/station/1/new/open-shift`**, **S58 `/station/1/new/close-shift`**, and **S59 `/station/1/new/shift-end` complete** after S38-S40 parity/regression; meters/read routes remain separate reviews.
 5. History/summary/receipt routes last, after S40 read parity.

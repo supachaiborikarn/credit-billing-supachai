@@ -589,6 +589,7 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S56: active FULL `/station/1/new/oil-sell` → canonical `/stations/station-1/sales` โดยตรง
 - [x] S57: active FULL `/station/1/new/open-shift` → canonical `/stations/station-1/operations` โดยตรง
 - [x] S58: active FULL `/station/1/new/close-shift` → canonical `/stations/station-1/operations` โดยตรง
+- [x] S59: active FULL `/station/1/new/shift-end` → canonical `/stations/station-1/operations` โดยตรง
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุด
 - [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S57
 
@@ -1801,6 +1802,25 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Session ถัดไปที่แนะนำ: `S59` review FULL `/station/1/new/shift-end` แบบ bounded
 - หมายเหตุ/Decision:
   - S58 เป็น UI-route retirement เท่านั้น ไม่ลบ API/schema/history และไม่ deploy production
+
+
+## 2026-08-27 — S59 — Retire active FULL `/station/1/new/shift-end`
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - ย้าย `/station/1/new/shift-end` ไป canonical `/stations/station-1/operations` แบบ server-side ก่อน hydrate
+  - reuse `getActiveFullOperationsRedirect()` เพื่อจำกัด redirect เฉพาะ active FULL station
+  - ปรับ middleware + login normalization ให้ preserve query และไม่กลับเข้า legacy V2 โดยไม่จำเป็น
+  - คง meter/history/receipt routes และ backend APIs/data ทั้งหมดไว้
+- ตรวจสอบแล้ว:
+  - targeted closing/opening/context/history/SaleFlow regression ผ่าน 7 files / 74 tests
+  - S44 financial gate ผ่าน 16 files / 81 tests
+  - final typecheck + diff check รันหลังอัปเดตเอกสาร
+- สิ่งที่ยังค้าง:
+  - FULL `/station/1/new/meters` และ landing/V2/home เป็น bounded candidates แยกต่างหาก
+  - read/history/receipt compatibility ยังไม่ retire
+- Session ถัดไปที่แนะนำ: `S60` review FULL `/station/1/new/meters` ก่อนตัดสินใจ redirect
+- หมายเหตุ/Decision:
+  - S59 เป็น UI-route retirement เท่านั้น ไม่ deploy production
 
 
 ## Template
