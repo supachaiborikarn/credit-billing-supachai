@@ -80,6 +80,7 @@ function getTankLoyRedirectPath(pathname: string) {
 export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
     const sessionCookie = request.cookies.get('session');
+    const canonicalLandingRedirectPath = pathname === '/dashboard' ? '/today' : null;
     const currentGasRedirectPath = getCurrentGasRedirectPath(pathname);
     const gasV2RedirectPath = getGasV2RedirectPath(pathname);
     const tankLoyRedirectPath = getTankLoyRedirectPath(pathname);
@@ -92,9 +93,15 @@ export function middleware(request: NextRequest) {
     // If protected route and no session, redirect to login
     if (isProtectedRoute && !sessionCookie) {
         const loginUrl = new URL('/login', request.url);
-        const redirectPath = currentGasRedirectPath || gasV2RedirectPath || tankLoyRedirectPath || pathname;
+        const redirectPath = canonicalLandingRedirectPath || currentGasRedirectPath || gasV2RedirectPath || tankLoyRedirectPath || pathname;
         loginUrl.searchParams.set('redirect', `${redirectPath}${request.nextUrl.search}`);
         return NextResponse.redirect(loginUrl);
+    }
+
+    if (canonicalLandingRedirectPath) {
+        const redirectUrl = new URL(canonicalLandingRedirectPath, request.url);
+        redirectUrl.search = request.nextUrl.search;
+        return NextResponse.redirect(redirectUrl);
     }
 
     if (currentGasRedirectPath) {

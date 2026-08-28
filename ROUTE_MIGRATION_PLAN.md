@@ -19,6 +19,8 @@
 
 Canonical station IDs are `station-1` … `station-6`. URL structure must not encode FULL/SIMPLE/GAS.
 
+**Global landing (S81 pass 3):** `/` และ exact legacy `/dashboard` ไป `/today`; normal login/default authenticated landing ใช้ `/today`. Subroutes เช่น `/dashboard/executive` ยังเป็น compatibility surface แยกต่างหาก.
+
 ## Business scope
 
 - **ACTIVE:** `station-1` (FULL), `station-5` and `station-6` (GAS).

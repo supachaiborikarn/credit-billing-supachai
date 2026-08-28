@@ -9,6 +9,26 @@ function request(path: string, authenticated = true) {
 }
 
 describe('middleware legacy route retirement boundaries', () => {
+    it('retires the exact legacy dashboard landing to Today and preserves query', () => {
+        const response = middleware(request('/dashboard?from=old-home'));
+
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(
+            'https://credit-billing-supachai.local/today?from=old-home'
+        );
+    });
+
+    it('normalizes unauthenticated legacy dashboard bookmark to Today before login', () => {
+        const response = middleware(request('/dashboard?from=bookmark', false));
+        const location = response.headers.get('location');
+
+        expect(response.status).toBe(307);
+        expect(location).not.toBeNull();
+        const loginUrl = new URL(location!);
+        expect(loginUrl.pathname).toBe('/login');
+        expect(loginUrl.searchParams.get('redirect')).toBe('/today?from=bookmark');
+    });
+
     it.each([
         '/today',
         '/stations/station-1',

@@ -611,7 +611,7 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S78: review older GAS read family — KEEP summary/shift-summary; flatten redirect-only monthly-balance UI โดยคง monthly-balance API
 - [x] S79: canonical GAS Overview เพิ่ม meter detail + recent transactions จาก summary API เดิม; current summary parity ready แต่ยัง KEEP จน S80
 - [x] S80: retire current `/gas/5|6/summary` + older summary/shift-summary ไป canonical Overview; preserve auth/query และ keep summary API เป็น read source
-- [~] S81: local UAT บนพอร์ต 3005 — authenticated read-flow ผ่าน; Today cold-read retry + GAS stale-shift warning เพิ่มแล้ว; write-flow UAT ยังรอ test DB
+- [~] S81: local UAT บนพอร์ต 3005 — authenticated read-flow + canonical landing ผ่าน; Today cold-read retry + GAS stale-shift warning เพิ่มแล้ว; write-flow UAT ยังรอ test DB
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุดหลัง S81 UAT
 - [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S81
 
@@ -2351,6 +2351,23 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Session ถัดไปที่แนะนำ: `S81` write-safe UAT setup/test DB หรือ manual UI review บน `localhost:3005` ก่อน retire route เพิ่ม
 - หมายเหตุ/Decision:
   - local IPv4/endpoint workaround เป็น process-only; ห้าม hard-code Neon IP ลง repo หรือ `.env`
+  - ไม่ push / ไม่ deploy production
+
+
+## 2026-08-28 — S81 pass 3 — Canonical landing after login
+- Status: `[x]`
+- UAT finding:
+  - ผู้ใช้เปิด `localhost:3005` แล้วเห็นหน้าตาเดิม เพราะ ADMIN default login ยัง route ไป `/dashboard` และ STAFF default บางประเภทไป legacy station surface
+- แก้แล้ว:
+  - root `/` → `/today`
+  - normal login / already-authenticated login → `/today` สำหรับทุก role; `?redirect=...` ที่มีเหตุผลยัง preserve/normalize ตามเดิม
+  - exact legacy `/dashboard` → `/today` ทั้ง authenticated และ pre-login bookmark; ไม่ครอบ `/dashboard/executive`
+- ตรวจสอบแล้ว:
+  - middleware/login landing regression 3 files / 52 tests ผ่าน
+  - `npx tsc --noEmit` + targeted ESLint ผ่าน
+  - live port 3005: `/dashboard?from=old` = 307 `/today?from=old`, `/` = 307 `/today`, `/today` = 200
+- Decision:
+  - หน้าเริ่มต้นของ redesigned CreditBilling คือ Today workspace จริง ไม่ใช่ legacy dashboard
   - ไม่ push / ไม่ deploy production
 
 

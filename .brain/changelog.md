@@ -3,6 +3,11 @@
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
 ## 2026-08-28
+- 🧭 S81 pass 3 canonical landing fix
+  - UAT พบผู้ใช้ยังเห็น UI เดิมเพราะ ADMIN login/default landing ยังไป `/dashboard` และ STAFF บางประเภทกลับ legacy station route แม้ canonical UI พร้อมแล้ว
+  - เปลี่ยน `/`, normal login และ existing-session login ให้เริ่มที่ `/today`; exact `/dashboard` → `/today` พร้อม preserve query และ unauth redirect normalization
+  - `/dashboard/executive` และ compatibility/report routes อื่นไม่ถูกจับ; live `localhost:3005/dashboard` ยืนยัน 307 → `/today`, `/today` = 200
+  - regression 52/52 + TypeScript/ESLint ผ่าน; ยังไม่ push/deploy
 - 🧪 S81 pass 2 authenticated read UAT + resilience
   - ใช้ CreditBilling เฉพาะ port 3005 หลังตรวจว่าง; ไม่แตะ port 3000
   - ADMIN/STAFF authenticated read flows ผ่าน; Today fresh first-load 200 หลังเพิ่ม retry 1 ครั้งเฉพาะ Prisma P1001/P2024

@@ -57,9 +57,11 @@ function normalizeTankLoyRedirectPath(path: string) {
 function normalizeRedirectPath(path: string) {
     try {
         const parsed = new URL(path, 'https://credit-billing-supachai.local');
+        if (parsed.pathname === '/dashboard') return `/today${parsed.search}${parsed.hash}`;
         const normalizedPath = normalizeTankLoyRedirectPath(normalizeGasRedirectPath(parsed.pathname));
         return `${normalizedPath}${parsed.search}${parsed.hash}`;
     } catch {
+        if (path === '/dashboard') return '/today';
         return normalizeTankLoyRedirectPath(normalizeGasRedirectPath(path));
     }
 }
@@ -91,24 +93,12 @@ function LoginContent() {
                     if (data.user) {
                         setRedirecting(true);
 
-                        // Redirect based on role
-                        if (data.user.role === 'STAFF' && data.user.stationId) {
-                            const { findStationIndex } = await import('@/constants');
-                            const stationNum = findStationIndex(data.user.stationId);
-
-                            if (stationNum > 0) {
-                                if (data.user.stationType === 'FULL') {
-                                    router.push(stationNum === 1 ? '/station/1/v2' : `/station/${stationNum}/new/home`);
-                                } else if (data.user.stationType === 'GAS') {
-                                    router.push((stationNum === 5 || stationNum === 6) ? `/stations/station-${stationNum}` : `/gas/${stationNum}`);
-                                } else {
-                                    router.push(`/simple-station/${stationNum}/new/home`);
-                                }
-                                return;
-                            }
-                        }
-                        // Default: redirect to dashboard
-                        router.push('/dashboard');
+                        const redirectTo = searchParams.get('redirect');
+                        router.push(
+                            redirectTo && !redirectTo.startsWith('/login')
+                                ? normalizeRedirectPath(redirectTo)
+                                : '/today'
+                        );
                     }
                 }
             } catch {
@@ -117,7 +107,7 @@ function LoginContent() {
         };
 
         checkSession();
-    }, [router]);
+    }, [router, searchParams]);
 
     // Validate username
     const validateUsername = (value: string) => {
@@ -182,29 +172,8 @@ function LoginContent() {
                 // Redirect based on role or redirect param
                 if (redirectTo && !redirectTo.startsWith('/login')) {
                     router.push(normalizeRedirectPath(redirectTo));
-                } else if (data.user?.role === 'STAFF' && data.user?.stationId) {
-                    const stationId = data.user.stationId;
-                    const stationType = data.user.stationType;
-
-                    // Import findStationIndex to handle UUID aliases
-                    const { findStationIndex } = await import('@/constants');
-                    const stationNum = findStationIndex(stationId);
-
-                    // Use stationType to determine the correct path
-                    if (stationNum > 0) {
-                        if (stationType === 'FULL') {
-                            router.push(stationNum === 1 ? '/station/1/v2' : `/station/${stationNum}/new/home`);
-                        } else if (stationType === 'GAS') {
-                            router.push((stationNum === 5 || stationNum === 6) ? `/stations/station-${stationNum}` : `/gas/${stationNum}`);
-                        } else {
-                            router.push(`/simple-station/${stationNum}/new/home`);
-                        }
-                    } else {
-                        // Fallback
-                        router.push('/dashboard');
-                    }
                 } else {
-                    router.push('/dashboard');
+                    router.push('/today');
                 }
             } else {
                 setError(data.error || 'เกิดข้อผิดพลาด');
