@@ -39,6 +39,8 @@ const moneyFormatter = new Intl.NumberFormat('th-TH', {
     maximumFractionDigits: 2,
 });
 
+const BILLING_DETAIL_PAGE_SIZE = 50;
+
 const stageTone: Record<BillingPipelineStage, 'default' | 'info' | 'warning' | 'success'> = {
     WAITING_TO_BILL: 'warning',
     PREPARING_DOCUMENTS: 'info',
@@ -85,6 +87,7 @@ export default function BillingDetailPage() {
     const [data, setData] = React.useState<BillingDetailPayload | null>(null);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
+    const [sourceVisibleCount, setSourceVisibleCount] = React.useState(BILLING_DETAIL_PAGE_SIZE);
     const kind = searchParams.get('kind');
 
     const loadDetail = React.useCallback(async () => {
@@ -118,6 +121,15 @@ export default function BillingDetailPage() {
     React.useEffect(() => {
         void loadDetail();
     }, [loadDetail]);
+
+    React.useEffect(() => {
+        setSourceVisibleCount(BILLING_DETAIL_PAGE_SIZE);
+    }, [kind, params.id]);
+
+    const renderedSourceItems = React.useMemo(
+        () => data?.sourceItems.slice(0, sourceVisibleCount) || [],
+        [data, sourceVisibleCount]
+    );
 
     return (
         <RedesignAppShell
@@ -221,7 +233,7 @@ export default function BillingDetailPage() {
 
                     <Section
                         title="รายการต้นทาง"
-                        description={`${data.sourceItems.length} รายการที่ประกอบเป็นยอดเอกสาร`}
+                        description={`แสดง ${renderedSourceItems.length} จาก ${data.sourceItems.length} รายการที่ประกอบเป็นยอดเอกสาร`}
                     >
                         {data.sourceItems.length === 0 ? (
                             <EmptyState
@@ -231,6 +243,7 @@ export default function BillingDetailPage() {
                                 description="เอกสารนี้อาจมาจาก generator เก่าที่ไม่ได้ link รายการต้นทาง กรุณาตรวจข้อมูลก่อนรับชำระ"
                             />
                         ) : (
+                            <div className="space-y-4">
                             <ResponsiveDataView
                                 breakpoint="md"
                                 desktop={(
@@ -244,7 +257,7 @@ export default function BillingDetailPage() {
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {data.sourceItems.map((item) => (
+                                            {renderedSourceItems.map((item) => (
                                                 <TableRow key={item.id}>
                                                     <TableCell>
                                                         <div className="font-semibold text-[var(--ui-text)]">{item.description}</div>
@@ -263,7 +276,7 @@ export default function BillingDetailPage() {
                                 )}
                                 mobile={(
                                     <MobileDataList>
-                                        {data.sourceItems.map((item) => (
+                                        {renderedSourceItems.map((item) => (
                                             <MobileDataRow
                                                 key={item.id}
                                                 title={item.description}
@@ -276,6 +289,16 @@ export default function BillingDetailPage() {
                                     </MobileDataList>
                                 )}
                             />
+                            {renderedSourceItems.length < data.sourceItems.length && (
+                                <Button
+                                    variant="outline"
+                                    className="w-full"
+                                    onClick={() => setSourceVisibleCount((count) => count + BILLING_DETAIL_PAGE_SIZE)}
+                                >
+                                    แสดงเพิ่มอีก {Math.min(BILLING_DETAIL_PAGE_SIZE, data.sourceItems.length - renderedSourceItems.length)} รายการ
+                                </Button>
+                            )}
+                            </div>
                         )}
                     </Section>
 

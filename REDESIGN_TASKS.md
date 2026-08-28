@@ -2415,6 +2415,35 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
   - ไม่ push / ไม่ deploy production
 
 
+## 2026-08-28 — S81 pass 5 — Customer/Billing mobile progressive rendering
+- Status: [x]
+- ทำอะไรไปแล้ว:
+  - ทำ authenticated read-only browser QA หน้า Customers, Customer 360, Billing และ Billing detail ด้วยข้อมูลจริงบน local UAT port 3005
+  - พบ Customers ACTIVE 713 ราย render ทั้งหมดพร้อมกัน ทำให้ mobile DOM สูงประมาณ 122,783px; เปลี่ยนเป็น progressive rendering 50 รายการแรก + ปุ่มแสดงเพิ่มทีละ 50 โดย search/status/attention filter ยังทำกับ dataset เต็ม
+  - พบ Billing workspace 180 งาน render ทั้งหมดพร้อมกัน สูงประมาณ 16,610px; เปลี่ยนเป็น 50 งานแรก + แสดงเพิ่มทีละ 50 โดย pipeline/kind/search/exception filter ยังทำกับ dataset เต็ม
+  - พบ Invoice detail ตัวอย่าง 238 source items render ทั้งหมดพร้อมกัน สูงประมาณ 20,878px; เปลี่ยน source items เป็น 50 รายการแรก + แสดงเพิ่มทีละ 50 โดยยอดเอกสาร/รับแล้ว/คงเหลือและ payment events ไม่เปลี่ยน
+  - Customer 360 sample โหลดครบและไม่พบ blocker ด้านรายการยาวในรอบนี้
+- Browser re-check หลังแก้:
+  - Customers: 50/713 + แสดงเพิ่ม, ความสูง sample ลดเหลือประมาณ 9,470px ที่ mobile breakpoint
+  - Billing: 50/180 + แสดงเพิ่ม, ความสูง sample ลดเหลือประมาณ 5,360px
+  - Billing detail: 50/238 + แสดงเพิ่ม, ความสูง sample ลดเหลือประมาณ 5,334px
+- ตรวจสอบแล้ว:
+  - Customer/Billing regression 7 files / 30 tests ผ่าน
+  - npx tsc --noEmit ผ่าน
+  - targeted ESLint 3 pages ผ่าน
+  - ไม่มี API query, billing lifecycle, financial formula หรือ write behavior เปลี่ยน
+- Concurrent-work note:
+  - ก่อนเริ่ม session พบ working tree มีงาน Tank Loy auto-print จากงานอื่นอยู่แล้ว; S81 pass 5 ไม่แก้ ไม่ stage และไม่ commit ไฟล์ชุดนั้น
+  - ไม่รัน full production build ใน pass นี้เพื่อไม่ validate/รบกวน unrelated dirty work ของ Tank Loy; ใช้ targeted gates ตาม scope แทน
+- สิ่งที่ยังค้าง:
+  - write-flow UAT เปิดกะ/ขาย/ปิดกะยังต้องใช้ test DB/ชุดข้อมูลที่ตั้งใจไว้
+  - ถ้าจะ polish เพิ่ม ให้ตรวจ true 390px ของ Customers/Billing detail และพิจารณา virtualized list ภายหลังหาก dataset โตมากกว่านี้
+- Session ถัดไปที่แนะนำ: S81 ปิด manual UAT checkpoint แล้วเตรียม write-safe test DB ก่อน route retirement รอบใหม่
+- หมายเหตุ/Decision:
+  - progressive rendering เป็น presentation-only; source dataset และยอดสรุปยังมาจาก API เดิมครบทั้งหมด
+  - ไม่ push / ไม่ deploy production
+
+
 ## Template
 
 ### YYYY-MM-DD — Sxx — ชื่อ Session

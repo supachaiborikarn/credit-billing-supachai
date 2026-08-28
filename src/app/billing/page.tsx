@@ -49,6 +49,8 @@ const moneyFormatter = new Intl.NumberFormat('th-TH', {
     maximumFractionDigits: 2,
 });
 
+const BILLING_PAGE_SIZE = 50;
+
 const stageTone: Record<BillingPipelineStage, 'default' | 'info' | 'warning' | 'success'> = {
     WAITING_TO_BILL: 'warning',
     PREPARING_DOCUMENTS: 'info',
@@ -290,6 +292,7 @@ export default function BillingPage() {
     const [kindFilter, setKindFilter] = React.useState<'ALL' | BillingWorkspaceItemKind>('ALL');
     const [query, setQuery] = React.useState('');
     const [exceptionOnly, setExceptionOnly] = React.useState(false);
+    const [visibleCount, setVisibleCount] = React.useState(BILLING_PAGE_SIZE);
 
     const loadBilling = React.useCallback(async () => {
         setLoading(true);
@@ -330,6 +333,15 @@ export default function BillingPage() {
         });
     }, [data, exceptionOnly, kindFilter, query, stageFilter]);
 
+    React.useEffect(() => {
+        setVisibleCount(BILLING_PAGE_SIZE);
+    }, [exceptionOnly, kindFilter, query, stageFilter]);
+
+    const renderedItems = React.useMemo(
+        () => filteredItems.slice(0, visibleCount),
+        [filteredItems, visibleCount]
+    );
+
     const selectedUnsupportedStage = stageFilter === 'PREPARING_DOCUMENTS' || stageFilter === 'BILLED';
 
     return (
@@ -368,7 +380,7 @@ export default function BillingPage() {
 
                     <Section
                         title="งาน Billing"
-                        description="เลือกขั้นตอน แล้วทำงานถัดไปจากรายการที่ต้องจัดการ"
+                        description={`แสดง ${renderedItems.length} จาก ${filteredItems.length} งานที่ตรงตัวกรอง`}
                         action={(
                             <Button variant="outline" size="sm" onClick={() => void loadBilling()} disabled={loading}>
                                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
@@ -418,7 +430,17 @@ export default function BillingPage() {
                             </Notice>
                         )}
 
-                        <BillingList items={filteredItems} />
+                        <BillingList items={renderedItems} />
+
+                        {renderedItems.length < filteredItems.length && (
+                            <Button
+                                variant="outline"
+                                className="w-full"
+                                onClick={() => setVisibleCount((count) => count + BILLING_PAGE_SIZE)}
+                            >
+                                แสดงเพิ่มอีก {Math.min(BILLING_PAGE_SIZE, filteredItems.length - renderedItems.length)} งาน
+                            </Button>
+                        )}
                     </Section>
                 </div>
             )}

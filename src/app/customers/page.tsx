@@ -41,6 +41,8 @@ const moneyFormatter = new Intl.NumberFormat('th-TH', {
     maximumFractionDigits: 2,
 });
 
+const CUSTOMER_PAGE_SIZE = 50;
+
 const attentionTone: Record<CustomerAttentionLevel, 'default' | 'info' | 'warning' | 'error'> = {
     NONE: 'default',
     INFO: 'info',
@@ -191,6 +193,7 @@ export default function CustomersPage() {
     const [search, setSearch] = React.useState('');
     const [status, setStatus] = React.useState('ACTIVE');
     const [attentionOnly, setAttentionOnly] = React.useState(false);
+    const [visibleCount, setVisibleCount] = React.useState(CUSTOMER_PAGE_SIZE);
 
     const loadCustomers = React.useCallback(async (query: string, nextStatus: string) => {
         setLoading(true);
@@ -224,6 +227,15 @@ export default function CustomersPage() {
         const items = data?.items || [];
         return attentionOnly ? items.filter((item) => item.attention.level !== 'NONE') : items;
     }, [attentionOnly, data]);
+
+    React.useEffect(() => {
+        setVisibleCount(CUSTOMER_PAGE_SIZE);
+    }, [attentionOnly, search, status]);
+
+    const renderedItems = React.useMemo(
+        () => visibleItems.slice(0, visibleCount),
+        [visibleCount, visibleItems]
+    );
 
     if (loading && !data) {
         return (
@@ -292,7 +304,7 @@ export default function CustomersPage() {
 
                 <Section
                     title="รายชื่อลูกค้า"
-                    description={data ? `${visibleItems.length} รายจาก ${data.summary.customerCount} ราย` : 'ค้นหาและจัดลำดับตามงานที่ต้องทำ'}
+                    description={data ? `แสดง ${renderedItems.length} จาก ${visibleItems.length} รายตามตัวกรอง · ${data.summary.customerCount} รายทั้งหมด` : 'ค้นหาและจัดลำดับตามงานที่ต้องทำ'}
                     action={(
                         <Button variant="outline" size="sm" onClick={() => void loadCustomers(search, status)} disabled={loading}>
                             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
@@ -332,7 +344,17 @@ export default function CustomersPage() {
                         </button>
                     </div>
 
-                    <CustomerList items={visibleItems} />
+                    <CustomerList items={renderedItems} />
+
+                    {renderedItems.length < visibleItems.length && (
+                        <Button
+                            variant="outline"
+                            className="w-full"
+                            onClick={() => setVisibleCount((count) => count + CUSTOMER_PAGE_SIZE)}
+                        >
+                            แสดงเพิ่มอีก {Math.min(CUSTOMER_PAGE_SIZE, visibleItems.length - renderedItems.length)} ราย
+                        </Button>
+                    )}
                 </Section>
 
                 <div className="flex items-center gap-2 text-xs text-[var(--ui-text-muted)]">
