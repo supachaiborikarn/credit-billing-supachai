@@ -8,6 +8,8 @@ Latest active-route rerun: **S81 pass 7 — 16 files / 81 tests passed on a clea
 
 Latest compatibility-safety rerun: **S85 — the same 16-file financial release gate passed 83 tests after retired-station mutation policy + strict transaction/station route binding; thermal receipt regression also passed 3/3 for 58/80 mm, receipt/credit, original/copy and station-3 fail-closed header safety.**
 
+Latest FULL maintenance-parity rerun: **S89 — 16 files / 83 financial tests passed on a clean HEAD + S89-only snapshot after moving CSV export, payment-filtered export, historical transfer-proof replacement and the corrected station-scoped void path into FULL V2. S89 compatibility regression passed 60/60 on the same clean snapshot; isolated-Neon write UAT confirmed proof replacement preserves liters/price/amount and the corrected DELETE path voids only the intended fixture.**
+
 ## Release gate
 
 Run:

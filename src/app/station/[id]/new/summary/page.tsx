@@ -1,1 +1,6 @@
-export { default } from '@/app/simple-station/[id]/new/summary/page';
+import { redirect } from 'next/navigation';
+
+export default async function FullSummaryCompatRedirect({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
+    redirect(`/station/${id}/v2`);
+}

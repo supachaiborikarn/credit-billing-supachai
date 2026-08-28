@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { STATIONS } from '@/constants';
+import { PAYMENT_TYPES, STATIONS } from '@/constants';
 import DayStatusCard from './components/DayStatusCard';
 import MeterSection from './components/MeterSection';
 import TransactionCard from './components/TransactionCard';
@@ -16,8 +16,9 @@ import EditTransactionModal from './components/EditTransactionModal';
 import TimeBasedReminder from '@/components/TimeBasedReminder';
 import PreviousDayBlocker from './components/PreviousDayBlocker';
 import OperationsCommandPanel from './components/OperationsCommandPanel';
-import { Printer, Settings } from 'lucide-react';
+import { Download, Printer, Settings } from 'lucide-react';
 import { printDailyWorkReport, printThermalDailyWorkReport } from '@/lib/daily-report-print';
+import { buildFullStationSummaryCsv, buildFullStationSummaryCsvFilename, filterFullSummaryTransactions } from '@/lib/stations/full-summary-compat';
 
 interface MeterReading {
     nozzleNumber: number;
@@ -35,6 +36,7 @@ interface Transaction {
     ownerName: string;
     ownerCode?: string | null;
     paymentType: string;
+    fuelType?: string | null;
     nozzleNumber: number;
     liters: number;
     pricePerLiter: number;
@@ -80,6 +82,7 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
     const [activeTab, setActiveTab] = useState<TabType>('home');
     const [lastPaymentType, setLastPaymentType] = useState<string>('CREDIT');
     const [lastNozzle, setLastNozzle] = useState<number>(1);
+    const [csvPaymentFilter, setCsvPaymentFilter] = useState<string>('all');
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -213,6 +216,19 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
             : Math.max(Number(meter.endReading || 0) - Number(meter.startReading || 0), 0),
     }));
 
+    const handleExportDailyCsv = () => {
+        if (!station) return;
+        const exportTransactions = filterFullSummaryTransactions(transactions, csvPaymentFilter);
+        const csv = buildFullStationSummaryCsv(exportTransactions);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = buildFullStationSummaryCsvFilename(station.name, selectedDate);
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
     const handlePrintDailyReport = (paper: 'a4' | '58' | '80') => {
         if (!station) {
             alert('ไม่พบข้อมูลสถานีสำหรับพิมพ์รายงาน');
@@ -294,9 +310,11 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
                                 {transactions.slice(0, 3).map(t => (
                                     <TransactionCard
                                         key={t.id}
+                                        stationId={id}
                                         transaction={t}
                                         onEdit={() => setEditingTransaction(t)}
                                         onDelete={() => fetchDailyData()}
+                                        onUpdated={() => fetchDailyData()}
                                         showActions={!isDayClosed || isAdmin}
                                         isLocked={isDayClosed && !isAdmin}
                                     />
@@ -326,9 +344,11 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
                             {transactions.map(t => (
                                 <TransactionCard
                                     key={t.id}
+                                    stationId={id}
                                     transaction={t}
                                     onEdit={() => setEditingTransaction(t)}
                                     onDelete={() => fetchDailyData()}
+                                    onUpdated={() => fetchDailyData()}
                                     showActions={!isDayClosed || isAdmin}
                                     isLocked={isDayClosed && !isAdmin}
                                 />
@@ -394,6 +414,29 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
                                 >
                                     A4
                                     <span className="block text-[10px] font-semibold text-slate-300">เต็มหน้า</span>
+                                </button>
+                            </div>
+                            <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                                <select
+                                    value={csvPaymentFilter}
+                                    onChange={(event) => setCsvPaymentFilter(event.target.value)}
+                                    className="min-w-0 rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm font-semibold text-gray-700"
+                                    aria-label="กรองประเภทชำระสำหรับ CSV"
+                                >
+                                    <option value="all">CSV: ทุกประเภทชำระ</option>
+                                    {PAYMENT_TYPES.map((paymentType) => (
+                                        <option key={paymentType.value} value={paymentType.value}>
+                                            CSV: {paymentType.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <button
+                                    type="button"
+                                    onClick={handleExportDailyCsv}
+                                    disabled={transactions.length === 0 || (csvPaymentFilter !== 'all' && !transactions.some((transaction) => transaction.paymentType === csvPaymentFilter))}
+                                    className="flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-extrabold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    <Download size={18} /> CSV
                                 </button>
                             </div>
                         </section>

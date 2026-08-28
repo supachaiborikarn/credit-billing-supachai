@@ -2381,7 +2381,7 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
   - เพิ่ม `/sales` เข้า auth-protected route boundary
   - browser mobile QA ยืนยัน page width 390/390 ไม่มี horizontal overflow และการ์ดสถานีสุดท้ายเลื่อนพ้น fixed bottom nav ได้
 - ตรวจสอบแล้ว:
-  - middleware/station/retry regression ผ่าน 3 files / 53 tests
+  - middleware/station/retry regression ผ่าน 4 files / 60 tests
   - `npx tsc --noEmit` ผ่าน
   - targeted ESLint ผ่าน
   - authenticated `/sales` = 200; ADMIN เห็น 3 active stations; STAFF station-5 `/sales` → `/stations/station-5/sales`
@@ -2687,4 +2687,34 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - No financial/write API changed; this is route-wrapper alignment plus parity classification only.
 - Verification: middleware/retirement regression 2 files / 153 tests passed; TypeScript, targeted ESLint, `git diff --check`, and production build with `NODE_ENV=production` 127/127 routes passed.
 - Concurrent Tank Loy/shared brain work remains untouched.
+- No push / no deploy / no production DB write.
+
+
+## 2026-08-28 — S89 — Complete FULL summary parity and retire legacy summary
+- Status: `[x]`
+- Scope:
+  - active FULL station-1 only; retired SIMPLE summary/receipt compatibility remains unchanged.
+  - no sale formula, reconciliation formula, database schema or production data changed.
+- Parity work moved into `/station/1/v2`:
+  - daily CSV export with the legacy columns, Thai labels, totals, UTF-8 BOM and correct CSV escaping.
+  - CSV payment filter parity: all / CASH / CREDIT / TRANSFER / BOX_TRUCK / OIL_TRUCK_SUPACHAI / CREDIT_CARD.
+  - historical transfer-proof attach/replacement from each transaction card through the existing `/api/upload/transfer-proof` + station-scoped transaction PUT flow.
+  - transaction card now receives `stationId` explicitly rather than deriving it from pathname.
+  - fixed V2 void/delete to call `/api/station/[stationId]/transactions/[transactionId]`; the previous card path omitted station scope and had no matching route.
+- Route retirement:
+  - `/station/1/new/summary` wrapper now redirects to `/station/1/v2`.
+  - middleware explicitly maps `summary/list/record` to V2 and preserves query strings; unauthenticated summary bookmarks normalize through login to V2.
+  - the shared legacy SIMPLE summary page is retained for station-2/3/4 historical maintenance and was not removed.
+- Tests / verification:
+  - targeted S89 route/export/receipt/context gate: 4 files / 60 tests passed after final payment-filter parity patch.
+  - ESLint: 0 errors; 3 pre-existing V2 warnings only (`img` optimization + existing hook dependency warnings).
+  - clean HEAD + S89-only snapshot: financial release gate 16 files / 83 tests passed; S89 compatibility set 4 files / 60 tests passed; TypeScript passed.
+  - production build with `NODE_ENV=production`: 127/127 routes passed.
+- Isolated Neon write UAT:
+  - `uat-s89-transfer`: GET 200 → station-bound PUT 200 → GET 200; proof URL changed while liters 10, price 31.34 and amount 313.40 were preserved exactly.
+  - `uat-s89-delete`: station-bound DELETE 200; follow-up GET confirmed `isVoided=true` and `deletedAt` set.
+  - legacy summary bookmark returned 307 to `/station/1/v2?from=s89-uat`; target returned 200.
+  - file-upload helper itself was regression-tested with mocked upload responses; no test image was written to Cloudinary.
+- Concurrent-work note:
+  - Tank Loy auto-print/shared brain changes from another task remain untouched and excluded from S89 staging/commit.
 - No push / no deploy / no production DB write.

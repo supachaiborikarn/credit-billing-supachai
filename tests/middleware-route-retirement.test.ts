@@ -216,12 +216,23 @@ describe('middleware legacy route retirement boundaries', () => {
         expect(loginUrl.searchParams.get('redirect')).toBe('/stations/station-1/history?from=bookmark');
     });
 
-    it.each(['list', 'record'])('keeps FULL %s compatibility entry on V2 and preserves query', (page) => {
-        const response = middleware(request(`/station/1/new/${page}?from=s88`));
+    it.each(['summary', 'list', 'record'])('keeps FULL %s compatibility entry on V2 and preserves query', (page) => {
+        const response = middleware(request(`/station/1/new/${page}?from=s89`));
 
         expect(response.status).toBe(307);
         expect(response.headers.get('location')).toBe(
-            'https://credit-billing-supachai.local/station/1/v2?from=s88'
+            'https://credit-billing-supachai.local/station/1/v2?from=s89'
         );
+    });
+
+    it('normalizes unauthenticated FULL summary bookmark to V2 before login', () => {
+        const response = middleware(request('/station/1/new/summary?from=s89-bookmark', false));
+        const location = response.headers.get('location');
+
+        expect(response.status).toBe(307);
+        expect(location).not.toBeNull();
+        const loginUrl = new URL(location!);
+        expect(loginUrl.pathname).toBe('/login');
+        expect(loginUrl.searchParams.get('redirect')).toBe('/station/1/v2?from=s89-bookmark');
     });
 });

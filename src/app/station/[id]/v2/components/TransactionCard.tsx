@@ -1,18 +1,20 @@
 'use client';
 
-import { useState } from 'react';
-import { Edit, Trash2, Lock, Image as ImageIcon, X, Printer, FileText } from 'lucide-react';
-import { usePathname } from 'next/navigation';
+import { useRef, useState } from 'react';
+import { Edit, Trash2, Lock, Image as ImageIcon, X, Printer, FileText, Upload } from 'lucide-react';
 import { PAYMENT_TYPES } from '@/constants';
 import ConfirmModal from '@/components/ConfirmModal';
+import { replaceFullStationTransferProof, voidFullStationTransaction } from '@/lib/stations/full-summary-compat';
 
 interface Transaction {
     id: string;
     date: string;
     licensePlate: string;
+    ownerId?: string | null;
     ownerName: string;
     ownerCode?: string | null;
     paymentType: string;
+    fuelType?: string | null;
     nozzleNumber: number;
     liters: number;
     pricePerLiter: number;
@@ -28,25 +30,30 @@ interface Transaction {
 }
 
 interface TransactionCardProps {
+    stationId: string;
     transaction: Transaction;
     onEdit: () => void;
     onDelete: () => void;
+    onUpdated?: () => void;
     showActions?: boolean;
     isLocked?: boolean;
 }
 
 export default function TransactionCard({
+    stationId,
     transaction,
     onEdit,
     onDelete,
+    onUpdated,
     showActions = false,
     isLocked = false,
 }: TransactionCardProps) {
-    const pathname = usePathname();
     const [showImageModal, setShowImageModal] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showPrintModal, setShowPrintModal] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [uploadingProof, setUploadingProof] = useState(false);
+    const proofInputRef = useRef<HTMLInputElement>(null);
 
     const paymentConfig = PAYMENT_TYPES.find(p => p.value === transaction.paymentType);
     const paymentLabel = paymentConfig?.label || transaction.paymentType;
@@ -61,7 +68,6 @@ export default function TransactionCard({
         null;
     const hasTransferProof = !!transferProofUrl;
     const isTransfer = transaction.paymentType === 'TRANSFER' || hasTransferProof;
-    const stationId = pathname.match(/^\/station\/(\d+)/)?.[1] || '1';
 
     const formatCurrency = (num: number) =>
         new Intl.NumberFormat('th-TH', {
@@ -90,19 +96,29 @@ export default function TransactionCard({
     const handleConfirmDelete = async () => {
         setDeleting(true);
         try {
-            const res = await fetch(`/api/station/transactions/${transaction.id}`, {
-                method: 'DELETE',
-            });
-            if (res.ok) {
-                setShowDeleteConfirm(false);
-                onDelete();
-            } else {
-                alert('ลบไม่สำเร็จ');
-            }
-        } catch {
-            alert('เกิดข้อผิดพลาด');
+            await voidFullStationTransaction({ stationParam: stationId, transactionId: transaction.id });
+            setShowDeleteConfirm(false);
+            onDelete();
+        } catch (error) {
+            alert(error instanceof Error ? error.message : 'ลบไม่สำเร็จ');
         } finally {
             setDeleting(false);
+        }
+    };
+
+    const handleProofChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        setUploadingProof(true);
+        try {
+            await replaceFullStationTransferProof({ stationParam: stationId, transaction, file });
+            alert(hasTransferProof ? 'เปลี่ยนสลิปสำเร็จ' : 'แนบสลิปสำเร็จ');
+            onUpdated?.();
+        } catch (error) {
+            alert(error instanceof Error ? error.message : 'แนบสลิปไม่สำเร็จ');
+        } finally {
+            setUploadingProof(false);
+            event.target.value = '';
         }
     };
 
@@ -184,8 +200,10 @@ export default function TransactionCard({
                     </div>
                 )}
 
+                <input ref={proofInputRef} type="file" accept="image/*" className="hidden" onChange={handleProofChange} />
+
                 {/* Action Buttons */}
-                <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-gray-100">
+                <div className="flex flex-wrap justify-end gap-2 mt-3 pt-3 border-t border-gray-100">
                     {hasTransferProof && (
                         <button
                             onClick={() => setShowImageModal(true)}
@@ -194,6 +212,18 @@ export default function TransactionCard({
                         >
                             <ImageIcon size={18} />
                             <span>ดูสลิป</span>
+                        </button>
+                    )}
+                    {transaction.paymentType === 'TRANSFER' && showActions && !isLocked && (
+                        <button
+                            type="button"
+                            onClick={() => proofInputRef.current?.click()}
+                            disabled={uploadingProof}
+                            className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-60"
+                            title={hasTransferProof ? 'เปลี่ยนหลักฐานการโอน' : 'แนบหลักฐานการโอน'}
+                        >
+                            <Upload size={18} />
+                            <span>{uploadingProof ? 'กำลังอัปโหลด...' : hasTransferProof ? 'เปลี่ยนสลิป' : 'แนบสลิป'}</span>
                         </button>
                     )}
                     <button

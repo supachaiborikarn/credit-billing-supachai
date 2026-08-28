@@ -73,6 +73,7 @@ function getTankLoyRedirectPath(pathname: string) {
         if (page === 'sell' || page === 'oil-sell') return '/stations/station-1/sales';
         if (page === 'shift-history') return '/stations/station-1/history';
         if (page === 'meter-summary') return '/stations/station-1/history';
+        if (page === 'summary' || page === 'list' || page === 'record') return '/station/1/v2';
         if (page === 'open-shift' || page === 'close-shift' || page === 'shift-end' || page === 'meters') return '/stations/station-1/operations';
         return '/station/1/v2';
     }
