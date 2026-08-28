@@ -66,3 +66,7 @@ export function getActiveFullHistoryRedirect(stationParam: string): string | nul
     if (!station || station.type !== 'FULL' || station.operationalStatus !== 'ACTIVE') return null;
     return `/stations/${station.id}/history`;
 }
+
+export function getActiveFullMeterSummaryRedirect(stationParam: string): string | null {
+    return getActiveFullHistoryRedirect(stationParam);
+}

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { STATIONS } from '../src/constants';
 import {
     getActiveFullHistoryRedirect,
+    getActiveFullMeterSummaryRedirect,
     getActiveFullOperationsRedirect,
     getActiveFullOverviewRedirect,
     getActiveFullSellRedirect,
@@ -139,6 +140,17 @@ describe('legacy route retirement', () => {
 
     it.each(['2', '3', '4', '5', '6', '7', '', 'station-5'])('does not redirect non-FULL history param %s', (stationParam) => {
         expect(getActiveFullHistoryRedirect(stationParam)).toBeNull();
+    });
+
+    it.each([
+        ['1', '/stations/station-1/history'],
+        ['station-1', '/stations/station-1/history'],
+    ])('redirects active FULL meter-summary param %s to canonical history', (stationParam, expected) => {
+        expect(getActiveFullMeterSummaryRedirect(stationParam)).toBe(expected);
+    });
+
+    it.each(['2', '3', '4', '5', '6', '7', '', 'station-5'])('does not redirect non-FULL meter-summary param %s', (stationParam) => {
+        expect(getActiveFullMeterSummaryRedirect(stationParam)).toBeNull();
     });
 
     it.each([

@@ -2654,3 +2654,27 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print/shared brain files from another task remain untouched/uncommitted by S86.
 - No push / no deploy / no production DB write.
+
+
+## 2026-08-28 — S87 — Retire FULL meter-summary to canonical History
+- Status: `[x]`
+- Scope:
+  - active FULL station-1 meter-summary only; no summary/list/record/receipt, transaction mutation, shift write or financial API changed.
+- Audit:
+  - legacy `/station/1/new/meter-summary` is read-only and fetches shift meter data plus transaction totals for a selected day.
+  - the legacy meter-money value is not historical source of truth: it multiplies meter liters by hard-coded `STATION_FUEL_CONFIGS` prices; station-1 is fixed at 30.84 per nozzle.
+  - canonical History already preserves raw per-nozzle start/end/sold readings, meter photos, persisted transaction liters/amount, meter-vs-transaction liters difference, reconciliation and anomaly evidence.
+  - middleware previously sent this route to `/station/1/v2`, so this change also makes the intended canonical destination explicit.
+- Route implementation:
+  - added bounded active-FULL meter-summary redirect helper.
+  - `/station/1/new/meter-summary` page wrapper and middleware now redirect to `/stations/station-1/history`; non-FULL wrapper input falls back to `/station/[id]/v2`.
+  - query strings are preserved by middleware.
+- Verification:
+  - route/history/context/middleware regression: 4 files / 163 tests passed.
+  - TypeScript, targeted ESLint and `git diff --check` passed.
+  - authenticated isolated-Neon UAT: legacy route returned 307 to `/stations/station-1/history?from=s87-bookmark`; canonical target returned 200.
+  - production build with `NODE_ENV=production` passed 127/127 routes.
+  - read-only retirement only; S85 financial baseline remains active.
+- Concurrent-work note:
+  - Tank Loy auto-print/shared brain files from another task remain untouched/uncommitted by S87.
+- No push / no deploy / no production DB write.

@@ -195,4 +195,24 @@ describe('middleware legacy route retirement boundaries', () => {
         expect(loginUrl.pathname).toBe('/login');
         expect(loginUrl.searchParams.get('redirect')).toBe('/stations/station-1/history?from=bookmark');
     });
+
+    it('retires FULL meter-summary to canonical History and preserves query', () => {
+        const response = middleware(request('/station/1/new/meter-summary?from=legacy-meter'));
+
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(
+            'https://credit-billing-supachai.local/stations/station-1/history?from=legacy-meter'
+        );
+    });
+
+    it('normalizes unauthenticated FULL meter-summary before login', () => {
+        const response = middleware(request('/station/1/new/meter-summary?from=bookmark', false));
+        const location = response.headers.get('location');
+
+        expect(response.status).toBe(307);
+        expect(location).not.toBeNull();
+        const loginUrl = new URL(location!);
+        expect(loginUrl.pathname).toBe('/login');
+        expect(loginUrl.searchParams.get('redirect')).toBe('/stations/station-1/history?from=bookmark');
+    });
 });
