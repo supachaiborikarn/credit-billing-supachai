@@ -395,10 +395,10 @@ function StaleGasShiftNotice({ context }: { context: StationContextPayload }) {
     if (context.station.type !== 'GAS' || !context.staleShift) return null;
 
     return (
-        <Notice tone="danger" title="มีกะ GAS ค้างจากวันก่อน">
+        <Notice tone="danger" title="พบกะเก่าค้างแยกจากกะปัจจุบัน">
             <div className="flex flex-wrap items-center gap-3">
                 <span>
-                    กะ {context.staleShift.shiftNumber} วันที่ {context.staleShift.businessDate} ยังมีสถานะ OPEN ในระบบ
+                    กะเก่า #{context.staleShift.shiftNumber} วันที่ {context.staleShift.businessDate} ยัง OPEN อยู่และเป็นคนละรายการกับกะปัจจุบันด้านล่าง การปิดกะในหน้านี้จะปิดเฉพาะกะปัจจุบัน
                 </span>
                 {context.user.role === 'ADMIN' ? (
                     <Link

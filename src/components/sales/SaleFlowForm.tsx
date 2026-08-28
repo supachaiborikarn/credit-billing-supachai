@@ -228,7 +228,7 @@ export function SaleFlowForm({
 
             <div
                 className="sticky z-[var(--ui-z-sticky)] -mx-4 border-t border-[var(--ui-border)] bg-[var(--ui-surface)]/95 px-4 py-3 backdrop-blur sm:mx-0 sm:flex sm:justify-end sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none lg:static"
-                style={{ bottom: 'calc(var(--ui-bottom-nav-height) + env(safe-area-inset-bottom))' }}
+                style={{ bottom: 'calc(var(--ui-bottom-nav-height) + 1px + env(safe-area-inset-bottom))' }}
             >
                 <Button
                     size="lg"

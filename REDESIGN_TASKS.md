@@ -2394,6 +2394,27 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
   - ไม่ push / ไม่ deploy production
 
 
+## 2026-08-28 — S81 pass 4 — Mobile SaleFlow / Operations visual QA
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - ใช้ Chrome headless profile แยก + authenticated ADMIN session ตรวจ canonical Sales/Operations จริงที่ viewport `390x844` สำหรับ station-1/5/6; เป็น read-only visual UAT ไม่กด save/open/close shift
+  - ยืนยันทั้ง 6 หน้าไม่มี page-level horizontal overflow และ Operations สามารถเลื่อนถึงปุ่มตรวจ/ปิดกะได้โดย bottom nav ไม่บัง
+  - พบ SaleFlow sticky save bar ชนเส้นบนของ fixed bottom nav 1px; ขยับ offset เพิ่ม 1px ให้ขอบจบพอดีก่อน nav
+  - พบ GAS มี stale OPEN เก่าจาก 2026-04-24 พร้อม current shift อีกกะหนึ่ง; ปรับ warning ให้ระบุชัดว่า stale shift เป็นคนละรายการกับกะปัจจุบัน และปุ่มปิดกะในหน้านี้ปิดเฉพาะ current shift
+- ตรวจสอบแล้ว:
+  - post-fix browser geometry: sticky save bottom = `779`, bottom nav top = `779`, document width = `390/390`
+  - station-5/6 Sales + Operations แสดงข้อความแยก stale/current shift ชัดเจน
+  - `npx tsc --noEmit` + targeted ESLint ผ่าน; station-context/middleware regression 2 files / 42 tests ผ่าน
+  - ไม่มี financial formula/API/write behavior เปลี่ยน
+- สิ่งที่ยังค้าง:
+  - write-flow UAT เปิดกะ/ขาย/ปิดกะยังต้องทำบน test DB/ชุดข้อมูลที่ตั้งใจไว้
+  - stale GAS shifts เก่าควร cleanup ผ่าน admin workflow แยกต่างหาก ไม่ auto-close จาก canonical UI
+- Session ถัดไปที่แนะนำ: `S81` เตรียม write-safe UAT/test DB หรือ review Customer/Billing mobile ก่อนเริ่ม route retirement รอบใหม่
+- หมายเหตุ/Decision:
+  - visual QA รอบนี้ใช้ข้อมูลจริงแบบอ่านอย่างเดียว; มีเพียง auth session สำหรับ UAT ไม่มี transaction/shift/inventory write
+  - ไม่ push / ไม่ deploy production
+
+
 ## Template
 
 ### YYYY-MM-DD — Sxx — ชื่อ Session

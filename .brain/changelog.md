@@ -3,6 +3,11 @@
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
 ## 2026-08-28
+- 📱 S81 pass 4 mobile SaleFlow/Operations visual QA
+  - authenticated Chrome QA viewport 390x844 ครบ station-1/5/6 Sales + Operations แบบ read-only; ไม่มี page horizontal overflow และปุ่มปิดกะเลื่อนพ้น bottom nav
+  - ขยับ SaleFlow sticky Save ขึ้น 1px ให้จบตรงขอบบน bottom nav พอดี (779/779)
+  - ปรับ GAS stale-shift warning ให้ชัดว่า OPEN เก่า 2026-04-24 เป็นคนละ shift กับ current shift และการปิดกะใน canonical Operations ปิดเฉพาะ current shift
+  - TypeScript + targeted ESLint + station-context/middleware regression 42/42 ผ่าน; ไม่มี financial/API/write behavior เปลี่ยน; ไม่ push/deploy
 - 🧪 S81 pass 3 browser UI QA + canonical Sales entry
   - browser QA หน้า redesign จริงพบ ADMIN `Sales` dead link `/sales` = 404; เพิ่ม `/sales` เป็น station chooser สำหรับ active 1/5/6 และ STAFF redirect เข้า canonical station Sales ของตัวเอง
   - normalize STAFF nav เป็น `/stations/station-X/sales|history`, protect `/sales` ก่อน login; mobile 390px ไม่มี page overflow และ bottom nav ไม่บังการ์ดสุดท้าย
