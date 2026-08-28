@@ -2678,3 +2678,13 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print/shared brain files from another task remain untouched/uncommitted by S87.
 - No push / no deploy / no production DB write.
+
+
+## 2026-08-28 — S88 — Audit FULL summary/list/record compatibility
+- Status: `[x]`
+- `summary`: **KEEP_FULL_ADMIN_COMPAT**. It still owns edit/void, historical transfer-slip replacement, receipt/credit reprint, CSV export and daily report print. V2 has most parity but not CSV export or historical transfer-slip replacement, so no summary retirement yet.
+- `list` and `record`: redirect-only routes with no unique capability. Middleware already sent both to `/station/1/v2`; wrappers are now aligned to that actual runtime behavior.
+- No financial/write API changed; this is route-wrapper alignment plus parity classification only.
+- Verification: middleware/retirement regression 2 files / 153 tests passed; TypeScript, targeted ESLint, `git diff --check`, and production build with `NODE_ENV=production` 127/127 routes passed.
+- Concurrent Tank Loy/shared brain work remains untouched.
+- No push / no deploy / no production DB write.

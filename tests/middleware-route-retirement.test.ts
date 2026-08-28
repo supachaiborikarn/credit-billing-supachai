@@ -215,4 +215,13 @@ describe('middleware legacy route retirement boundaries', () => {
         expect(loginUrl.pathname).toBe('/login');
         expect(loginUrl.searchParams.get('redirect')).toBe('/stations/station-1/history?from=bookmark');
     });
+
+    it.each(['list', 'record'])('keeps FULL %s compatibility entry on V2 and preserves query', (page) => {
+        const response = middleware(request(`/station/1/new/${page}?from=s88`));
+
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(
+            'https://credit-billing-supachai.local/station/1/v2?from=s88'
+        );
+    });
 });
