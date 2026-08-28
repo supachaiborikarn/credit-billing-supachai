@@ -16,6 +16,7 @@ const protectedRoutes = [
     '/users',
     '/settings',
     '/today',
+    '/sales',
     '/stations',
     '/customers',
     '/billing',

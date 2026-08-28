@@ -31,6 +31,7 @@ describe('middleware legacy route retirement boundaries', () => {
 
     it.each([
         '/today',
+        '/sales',
         '/stations/station-1',
         '/customers',
         '/billing',

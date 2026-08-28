@@ -3,6 +3,10 @@
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
 ## 2026-08-28
+- 🧪 S81 pass 3 browser UI QA + canonical Sales entry
+  - browser QA หน้า redesign จริงพบ ADMIN `Sales` dead link `/sales` = 404; เพิ่ม `/sales` เป็น station chooser สำหรับ active 1/5/6 และ STAFF redirect เข้า canonical station Sales ของตัวเอง
+  - normalize STAFF nav เป็น `/stations/station-X/sales|history`, protect `/sales` ก่อน login; mobile 390px ไม่มี page overflow และ bottom nav ไม่บังการ์ดสุดท้าย
+  - regression 53/53 + TypeScript/ESLint ผ่าน; ไม่มี financial/write logic ใหม่และยังไม่ push/deploy
 - 🧭 S81 pass 3 canonical landing fix
   - UAT พบผู้ใช้ยังเห็น UI เดิมเพราะ ADMIN login/default landing ยังไป `/dashboard` และ STAFF บางประเภทกลับ legacy station route แม้ canonical UI พร้อมแล้ว
   - เปลี่ยน `/`, normal login และ existing-session login ให้เริ่มที่ `/today`; exact `/dashboard` → `/today` พร้อม preserve query และ unauth redirect normalization

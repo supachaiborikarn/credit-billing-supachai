@@ -2371,6 +2371,29 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
   - ไม่ push / ไม่ deploy production
 
 
+## 2026-08-28 — S81 pass 3 — Browser UI QA / canonical Sales entry
+- Status: `[~]`
+- ทำอะไรไปแล้ว:
+  - ใช้ Chrome headless profile แยกทำ browser-level QA หน้า redesign จริงบน `localhost:3005` ทั้ง desktop/mobile; ไม่แตะ Chrome profile ของผู้ใช้
+  - audit navigation พบ ADMIN เมนู `Sales` ชี้ `/sales` ที่ไม่มี route ทำให้ 404; เพิ่ม canonical `/sales` เป็น orchestration page เลือก active station-1/5/6 แล้วเข้าจุด `/stations/station-X/sales` โดยไม่สร้าง SaleFlow/financial logic ซ้ำ
+  - `/sales` ของ STAFF redirect ไป Sales ของสถานีตัวเอง; retired staff กลับ Today และไม่มี operational sale flow
+  - normalize STAFF bottom/desktop nav จาก `/stations/5/...` เป็น canonical `/stations/station-5/...` (รวม Sales/History)
+  - เพิ่ม `/sales` เข้า auth-protected route boundary
+  - browser mobile QA ยืนยัน page width 390/390 ไม่มี horizontal overflow และการ์ดสถานีสุดท้ายเลื่อนพ้น fixed bottom nav ได้
+- ตรวจสอบแล้ว:
+  - middleware/station/retry regression ผ่าน 3 files / 53 tests
+  - `npx tsc --noEmit` ผ่าน
+  - targeted ESLint ผ่าน
+  - authenticated `/sales` = 200; ADMIN เห็น 3 active stations; STAFF station-5 `/sales` → `/stations/station-5/sales`
+- สิ่งที่ยังค้าง:
+  - write-flow UAT เปิดกะ/ขาย/ปิดกะยังต้องใช้ test DB/ชุดข้อมูลที่ตั้งใจไว้
+  - browser visual review หน้า SaleFlow/Operations รายละเอียดบน mobile ยังทำต่อได้ก่อน retire compatibility เพิ่ม
+- Session ถัดไปที่แนะนำ: `S81` mobile SaleFlow/Operations visual QA แล้วเตรียม write-safe test DB
+- หมายเหตุ/Decision:
+  - `/sales` เป็น orchestration/entry route เท่านั้น ไม่เพิ่ม query/สูตรการเงินใหม่; ใช้ `/api/today` read model + canonical SaleFlow เดิม
+  - ไม่ push / ไม่ deploy production
+
+
 ## Template
 
 ### YYYY-MM-DD — Sxx — ชื่อ Session

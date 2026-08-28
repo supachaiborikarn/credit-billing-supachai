@@ -81,14 +81,16 @@ function getStaffNav(user: ShellUser | null): NavItem[] {
         { label: 'Today', href: '/today', icon: CalendarDays },
     ];
 
-    if (!isRetired && stationNumber > 0) {
-        items.push({ label: 'Sales', href: `/stations/${stationNumber}/sales`, icon: ReceiptText });
+    const canonicalStationId = stationNumber > 0 ? `station-${stationNumber}` : null;
+
+    if (!isRetired && canonicalStationId) {
+        items.push({ label: 'Sales', href: `/stations/${canonicalStationId}/sales`, icon: ReceiptText });
     }
 
     items.push({ label: 'Customers', href: '/customers', icon: Users });
 
-    if (stationNumber > 0) {
-        items.push({ label: 'History', href: `/stations/${stationNumber}/history`, icon: History });
+    if (canonicalStationId) {
+        items.push({ label: 'History', href: `/stations/${canonicalStationId}/history`, icon: History });
     }
 
     return items;

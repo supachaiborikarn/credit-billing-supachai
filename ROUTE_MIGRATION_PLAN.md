@@ -7,6 +7,7 @@
 | Domain | Canonical route |
 | --- | --- |
 | Work queue | `/today` |
+| Sales entry / station chooser | `/sales` |
 | Station home | `/stations/[stationId]` |
 | Active-station sales | `/stations/[stationId]/sales` |
 | Active-station operations | `/stations/[stationId]/operations` |
