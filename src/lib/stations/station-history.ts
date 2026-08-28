@@ -92,3 +92,10 @@ export function normalizeHistoryVariance(totalExpected: unknown, totalReceived: 
     if (!Number.isFinite(expected) || !Number.isFinite(received)) return 0;
     return Number((received - expected).toFixed(2));
 }
+
+export function normalizeMeterTransactionDifferenceLiters(totalMeterLiters: unknown, transactionLiters: unknown): number {
+    const meter = Number(totalMeterLiters);
+    const transactions = Number(transactionLiters);
+    if (!Number.isFinite(meter) || !Number.isFinite(transactions)) return 0;
+    return Number((meter - transactions).toFixed(3));
+}

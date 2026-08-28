@@ -120,11 +120,11 @@ Disposition: **REDIRECTED_RETIRED_COMPLETE**. S45-S52 ปิด retired SIMPLE o
 ### Keep read compatibility until S40
 
 - `/simple-station/[id]/new/shift-history` — **S82 IMPLEMENTED** สำหรับ station-2/3/4 → `/stations/station-[id]/history`; canonical History now exposes opener/closer, duration, per-nozzle meter start/end/sold evidence, date/status filters and read-only retired notice.
-- `/simple-station/[id]/new/meter-summary`
+- `/simple-station/[id]/new/meter-summary` — **S83 IMPLEMENTED** สำหรับ station-2/3/4 → `/stations/station-[id]/history`; legacy `date` bookmark is preserved as canonical `from=to`. Canonical History compares raw meter liters with persisted transaction liters/amount and shows the liters difference. Legacy meter-money values are not treated as parity because they use hard-coded current prices and station-3 falls back to station-2 fuel config.
 - `/simple-station/[id]/new/summary`
 - `/simple-station/[id]/new/receipt`
 
-Disposition: `shift-history` retired in S82; remaining meter-summary/summary/receipt stay **KEEP_READ_COMPAT** until each evidence/print behavior is audited individually.
+Disposition: `shift-history` retired in S82 and `meter-summary` retired in S83 after raw-evidence parity. `summary` and `receipt` remain **KEEP_READ_COMPAT** until each transaction/edit/print behavior is audited individually.
 
 ## Billing routes
 
@@ -170,7 +170,7 @@ Before redirecting an **active FULL/GAS** legacy route:
 
 ## First retirement candidates after gates
 
-1. Retired SIMPLE operational/create family — **S45-S52 complete** for station-2/3/4; S82 also retires `shift-history` after canonical parity. meter-summary/summary/receipt compatibility remains.
+1. Retired SIMPLE operational/create family — **S45-S52 complete** for station-2/3/4; S82 retires `shift-history` and S83 retires `meter-summary` after canonical raw-evidence parity. summary/receipt compatibility remains.
 2. Active GAS sell entries → canonical sales — **S53 current `/gas/[id]/sell` complete** and **S54 older `/gas-station/[id]/new/sell` complete** for station-5/6.
 3. Active FULL sale-entry pair → canonical sales — **S55 `/station/1/new/sell` complete** and **S56 `/station/1/new/oil-sell` complete**.
 4. Active FULL operational entries → canonical operations — **S57 `/station/1/new/open-shift`**, **S58 `/station/1/new/close-shift`**, **S59 `/station/1/new/shift-end`**, and **S60 `/station/1/new/meters` complete** after S38-S40 parity/regression.

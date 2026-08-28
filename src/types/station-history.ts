@@ -81,6 +81,7 @@ export interface StationHistoryShift {
     transactionCount: number;
     transactionLiters: number;
     transactionAmount: number;
+    meterTransactionDifferenceLiters: number;
     anomalies: StationHistoryAnomaly[];
     dailyAnomaly: StationHistoryDailyAnomaly | null;
     reconciliation: StationHistoryReconciliation | null;

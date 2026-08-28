@@ -2559,3 +2559,29 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print/shared brain changes from another task remain untouched/uncommitted by S82.
 - No push / no deploy / no production DB write.
+
+
+## 2026-08-28 — S83 — Retire retired-SIMPLE meter-summary to canonical History
+- Status: `[x]`
+- Scope:
+  - retired SIMPLE station-2/3/4 only; FULL station-1 meter-summary remains legacy compatibility and no GAS/write route changes.
+- Parity/data audit:
+  - legacy meter-summary reads raw shift meters + transactions, but converts meter liters to money with `STATION_FUEL_CONFIGS` hard-coded prices in `/api/simple-station/[id]/shift-end`; these are not historical prices.
+  - station-3 has no explicit fuel config in that API and falls back to station-2, so legacy meter-money/fuel grouping cannot be promoted as a trustworthy historical contract.
+  - canonical History now keeps the trustworthy evidence: raw meter liters, transaction count/liters, persisted transaction amount, and explicit `meter − transaction` liters difference per shift. It intentionally does not invent historical meter revenue from fixed legacy prices.
+  - canonical History initializes its date range from `date` or `from/to` query params, so old single-day bookmarks retain their selected date.
+- Route implementation:
+  - split the old client source to `LegacySimpleStationMeterSummaryPage.tsx`.
+  - SIMPLE wrapper redirects station 2/3/4 to `/stations/station-X/history`; valid legacy `?date=YYYY-MM-DD` becomes `?from=YYYY-MM-DD&to=YYYY-MM-DD`.
+  - FULL `/station/[id]/new/meter-summary` imports the legacy component directly, preventing the retired-SIMPLE redirect from broadening into FULL compatibility.
+- Verification:
+  - route/history/context/middleware regression: 4 files / 137 tests passed after adding meter-vs-transaction difference regression.
+  - TypeScript, targeted ESLint and `git diff --check` passed.
+  - authenticated UAT smoke: station 2/3/4 legacy meter-summary each returned 307 to canonical History with the date preserved; every target returned 200.
+  - UAT History API on station-1 returned CLOSED shift: meter 10 L, transaction 10 L, transaction amount 313.40, difference 0 L.
+  - no financial formula/write behavior changed; clean S81 pass-7 financial baseline 16 files / 81 tests remains active.
+- Remaining read compatibility:
+  - retired SIMPLE `summary` and `receipt` remain KEEP_READ_COMPAT and must be audited separately; receipt/print behavior is not part of S83.
+- Concurrent-work note:
+  - Tank Loy auto-print/shared brain changes from another task remain untouched and excluded from S83 staging/commit.
+- No push / no deploy / no production DB write.

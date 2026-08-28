@@ -4,6 +4,7 @@ import {
     getHistoryAttentionReasons,
     getStationHistoryRange,
     normalizeHistoryVariance,
+    normalizeMeterTransactionDifferenceLiters,
 } from '@/lib/stations/station-history';
 
 describe('station history range', () => {
@@ -60,5 +61,11 @@ describe('station history normalization', () => {
     it('normalizes FULL and GAS historical variance to received minus expected', () => {
         expect(normalizeHistoryVariance(1000, 980)).toBe(-20);
         expect(normalizeHistoryVariance(1000, 1025.555)).toBe(25.56);
+    });
+
+    it('normalizes meter minus transaction liters without inventing money values', () => {
+        expect(normalizeMeterTransactionDifferenceLiters(10, 10)).toBe(0);
+        expect(normalizeMeterTransactionDifferenceLiters(100.1239, 99.1)).toBe(1.024);
+        expect(normalizeMeterTransactionDifferenceLiters('bad', 20)).toBe(0);
     });
 });

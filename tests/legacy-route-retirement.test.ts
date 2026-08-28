@@ -9,6 +9,7 @@ import {
     getActiveGasSellRedirect,
     getRetiredSimpleStationRedirect,
     getRetiredSimpleStationHistoryRedirect,
+    getRetiredSimpleMeterSummaryRedirect,
 } from '../src/lib/stations/legacy-route-retirement';
 
 const gasSellAliasCases = STATIONS.flatMap((station) =>
@@ -44,6 +45,16 @@ describe('legacy route retirement', () => {
 
     it.each(['1', '5', '6', '7', ''])('does not redirect non-retired shift history %s', (stationNumber) => {
         expect(getRetiredSimpleStationHistoryRedirect(stationNumber)).toBeNull();
+    });
+
+    it.each(['2', '3', '4'])('redirects retired SIMPLE meter summary %s to canonical history', (stationNumber) => {
+        expect(getRetiredSimpleMeterSummaryRedirect(stationNumber)).toBe(`/stations/station-${stationNumber}/history`);
+        expect(getRetiredSimpleMeterSummaryRedirect(stationNumber, '2026-08-28')).toBe(`/stations/station-${stationNumber}/history?from=2026-08-28&to=2026-08-28`);
+    });
+
+    it('drops malformed legacy meter-summary dates instead of forwarding them', () => {
+        expect(getRetiredSimpleMeterSummaryRedirect('2', 'not-a-date')).toBe('/stations/station-2/history');
+        expect(getRetiredSimpleMeterSummaryRedirect('1', '2026-08-28')).toBeNull();
     });
 
     it.each([

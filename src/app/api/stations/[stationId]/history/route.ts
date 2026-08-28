@@ -12,6 +12,7 @@ import {
     getHistoryAttentionReasons,
     getStationHistoryRange,
     normalizeHistoryVariance,
+    normalizeMeterTransactionDifferenceLiters,
 } from '@/lib/stations/station-history';
 import type {
     StationHistoryDailyAnomaly,
@@ -229,6 +230,9 @@ export async function GET(
                 varianceStatus: reconciliation?.varianceStatus,
             });
 
+            const totalMeterLiters = Number(meters.reduce((sum, meter) => sum + (meter.soldQty || 0), 0).toFixed(3));
+            const transactionLiters = Number(shift.transactions.reduce((sum, transaction) => sum + toNumber(transaction.liters), 0).toFixed(3));
+
             return {
                 id: shift.id,
                 businessDate,
@@ -242,10 +246,11 @@ export async function GET(
                 gasPrice: shift.dailyRecord.gasPrice == null ? null : toNumber(shift.dailyRecord.gasPrice),
                 meters,
                 gauges,
-                totalMeterLiters: Number(meters.reduce((sum, meter) => sum + (meter.soldQty || 0), 0).toFixed(3)),
+                totalMeterLiters,
                 transactionCount: shift.transactions.length,
-                transactionLiters: Number(shift.transactions.reduce((sum, transaction) => sum + toNumber(transaction.liters), 0).toFixed(3)),
+                transactionLiters,
                 transactionAmount: Number(shift.transactions.reduce((sum, transaction) => sum + toNumber(transaction.amount), 0).toFixed(2)),
+                meterTransactionDifferenceLiters: normalizeMeterTransactionDifferenceLiters(totalMeterLiters, transactionLiters),
                 anomalies,
                 dailyAnomaly,
                 reconciliation,

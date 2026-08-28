@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, ArrowRight, History, RefreshCw } from 'lucide-react';
 import { Badge, Button, EmptyState, Notice, Section } from '@/components/ui';
 import type { StationContextPayload } from '@/types/station';
@@ -20,11 +21,27 @@ function dateKey(reference: Date) {
     }).format(reference);
 }
 
-function initialRange() {
+function defaultRange() {
     const now = new Date();
     const to = dateKey(now);
     const fromDate = new Date(new Date(`${to}T00:00:00+07:00`).getTime() - 29 * 24 * 60 * 60 * 1000);
     return { from: dateKey(fromDate), to };
+}
+
+function isDateKey(value: string | null): value is string {
+    return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
+}
+
+function initialRange(searchParams: Pick<URLSearchParams, 'get'>) {
+    const fallback = defaultRange();
+    const legacyDate = searchParams.get('date');
+    if (isDateKey(legacyDate)) return { from: legacyDate, to: legacyDate };
+    const from = searchParams.get('from');
+    const to = searchParams.get('to');
+    return {
+        from: isDateKey(from) ? from : fallback.from,
+        to: isDateKey(to) ? to : fallback.to,
+    };
 }
 
 function formatMoney(value: number) {
@@ -93,7 +110,7 @@ function ShiftDetail({ shift }: { shift: StationHistoryShift }) {
                 </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-[var(--ui-radius-md)] bg-[var(--ui-surface-subtle)] p-3">
                     <div className="text-xs text-[var(--ui-text-muted)]">มิเตอร์</div>
                     <div className="mt-1 font-bold">{formatNumber(shift.totalMeterLiters, 3)} L</div>
@@ -103,7 +120,13 @@ function ShiftDetail({ shift }: { shift: StationHistoryShift }) {
                     <div className="mt-1 font-bold">{shift.transactionCount.toLocaleString('th-TH')} รายการ · {formatNumber(shift.transactionLiters, 3)} L</div>
                 </div>
                 <div className="rounded-[var(--ui-radius-md)] bg-[var(--ui-surface-subtle)] p-3">
-                    <div className="text-xs text-[var(--ui-text-muted)]">ยอดรายการขาย</div>
+                    <div className="text-xs text-[var(--ui-text-muted)]">ต่างกัน (มิเตอร์ − รายการขาย)</div>
+                    <div className={`mt-1 font-bold ${Math.abs(shift.meterTransactionDifferenceLiters) > 1 ? 'text-[var(--ui-warning-text)]' : ''}`}>
+                        {shift.meterTransactionDifferenceLiters > 0 ? '+' : ''}{formatNumber(shift.meterTransactionDifferenceLiters, 3)} L
+                    </div>
+                </div>
+                <div className="rounded-[var(--ui-radius-md)] bg-[var(--ui-surface-subtle)] p-3">
+                    <div className="text-xs text-[var(--ui-text-muted)]">ยอดรายการขายจริง</div>
                     <div className="mt-1 font-bold">฿{formatMoney(shift.transactionAmount)}</div>
                 </div>
             </div>
@@ -206,7 +229,8 @@ function ShiftDetail({ shift }: { shift: StationHistoryShift }) {
 }
 
 export function StationHistory({ context }: { context: StationContextPayload }) {
-    const [{ from, to }] = React.useState(initialRange);
+    const searchParams = useSearchParams();
+    const [{ from, to }] = React.useState(() => initialRange(searchParams));
     const [fromDate, setFromDate] = React.useState(from);
     const [toDate, setToDate] = React.useState(to);
     const [status, setStatus] = React.useState('ALL');
@@ -238,7 +262,7 @@ export function StationHistory({ context }: { context: StationContextPayload }) 
         <div className="space-y-4">
             <Notice tone="info" title="ประวัติเป็น read-only">
                 {context.station.operationalStatus === 'RETIRED'
-                    ? 'สถานีนี้ย้ายงานหน้าปั๊มไป POS แล้ว ข้อมูลเดิมยังอ่านได้แต่ไม่มีคำสั่งแก้ไขหรือสร้างงานใหม่'
+                    ? 'สถานีนี้ย้ายงานหน้าปั๊มไป POS แล้ว ข้อมูลเดิมยังอ่านได้แต่ไม่มีคำสั่งแก้ไขหรือสร้างงานใหม่ ยอดเงินใช้รายการขายจริง; ระบบจะไม่คำนวณมูลค่ามิเตอร์ย้อนหลังจากราคาคงที่ของหน้าเก่า'
                     : 'หน้า canonical history ใช้ตรวจย้อนหลังเท่านั้น การแก้ข้อมูลย้อนหลังยังไม่ถูกย้ายมาใน redesign'}
             </Notice>
 

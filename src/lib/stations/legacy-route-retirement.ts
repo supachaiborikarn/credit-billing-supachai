@@ -13,6 +13,18 @@ export function getRetiredSimpleStationHistoryRedirect(stationNumber: string): s
     return base ? `${base}/history` : null;
 }
 
+function isLegacyDateKey(value: string | null | undefined): value is string {
+    return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+export function getRetiredSimpleMeterSummaryRedirect(stationNumber: string, selectedDate?: string | null): string | null {
+    const history = getRetiredSimpleStationHistoryRedirect(stationNumber);
+    if (!history) return null;
+    if (!isLegacyDateKey(selectedDate)) return history;
+    const query = new URLSearchParams({ from: selectedDate, to: selectedDate });
+    return `${history}?${query.toString()}`;
+}
+
 export function getActiveGasSellRedirect(stationParam: string): string | null {
     const station = resolveStationDefinition(stationParam.trim());
     if (!station || station.type !== 'GAS' || station.operationalStatus !== 'ACTIVE') return null;
