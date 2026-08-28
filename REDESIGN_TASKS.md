@@ -2506,3 +2506,31 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - No push / no deploy / no production DB write.
 - Post-check: exact financial checklist command also passed 16 files / 81 tests on the current working tree. Separate unstaged Tank Loy changes were present, so this is recorded as an additional sanity pass; S80 remains the last clean financial baseline rather than relabeling this mixed-working-tree run as a new baseline.
 - Follow-up safety: added guarded `npm run uat:dev`; default 3005, hard-rejects 3000, checks the requested port is free and never kills an existing listener. Targeted guard/GAS/SaleFlow/shift suite now 4 files / 45 tests; explicit `UAT_PORT=3000` simulation exits 2 as required.
+
+
+## 2026-08-28 — S81 pass 7 — Isolated write UAT complete / GAS transaction timeout hardening
+- Status: `[x]` — **S81 local UAT complete.**
+- UAT environment:
+  - provisioned a Neon claimable temporary PostgreSQL project from an unlinked helper directory; UAT host/region is separate from production and credentials remain only in ignored `.env.uat.local`.
+  - schema push + deterministic `prisma/seed-uat.ts` completed through the fail-closed UAT guard; no production database write occurred.
+  - UAT dev ran on port 3005 only; port 3000 remained untouched; UAT dev was stopped after verification.
+- Real write-flow results:
+  - station-1 FULL: open shift -> start meters -> CASH sale -> duplicate retry returned 409 -> end meters -> close; 1 persisted transaction, expected/received = 313.40, variance = 0, GREEN, final shift CLOSED.
+  - station-5 GAS: open -> CASH sale -> duplicate 409 -> end meters + end gauges -> close; 1 persisted transaction, 10 L / 160.90, expected/received = 160.90, variance = 0, GREEN, final shift CLOSED.
+  - station-6 GAS: open -> CASH sale -> duplicate 409 -> end meters + end gauges -> close; 1 persisted transaction, 20 L / 321.80, expected/received = 321.80, variance = 0, GREEN, final shift CLOSED.
+  - GAS summary after close: station-5 cash/total 160.90, 10 L, 1 transaction; station-6 cash/total 321.80, 20 L, 1 transaction; both gasPrice = 16.09.
+  - direct UAT DB verification confirmed all four meter start/end readings and all three start/end tank gauges for station-5/6.
+- Bug found by real UAT and fixed:
+  - first station-5 GAS open returned Prisma P2028 because the default 5s interactive transaction timeout expired after ~5.28s on the higher-latency temporary Neon DB.
+  - added bounded `{ timeout: 30_000 }` to GAS shift open and shift close interactive transactions, matching the existing GAS admin-meter transaction precedent; financial formulas and transaction semantics are unchanged.
+  - retry after fix: station-5 open completed in ~9.3s and station-6 open in ~8.1s, proving the 5s default was an actual reliability limit rather than a fixture issue.
+- Verification:
+  - targeted GAS/shift/SaleFlow regression: 3 files / 33 tests passed; TypeScript + targeted ESLint passed.
+  - final S44 financial gate: 16 files / 81 tests passed on the current tree.
+  - clean snapshot made from HEAD + only the 3 GAS pass-7 source/test changes also passed the exact 16 files / 81 tests, excluding concurrent Tank Loy edits.
+  - production build on the real repo passed all 127 routes with `NODE_ENV=production`. A second clean-snapshot build was not usable because Turbopack rejects a temp-root `node_modules` symlink that points outside the filesystem root; this is a verification-harness limitation, not an app build failure.
+- Concurrent-work note:
+  - Tank Loy auto-print/shared brain files from another task remained unstaged and are not part of this S81 checkpoint.
+- Decision / next step:
+  - S81 is complete; route retirement may resume from the post-S80 compatibility inventory, keeping intentional meter/gauge correction, supplies, station-5 products, read/print/admin compatibility surfaces until individually audited.
+  - temporary Neon project is left unclaimed to expire automatically; no claim/deploy/push performed.

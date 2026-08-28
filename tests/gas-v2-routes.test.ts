@@ -217,6 +217,7 @@ describe('gas v2 route guards', () => {
             gasPrice: 17.25,
         });
         expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+        expect(prismaMock.$transaction).toHaveBeenCalledWith(expect.any(Function), { timeout: 30_000 });
         expect(txMock.shift.findFirst).toHaveBeenCalledWith(expect.objectContaining({
             where: expect.objectContaining({
                 status: 'OPEN',
@@ -1087,6 +1088,7 @@ describe('gas v2 route guards', () => {
         });
 
         expect(response.status).toBe(200);
+        expect(prismaMock.$transaction).toHaveBeenCalledWith(expect.any(Function), { timeout: 30_000 });
         expect(txMock.shiftReconciliation.upsert).toHaveBeenCalledWith(expect.objectContaining({
             update: expect.objectContaining({
                 expectedFuelAmount: 740,

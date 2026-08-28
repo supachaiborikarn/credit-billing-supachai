@@ -350,7 +350,7 @@ export async function POST(
                     varianceNote: normalizedVarianceNote || null
                 }
             });
-        });
+        }, { timeout: 30_000 });
 
         return NextResponse.json({
             success: true,

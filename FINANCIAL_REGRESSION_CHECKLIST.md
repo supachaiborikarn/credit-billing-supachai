@@ -2,9 +2,9 @@
 
 > S44 source of truth for the redesign branch. Complete before retiring any active money-changing legacy route. Rerun the gate before each S45+ redirect that can affect sales, billing, shift totals, dates, or payment scope.
 
-Status: **PASS — 2026-08-27**
+Status: **PASS — 2026-08-28**
 
-Latest active-route rerun: **S80 — 16 files / 81 tests passed after retiring active current/older GAS summary UI to canonical Overview; summary API and all financial write/formula paths remain unchanged.**
+Latest active-route rerun: **S81 pass 7 — 16 files / 81 tests passed on a clean HEAD + S81-only GAS patch snapshot after real isolated write UAT found and fixed the bounded Prisma transaction-timeout issue in GAS open/close; financial formulas and write semantics remain unchanged.**
 
 ## Release gate
 

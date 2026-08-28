@@ -215,7 +215,7 @@ export async function POST(
                 stationGasPrice: Number(dailyGasPrice),
                 message: 'เปิดกะสำเร็จ',
             });
-        });
+        }, { timeout: 30_000 });
     } catch (error) {
         console.error('[Shift Open]:', error);
         return NextResponse.json({ error: 'Failed to open shift' }, { status: 500 });
