@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireApiSession } from '@/lib/api-auth';
 import { canAccessStation } from '@/lib/auth-utils';
 import { CREDIT_PAYMENT_TYPES } from '@/constants/payment-types';
+import { canMutateHistoricalStationData } from '@/lib/stations/station-context';
 
 const creditPaymentTypeSet = new Set<string>(CREDIT_PAYMENT_TYPES);
 
@@ -93,6 +94,13 @@ export async function PUT(
 
         if (!canAccessStation(auth.user, oldTransaction.stationId)) {
             return NextResponse.json({ error: 'ไม่มีสิทธิ์แก้ไขรายการนี้' }, { status: 403 });
+        }
+
+        if (!canMutateHistoricalStationData(auth.user, oldTransaction.stationId)) {
+            return NextResponse.json(
+                { error: 'สถานีนี้ย้ายงานหน้าปั๊มไป POS แล้ว การแก้ไขรายการย้อนหลังทำได้เฉพาะแอดมิน' },
+                { status: 403 }
+            );
         }
 
         // Anti-Fraud: Check if locked (Admin can bypass)
@@ -235,6 +243,13 @@ export async function DELETE(
 
         if (!canAccessStation(auth.user, oldTransaction.stationId)) {
             return NextResponse.json({ error: 'ไม่มีสิทธิ์ยกเลิกรายการนี้' }, { status: 403 });
+        }
+
+        if (!canMutateHistoricalStationData(auth.user, oldTransaction.stationId)) {
+            return NextResponse.json(
+                { error: 'สถานีนี้ย้ายงานหน้าปั๊มไป POS แล้ว การยกเลิกรายการย้อนหลังทำได้เฉพาะแอดมิน' },
+                { status: 403 }
+            );
         }
 
         // Anti-Fraud: Check if locked (Admin can bypass)

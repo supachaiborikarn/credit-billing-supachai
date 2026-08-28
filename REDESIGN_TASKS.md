@@ -2585,3 +2585,28 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print/shared brain changes from another task remain untouched and excluded from S83 staging/commit.
 - No push / no deploy / no production DB write.
+
+
+## 2026-08-28 — S84 — Retired SIMPLE summary audit + historical mutation hardening
+- Status: `[x]` review/hardening; route intentionally **not retired**.
+- Audit finding:
+  - legacy `/simple-station/[id]/new/summary` is not a read-only summary. It owns transaction-level PUT edit, DELETE/void, transfer-proof upload/replacement, per-transaction receipt/credit print, 58/80 mm selection, CSV export and daily report print.
+  - canonical History does not provide transaction-level edit/void/slip/print/export parity, so redirecting this route would remove required historical maintenance/print capabilities.
+- Retired-station policy hardening:
+  - added central `canMutateHistoricalStationData` policy from canonical station context: station-2/3/4 historical mutation is ADMIN-only; active station behavior is unchanged.
+  - transaction detail PUT/DELETE now enforce this policy after station access. This closes a gap where retired STAFF could mutate a row with no shift/daily lock.
+  - legacy summary fetches the current role; for retired stations STAFF no longer sees edit/delete/replace-slip controls, while read, existing-slip view, filter, CSV, report print and receipt reprint remain available. ADMIN keeps correction controls.
+- UAT verification on isolated Neon:
+  - created an isolated station-2 transaction fixture with no dailyRecord/shift specifically to bypass the old 24h/LOCKED guard and test the new policy itself.
+  - station-2 STAFF: GET 200, PUT 403, DELETE 403 with retired/POS message.
+  - ADMIN: PUT 200 on the same fixture, confirming historical admin correction remains available.
+- Regression:
+  - exact S44 financial command passed 16 files / 82 tests (one new station policy test added).
+  - TypeScript + targeted ESLint + diff check passed after correcting a local UI state-order issue caught by TypeScript before commit.
+  - no transaction formula, amount calculation or reconciliation semantics changed; this is authorization/UI capability hardening.
+- Route decision:
+  - reclassify retired SIMPLE `summary` from generic KEEP_READ_COMPAT to **KEEP_HISTORICAL_MAINTENANCE**.
+  - next candidate is S85 receipt/thermal-print parity audit; do not retire receipt until Epson/58/80/credit-document behavior has a canonical replacement.
+- Concurrent-work note:
+  - Tank Loy auto-print/shared brain changes from another task remain untouched and excluded from S84 staging/commit.
+- No push / no deploy / no production DB write.

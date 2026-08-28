@@ -39,6 +39,7 @@ Canonical station IDs are `station-1` … `station-6`. URL structure must not en
 - **KEEP_GAS_INVENTORY** — keep GAS supply/product inventory workflows until their create/edit/receive/history capabilities have a canonical replacement.
 - **KEEP_GAS_WORKSPACE** — keep the current GAS landing while it is still the only discoverable entry for retained correction/inventory tools or an active staff capability such as price update.
 - **KEEP_READ_COMPAT** — keep for historical/receipt/summary/print compatibility until the canonical read path proves parity.
+- **KEEP_HISTORICAL_MAINTENANCE** — legacy surface still owns audited historical correction plus read/print/export behavior; retired-station mutation is ADMIN-only and must not be redirected until a canonical maintenance replacement exists.
 - **KEEP_MASTER_DATA** — still contains create/edit administration not yet moved into Customer 360.
 - **KEEP_ADMIN_REPORT** — admin/reporting tool; not part of the first station-route retirement wave.
 - **API_COMPAT** — do not redirect API routes; new adapters intentionally call existing APIs until backend migration is a separate verified change.
@@ -121,10 +122,10 @@ Disposition: **REDIRECTED_RETIRED_COMPLETE**. S45-S52 ปิด retired SIMPLE o
 
 - `/simple-station/[id]/new/shift-history` — **S82 IMPLEMENTED** สำหรับ station-2/3/4 → `/stations/station-[id]/history`; canonical History now exposes opener/closer, duration, per-nozzle meter start/end/sold evidence, date/status filters and read-only retired notice.
 - `/simple-station/[id]/new/meter-summary` — **S83 IMPLEMENTED** สำหรับ station-2/3/4 → `/stations/station-[id]/history`; legacy `date` bookmark is preserved as canonical `from=to`. Canonical History compares raw meter liters with persisted transaction liters/amount and shows the liters difference. Legacy meter-money values are not treated as parity because they use hard-coded current prices and station-3 falls back to station-2 fuel config.
-- `/simple-station/[id]/new/summary`
+- `/simple-station/[id]/new/summary` — **KEEP_HISTORICAL_MAINTENANCE (S84 REVIEWED)**. It owns transaction-level edit, void, transfer-slip replacement, receipt/credit reprint (58/80 mm), CSV export and daily report print. Canonical History is intentionally read-only and has no parity for these actions. S84 hardens retired station-2/3/4 mutations to ADMIN-only while STAFF keeps read/print/export access.
 - `/simple-station/[id]/new/receipt`
 
-Disposition: `shift-history` retired in S82 and `meter-summary` retired in S83 after raw-evidence parity. `summary` and `receipt` remain **KEEP_READ_COMPAT** until each transaction/edit/print behavior is audited individually.
+Disposition: `shift-history` retired in S82 and `meter-summary` retired in S83 after raw-evidence parity. `summary` is **KEEP_HISTORICAL_MAINTENANCE** after S84 audit; `receipt` remains **KEEP_READ_COMPAT / print compatibility** pending its own parity review.
 
 ## Billing routes
 
@@ -170,7 +171,7 @@ Before redirecting an **active FULL/GAS** legacy route:
 
 ## First retirement candidates after gates
 
-1. Retired SIMPLE operational/create family — **S45-S52 complete** for station-2/3/4; S82 retires `shift-history` and S83 retires `meter-summary` after canonical raw-evidence parity. summary/receipt compatibility remains.
+1. Retired SIMPLE operational/create family — **S45-S52 complete** for station-2/3/4; S82 retires `shift-history` and S83 retires `meter-summary` after canonical raw-evidence parity. S84 confirms `summary` must stay as ADMIN historical maintenance + read/print/export fallback; receipt print compatibility remains.
 2. Active GAS sell entries → canonical sales — **S53 current `/gas/[id]/sell` complete** and **S54 older `/gas-station/[id]/new/sell` complete** for station-5/6.
 3. Active FULL sale-entry pair → canonical sales — **S55 `/station/1/new/sell` complete** and **S56 `/station/1/new/oil-sell` complete**.
 4. Active FULL operational entries → canonical operations — **S57 `/station/1/new/open-shift`**, **S58 `/station/1/new/close-shift`**, **S59 `/station/1/new/shift-end`**, and **S60 `/station/1/new/meters` complete** after S38-S40 parity/regression.

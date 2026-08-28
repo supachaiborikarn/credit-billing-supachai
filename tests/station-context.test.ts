@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     buildStationPermissions,
+    canMutateHistoricalStationData,
     getCanonicalStationPaths,
     isActiveOperationalStationId,
     isRetiredOperationalStationId,
@@ -25,6 +26,14 @@ describe('station context', () => {
         expect(station).not.toBeNull();
         const permissions = buildStationPermissions({ role: 'STAFF', stationId: 'station-2' }, station!);
         expect(permissions).toMatchObject({ canView: true, canViewHistory: true, canOperate: false, canSell: false, canOpenShift: false, canCloseShift: false });
+    });
+
+    it('makes retired historical mutation admin-only while active station policy is unchanged', () => {
+        expect(canMutateHistoricalStationData({ role: 'STAFF' }, 'station-2')).toBe(false);
+        expect(canMutateHistoricalStationData({ role: 'STAFF' }, 'station-4')).toBe(false);
+        expect(canMutateHistoricalStationData({ role: 'ADMIN' }, 'station-2')).toBe(true);
+        expect(canMutateHistoricalStationData({ role: 'STAFF' }, 'station-1')).toBe(true);
+        expect(canMutateHistoricalStationData({ role: 'STAFF' }, 'station-5')).toBe(true);
     });
 
     it('allows admin active operations and builds canonical paths', () => {

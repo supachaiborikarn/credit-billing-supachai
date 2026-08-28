@@ -53,6 +53,14 @@ export function resolveStationDefinition(input: string): StationDefinition | nul
     };
 }
 
+export function isRetiredOperationalStationInput(input: string): boolean {
+    return resolveStationDefinition(input)?.operationalStatus === 'RETIRED';
+}
+
+export function canMutateHistoricalStationData(user: Pick<StationAccessUser, 'role'>, stationId: string): boolean {
+    return user.role === 'ADMIN' || !isRetiredOperationalStationInput(stationId);
+}
+
 export function getCanonicalStationPaths(stationId: CanonicalStationId): StationCanonicalPaths {
     const base = `/stations/${stationId}`;
     return {

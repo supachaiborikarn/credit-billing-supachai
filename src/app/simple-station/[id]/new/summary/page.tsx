@@ -5,6 +5,7 @@ import { ArrowLeft, Trash2, Calendar, Edit, Printer, X, Image as ImageIcon, Down
 import { STATIONS, PAYMENT_TYPES, FUEL_TYPES } from '@/constants';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { canMutateHistoricalStationData, isRetiredOperationalStationInput } from '@/lib/stations/station-context';
 
 type PrintDocType = 'receipt' | 'credit';
 type PrintPaperSize = '58' | '80';
@@ -45,9 +46,12 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
     const inactiveFilterClass = isTankLoyStation
         ? 'bg-slate-900/70 text-slate-300 border border-white/10 hover:border-white/20'
         : 'bg-white text-gray-700 border border-gray-200';
+    const isRetiredStation = Boolean(station && isRetiredOperationalStationInput(station.id));
 
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [loading, setLoading] = useState(true);
+    const [isAdmin, setIsAdmin] = useState(false);
+    const canMutateHistory = canMutateHistoricalStationData({ role: isAdmin ? 'ADMIN' : 'STAFF' }, station?.id || '');
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [activeFilter, setActiveFilter] = useState('all');
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -94,6 +98,21 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
             fetchTransactions();
         }
     }, [station, fetchTransactions]);
+
+    useEffect(() => {
+        let active = true;
+        const loadRole = async () => {
+            try {
+                const response = await fetch('/api/auth/me', { cache: 'no-store' });
+                const payload = await response.json().catch(() => null);
+                if (active) setIsAdmin(response.ok && payload?.user?.role === 'ADMIN');
+            } catch {
+                if (active) setIsAdmin(false);
+            }
+        };
+        void loadRole();
+        return () => { active = false; };
+    }, []);
 
     // Delete transaction
     const handleDelete = async (txnId: string) => {
@@ -407,6 +426,11 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
             </header>
 
             <div className="p-4 pb-24 space-y-4">
+                {isRetiredStation && (
+                    <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                        สถานีนี้ย้ายงานหน้าปั๊มไป POS แล้ว พนักงานยังดู พิมพ์ และ export ประวัติได้ แต่การแก้ไข ยกเลิก หรือเปลี่ยนสลิปย้อนหลังทำได้เฉพาะแอดมิน
+                    </div>
+                )}
                 {/* Summary Cards - Supachaigroup Style */}
                 <div className="grid grid-cols-3 gap-2">
                     <div className="rounded-2xl p-3 bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
@@ -514,7 +538,7 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                                                     <Eye size={16} />
                                                 </button>
                                             )}
-                                            {txn.paymentType === 'TRANSFER' && (
+                                            {canMutateHistory && txn.paymentType === 'TRANSFER' && (
                                                 <button
                                                     onClick={() => {
                                                         setImageUploadTxn(txn);
@@ -531,25 +555,29 @@ export default function SimpleStationSummaryPage({ params }: { params: Promise<{
                                                     )}
                                                 </button>
                                             )}
-                                            <button
-                                                onClick={() => openEditModal(txn)}
-                                                className="p-2 text-orange-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                                                title="แก้ไข"
-                                            >
-                                                <Edit size={16} />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(txn.id)}
-                                                disabled={deletingId === txn.id}
-                                                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                                                title="ลบ"
-                                            >
-                                                {deletingId === txn.id ? (
-                                                    <div className="animate-spin h-4 w-4 border-2 border-red-400 border-t-transparent rounded-full"></div>
-                                                ) : (
-                                                    <Trash2 size={16} />
-                                                )}
-                                            </button>
+                                            {canMutateHistory && (
+                                                <>
+                                                    <button
+                                                        onClick={() => openEditModal(txn)}
+                                                        className="p-2 text-orange-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                                                        title="แก้ไข"
+                                                    >
+                                                        <Edit size={16} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(txn.id)}
+                                                        disabled={deletingId === txn.id}
+                                                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                                        title="ลบ"
+                                                    >
+                                                        {deletingId === txn.id ? (
+                                                            <div className="animate-spin h-4 w-4 border-2 border-red-400 border-t-transparent rounded-full"></div>
+                                                        ) : (
+                                                            <Trash2 size={16} />
+                                                        )}
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
