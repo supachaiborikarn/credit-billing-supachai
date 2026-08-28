@@ -8,6 +8,7 @@ import {
     getActiveGasOverviewRedirect,
     getActiveGasSellRedirect,
     getRetiredSimpleStationRedirect,
+    getRetiredSimpleStationHistoryRedirect,
 } from '../src/lib/stations/legacy-route-retirement';
 
 const gasSellAliasCases = STATIONS.flatMap((station) =>
@@ -35,6 +36,14 @@ describe('legacy route retirement', () => {
 
     it.each(['1', '5', '6', '7', ''])('does not redirect non-retired station %s', (stationNumber) => {
         expect(getRetiredSimpleStationRedirect(stationNumber)).toBeNull();
+    });
+
+    it.each(['2', '3', '4'])('redirects retired SIMPLE shift history %s to canonical history', (stationNumber) => {
+        expect(getRetiredSimpleStationHistoryRedirect(stationNumber)).toBe(`/stations/station-${stationNumber}/history`);
+    });
+
+    it.each(['1', '5', '6', '7', ''])('does not redirect non-retired shift history %s', (stationNumber) => {
+        expect(getRetiredSimpleStationHistoryRedirect(stationNumber)).toBeNull();
     });
 
     it.each([

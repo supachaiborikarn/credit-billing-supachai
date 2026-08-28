@@ -48,6 +48,14 @@ function formatTime(value: string | null) {
     });
 }
 
+function formatDuration(openedAt: string, closedAt: string | null) {
+    if (!closedAt) return 'กำลังเปิดอยู่';
+    const diffMs = Math.max(0, new Date(closedAt).getTime() - new Date(openedAt).getTime());
+    const hours = Math.floor(diffMs / (60 * 60 * 1000));
+    const minutes = Math.floor((diffMs % (60 * 60 * 1000)) / (60 * 1000));
+    return `${hours} ชม. ${minutes} นาที`;
+}
+
 function legacyHistoryPath(context: StationContextPayload) {
     if (context.station.type === 'GAS') return `/admin/gas-history?stationId=${context.station.id}`;
     if (context.station.type === 'FULL') return `/station/${context.station.number}/history`;
@@ -70,6 +78,21 @@ function ShiftStatusBadge({ status }: { status: StationHistoryShift['status'] })
 function ShiftDetail({ shift }: { shift: StationHistoryShift }) {
     return (
         <div className="space-y-4 border-t border-[var(--ui-border)] px-4 py-4">
+            <div className="grid gap-3 text-sm sm:grid-cols-3">
+                <div>
+                    <div className="text-xs text-[var(--ui-text-muted)]">เปิดกะโดย</div>
+                    <div className="mt-1 font-semibold">{shift.staffName || 'ไม่ระบุ'}</div>
+                </div>
+                <div>
+                    <div className="text-xs text-[var(--ui-text-muted)]">ปิดกะโดย</div>
+                    <div className="mt-1 font-semibold">{shift.closedByName || (shift.status === 'OPEN' ? '-' : 'ไม่ระบุ')}</div>
+                </div>
+                <div>
+                    <div className="text-xs text-[var(--ui-text-muted)]">ระยะเวลากะ</div>
+                    <div className="mt-1 font-semibold">{formatDuration(shift.openedAt, shift.closedAt)}</div>
+                </div>
+            </div>
+
             <div className="grid gap-3 sm:grid-cols-3">
                 <div className="rounded-[var(--ui-radius-md)] bg-[var(--ui-surface-subtle)] p-3">
                     <div className="text-xs text-[var(--ui-text-muted)]">มิเตอร์</div>
@@ -304,11 +327,13 @@ export function StationHistory({ context }: { context: StationContextPayload }) 
                 </>
             ) : null}
 
-            <div className="text-right">
-                <Link href={legacyHistoryPath(context)} className="inline-flex min-h-11 items-center gap-2 rounded-sm text-xs font-semibold text-[var(--ui-text-muted)] underline-offset-4 hover:text-[var(--ui-text)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">
-                    เปิดประวัติเดิม (fallback) <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
-            </div>
+            {context.station.operationalStatus !== 'RETIRED' && (
+                <div className="text-right">
+                    <Link href={legacyHistoryPath(context)} className="inline-flex min-h-11 items-center gap-2 rounded-sm text-xs font-semibold text-[var(--ui-text-muted)] underline-offset-4 hover:text-[var(--ui-text)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">
+                        เปิดประวัติเดิม (fallback) <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    </Link>
+                </div>
+            )}
         </div>
     );
 }

@@ -2534,3 +2534,28 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Decision / next step:
   - S81 is complete; route retirement may resume from the post-S80 compatibility inventory, keeping intentional meter/gauge correction, supplies, station-5 products, read/print/admin compatibility surfaces until individually audited.
   - temporary Neon project is left unclaimed to expire automatically; no claim/deploy/push performed.
+
+
+## 2026-08-28 — S82 — Retire retired-SIMPLE shift-history to canonical History
+- Status: `[x]`
+- Scope:
+  - retired SIMPLE station-2/3/4 only; no FULL/GAS write route, API, receipt, summary or meter-correction route is retired in this session.
+- Parity audit:
+  - legacy shift-history showed selected date, shift status, opener/closer, open/close time + duration and per-nozzle start/end/sold meters.
+  - canonical Station History already had date-range/status filters, per-shift meter start/end/sold evidence, meter photos, transaction totals, reconciliation and anomaly details; API already included `closedByName`.
+  - added canonical UI metadata for opener, closer and shift duration so the legacy shift-history read surface no longer owns unique evidence.
+  - retired stations no longer show the legacy-history fallback link, avoiding a circular fallback after redirect.
+- Route implementation:
+  - split legacy SIMPLE shift-history client source to `LegacySimpleStationShiftHistoryPage.tsx`.
+  - SIMPLE wrapper redirects station 2/3/4 to `/stations/station-X/history` through a dedicated bounded helper.
+  - FULL `/station/[id]/new/shift-history` now imports the legacy client directly, so S82 does not broaden the SIMPLE retirement rule into the FULL route family.
+- Verification:
+  - route/history/context/middleware regression: 4 files / 132 tests passed.
+  - TypeScript passed; targeted ESLint has 0 errors and the existing moved-legacy `react-hooks/exhaustive-deps` warning only.
+  - authenticated UAT smoke: station 2/3/4 legacy shift-history each returned 307 to canonical History and each target returned 200.
+  - no financial/write logic changed, so the clean S81 pass-7 financial baseline (16 files / 81 tests) remains the active money gate.
+- Remaining read compatibility:
+  - retired SIMPLE `meter-summary`, `summary`, and `receipt` remain KEEP_READ_COMPAT and must be audited one by one.
+- Concurrent-work note:
+  - Tank Loy auto-print/shared brain changes from another task remain untouched/uncommitted by S82.
+- No push / no deploy / no production DB write.

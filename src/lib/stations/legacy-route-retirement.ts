@@ -8,6 +8,11 @@ export function getRetiredSimpleStationRedirect(stationNumber: string): string |
     return `/stations/station-${normalized}`;
 }
 
+export function getRetiredSimpleStationHistoryRedirect(stationNumber: string): string | null {
+    const base = getRetiredSimpleStationRedirect(stationNumber);
+    return base ? `${base}/history` : null;
+}
+
 export function getActiveGasSellRedirect(stationParam: string): string | null {
     const station = resolveStationDefinition(stationParam.trim());
     if (!station || station.type !== 'GAS' || station.operationalStatus !== 'ACTIVE') return null;
