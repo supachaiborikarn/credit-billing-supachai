@@ -66,7 +66,7 @@ Applicable active station: `station-1`.
 | `/station/1/new/list` | `/station/1/v2` | **S88 IMPLEMENTED** | Redirect-only compatibility entry with no unique data/action. Runtime middleware already sent it to V2; page wrapper is now aligned with that actual behavior. |
 | `/station/1/new/record` | `/station/1/v2` | **S88 IMPLEMENTED** | Redirect-only compatibility entry with no unique data/action. Middleware already sent it to V2; old page fallback to `/new/sell` was inconsistent and is now aligned to V2. |
 | `/station/1/new/receipt` | canonical history/detail | KEEP_READ_COMPAT | Preserve receipt/print behavior. |
-| `/station/1/new/products` | future station operations | KEEP_UNTIL_S38_S40 | Do not invent product parity in main fuel flow. |
+| `/station/1/new/products` | `/stations/station-1` | **S90 IMPLEMENTED** | FULL station-1 has `hasProducts=false` in canonical capability data and the legacy FULL wrapper never owned product CRUD; it only redirected back to home. Both `/station/1/new/products` and the Tank Loy alias `/simple-station/1/new/products` now normalize to canonical Overview. Shared SIMPLE product CRUD/API is preserved and no product data was changed. |
 
 ## GAS — current legacy `/gas/[stationId]`
 

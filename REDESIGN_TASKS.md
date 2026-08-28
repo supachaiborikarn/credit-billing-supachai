@@ -2459,6 +2459,7 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Verification:
   - thermal receipt + station context: 2 files / 9 tests passed; covers 80 mm credit, 58 mm cash, original/copy cuts, station-3 fail-closed and strict station binding.
   - TypeScript, targeted ESLint and `git diff --check` passed.
+  - S90 production build with `NODE_ENV=production`: 127/127 routes passed.
   - authenticated temporary-Neon UAT: station-2 fixture GET via station-2 = 200; the same transaction via station-3 GET/PUT/DELETE = 404; correct station remained readable and unchanged.
   - final financial release gate: 16 files / 83 tests passed; thermal receipt regression: 3/3 passed; production build: 127/127 routes.
 - Remaining blocker:
@@ -2717,4 +2718,25 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
   - file-upload helper itself was regression-tested with mocked upload responses; no test image was written to Cloudinary.
 - Concurrent-work note:
   - Tank Loy auto-print/shared brain changes from another task remain untouched and excluded from S89 staging/commit.
+- No push / no deploy / no production DB write.
+
+
+## 2026-08-28 — S90 — Retire FULL products compatibility entry
+- Status: `[x]`
+- Audit:
+  - canonical station-1 is FULL with `hasProducts=false`; only station-5 currently advertises product inventory capability.
+  - `/station/1/new/products` had no product UI/data of its own and only redirected back to `/station/[id]/new/home`.
+  - Tank Loy sale flow had already retired `oil-sell` in S56 because station-1 has no engine-oil/product flow.
+  - shared SIMPLE product CRUD page/API remains a separate compatibility implementation and was not removed or changed.
+- Route implementation:
+  - `/station/1/new/products` now resolves the active FULL station and redirects directly to `/stations/station-1`.
+  - `/simple-station/1/new/products` alias is normalized by middleware to the same canonical Overview.
+  - query strings are preserved by middleware and unauthenticated bookmarks normalize through login to canonical Overview.
+- Verification:
+  - route/context regression: 3 files / 164 tests passed.
+  - TypeScript, targeted ESLint and `git diff --check` passed.
+  - isolated-Neon authenticated HTTP smoke: both FULL products legacy URLs returned 307 to `/stations/station-1?from=s90-uat`; canonical target returned 200.
+  - read-only route normalization only; no product API, product inventory, financial formula or DB row changed.
+- Concurrent-work note:
+  - Tank Loy auto-print/shared brain changes from another task remain untouched and excluded from S90 staging/commit.
 - No push / no deploy / no production DB write.

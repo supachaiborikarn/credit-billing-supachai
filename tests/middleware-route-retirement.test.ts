@@ -225,6 +225,27 @@ describe('middleware legacy route retirement boundaries', () => {
         );
     });
 
+    it.each([
+        '/station/1/new/products?from=s90',
+        '/simple-station/1/new/products?from=s90',
+    ])('retires FULL products compatibility entry %s to canonical overview', (path) => {
+        const response = middleware(request(path));
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(
+            'https://credit-billing-supachai.local/stations/station-1?from=s90'
+        );
+    });
+
+    it('normalizes unauthenticated FULL products bookmark before login', () => {
+        const response = middleware(request('/station/1/new/products?from=s90-bookmark', false));
+        const location = response.headers.get('location');
+        expect(response.status).toBe(307);
+        expect(location).not.toBeNull();
+        const loginUrl = new URL(location!);
+        expect(loginUrl.pathname).toBe('/login');
+        expect(loginUrl.searchParams.get('redirect')).toBe('/stations/station-1?from=s90-bookmark');
+    });
+
     it('normalizes unauthenticated FULL summary bookmark to V2 before login', () => {
         const response = middleware(request('/station/1/new/summary?from=s89-bookmark', false));
         const location = response.headers.get('location');
