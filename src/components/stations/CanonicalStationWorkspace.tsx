@@ -391,6 +391,30 @@ function GasLiveSummary({ context }: { context: StationContextPayload }) {
     );
 }
 
+function StaleGasShiftNotice({ context }: { context: StationContextPayload }) {
+    if (context.station.type !== 'GAS' || !context.staleShift) return null;
+
+    return (
+        <Notice tone="danger" title="มีกะ GAS ค้างจากวันก่อน">
+            <div className="flex flex-wrap items-center gap-3">
+                <span>
+                    กะ {context.staleShift.shiftNumber} วันที่ {context.staleShift.businessDate} ยังมีสถานะ OPEN ในระบบ
+                </span>
+                {context.user.role === 'ADMIN' ? (
+                    <Link
+                        href="/admin/gas/operations"
+                        className="font-semibold underline underline-offset-4 focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]"
+                    >
+                        ไปจัดการกะค้าง
+                    </Link>
+                ) : (
+                    <span className="font-semibold">กรุณาแจ้งแอดมินให้ตรวจสอบก่อนแก้ข้อมูลกะเก่า</span>
+                )}
+            </div>
+        </Notice>
+    );
+}
+
 function Overview({ context, onRefresh, writeBlocked }: { context: StationContextPayload; onRefresh: () => Promise<void>; writeBlocked: boolean }) {
     const actions = [
         context.permissions.canSell
@@ -679,6 +703,7 @@ export function CanonicalStationWorkspace({ stationId, mode }: { stationId: stri
                         <span>/</span>
                         {mode !== 'OVERVIEW' && <span>{titles[mode]}</span>}
                     </div>
+                    <StaleGasShiftNotice context={context} />
                     {mode === 'OVERVIEW' && <Overview context={context} onRefresh={load} writeBlocked={loading || Boolean(error)} />}
                     {mode === 'SALES' && !writeModeBlocked && <SalesSkeleton context={context} />}
                     {mode === 'OPERATIONS' && !writeModeBlocked && <OperationsSkeleton context={context} onRefresh={load} />}

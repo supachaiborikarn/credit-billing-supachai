@@ -3,6 +3,11 @@
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
 ## 2026-08-28
+- 🧪 S81 pass 2 authenticated read UAT + resilience
+  - ใช้ CreditBilling เฉพาะ port 3005 หลังตรวจว่าง; ไม่แตะ port 3000
+  - ADMIN/STAFF authenticated read flows ผ่าน; Today fresh first-load 200 หลังเพิ่ม retry 1 ครั้งเฉพาะ Prisma P1001/P2024
+  - พบ stale OPEN GAS station-5/6 ตั้งแต่ 2026-04-24; canonical แสดง warning/ทางจัดการแบบ read-only โดยไม่ auto-close หรือแก้ข้อมูลจริง
+  - Neon IPv6 timeout ถูกแยกสาเหตุ; local UAT ใช้ pooled IPv4+endpoint override แบบ process-only ไม่แก้ `.env`; 146/146 + tsc/eslint + production build 126 routes ผ่าน
 - 🧷 Local dev port rule
   - พอร์ต `3000` มี service อื่นใช้งานอยู่แล้ว: CreditBilling ห้าม start/ทับพอร์ต 3000 อีก
   - ก่อน UAT/dev ทุกครั้งต้องเช็กพอร์ตว่างและใช้พอร์ตอื่น เช่น `3005`; อย่าฆ่าหรือรบกวน process ที่ครอง 3000

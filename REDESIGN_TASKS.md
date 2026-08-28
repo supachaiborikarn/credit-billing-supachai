@@ -611,7 +611,7 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S78: review older GAS read family — KEEP summary/shift-summary; flatten redirect-only monthly-balance UI โดยคง monthly-balance API
 - [x] S79: canonical GAS Overview เพิ่ม meter detail + recent transactions จาก summary API เดิม; current summary parity ready แต่ยัง KEEP จน S80
 - [x] S80: retire current `/gas/5|6/summary` + older summary/shift-summary ไป canonical Overview; preserve auth/query และ keep summary API เป็น read source
-- [~] S81: local end-to-end smoke/UAT บนเครื่อง — route/auth smoke ผ่านและแก้ boundary แล้ว; authenticated data-flow รอ network ไป Neon 5432
+- [~] S81: local UAT บนพอร์ต 3005 — authenticated read-flow ผ่าน; Today cold-read retry + GAS stale-shift warning เพิ่มแล้ว; write-flow UAT ยังรอ test DB
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุดหลัง S81 UAT
 - [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S81
 
@@ -2327,6 +2327,31 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - หมายเหตุ/Decision:
   - S81 ยังไม่ถือว่า end-to-end ผ่าน เพราะ database connectivity เป็น environment blocker
   - ไม่ push / ไม่ deploy production และไม่มี DB write จาก UAT รอบนี้
+
+
+## 2026-08-28 — S81 pass 2 — Authenticated read UAT / Today cold-read hardening
+- Status: `[~]`
+- ทำอะไรไปแล้ว:
+  - ยืนยันกติกา local dev: ห้ามใช้ port 3000; ตรวจ 3005 ว่างก่อนและใช้ `localhost:3005` เท่านั้น
+  - แยก Neon connectivity ได้ว่า IPv6 ของ endpoint timeout ขณะที่ IPv4 PostgreSQL SSL handshake ใช้ได้; ใช้ pooled URL + IPv4 + endpoint option แบบ process-only สำหรับ UAT โดยไม่แก้ `.env` ถาวร
+  - authenticated ADMIN read UAT ผ่าน: Login/AuthMe, Today, station context 1/5/6/2, station history, Customers และ Billing
+  - STAFF station-5 UAT ผ่าน: Today + own context 200 และ cross-station context 403
+  - พบ Today first-load เคย fail ด้วย transient Prisma `P1001/P2024`; เพิ่ม read-only retry 1 ครั้งเฉพาะสอง code นี้ ทำให้ fresh first Today = 200 โดยไม่ retry validation/business errors
+  - พบข้อมูลจริง GAS stale OPEN ทั้ง station-5 และ station-6 ตั้งแต่ 2026-04-24; เพิ่ม `staleShift` read context + canonical warning ทุก mode โดย ADMIN มีทางไป `/admin/gas/operations` และ STAFF ได้ข้อความให้แจ้งแอดมิน
+  - ไม่ auto-close stale shift, ไม่แก้มิเตอร์, ไม่สร้าง sale/shift/inventory และไม่เปลี่ยน financial formula
+- ตรวจสอบแล้ว:
+  - targeted regression 5 files / 146 tests ผ่าน
+  - `npx tsc --noEmit` ผ่าน
+  - targeted ESLint ผ่าน
+  - production build ผ่านครบ 126 routes เมื่อ normalize `NODE_ENV=production`
+  - fresh authenticated first `/api/today` = 200 หลัง retry hardening
+- สิ่งที่ยังค้าง:
+  - write-flow UAT เปิดกะ/ขาย/ปิดกะควรทำบน test DB/branch ไม่ยิงข้อมูล production แบบสุ่ม
+  - stale GAS shifts วันที่ 2026-04-24 ต้องให้แอดมินตรวจและตัดสินใจ cleanup แยกต่างหาก
+- Session ถัดไปที่แนะนำ: `S81` write-safe UAT setup/test DB หรือ manual UI review บน `localhost:3005` ก่อน retire route เพิ่ม
+- หมายเหตุ/Decision:
+  - local IPv4/endpoint workaround เป็น process-only; ห้าม hard-code Neon IP ลง repo หรือ `.env`
+  - ไม่ push / ไม่ deploy production
 
 
 ## Template

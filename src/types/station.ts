@@ -20,6 +20,12 @@ export interface StationCurrentShift {
     staffName: string | null;
 }
 
+export interface StationStaleShift {
+    id: string;
+    shiftNumber: number;
+    businessDate: string;
+}
+
 export interface StationOpeningState {
     status: StationOpeningStatus;
     requiredMeters: number;
@@ -57,6 +63,7 @@ export interface StationContextPayload {
         hasProducts: boolean;
     };
     currentShift: StationCurrentShift | null;
+    staleShift: StationStaleShift | null;
     openingState: StationOpeningState;
     permissions: StationContextPermissions;
     paths: StationCanonicalPaths;

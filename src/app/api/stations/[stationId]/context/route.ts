@@ -96,6 +96,31 @@ async function getGasCurrentShift(stationId: string): Promise<StationCurrentShif
     };
 }
 
+async function getGasStaleShift(
+    stationId: string,
+    currentShift: StationCurrentShift | null
+): Promise<StationContextPayload['staleShift']> {
+    const cutoff = getStartOfDayBangkokUTC(getGasBusinessDateKey());
+    const shift = await prisma.shift.findFirst({
+        where: {
+            status: 'OPEN',
+            dailyRecord: {
+                stationId,
+                date: { lt: cutoff },
+            },
+        },
+        orderBy: { createdAt: 'asc' },
+        include: { dailyRecord: { select: { date: true } } },
+    });
+
+    if (!shift || shift.id === currentShift?.id) return null;
+    return {
+        id: shift.id,
+        shiftNumber: shift.shiftNumber,
+        businessDate: toBangkokDateKey(shift.dailyRecord.date),
+    };
+}
+
 async function getFullOpeningState(currentShift: StationCurrentShift | null): Promise<StationOpeningState> {
     if (!currentShift || currentShift.status !== 'OPEN') {
         return {
@@ -229,11 +254,16 @@ export async function GET(
         }
 
         let currentShift: StationCurrentShift | null = null;
+        let staleShift: StationContextPayload['staleShift'] = null;
         let saleContext: StationContextPayload['saleContext'] = null;
         if (station.operationalStatus === 'ACTIVE') {
             currentShift = station.type === 'FULL'
                 ? await getFullCurrentShift(station.id)
                 : await getGasCurrentShift(station.id);
+
+            if (station.type === 'GAS') {
+                staleShift = await getGasStaleShift(station.id, currentShift);
+            }
 
             if (station.type === 'FULL') {
                 const businessDate = getTodayBangkok();
@@ -278,6 +308,7 @@ export async function GET(
         const payload: StationContextPayload = {
             station,
             currentShift,
+            staleShift,
             openingState,
             permissions,
             paths: getCanonicalStationPaths(station.id),

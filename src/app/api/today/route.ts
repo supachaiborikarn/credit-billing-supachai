@@ -16,6 +16,7 @@ import {
     toBangkokDateKey,
 } from '@/lib/gas';
 import { selectCanonicalFullStationShift } from '@/lib/full-station-shift-scope';
+import { withPrismaReadRetry } from '@/lib/prisma-read-retry';
 import type {
     TodayAdminPayload,
     TodayBillingAttention,
@@ -869,14 +870,14 @@ export async function GET() {
         const user = buildTodayUser(auth.user, station);
 
         if (auth.user.role === 'ADMIN') {
-            return NextResponse.json(await buildAdminPayload(user));
+            return NextResponse.json(await withPrismaReadRetry(() => buildAdminPayload(user)));
         }
 
         if (!station) {
             return NextResponse.json({ error: 'ไม่พบสถานีของผู้ใช้' }, { status: 400 });
         }
 
-        return NextResponse.json(await buildStaffPayload(user, station));
+        return NextResponse.json(await withPrismaReadRetry(() => buildStaffPayload(user, station)));
     } catch (error) {
         console.error('[Today API]:', error);
         return NextResponse.json({ error: 'Failed to build Today workspace' }, { status: 500 });
