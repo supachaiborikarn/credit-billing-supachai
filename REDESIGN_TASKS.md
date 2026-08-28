@@ -2301,13 +2301,13 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 ## 2026-08-28 — S81 — Local UAT pass 1 / auth + capability boundaries
 - Status: `[~]`
 - ทำอะไรไปแล้ว:
-  - เปิด Next dev server บนเครื่องจริงและทำ HTTP route smoke ผ่าน `http://localhost:3000` ก่อนเริ่ม data mutation ใดๆ
+  - เปิด Next dev server บนเครื่องจริงและทำ HTTP route smoke; **หมายเหตุแก้ไขภายหลัง: ห้ามใช้พอร์ต 3000 สำหรับ CreditBilling เพราะมี service อื่นใช้อยู่แล้ว ต้องเช็กพอร์ตว่างและใช้พอร์ตอื่น (เช่น 3005) ก่อนทุกครั้ง**
   - พบ canonical app routes ใหม่ (`/today`, `/stations`, `/customers`, `/billing`, `/billing-collections`) ยังไม่อยู่ใน middleware protected routes แม้ API จะตอบ 401; เพิ่ม auth boundary ให้ unauthenticated request ไป `/login?redirect=...` และ preserve query
   - พบ direct `/gas/6/products` ยังเปิด inventory UI ได้ทั้งที่ station-6 `hasProducts=false`; เพิ่ม middleware/login normalization ให้ redirect ไป canonical station-6 Overview โดยยังคง `/gas/5/products` ตาม capability
   - ตรวจ source แล้ว product API มี `requireGasProductsEnabled` backend guard อยู่แล้ว จึงเป็น UI/navigation capability leak ไม่ใช่การเปิด API write ใหม่
   - ตรวจ retired station-2/3/4 direct canonical Sales/Operations แล้ว component เช็ก `canSell/canOperate` และแสดง read-only/POS notice; ไม่มี SaleFlow หรือ shift write UI หลุด
   - พยายาม login ด้วย local dev session แต่ Prisma ติดต่อ Neon ไม่ได้; DNS resolve ได้ แต่ทั้ง direct และ pooler TCP 5432 timeout จึงหยุด authenticated/data UAT โดยไม่สร้าง transaction/shift/inventory test ใดๆ
-  - dev host note: `localhost:3000` ใช้งานได้ แต่ `127.0.0.1`/LAN IP ตอบ 404 สำหรับ app routes ใน dev; ยังไม่ hard-code `allowedDevOrigins` ด้วย IP ชั่วคราว
+  - dev host note: รอบ S81 เคยตรวจ host behavior บนพอร์ต 3000 แต่พอร์ตนี้ถูกสงวนให้ service อื่นแล้วและห้ามใช้ซ้ำ; รอบถัดไปต้องเลือกพอร์ตว่างก่อน start dev server และค่อยตรวจ host/LAN behavior บนพอร์ตนั้น
 - ไฟล์ที่แก้:
   - `src/middleware.ts`
   - `src/app/login/page.tsx`

@@ -3,6 +3,9 @@
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
 ## 2026-08-28
+- 🧷 Local dev port rule
+  - พอร์ต `3000` มี service อื่นใช้งานอยู่แล้ว: CreditBilling ห้าม start/ทับพอร์ต 3000 อีก
+  - ก่อน UAT/dev ทุกครั้งต้องเช็กพอร์ตว่างและใช้พอร์ตอื่น เช่น `3005`; อย่าฆ่าหรือรบกวน process ที่ครอง 3000
 - 🧪 S81 local UAT pass 1 — auth/capability boundary hardening
   - เพิ่ม middleware protection ให้ canonical `/today`, `/stations`, `/customers`, `/billing`, `/billing-collections`; unauthenticated route preserving redirect/query ถูก regression lock แล้ว
   - ปิด direct `/gas/6/products` → canonical station-6 เพราะ `hasProducts=false`; backend products API มี capability guard อยู่แล้ว, station-5 products ยัง KEEP
