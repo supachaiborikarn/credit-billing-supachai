@@ -9,6 +9,43 @@ function request(path: string, authenticated = true) {
 }
 
 describe('middleware legacy route retirement boundaries', () => {
+    it.each([
+        '/today',
+        '/stations/station-1',
+        '/customers',
+        '/billing',
+        '/billing-collections',
+    ])('protects canonical application route %s before login', (path) => {
+        const response = middleware(request(`${path}?from=uat`, false));
+        const location = response.headers.get('location');
+
+        expect(response.status).toBe(307);
+        expect(location).not.toBeNull();
+        const loginUrl = new URL(location!);
+        expect(loginUrl.pathname).toBe('/login');
+        expect(loginUrl.searchParams.get('redirect')).toBe(`${path}?from=uat`);
+    });
+
+    it('redirects direct station-6 product inventory URL because products are disabled there', () => {
+        const response = middleware(request('/gas/6/products?from=bookmark'));
+
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(
+            'https://credit-billing-supachai.local/stations/station-6?from=bookmark'
+        );
+    });
+
+    it('normalizes unauthenticated direct station-6 product inventory URL before login', () => {
+        const response = middleware(request('/gas/6/products?from=bookmark', false));
+        const location = response.headers.get('location');
+
+        expect(response.status).toBe(307);
+        expect(location).not.toBeNull();
+        const loginUrl = new URL(location!);
+        expect(loginUrl.pathname).toBe('/login');
+        expect(loginUrl.searchParams.get('redirect')).toBe('/stations/station-6?from=bookmark');
+    });
+
     it.each(['5', '6'])('redirects authenticated GAS %s landing to canonical overview and preserves query', (stationNumber) => {
         const response = middleware(request(`/gas/${stationNumber}?from=legacy&tab=now`));
 

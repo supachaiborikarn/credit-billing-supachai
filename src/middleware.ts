@@ -15,9 +15,17 @@ const protectedRoutes = [
     '/reports',
     '/users',
     '/settings',
+    '/today',
+    '/stations',
+    '/customers',
+    '/billing',
+    '/billing-collections',
 ];
 
 function getCurrentGasRedirectPath(pathname: string) {
+    const disabledProductsMatch = pathname.match(/^\/gas\/6\/products(?:\/|$)/);
+    if (disabledProductsMatch) return '/stations/station-6';
+
     const overviewMatch = pathname.match(/^\/gas\/(5|6)(?:\/summary)?\/?$/);
     if (overviewMatch) return `/stations/station-${overviewMatch[1]}`;
 

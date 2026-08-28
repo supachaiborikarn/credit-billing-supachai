@@ -3,6 +3,11 @@
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
 ## 2026-08-28
+- 🧪 S81 local UAT pass 1 — auth/capability boundary hardening
+  - เพิ่ม middleware protection ให้ canonical `/today`, `/stations`, `/customers`, `/billing`, `/billing-collections`; unauthenticated route preserving redirect/query ถูก regression lock แล้ว
+  - ปิด direct `/gas/6/products` → canonical station-6 เพราะ `hasProducts=false`; backend products API มี capability guard อยู่แล้ว, station-5 products ยัง KEEP
+  - HTTP route smoke + retired-station write-boundary review ผ่าน; regression 135/135 + TypeScript/ESLint + production build 126 routes ผ่าน
+  - authenticated data UAT ยัง blocked: Neon DNS resolve แต่ direct/pooler TCP 5432 timeout จาก network ปัจจุบัน; ไม่ทำ DB write, ไม่ push/deploy
 - 🧭 S80 retire current/older GAS summary UI
   - `/gas/5|6/summary` + older `new/summary`/`shift-summary` ไป canonical Overview หลัง S79 parity; middleware/login/query boundary และ Today/legacy nav ชี้ canonical โดยตรง
   - คง `/api/v2/gas/[id]/summary` เป็น read source; regression 128/128 + financial gate 81/81 + TypeScript ผ่าน, ESLint ไม่มี error (warning เดิมใน legacy source 1 จุด)

@@ -611,9 +611,9 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S78: review older GAS read family — KEEP summary/shift-summary; flatten redirect-only monthly-balance UI โดยคง monthly-balance API
 - [x] S79: canonical GAS Overview เพิ่ม meter detail + recent transactions จาก summary API เดิม; current summary parity ready แต่ยัง KEEP จน S80
 - [x] S80: retire current `/gas/5|6/summary` + older summary/shift-summary ไป canonical Overview; preserve auth/query และ keep summary API เป็น read source
-- [ ] S81: local end-to-end smoke/UAT บนเครื่องก่อน retire compatibility route กลุ่มถัดไป
+- [~] S81: local end-to-end smoke/UAT บนเครื่อง — route/auth smoke ผ่านและแก้ boundary แล้ว; authenticated data-flow รอ network ไป Neon 5432
 - [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุดหลัง S81 UAT
-- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S80
+- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S81
 
 ---
 
@@ -1494,6 +1494,7 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
   - `npx tsc --noEmit` ผ่าน
   - route/context/history regression 17/17 ผ่าน
   - targeted ESLint ผ่าน
+  - production build ผ่านครบ 126 routes ด้วย `NODE_ENV=production`
   - HTTP smoke: `/new/sell` ของ station-2/3/4 = 307 canonical; `/new/oil-sell`, `/new/open-shift`, `/new/shift-history` ของ station-2 ยัง 200
   - `git diff --check` ผ่านใน final gate
 - สิ่งที่ยังค้าง:
@@ -2295,6 +2296,37 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - หมายเหตุ/Decision:
   - S80 เป็น UI route/navigation retirement; summary API/read source ยังอยู่และ financial write/formula ไม่เปลี่ยน
   - ไม่ push / ไม่ deploy production
+
+
+## 2026-08-28 — S81 — Local UAT pass 1 / auth + capability boundaries
+- Status: `[~]`
+- ทำอะไรไปแล้ว:
+  - เปิด Next dev server บนเครื่องจริงและทำ HTTP route smoke ผ่าน `http://localhost:3000` ก่อนเริ่ม data mutation ใดๆ
+  - พบ canonical app routes ใหม่ (`/today`, `/stations`, `/customers`, `/billing`, `/billing-collections`) ยังไม่อยู่ใน middleware protected routes แม้ API จะตอบ 401; เพิ่ม auth boundary ให้ unauthenticated request ไป `/login?redirect=...` และ preserve query
+  - พบ direct `/gas/6/products` ยังเปิด inventory UI ได้ทั้งที่ station-6 `hasProducts=false`; เพิ่ม middleware/login normalization ให้ redirect ไป canonical station-6 Overview โดยยังคง `/gas/5/products` ตาม capability
+  - ตรวจ source แล้ว product API มี `requireGasProductsEnabled` backend guard อยู่แล้ว จึงเป็น UI/navigation capability leak ไม่ใช่การเปิด API write ใหม่
+  - ตรวจ retired station-2/3/4 direct canonical Sales/Operations แล้ว component เช็ก `canSell/canOperate` และแสดง read-only/POS notice; ไม่มี SaleFlow หรือ shift write UI หลุด
+  - พยายาม login ด้วย local dev session แต่ Prisma ติดต่อ Neon ไม่ได้; DNS resolve ได้ แต่ทั้ง direct และ pooler TCP 5432 timeout จึงหยุด authenticated/data UAT โดยไม่สร้าง transaction/shift/inventory test ใดๆ
+  - dev host note: `localhost:3000` ใช้งานได้ แต่ `127.0.0.1`/LAN IP ตอบ 404 สำหรับ app routes ใน dev; ยังไม่ hard-code `allowedDevOrigins` ด้วย IP ชั่วคราว
+- ไฟล์ที่แก้:
+  - `src/middleware.ts`
+  - `src/app/login/page.tsx`
+  - `tests/middleware-route-retirement.test.ts`
+  - docs/secondbrain ที่เกี่ยวข้อง
+- ตรวจสอบแล้ว:
+  - middleware regression ผ่าน 35/35
+  - route/middleware/GAS/context regression ผ่าน 4 files / 135 tests
+  - `npx tsc --noEmit` ผ่าน
+  - targeted ESLint ผ่าน
+  - HTTP smoke: canonical station-1/5/6 pages, History, Billing, Customers = 200 เมื่อมี route-smoke cookie; legacy root/summary redirects ถูกต้อง; `/gas/6/products` หลังแก้ = 307 ไป `/stations/station-6`
+- สิ่งที่ยังค้าง:
+  - authenticated UAT จริง: Login → Today → context station-1/5/6 → read current shift/sale context/history/billing/customer ด้วยฐานข้อมูลปัจจุบัน
+  - write-flow UAT (open/sale/close) ต้องทำใน test database/branch หรือชุดข้อมูลที่ตั้งใจไว้ ไม่ยิง production data แบบสุ่ม
+  - ถ้าต้องทดสอบจากมือถือผ่าน LAN ให้กำหนด dev origin แบบ explicit ตาม IP/hostname ของรอบนั้น แทนการ hard-code ลง production config
+- Session ถัดไปที่แนะนำ: `S81` ต่อทันทีเมื่อเครื่องอยู่ network ที่ออก Neon PostgreSQL 5432 ได้ หรือมี test DB branch สำหรับ UAT
+- หมายเหตุ/Decision:
+  - S81 ยังไม่ถือว่า end-to-end ผ่าน เพราะ database connectivity เป็น environment blocker
+  - ไม่ push / ไม่ deploy production และไม่มี DB write จาก UAT รอบนี้
 
 
 ## Template

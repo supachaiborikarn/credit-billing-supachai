@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { LogIn, Eye, EyeOff, Fuel, Sparkles, Loader2 } from 'lucide-react';
 
 function normalizeGasRedirectPath(path: string) {
+    if (/^\/gas\/6\/products(?:[/?#]|$)/.test(path)) return '/stations/station-6';
+
     const currentMatch = path.match(/^\/gas\/(5|6)\/shift\/(?:open|close)(?:[/?#]|$)/);
     if (currentMatch) return `/stations/station-${currentMatch[1]}/operations`;
 
