@@ -3,6 +3,11 @@
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
 ## 2026-08-28
+- 🧭 S80 retire current/older GAS summary UI
+  - `/gas/5|6/summary` + older `new/summary`/`shift-summary` ไป canonical Overview หลัง S79 parity; middleware/login/query boundary และ Today/legacy nav ชี้ canonical โดยตรง
+  - คง `/api/v2/gas/[id]/summary` เป็น read source; regression 128/128 + financial gate 81/81 + TypeScript ผ่าน, ESLint ไม่มี error (warning เดิมใน legacy source 1 จุด)
+  - production build ผ่าน 126/126 routes เมื่อ normalize `NODE_ENV=production`; inherited non-standard NODE_ENV ของ shell เป็น build-environment gotcha ไม่ใช่ app blocker
+  - จุดถัดไปเปลี่ยนเป็น S81 local end-to-end smoke/UAT ก่อน retire route เพิ่ม; ยังไม่ push/deploy
 - 📊 S79 canonical GAS summary-detail parity
   - canonical Overview reuse summary API เดิมเพื่อแสดงมิเตอร์ 4 หัว (เปิด/ปิด/ลิตร/มูลค่า) + recent transactions สูงสุด 10 รายการ โดยไม่เพิ่ม query หรือ financial formula
   - regression เพิ่ม meter response contract; 125/125 + TypeScript/ESLint ผ่าน

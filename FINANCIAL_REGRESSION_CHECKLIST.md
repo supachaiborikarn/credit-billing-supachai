@@ -4,7 +4,7 @@
 
 Status: **PASS — 2026-08-27**
 
-Latest active-route rerun: **S70 — 16 files / 81 tests passed after moving active GAS staff price-update UX to canonical Station Overview while reusing the audited existing price API.**
+Latest active-route rerun: **S80 — 16 files / 81 tests passed after retiring active current/older GAS summary UI to canonical Overview; summary API and all financial write/formula paths remain unchanged.**
 
 ## Release gate
 

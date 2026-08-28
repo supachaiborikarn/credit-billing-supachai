@@ -8,7 +8,7 @@ function normalizeGasRedirectPath(path: string) {
     const currentMatch = path.match(/^\/gas\/(5|6)\/shift\/(?:open|close)(?:[/?#]|$)/);
     if (currentMatch) return `/stations/station-${currentMatch[1]}/operations`;
 
-    const overviewMatch = path.match(/^\/gas\/(5|6)\/?$/);
+    const overviewMatch = path.match(/^\/gas\/(5|6)(?:\/summary)?\/?$/);
     if (overviewMatch) return `/stations/station-${overviewMatch[1]}`;
 
     const match = path.match(/^\/gas-station\/(\d+)(?:\/new(?:\/([^/?#]+))?)?/);
@@ -25,6 +25,7 @@ function normalizeGasRedirectPath(path: string) {
     if (legacyPage === 'monthly-balance' && (stationNum === '5' || stationNum === '6')) return `/stations/station-${stationNum}`;
     if (legacyPage === 'supplies') return `/gas/${stationNum}/supplies`;
     if (legacyPage === 'meters') return `/gas/${stationNum}/meters`;
+    if ((legacyPage === 'summary' || legacyPage === 'shift-summary') && (stationNum === '5' || stationNum === '6')) return `/stations/station-${stationNum}`;
     if (legacyPage === 'summary' || legacyPage === 'shift-summary') return `/gas/${stationNum}/summary`;
 
     return `/gas/${stationNum}`;

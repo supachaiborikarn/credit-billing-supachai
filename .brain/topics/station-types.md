@@ -1,5 +1,5 @@
 <!-- SUMMARY: 6 สถานี: แท๊งลอยวัชรเกียรติ (FULL) ยังคง operational workspace `/station/1/v2` และ classic admin `/station/1`, S55-S56 retire legacy sale entries ไป canonical sales และ S57 retire `/station/1/new/open-shift` ไป canonical `/stations/station-1/operations`; admin แก้มิเตอร์ย้อนหลังใช้ exact start/end shift scope, daily report รวมเลขเปิดแรกกับเลขปิดสุดท้าย, และ Windows agent พิมพ์สรุปเมื่อวานเข้า Epson TM-m30III ผ่าน Wi-Fi เวลา 07:00;
-     วัชรเกียรติออยล์/พงษ์อนันต์ปิโตรเลียม/ศุภชัยบริการ (SIMPLE) ย้ายงานหน้าปั๊มไป POS แล้ว โดย S45 redirect legacy landing `/simple-station/[id]` ของ 2/3/4 ไป canonical read-only workspace, ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS) ใช้ operational landing `/gas/[id]` แต่ S53-S54 retire ทั้ง current `/gas/5|6/sell` และ older `/gas-station/5|6/new/sell` ไป canonical `/stations/station-5|6/sales`, GAS มี 2 กะตายตัว 07:00-19:00 และ 19:00-07:00 โดยกะ 2 ข้ามวันได้, supply receiving `/gas/[id]/supplies`, meter continuity ใน admin report, admin แก้เลขเปิดมิเตอร์และยอดกระทบยอดจากรายงานมิเตอร์พร้อม Audit Log, executive print report `/admin/gas/reports/executive`, และ admin `/admin/gas/*`; legacy admin gas-control redirect ไป v2 -->
+     วัชรเกียรติออยล์/พงษ์อนันต์ปิโตรเลียม/ศุภชัยบริการ (SIMPLE) ย้ายงานหน้าปั๊มไป POS แล้ว โดย S45 redirect legacy landing `/simple-station/[id]` ของ 2/3/4 ไป canonical read-only workspace, ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS) ใช้ canonical `/stations/station-5|6` เป็น operational overview; S53-S54 retire sale, S62-S63 retire open/close, S73-S80 retire root/older entry/summary UI ไป canonical โดยคง correction/inventory/read API ที่ยังจำเป็น, GAS มี 2 กะตายตัว 07:00-19:00 และ 19:00-07:00 โดยกะ 2 ข้ามวันได้, supply receiving `/gas/[id]/supplies`, meter continuity ใน admin report, admin แก้เลขเปิดมิเตอร์และยอดกระทบยอดจากรายงานมิเตอร์พร้อม Audit Log, executive print report `/admin/gas/reports/executive`, และ admin `/admin/gas/*`; legacy admin gas-control redirect ไป v2 -->
 
 # Station Types
 
@@ -14,8 +14,8 @@
 | 2 | วัชรเกียรติออยล์ | SIMPLE | canonical `/stations/station-2` | ย้ายงานหน้าปั๊มไป POS; legacy landing/home redirect แล้ว |
 | 3 | พงษ์อนันต์ปิโตรเลียม | SIMPLE | canonical `/stations/station-3` | ย้ายงานหน้าปั๊มไป POS; legacy landing/home redirect แล้ว |
 | 4 | ศุภชัยบริการ | SIMPLE | canonical `/stations/station-4` | ย้ายงานหน้าปั๊มไป POS; legacy landing/home redirect แล้ว |
-| 5 | ปั๊มแก๊สพงษ์อนันต์ | GAS | `/gas/[id]` | แก๊ส + สินค้า |
-| 6 | ปั๊มแก๊สศุภชัย | GAS | `/gas/[id]` | แก๊สอย่างเดียว |
+| 5 | ปั๊มแก๊สพงษ์อนันต์ | GAS | canonical `/stations/station-5` | แก๊ส + สินค้า; legacy correction/inventory tools ยัง KEEP |
+| 6 | ปั๊มแก๊สศุภชัย | GAS | canonical `/stations/station-6` | แก๊สอย่างเดียว; legacy correction/supplies tools ยัง KEEP |
 
 ## Station Type Features
 

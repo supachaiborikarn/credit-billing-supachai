@@ -89,6 +89,9 @@ export default function GasStationLayout({
     const canonicalSalesHref = stationConfig?.type === 'GAS'
         ? `/stations/${stationConfig.id}/sales`
         : `/gas/${stationId}/sell`;
+    const canonicalOverviewHref = stationConfig?.type === 'GAS'
+        ? `/stations/${stationConfig.id}`
+        : `/gas/${stationId}`;
 
     const navItems = [
         { href: `/gas/${stationId}`, icon: Home, label: 'หน้าหลัก', exact: true },
@@ -97,7 +100,7 @@ export default function GasStationLayout({
         { href: `/gas/${stationId}/meters`, icon: Calculator, label: 'มิเตอร์' },
         { href: `/gas/${stationId}/gauge`, icon: Gauge, label: 'เช็คเกจ' },
         ...(hasProducts ? [{ href: `/gas/${stationId}/products`, icon: ShoppingBag, label: 'สินค้า' }] : []),
-        { href: `/gas/${stationId}/summary`, icon: ClipboardList, label: 'สรุปกะ' },
+        { href: canonicalOverviewHref, icon: ClipboardList, label: 'สรุปกะ' },
         { href: `/gas/${stationId}/shift/close`, icon: Clock, label: 'ปิดกะ' },
     ];
 

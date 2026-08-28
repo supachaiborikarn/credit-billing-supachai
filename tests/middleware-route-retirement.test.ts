@@ -29,12 +29,31 @@ describe('middleware legacy route retirement boundaries', () => {
         expect(loginUrl.searchParams.get('redirect')).toBe(`/stations/station-${stationNumber}?from=bookmark`);
     });
 
+    it.each(['5', '6'])('redirects authenticated GAS %s summary to canonical overview and preserves query', (stationNumber) => {
+        const response = middleware(request(`/gas/${stationNumber}/summary?from=summary&tab=now`));
+
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(
+            `https://credit-billing-supachai.local/stations/station-${stationNumber}?from=summary&tab=now`
+        );
+    });
+
+    it.each(['5', '6'])('normalizes unauthenticated GAS %s summary before login and preserves query', (stationNumber) => {
+        const response = middleware(request(`/gas/${stationNumber}/summary?from=bookmark`, false));
+        const location = response.headers.get('location');
+
+        expect(response.status).toBe(307);
+        expect(location).not.toBeNull();
+        const loginUrl = new URL(location!);
+        expect(loginUrl.pathname).toBe('/login');
+        expect(loginUrl.searchParams.get('redirect')).toBe(`/stations/station-${stationNumber}?from=bookmark`);
+    });
+
     it.each([
         '/gas/5/meters?source=test',
         '/gas/5/gauge?source=test',
         '/gas/5/supplies?source=test',
         '/gas/5/products?source=test',
-        '/gas/6/summary?source=test',
     ])('keeps compatibility subroute %s untouched', (path) => {
         const response = middleware(request(path));
 
@@ -63,9 +82,9 @@ describe('middleware legacy route retirement boundaries', () => {
         ['/gas-station/5/new/meters?from=older', '/gas/5/meters?from=older'],
         ['/gas-station/5/new/supplies?from=older', '/gas/5/supplies?from=older'],
         ['/gas-station/5/new/products?from=older', '/gas/5/products?from=older'],
-        ['/gas-station/5/new/summary?from=older', '/gas/5/summary?from=older'],
-        ['/gas-station/6/new/shift-summary?from=older', '/gas/6/summary?from=older'],
-    ])('keeps older GAS compatibility mapping for %s and preserves query', (path, expectedPath) => {
+        ['/gas-station/5/new/summary?from=older', '/stations/station-5?from=older'],
+        ['/gas-station/6/new/shift-summary?from=older', '/stations/station-6?from=older'],
+    ])('maps older GAS compatibility route %s and preserves query', (path, expectedPath) => {
         const response = middleware(request(path));
 
         expect(response.status).toBe(307);

@@ -80,7 +80,7 @@ function getStationPaths(station: ActiveStationConfig) {
             sell: `${base}/sell`,
             attention: base,
             close: `${base}/shift/close`,
-            summary: `${base}/summary`,
+            summary: `/stations/${station.id}`,
         };
     }
 

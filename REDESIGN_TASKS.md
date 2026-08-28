@@ -610,8 +610,10 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S77: fix older GAS `/new/products` mapping — station-5 → `/gas/5/products`, station-6 → canonical Overview
 - [x] S78: review older GAS read family — KEEP summary/shift-summary; flatten redirect-only monthly-balance UI โดยคง monthly-balance API
 - [x] S79: canonical GAS Overview เพิ่ม meter detail + recent transactions จาก summary API เดิม; current summary parity ready แต่ยัง KEEP จน S80
-- [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุด
-- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S79
+- [x] S80: retire current `/gas/5|6/summary` + older summary/shift-summary ไป canonical Overview; preserve auth/query และ keep summary API เป็น read source
+- [ ] S81: local end-to-end smoke/UAT บนเครื่องก่อน retire compatibility route กลุ่มถัดไป
+- [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุดหลัง S81 UAT
+- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S80
 
 ---
 
@@ -2269,6 +2271,30 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - หมายเหตุ/Decision:
   - S79 reuse read source เดิมทั้งหมด จึงไม่ rerun financial gate; baseline ล่าสุด S70 = 16 files / 81 tests
   - ไม่ deploy production
+
+
+## 2026-08-28 — S80 — Retire current/older GAS summary UI
+- Status: `[x]`
+- ทำอะไรไปแล้ว:
+  - retire current `/gas/5|6/summary` ไป canonical `/stations/station-5|6` หลัง S79 ปิด meter/recent-transaction parity
+  - เก็บ source หน้าเดิมไว้เป็น `LegacyGasSummaryPage.tsx` สำหรับ non-active/fallback param; active GAS page wrapper redirect ก่อน hydrate
+  - flatten older `/gas-station/5|6/new/summary` และ `/new/shift-summary` ไป canonical Overview โดยตรง
+  - middleware + login normalization รองรับ current/older summary bookmark และ preserve query ทั้ง authenticated/unauthenticated boundary
+  - เปลี่ยน GAS legacy layout เมนู `สรุปกะ` และ Today `CLOSED → ดูสรุปวันนี้` ให้ชี้ canonical Overview โดยตรง
+  - คง `GET /api/v2/gas/[stationId]/summary` ไว้เป็น read source ของ canonical live summary/closing flow; ไม่มี API หรือสูตรการเงินถูกลบ
+- ตรวจสอบแล้ว:
+  - route/middleware/GAS/context regression ผ่าน 4 files / 128 tests
+  - financial regression gate ผ่าน 16 files / 81 tests
+  - `npx tsc --noEmit` ผ่าน
+  - targeted ESLint ไม่มี error; มี warning เดิม `react-hooks/exhaustive-deps` 1 จุดใน legacy source ที่ย้ายชื่อเท่านั้น
+  - production build ผ่านครบ 126/126 routes เมื่อรันด้วย `NODE_ENV=production`; shell environment ค่า `NODE_ENV` non-standard ทำให้ prerender fail เทียม จึงต้อง normalize env ตอน local build/UAT
+- สิ่งที่ยังค้าง:
+  - meter/gauge correction, supplies, station-5 products และ read/admin compatibility routes ที่ตั้งใจ KEEP ยังอยู่
+  - ควรหยุด route retirement ชั่วคราวและทำ local end-to-end smoke/UAT ก่อน เพื่อตรวจ flow จริงด้วย session/auth/data ปัจจุบัน
+- Session ถัดไปที่แนะนำ: `S81` local machine smoke/UAT: login → Today → station-1/5/6 sale/open/close/summary + compatibility tools + retired 2/3/4 read-only
+- หมายเหตุ/Decision:
+  - S80 เป็น UI route/navigation retirement; summary API/read source ยังอยู่และ financial write/formula ไม่เปลี่ยน
+  - ไม่ push / ไม่ deploy production
 
 
 ## Template
