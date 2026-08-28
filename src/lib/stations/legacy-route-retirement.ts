@@ -70,3 +70,13 @@ export function getActiveFullHistoryRedirect(stationParam: string): string | nul
 export function getActiveFullMeterSummaryRedirect(stationParam: string): string | null {
     return getActiveFullHistoryRedirect(stationParam);
 }
+
+export function getActiveFullAdminMaintenancePath(
+    stationParam: string,
+    role: 'ADMIN' | 'STAFF'
+): string | null {
+    if (role !== 'ADMIN') return null;
+    const station = resolveStationDefinition(stationParam.trim());
+    if (!station || station.type !== 'FULL' || station.operationalStatus !== 'ACTIVE') return null;
+    return `/station/${station.number}/v2`;
+}

@@ -2764,3 +2764,34 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print/shared brain changes from another task remain untouched and excluded from S91 staging/commit.
 - No push / no deploy / no production DB write.
+
+## 2026-08-28 — S92 — Reclassify FULL V2 as admin-maintenance compatibility
+- Status: `[x]`
+- Audit result:
+  - `/station/1/v2` is **not ready to retire** yet, but its remaining ownership is maintenance-only; normal sale/open/close/history flows already have canonical surfaces.
+  - remaining V2 maintenance groups are:
+    1. historical daily retail/wholesale/special price correction,
+    2. historical start/end meter + meter-photo correction,
+    3. historical transaction edit/void + transfer-proof replacement + receipt/credit reprint,
+    4. audit trail + payment-filtered CSV + daily A4/58/80 print.
+  - canonical History had a stale FULL fallback link to `/station/1/history`, which is not an app route in the current build.
+  - canonical Sales still exposed V2 as “old sales fallback”, which no longer matches the post-S91 ownership model.
+- S92 implementation:
+  - added `getActiveFullAdminMaintenancePath()`; active FULL V2 maintenance resolves only for `ADMIN`, never `STAFF`.
+  - canonical Overview now exposes a clearly labelled `V2 admin maintenance` entry only to ADMIN and explains the temporary scope.
+  - removed the FULL V2 sales fallback from canonical Sales so staff stay on canonical SaleFlow.
+  - canonical FULL History now exposes V2 only as an ADMIN historical-maintenance tool; STAFF no longer sees a FULL fallback.
+  - GAS/non-FULL fallback behavior is unchanged.
+- Planned migration slices:
+  - **S93:** move historical FULL daily-price correction into canonical Operations/admin tooling.
+  - **S94:** move historical FULL meter/photo correction into canonical Operations or History-admin tooling with existing lock semantics.
+  - **S95:** move historical transaction/slip/receipt maintenance + audit/export/daily print into canonical History admin tooling.
+  - **S96:** isolated UAT + financial gate, then retire `/station/1/v2` only if all parity and role boundaries pass.
+- Verification:
+  - route/history/context/sale validation gate: 4 files / 135 tests passed.
+  - TypeScript, targeted ESLint and `git diff --check` passed.
+  - production build with `NODE_ENV=production` passed 127/127 routes.
+  - no financial/write API, schema or DB data changed.
+- Concurrent-work note:
+  - Tank Loy auto-print/shared brain files from another task remain untouched and excluded from S92 staging/commit.
+- No push / no deploy / no production DB write.

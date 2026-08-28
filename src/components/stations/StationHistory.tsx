@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, ArrowRight, History, RefreshCw } from 'lucide-react';
 import { Badge, Button, EmptyState, Notice, Section } from '@/components/ui';
+import { getActiveFullAdminMaintenancePath } from '@/lib/stations/legacy-route-retirement';
 import type { StationContextPayload } from '@/types/station';
 import type {
     StationHistoryAttentionReason,
@@ -75,7 +76,7 @@ function formatDuration(openedAt: string, closedAt: string | null) {
 
 function legacyHistoryPath(context: StationContextPayload) {
     if (context.station.type === 'GAS') return `/admin/gas-history?stationId=${context.station.id}`;
-    if (context.station.type === 'FULL') return `/station/${context.station.number}/history`;
+    if (context.station.type === 'FULL') return `/station/${context.station.number}/v2`;
     return `/simple-station/${context.station.number}`;
 }
 
@@ -230,6 +231,7 @@ function ShiftDetail({ shift }: { shift: StationHistoryShift }) {
 
 export function StationHistory({ context }: { context: StationContextPayload }) {
     const searchParams = useSearchParams();
+    const fullAdminMaintenancePath = getActiveFullAdminMaintenancePath(context.station.id, context.user.role);
     const [{ from, to }] = React.useState(() => initialRange(searchParams));
     const [fromDate, setFromDate] = React.useState(from);
     const [toDate, setToDate] = React.useState(to);
@@ -351,7 +353,15 @@ export function StationHistory({ context }: { context: StationContextPayload }) 
                 </>
             ) : null}
 
-            {context.station.operationalStatus !== 'RETIRED' && (
+            {context.station.operationalStatus !== 'RETIRED' && context.station.type === 'FULL' && fullAdminMaintenancePath && (
+                <div className="text-right">
+                    <Link href={fullAdminMaintenancePath} className="inline-flex min-h-11 items-center gap-2 rounded-sm text-xs font-semibold text-[var(--ui-text-muted)] underline-offset-4 hover:text-[var(--ui-text)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">
+                        เครื่องมือแก้ไขย้อนหลัง V2 (แอดมิน) <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    </Link>
+                </div>
+            )}
+
+            {context.station.operationalStatus !== 'RETIRED' && context.station.type !== 'FULL' && (
                 <div className="text-right">
                     <Link href={legacyHistoryPath(context)} className="inline-flex min-h-11 items-center gap-2 rounded-sm text-xs font-semibold text-[var(--ui-text-muted)] underline-offset-4 hover:text-[var(--ui-text)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">
                         เปิดประวัติเดิม (fallback) <ArrowRight className="h-4 w-4" aria-hidden="true" />

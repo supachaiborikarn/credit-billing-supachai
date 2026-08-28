@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { STATIONS } from '../src/constants';
 import {
+    getActiveFullAdminMaintenancePath,
     getActiveFullHistoryRedirect,
     getActiveFullMeterSummaryRedirect,
     getActiveFullOperationsRedirect,
@@ -162,5 +163,14 @@ describe('legacy route retirement', () => {
 
     it.each(['2', '3', '4', '5', '6', '7', '', 'station-5'])('does not redirect non-FULL operations param %s', (stationParam) => {
         expect(getActiveFullOperationsRedirect(stationParam)).toBeNull();
+    });
+
+    it.each(['1', 'station-1'])('exposes FULL V2 maintenance only to ADMIN for %s', (stationParam) => {
+        expect(getActiveFullAdminMaintenancePath(stationParam, 'ADMIN')).toBe('/station/1/v2');
+        expect(getActiveFullAdminMaintenancePath(stationParam, 'STAFF')).toBeNull();
+    });
+
+    it.each(['2', '3', '4', '5', '6', '7', '', 'station-5'])('does not expose FULL V2 maintenance for non-FULL station %s', (stationParam) => {
+        expect(getActiveFullAdminMaintenancePath(stationParam, 'ADMIN')).toBeNull();
     });
 });
