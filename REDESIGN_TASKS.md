@@ -2632,3 +2632,25 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print/shared brain changes from another task remain untouched and excluded from S84 staging/commit.
 - No push / no deploy / no production DB write.
+
+
+## 2026-08-28 — S86 — Retire FULL shift-history to canonical History
+- Status: `[x]`
+- Scope:
+  - active FULL station-1 only; no summary, meter-summary, transaction maintenance, receipt/print or product route changed.
+- Parity audit:
+  - legacy `/station/1/new/shift-history` was read-only and showed one-day shift status, opener/closer, open/close times, duration and per-nozzle start/end/sold meter evidence.
+  - canonical `/stations/station-1/history` already exposes the same evidence plus date ranges, OPEN/CLOSED/LOCKED filtering, meter photos, transaction totals, meter-vs-transaction liters difference, reconciliation and anomaly evidence.
+- Route implementation:
+  - added bounded `getActiveFullHistoryRedirect` helper for active FULL only.
+  - FULL shift-history route now redirects to canonical History and falls back to `/station/[id]/v2` for non-FULL inputs.
+  - middleware now maps the real station-1 legacy bookmark directly to canonical History before the broad FULL fallback; query strings are preserved and unauthenticated bookmarks normalize through login to the canonical target.
+- Verification:
+  - route/history/context/middleware regression: 4 files / 151 tests passed.
+  - TypeScript, targeted ESLint and scoped diff check passed.
+  - authenticated UAT smoke on isolated Neon: legacy station-1 shift-history returned 307 to `/stations/station-1/history?from=s86-bookmark`; canonical target returned 200.
+  - production build with `NODE_ENV=production` passed 127/127 routes.
+  - read-only route retirement only; no financial/write API changed, so S85 financial baseline remains active.
+- Concurrent-work note:
+  - Tank Loy auto-print/shared brain files from another task remain untouched/uncommitted by S86.
+- No push / no deploy / no production DB write.

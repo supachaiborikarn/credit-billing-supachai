@@ -61,7 +61,7 @@ Applicable active station: `station-1`.
 | `/station/1/new/shift-end` | `/stations/station-1/operations` | **S59 IMPLEMENTED** | Direct canonical Operations redirect after S39 closing/reconciliation parity; legacy APIs/read compatibility preserved. |
 | `/station/1/new/meters` | `/stations/station-1/operations` | **S60 IMPLEMENTED** | Direct canonical Operations redirect; legacy route was redirect-only to `/new/shift-end`, so no standalone meter capability is removed. |
 | `/station/1/new/meter-summary` | `/stations/station-1/history` | KEEP_READ_COMPAT | Historical meter evidence. |
-| `/station/1/new/shift-history` | `/stations/station-1/history` | KEEP_READ_COMPAT | S40 must prove parity. |
+| `/station/1/new/shift-history` | `/stations/station-1/history` | **S86 IMPLEMENTED** | Legacy page was read-only and showed date, OPEN/CLOSED status, opener/closer, duration and per-nozzle meter start/end/sold. Canonical History now has all of that plus LOCKED, meter photos, transaction totals, reconciliation and anomaly evidence. Middleware and route wrapper redirect directly to canonical History; query strings are preserved by middleware. |
 | `/station/1/new/summary` | `/stations/station-1/history` | KEEP_READ_COMPAT | Daily/shift summary. |
 | `/station/1/new/list` | `/stations/station-1/history` | KEEP_READ_COMPAT | Transaction/list compatibility. |
 | `/station/1/new/record` | `/stations/station-1/history` | KEEP_READ_COMPAT | Historical entry/detail compatibility. |

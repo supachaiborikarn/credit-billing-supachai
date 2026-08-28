@@ -175,4 +175,24 @@ describe('middleware legacy route retirement boundaries', () => {
             `https://credit-billing-supachai.local/stations/station-${stationNumber}/operations?source=old`
         );
     });
+
+    it('retires FULL shift-history to canonical History and preserves query', () => {
+        const response = middleware(request('/station/1/new/shift-history?from=legacy-bookmark'));
+
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(
+            'https://credit-billing-supachai.local/stations/station-1/history?from=legacy-bookmark'
+        );
+    });
+
+    it('normalizes unauthenticated FULL shift-history before login', () => {
+        const response = middleware(request('/station/1/new/shift-history?from=bookmark', false));
+        const location = response.headers.get('location');
+
+        expect(response.status).toBe(307);
+        expect(location).not.toBeNull();
+        const loginUrl = new URL(location!);
+        expect(loginUrl.pathname).toBe('/login');
+        expect(loginUrl.searchParams.get('redirect')).toBe('/stations/station-1/history?from=bookmark');
+    });
 });

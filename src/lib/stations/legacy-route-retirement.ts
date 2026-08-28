@@ -60,3 +60,9 @@ export function getActiveFullOperationsRedirect(stationParam: string): string | 
     if (!station || station.type !== 'FULL' || station.operationalStatus !== 'ACTIVE') return null;
     return `/stations/${station.id}/operations`;
 }
+
+export function getActiveFullHistoryRedirect(stationParam: string): string | null {
+    const station = resolveStationDefinition(stationParam.trim());
+    if (!station || station.type !== 'FULL' || station.operationalStatus !== 'ACTIVE') return null;
+    return `/stations/${station.id}/history`;
+}

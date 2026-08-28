@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { STATIONS } from '../src/constants';
 import {
+    getActiveFullHistoryRedirect,
     getActiveFullOperationsRedirect,
     getActiveFullOverviewRedirect,
     getActiveFullSellRedirect,
@@ -128,6 +129,16 @@ describe('legacy route retirement', () => {
 
     it.each(['2', '3', '4', '5', '6', '7', '', 'station-5'])('does not redirect non-FULL sell param %s', (stationParam) => {
         expect(getActiveFullSellRedirect(stationParam)).toBeNull();
+    });
+    it.each([
+        ['1', '/stations/station-1/history'],
+        ['station-1', '/stations/station-1/history'],
+    ])('redirects active FULL history param %s to canonical history', (stationParam, expected) => {
+        expect(getActiveFullHistoryRedirect(stationParam)).toBe(expected);
+    });
+
+    it.each(['2', '3', '4', '5', '6', '7', '', 'station-5'])('does not redirect non-FULL history param %s', (stationParam) => {
+        expect(getActiveFullHistoryRedirect(stationParam)).toBeNull();
     });
 
     it.each([
