@@ -9,7 +9,11 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "uat:preflight": "node scripts/uat-db-guard.mjs",
+    "uat:db:push": "node scripts/run-with-uat-db.mjs npx prisma db push --skip-generate",
+    "uat:seed": "node scripts/run-with-uat-db.mjs npx tsx prisma/seed-uat.ts",
+    "uat:dev": "node scripts/start-uat-dev.mjs"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

@@ -2481,3 +2481,28 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 15. ห้ามมี quick-add/FAB ที่ hard-code ไป station ใดสถานีหนึ่ง
 16. Runtime design tokens ของ UI ใหม่ใช้ `--ui-*`; primary orange, neutral slate, violet เฉพาะ credit semantic
 17. Runtime user roles ล็อกที่ `ADMIN` / `STAFF`; `Owner` เป็น customer-domain entity ไม่ใช่ role และ legacy dashboard เป็น admin-only
+
+## 2026-08-28 — S81 pass 6 — Write-safe UAT readiness
+- Status: `[~]` — safety tooling complete; actual write-flow awaits a separate UAT database.
+- Findings:
+  - local app has only the normal Neon `DATABASE_URL`; there is no existing CreditBilling test DB env.
+  - authenticated Neon CLI context on this Mac does not expose the current CreditBilling `us-west-2` project, so S81 did not create/modify a branch in that project or bypass account permissions.
+  - old generic seed is unsuitable for UAT because it covers station 1-4 and can import external CSV data.
+- Implemented:
+  - fail-closed `scripts/uat-db-guard.mjs`: requires `UAT_DATABASE_URL`, explicit `UAT_WRITE_ENABLED=YES_I_KNOW_THIS_IS_UAT`, and a host different from production.
+  - `scripts/run-with-uat-db.mjs` overrides `DATABASE_URL` only for the validated child process.
+  - npm commands `uat:preflight`, `uat:db:push`, `uat:seed`.
+  - deterministic `prisma/seed-uat.ts` for stations 1-6 + isolated UAT users/customer/truck/product fixtures.
+  - `docs/UAT_WRITE_FLOW.md` and guard regression tests.
+  - stopped local CreditBilling 3005 server because it was connected to production-like data; port 3000 remains reserved and untouched.
+- Verification:
+  - current config fails `uat:preflight` closed with exit 2 as intended because no UAT DB exists.
+  - 4 test files / 44 tests passed (guard + GAS routes + SaleFlow API + shift system).
+  - TypeScript, targeted ESLint and `git diff --check` passed.
+- Pending before S81 can be marked complete:
+  - intentionally provision separate UAT PostgreSQL/Neon host and store only in ignored `.env.uat.local`.
+  - run schema push + UAT seed through the guard.
+  - execute real station-1/5/6 open -> sale -> close UAT against that isolated DB.
+- No push / no deploy / no production DB write.
+- Post-check: exact financial checklist command also passed 16 files / 81 tests on the current working tree. Separate unstaged Tank Loy changes were present, so this is recorded as an additional sanity pass; S80 remains the last clean financial baseline rather than relabeling this mixed-working-tree run as a new baseline.
+- Follow-up safety: added guarded `npm run uat:dev`; default 3005, hard-rejects 3000, checks the requested port is free and never kills an existing listener. Targeted guard/GAS/SaleFlow/shift suite now 4 files / 45 tests; explicit `UAT_PORT=3000` simulation exits 2 as required.
