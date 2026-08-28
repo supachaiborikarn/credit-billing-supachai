@@ -9,7 +9,7 @@ import {
     FUEL_LABELS,
     PAYMENT_LABELS,
     PRINTER_PROFILE,
-    RECEIPT_CONFIG,
+    getReceiptConfig,
     formatReceiptDate,
     formatReceiptTime,
     printReceiptViaEpsonAssistant,
@@ -208,7 +208,6 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
     const initialPaperSize: PaperSize = searchParams.get('paper') === '58' ? '58' : '80';
     
     const stationId = `station-${id}`;
-    const config = RECEIPT_CONFIG[stationId] || RECEIPT_CONFIG['station-1'];
     const routeBase = pathname.startsWith('/station/')
         ? `/station/${id}/new`
         : `/simple-station/${id}/new`;
@@ -221,9 +220,10 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
     const paperWidthMm = PRINTER_PROFILE.paperWidthMm[paperSize];
     const printableWidthMm = PRINTER_PROFILE.printableWidthMm[paperSize];
     const docNo = txn ? `${txn.billBookNo || '00'}/${txn.billNo || '000'}` : '00/000';
+    const config = getReceiptConfig(txn?.stationId || stationId);
 
     const handlePrint = useCallback(() => {
-        if (!txn) {
+        if (!txn || !config) {
             return;
         }
 
@@ -281,6 +281,17 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
                 <Link href={`${routeBase}/home`} className="px-6 py-3 bg-orange-500 text-white rounded-xl font-bold flex items-center gap-2">
                     <Home size={20} /> กลับไปหน้าแรก
                 </Link>
+            </div>
+        );
+    }
+
+    if (!config) {
+        return (
+            <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-6 text-center">
+                <FileText size={48} className="mb-4 text-amber-500" />
+                <p className="text-xl font-bold text-gray-800">ยังไม่ได้ตั้งค่าหัวกระดาษสำหรับสถานีนี้</p>
+                <p className="mt-2 max-w-md text-sm text-gray-600">ระบบปิดการพิมพ์ไว้เพื่อป้องกันการออกเอกสารด้วยชื่อ ที่อยู่ หรือเบอร์โทรของสถานีอื่น กรุณาให้แอดมินตั้งค่าหัวกระดาษที่ตรวจสอบแล้วก่อนพิมพ์ย้อนหลัง</p>
+                <button onClick={() => window.history.back()} className="mt-6 rounded-xl bg-slate-800 px-5 py-3 font-bold text-white">ย้อนกลับ</button>
             </div>
         );
     }

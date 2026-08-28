@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireApiSession } from '@/lib/api-auth';
 import { canAccessStation } from '@/lib/auth-utils';
 import { CREDIT_PAYMENT_TYPES } from '@/constants/payment-types';
-import { canMutateHistoricalStationData } from '@/lib/stations/station-context';
+import { canMutateHistoricalStationData, isStationRouteBoundToTransaction } from '@/lib/stations/station-context';
 
 const creditPaymentTypeSet = new Set<string>(CREDIT_PAYMENT_TYPES);
 
@@ -13,7 +13,7 @@ export async function GET(
     { params }: { params: Promise<{ id: string; transactionId: string }> }
 ) {
     try {
-        const { transactionId } = await params;
+        const { id, transactionId } = await params;
         const auth = await requireApiSession();
         if (auth.response) return auth.response;
 
@@ -27,6 +27,10 @@ export async function GET(
 
         if (!transaction) {
             return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
+        }
+
+        if (!isStationRouteBoundToTransaction(id, transaction.stationId)) {
+            return NextResponse.json({ error: 'Transaction not found for this station' }, { status: 404 });
         }
 
         if (!canAccessStation(auth.user, transaction.stationId)) {
@@ -54,7 +58,7 @@ export async function PUT(
     { params }: { params: Promise<{ id: string; transactionId: string }> }
 ) {
     try {
-        const { transactionId } = await params;
+        const { id, transactionId } = await params;
         const body = await request.json();
         const auth = await requireApiSession();
         if (auth.response) return auth.response;
@@ -90,6 +94,10 @@ export async function PUT(
 
         if (!oldTransaction) {
             return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
+        }
+
+        if (!isStationRouteBoundToTransaction(id, oldTransaction.stationId)) {
+            return NextResponse.json({ error: 'Transaction not found for this station' }, { status: 404 });
         }
 
         if (!canAccessStation(auth.user, oldTransaction.stationId)) {
@@ -208,7 +216,7 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string; transactionId: string }> }
 ) {
     try {
-        const { transactionId } = await params;
+        const { id, transactionId } = await params;
         const auth = await requireApiSession();
         if (auth.response) return auth.response;
         const userId = auth.user.id;
@@ -239,6 +247,10 @@ export async function DELETE(
 
         if (!oldTransaction) {
             return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
+        }
+
+        if (!isStationRouteBoundToTransaction(id, oldTransaction.stationId)) {
+            return NextResponse.json({ error: 'Transaction not found for this station' }, { status: 404 });
         }
 
         if (!canAccessStation(auth.user, oldTransaction.stationId)) {

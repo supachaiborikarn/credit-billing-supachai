@@ -6,6 +6,8 @@ Status: **PASS — 2026-08-28**
 
 Latest active-route rerun: **S81 pass 7 — 16 files / 81 tests passed on a clean HEAD + S81-only GAS patch snapshot after real isolated write UAT found and fixed the bounded Prisma transaction-timeout issue in GAS open/close; financial formulas and write semantics remain unchanged.**
 
+Latest compatibility-safety rerun: **S85 — the same 16-file financial release gate passed 83 tests after retired-station mutation policy + strict transaction/station route binding; thermal receipt regression also passed 3/3 for 58/80 mm, receipt/credit, original/copy and station-3 fail-closed header safety.**
+
 ## Release gate
 
 Run:

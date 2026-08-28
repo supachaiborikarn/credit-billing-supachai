@@ -26,6 +26,7 @@ export interface ReceiptTransaction {
     billBookNo: string;
     billNo: string;
     createdAt: string;
+    stationId: string;
     recordedBy?: { name: string };
 }
 
@@ -36,14 +37,17 @@ export interface ReceiptConfig {
     tel: string;
 }
 
-export const RECEIPT_CONFIG: Record<string, ReceiptConfig> = {
+export const RECEIPT_CONFIG: Partial<Record<string, ReceiptConfig>> = {
     'station-1': { name: 'วัชรเกียรติออยล์', address1: '657 ถ.เจริญสุข ต.ในเมือง อ.เมือง', address2: 'จ.กำแพงเพชร 62000', tel: '055-840585, 055-773003' },
     'station-2': { name: 'หจก.วัชรเกียรติออยล์', address1: '657 ถ.เจริญสุข ต.ในเมือง อ.เมือง', address2: 'จ.กำแพงเพชร 62000', tel: '055-773003' },
-    'station-3': { name: 'ศุภชัยบริการ(กำแพงเพชร)', address1: '172 หมู่ 1 ถนนพหลโยธิน ตำบลนครชุม', address2: 'อำเภอเมือง จังหวัดกำแพงเพชร 62000', tel: '055-840585, 055-773003' },
     'station-4': { name: 'ศุภชัยบริการ(กำแพงเพชร)', address1: '172 หมู่ 1 ถนนพหลโยธิน ตำบลนครชุม', address2: 'อำเภอเมือง จังหวัดกำแพงเพชร 62000', tel: '055-840585, 055-773003' },
     'station-5': { name: 'ปั๊มแก๊สพงษ์อนันต์', address1: '172 หมู่ 1 ถนนพหลโยธิน ตำบลนครชุม', address2: 'อำเภอเมือง จังหวัดกำแพงเพชร 62000', tel: '055-840585' },
     'station-6': { name: 'ปั๊มแก๊สศุภชัย', address1: '172 หมู่ 1 ถนนพหลโยธิน ตำบลนครชุม', address2: 'อำเภอเมือง จังหวัดกำแพงเพชร 62000', tel: '055-840585' },
 };
+
+export function getReceiptConfig(stationId: string): ReceiptConfig | null {
+    return RECEIPT_CONFIG[stationId] || null;
+}
 
 export const FUEL_LABELS: Record<string, string> = {
     DIESEL: 'ดีเซล B7',

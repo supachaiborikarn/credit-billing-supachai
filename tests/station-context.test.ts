@@ -5,6 +5,7 @@ import {
     getCanonicalStationPaths,
     isActiveOperationalStationId,
     isRetiredOperationalStationId,
+    isStationRouteBoundToTransaction,
     resolveStationDefinition,
 } from '@/lib/stations/station-context';
 
@@ -47,5 +48,12 @@ describe('station context', () => {
             operations: '/stations/station-6/operations',
             history: '/stations/station-6/history',
         });
+    });
+
+    it('binds transaction routes to the transaction station', () => {
+        expect(isStationRouteBoundToTransaction('2', 'station-2')).toBe(true);
+        expect(isStationRouteBoundToTransaction('station-2', 'station-2')).toBe(true);
+        expect(isStationRouteBoundToTransaction('3', 'station-2')).toBe(false);
+        expect(isStationRouteBoundToTransaction('not-a-station', 'station-2')).toBe(false);
     });
 });

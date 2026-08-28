@@ -2444,6 +2444,28 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
   - ไม่ push / ไม่ deploy production
 
 
+
+## 2026-08-28 — S85 — Receipt / thermal print compatibility audit
+- Status: `[x]`
+- Decision: **KEEP_PRINT_COMPAT** for `/simple-station/[id]/new/receipt`; do not redirect it to canonical History.
+- Capability audit:
+  - Epson TM-m30III direct path via TM Print Assistant on Android; non-Android/browser fallback uses `window.print()`.
+  - supports 58 mm and 80 mm profiles, original + copy with two cuts in ePOS XML, receipt vs credit document, and customer/seller signature lines for credit.
+  - canonical Station History remains read-only evidence and does not own these printer/document capabilities.
+- Safety bugs found and fixed:
+  - transaction detail GET/PUT/DELETE previously ignored the route station id after finding the transaction; a mismatched bookmark could therefore pair a real transaction with the wrong receipt-page station header. S85 now requires the URL station to resolve to the transaction's actual `stationId`; mismatches return 404 before read/mutation proceeds.
+  - receipt config is now selected from `transaction.stationId` rather than trusting the URL alone.
+  - existing station-3 receipt config incorrectly reused the Supachai station-4 header even though station-3 is Ponganan Petroleum. No verified Ponganan receipt address/phone exists in current repo or git history, so station-3 config was removed and printing fails closed with an explicit admin-configuration message instead of emitting a wrongly branded document.
+- Verification:
+  - thermal receipt + station context: 2 files / 9 tests passed; covers 80 mm credit, 58 mm cash, original/copy cuts, station-3 fail-closed and strict station binding.
+  - TypeScript, targeted ESLint and `git diff --check` passed.
+  - authenticated temporary-Neon UAT: station-2 fixture GET via station-2 = 200; the same transaction via station-3 GET/PUT/DELETE = 404; correct station remained readable and unchanged.
+  - final financial release gate: 16 files / 83 tests passed; thermal receipt regression: 3/3 passed; production build: 127/127 routes.
+- Remaining blocker:
+  - to re-enable station-3 historical receipt printing, supply and verify its actual legal/receipt header (name, address lines, phone). Do not copy station-4/Supachai values.
+- No push / no deploy / no production DB write.
+- Concurrent-work note: Tank Loy auto-print/shared brain files from another task remain untouched/uncommitted by S85.
+
 ## Template
 
 ### YYYY-MM-DD — Sxx — ชื่อ Session

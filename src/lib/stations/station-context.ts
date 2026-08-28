@@ -61,6 +61,10 @@ export function canMutateHistoricalStationData(user: Pick<StationAccessUser, 'ro
     return user.role === 'ADMIN' || !isRetiredOperationalStationInput(stationId);
 }
 
+export function isStationRouteBoundToTransaction(routeStationInput: string, transactionStationId: string): boolean {
+    return resolveStationDefinition(routeStationInput)?.id === transactionStationId;
+}
+
 export function getCanonicalStationPaths(stationId: CanonicalStationId): StationCanonicalPaths {
     const base = `/stations/${stationId}`;
     return {
