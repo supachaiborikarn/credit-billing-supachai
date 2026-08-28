@@ -225,6 +225,24 @@ describe('middleware legacy route retirement boundaries', () => {
         );
     });
 
+    it('retires exact FULL classic station root to V2 and preserves query', () => {
+        const response = middleware(request('/station/1?from=s91'));
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(
+            'https://credit-billing-supachai.local/station/1/v2?from=s91'
+        );
+    });
+
+    it('normalizes unauthenticated FULL classic station root before login', () => {
+        const response = middleware(request('/station/1?from=s91-bookmark', false));
+        const location = response.headers.get('location');
+        expect(response.status).toBe(307);
+        expect(location).not.toBeNull();
+        const loginUrl = new URL(location!);
+        expect(loginUrl.pathname).toBe('/login');
+        expect(loginUrl.searchParams.get('redirect')).toBe('/station/1/v2?from=s91-bookmark');
+    });
+
     it.each([
         '/station/1/new/products?from=s90',
         '/simple-station/1/new/products?from=s90',

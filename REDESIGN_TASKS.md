@@ -2459,6 +2459,7 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Verification:
   - thermal receipt + station context: 2 files / 9 tests passed; covers 80 mm credit, 58 mm cash, original/copy cuts, station-3 fail-closed and strict station binding.
   - TypeScript, targeted ESLint and `git diff --check` passed.
+  - S91 production build with `NODE_ENV=production`: 127/127 routes passed.
   - S90 production build with `NODE_ENV=production`: 127/127 routes passed.
   - authenticated temporary-Neon UAT: station-2 fixture GET via station-2 = 200; the same transaction via station-3 GET/PUT/DELETE = 404; correct station remained readable and unchanged.
   - final financial release gate: 16 files / 83 tests passed; thermal receipt regression: 3/3 passed; production build: 127/127 routes.
@@ -2739,4 +2740,27 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
   - read-only route normalization only; no product API, product inventory, financial formula or DB row changed.
 - Concurrent-work note:
   - Tank Loy auto-print/shared brain changes from another task remain untouched and excluded from S90 staging/commit.
+- No push / no deploy / no production DB write.
+
+
+## 2026-08-28 — S91 — Retire classic FULL station root to V2
+- Status: `[x]`
+- Scope:
+  - exact `/station/1` only; dynamic classic component remains in source and no station-2/3/4 route is changed.
+  - `/station/1/v2` remains `KEEP_FULL_ADMIN_COMPAT`; receipt/print remains separate compatibility.
+- Parity audit:
+  - V2 covers daily retail/wholesale/special price settings, start/end meter correction with photos, historical dates, transaction entry/edit/void, transfer-proof maintenance, receipt/credit 58/80, daily A4/thermal print, CSV export/payment filtering, history and audit.
+  - V2 refill flow has owner selection, truck search, bill suggestion/check and uses the same FULL transaction POST API.
+  - FULL transaction POST already auto-creates a new Truck for a selected owner when a new license plate is used and rejects plate/owner conflicts; duplicate transaction protection is server-side.
+  - standalone truck add/edit remains available at `/trucks`, including bulk add.
+- Route implementation:
+  - middleware now normalizes exact `/station/1` and `/simple-station/1` to `/station/1/v2`.
+  - query strings are preserved; unauthenticated bookmarks normalize through login to V2.
+- Verification:
+  - middleware/route/context regression: 3 files / 166 tests passed.
+  - TypeScript, targeted ESLint and `git diff --check` passed.
+  - isolated-Neon authenticated smoke: `/station/1?from=s91-uat` returned 307 to `/station/1/v2?from=s91-uat`; V2 target returned 200.
+  - no financial/write API changed and UAT performed no data mutation.
+- Concurrent-work note:
+  - Tank Loy auto-print/shared brain changes from another task remain untouched and excluded from S91 staging/commit.
 - No push / no deploy / no production DB write.

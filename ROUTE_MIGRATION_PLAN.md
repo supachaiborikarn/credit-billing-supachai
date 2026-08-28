@@ -51,7 +51,7 @@ Applicable active station: `station-1`.
 
 | Legacy route | Future route | Disposition | Notes |
 | --- | --- | --- | --- |
-| `/station/1` | `/stations/station-1` | KEEP_FULL_ADMIN_COMPAT | Classic page is admin-only and still owns direct transaction/daily-record correction and report actions; do not retire yet. |
+| `/station/1` | `/station/1/v2` | **S91 IMPLEMENTED** | Classic FULL root is retired to V2. Parity audit confirmed V2 now covers daily price settings, meter/photo correction, historical transaction entry/edit/void, transfer-proof maintenance, receipt/credit 58/80, CSV + daily print, history/audit, bill suggestion/check and server duplicate protection. New owner plates auto-create Truck records in the transaction API; standalone truck CRUD remains available at `/trucks`. |
 | `/station/1/v2` | `/stations/station-1` | KEEP_FULL_ADMIN_COMPAT | V2 still owns admin settings, transaction edit/delete, print, history/audit and historical meter correction; keep as explicit fallback. |
 | `/station/1/new/home` | `/stations/station-1` | **S61 IMPLEMENTED** | Old navigation entry now redirects directly to canonical Station Overview; no unique capability lived in this route. |
 | `/station/1/new/sell` | `/stations/station-1/sales` | **S55 IMPLEMENTED** | Direct canonical SaleFlow redirect; V2 remains a supported operational workspace. |
