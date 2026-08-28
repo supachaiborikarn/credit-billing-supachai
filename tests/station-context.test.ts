@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     buildStationPermissions,
+    canMutateStationDailyPrices,
     canMutateHistoricalStationData,
     getCanonicalStationPaths,
     isActiveOperationalStationId,
@@ -55,5 +56,18 @@ describe('station context', () => {
         expect(isStationRouteBoundToTransaction('station-2', 'station-2')).toBe(true);
         expect(isStationRouteBoundToTransaction('3', 'station-2')).toBe(false);
         expect(isStationRouteBoundToTransaction('not-a-station', 'station-2')).toBe(false);
+    });
+});
+
+describe('station daily price mutation policy', () => {
+    it('allows active-station STAFF to set only the current business date', () => {
+        expect(canMutateStationDailyPrices({ role: 'STAFF' }, 'station-1', '2026-08-28', '2026-08-28')).toBe(true);
+        expect(canMutateStationDailyPrices({ role: 'STAFF' }, 'station-1', '2026-08-27', '2026-08-28')).toBe(false);
+    });
+
+    it('keeps retired-station STAFF read-only even for today while ADMIN can correct history', () => {
+        expect(canMutateStationDailyPrices({ role: 'STAFF' }, 'station-2', '2026-08-28', '2026-08-28')).toBe(false);
+        expect(canMutateStationDailyPrices({ role: 'ADMIN' }, 'station-2', '2026-08-27', '2026-08-28')).toBe(true);
+        expect(canMutateStationDailyPrices({ role: 'ADMIN' }, 'station-1', '2026-08-27', '2026-08-28')).toBe(true);
     });
 });

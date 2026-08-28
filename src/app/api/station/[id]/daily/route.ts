@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
 import { buildTruckCodeMap, findCodeByPlate } from '@/lib/truck-utils';
 import { requireStationAccessApi } from '@/lib/api-auth';
+import { canMutateStationDailyPrices } from '@/lib/stations/station-context';
 import {
     buildFullStationDailyMeters,
     selectCanonicalFullStationShift,
@@ -201,8 +202,17 @@ export async function POST(
         if (auth.response) return auth.response;
 
         const { date: dateStr, retailPrice, wholesalePrice } = body;
+        const businessDate = typeof dateStr === 'string' && dateStr.trim() ? dateStr.trim() : getTodayBangkok();
+        const today = getTodayBangkok();
 
-        const date = getStartOfDayBangkok(dateStr);
+        if (!canMutateStationDailyPrices(auth.user, stationId, businessDate, today)) {
+            return NextResponse.json(
+                { error: 'การแก้ราคาวันย้อนหลังทำได้เฉพาะแอดมิน' },
+                { status: 403 }
+            );
+        }
+
+        const date = getStartOfDayBangkok(businessDate);
 
         // Upsert daily record
         const dailyRecord = await prisma.dailyRecord.upsert({

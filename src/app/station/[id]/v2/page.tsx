@@ -8,7 +8,6 @@ import TransactionCard from './components/TransactionCard';
 import DailySummary from './components/DailySummary';
 import RefillModal from './components/RefillModal';
 import BottomTabBar from './components/BottomTabBar';
-import AdminSettingsModal from './components/AdminSettingsModal';
 import StartMeterPrompt from './components/StartMeterPrompt';
 import HistoryView from './components/HistoryView';
 import AuditTrail from './components/AuditTrail';
@@ -16,7 +15,7 @@ import EditTransactionModal from './components/EditTransactionModal';
 import TimeBasedReminder from '@/components/TimeBasedReminder';
 import PreviousDayBlocker from './components/PreviousDayBlocker';
 import OperationsCommandPanel from './components/OperationsCommandPanel';
-import { Download, Printer, Settings } from 'lucide-react';
+import { Download, Printer } from 'lucide-react';
 import { printDailyWorkReport, printThermalDailyWorkReport } from '@/lib/daily-report-print';
 import { buildFullStationSummaryCsv, buildFullStationSummaryCsvFilename, filterFullSummaryTransactions } from '@/lib/stations/full-summary-compat';
 
@@ -77,7 +76,6 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
     const [previousDayMeters, setPreviousDayMeters] = useState<{ nozzle: number; endReading: number }[]>([]);
     const [currentUser, setCurrentUser] = useState<{ role: string } | null>(null);
     const [showRefillModal, setShowRefillModal] = useState(false);
-    const [showSettings, setShowSettings] = useState(false);
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
     const [activeTab, setActiveTab] = useState<TabType>('home');
     const [lastPaymentType, setLastPaymentType] = useState<string>('CREDIT');
@@ -516,15 +514,6 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
                         <h1 className="text-xl font-bold">{station.name}</h1>
                         <p className="text-orange-100 text-sm">⛽ ระบบพนักงานแท๊งลอย</p>
                     </div>
-                    {isAdmin && (
-                        <button
-                            onClick={() => setShowSettings(true)}
-                            className="flex flex-col items-center gap-1 p-2.5 bg-white/15 rounded-xl hover:bg-white/25 transition"
-                        >
-                            <Settings size={20} />
-                            <span className="text-[10px] font-medium">ตั้งราคาน้ำมัน</span>
-                        </button>
-                    )}
                 </div>
                 <input
                     type="date"
@@ -559,17 +548,6 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
                     defaultNozzle={lastNozzle}
                     onClose={() => setShowRefillModal(false)}
                     onSuccess={handleRefillSuccess}
-                />
-            )}
-
-            {showSettings && isAdmin && (
-                <AdminSettingsModal
-                    stationId={id}
-                    date={selectedDate}
-                    retailPrice={dailyRecord?.retailPrice || 31.34}
-                    wholesalePrice={dailyRecord?.wholesalePrice || 30.5}
-                    onClose={() => setShowSettings(false)}
-                    onSave={fetchDailyData}
                 />
             )}
 

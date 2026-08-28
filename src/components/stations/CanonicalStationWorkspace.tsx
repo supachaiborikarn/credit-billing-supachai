@@ -18,6 +18,7 @@ import {
 import { RedesignAppShell } from '@/components/layout';
 import { SaleFlowForm } from '@/components/sales/SaleFlowForm';
 import { ShiftClosingFlow } from '@/components/stations/ShiftClosingFlow';
+import { FullDailyPriceMaintenance } from '@/components/stations/FullDailyPriceMaintenance';
 import { StationHistory } from '@/components/stations/StationHistory';
 import { ShiftOpeningFlow } from '@/components/stations/ShiftOpeningFlow';
 import { AsyncRefreshState, Badge, EmptyState, FatalErrorState, LoadingState, Notice, Section } from '@/components/ui';
@@ -610,11 +611,19 @@ function OperationsSkeleton({ context, onRefresh }: { context: StationContextPay
         );
     }
 
-    if (context.currentShift?.status === 'OPEN' && context.openingState.status === 'READY') {
-        return <ShiftClosingFlow context={context} onRefresh={onRefresh} />;
-    }
+    const operationFlow = context.currentShift?.status === 'OPEN' && context.openingState.status === 'READY'
+        ? <ShiftClosingFlow context={context} onRefresh={onRefresh} />
+        : <ShiftOpeningFlow context={context} onRefresh={onRefresh} />;
+    const showFullAdminPriceMaintenance = context.station.type === 'FULL' && context.user.role === 'ADMIN';
 
-    return <ShiftOpeningFlow context={context} onRefresh={onRefresh} />;
+    return (
+        <div className="space-y-4">
+            {operationFlow}
+            {showFullAdminPriceMaintenance && (
+                <FullDailyPriceMaintenance context={context} onSaved={onRefresh} />
+            )}
+        </div>
+    );
 }
 
 function HistorySkeleton({ context }: { context: StationContextPayload }) {

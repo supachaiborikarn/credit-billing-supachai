@@ -2795,3 +2795,35 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print/shared brain files from another task remain untouched and excluded from S92 staging/commit.
 - No push / no deploy / no production DB write.
+
+## 2026-08-28 — S93 — Move FULL daily-price correction to canonical Operations
+- Status: `[x]`
+- Ownership change:
+  - canonical `/stations/station-1/operations` now owns ADMIN daily retail/wholesale price correction for an existing DailyRecord, including historical dates.
+  - V2 no longer exposes its price-settings button/modal; normal staff operation stays on canonical opening/closing flow.
+  - the old V2 `specialPrice` field was intentionally not migrated because `DailyRecord` has no `specialPrice` column and `/api/station/[id]/daily` never persisted it.
+- Permission hardening:
+  - `POST /api/station/[id]/daily` still allows active-station STAFF to set the **current business date** so FULL opening flow is not broken.
+  - historical daily-price mutation now requires ADMIN.
+  - retired-station STAFF cannot use this endpoint to create/change even today's price record; ADMIN can still perform explicit maintenance.
+  - canonical correction UI is ADMIN-only and refuses to create a missing historical DailyRecord; missing days remain fail-closed in the new UI.
+- Financial semantics:
+  - correction updates only `DailyRecord.retailPrice` / `wholesalePrice`.
+  - existing `Transaction.pricePerLiter` and `Transaction.amount` are not recalculated.
+- Verification:
+  - targeted policy/opening gate: 4 files / 20 tests passed; TypeScript, targeted ESLint and `git diff --check` passed before UAT.
+  - clean HEAD + S93-only snapshot after final V2 ownership patch: financial release gate 16 files / 85 tests passed; opening/policy set 2 files / 14 tests passed; TypeScript passed.
+  - production build with `NODE_ENV=production` passed 127/127 routes.
+- Isolated Neon write UAT:
+  - fixture date `2026-08-27`, station-1.
+  - STAFF login 200; historical daily-price POST returned 403 with ADMIN-only message.
+  - ADMIN login 200; historical price POST returned 200 and follow-up GET returned retail 30.55 / wholesale 29.55.
+  - canonical Operations target returned 200.
+  - direct UAT DB check confirmed fixture transaction remained 10 L, pricePerLiter 31.34, amount 313.40, `isVoided=false`, `deletedAt=null`.
+- Remaining V2 migration after S93:
+  - **S94:** historical meter/photo correction.
+  - **S95:** transaction/slip/receipt maintenance + audit/CSV/daily print.
+  - **S96:** isolated final UAT/financial gate and V2 retirement decision.
+- Concurrent-work note:
+  - Tank Loy auto-print/shared brain changes from another task remain untouched and excluded from S93 staging/commit.
+- No push / no deploy / no production DB write.

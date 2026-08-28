@@ -61,6 +61,17 @@ export function canMutateHistoricalStationData(user: Pick<StationAccessUser, 'ro
     return user.role === 'ADMIN' || !isRetiredOperationalStationInput(stationId);
 }
 
+export function canMutateStationDailyPrices(
+    user: Pick<StationAccessUser, 'role'>,
+    stationId: string,
+    businessDate: string,
+    today: string
+): boolean {
+    if (user.role === 'ADMIN') return true;
+    if (isRetiredOperationalStationInput(stationId)) return false;
+    return businessDate === today;
+}
+
 export function isStationRouteBoundToTransaction(routeStationInput: string, transactionStationId: string): boolean {
     return resolveStationDefinition(routeStationInput)?.id === transactionStationId;
 }

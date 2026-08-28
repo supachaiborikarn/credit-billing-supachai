@@ -10,6 +10,8 @@ Latest compatibility-safety rerun: **S85 — the same 16-file financial release 
 
 Latest FULL maintenance-parity rerun: **S89 — 16 files / 83 financial tests passed on a clean HEAD + S89-only snapshot after moving CSV export, payment-filtered export, historical transfer-proof replacement and the corrected station-scoped void path into FULL V2. S89 compatibility regression passed 60/60 on the same clean snapshot; isolated-Neon write UAT confirmed proof replacement preserves liters/price/amount and the corrected DELETE path voids only the intended fixture.**
 
+Latest FULL daily-price maintenance rerun: **S93 — 16 files / 85 financial tests passed on a clean HEAD + S93-only snapshot after moving daily retail/wholesale correction into canonical Operations and hardening daily-price writes. STAFF keeps current-day price entry for active shift opening, but historical price mutation is ADMIN-only and retired-station STAFF is read-only. Isolated-Neon UAT returned STAFF 403 / ADMIN 200 for 2026-08-27; the DailyRecord changed to 30.55/29.55 while the existing transaction remained 10 L × 31.34 = 313.40.**
+
 ## Release gate
 
 Run:
