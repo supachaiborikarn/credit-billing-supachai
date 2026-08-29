@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { LogIn, Eye, EyeOff, Fuel, Sparkles, Loader2 } from 'lucide-react';
 
 function normalizeGasRedirectPath(path: string) {
+    if (/^\/gas\/5\/products(?:[/?#]|$)/.test(path)) return '/stations/station-5/inventory';
     if (/^\/gas\/6\/products(?:[/?#]|$)/.test(path)) return '/stations/station-6';
 
     const recoveryMatch = path.match(/^\/gas\/(5|6)\/(?:meters|gauge)(?:[/?#]|$)/);
@@ -28,7 +29,7 @@ function normalizeGasRedirectPath(path: string) {
     if ((stationNum === '5' || stationNum === '6') && (legacyPage === '' || legacyPage === 'home')) return `/stations/station-${stationNum}`;
     if (legacyPage === 'sell' && (stationNum === '5' || stationNum === '6')) return `/stations/station-${stationNum}/sales`;
     if (legacyPage === 'sell') return `/gas/${stationNum}/sell`;
-    if (legacyPage === 'products' && stationNum === '5') return '/gas/5/products';
+    if (legacyPage === 'products' && stationNum === '5') return '/stations/station-5/inventory';
     if (legacyPage === 'products' && stationNum === '6') return '/stations/station-6';
     if (legacyPage === 'monthly-balance' && (stationNum === '5' || stationNum === '6')) return `/stations/station-${stationNum}`;
     if (legacyPage === 'supplies' && (stationNum === '5' || stationNum === '6')) return `/stations/station-${stationNum}/inventory`;

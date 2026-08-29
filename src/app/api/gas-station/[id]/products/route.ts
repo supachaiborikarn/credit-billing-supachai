@@ -15,22 +15,9 @@ export async function GET(
         if (productsDisabled) return productsDisabled;
         const stationId = auth.station.dbId;
 
-        const station = await prisma.station.upsert({
-            where: { id: stationId },
-            update: { hasProducts: true },
-            create: {
-                id: stationId,
-                name: auth.station.name,
-                type: 'GAS',
-                hasProducts: true,
-                gasPrice: 15.50,
-                gasStockAlert: 1000,
-            }
-        });
-
-        // Get product inventory for this station
+        // GET must remain read-only. Station existence/capability is already resolved by the auth guard.
         const inventory = await prisma.productInventory.findMany({
-            where: { stationId: station.id },
+            where: { stationId },
             include: {
                 product: true
             }

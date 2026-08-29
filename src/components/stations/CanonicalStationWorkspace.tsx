@@ -21,6 +21,7 @@ import { FullDailyPriceMaintenance } from '@/components/stations/FullDailyPriceM
 import { FullMeterMaintenance } from '@/components/stations/FullMeterMaintenance';
 import { GasRecoveryMaintenance } from '@/components/stations/GasRecoveryMaintenance';
 import { GasSupplyInventory } from '@/components/stations/GasSupplyInventory';
+import { GasProductInventory } from '@/components/stations/GasProductInventory';
 import { StationHistory } from '@/components/stations/StationHistory';
 import { ShiftOpeningFlow } from '@/components/stations/ShiftOpeningFlow';
 import { AsyncRefreshState, Badge, EmptyState, FatalErrorState, LoadingState, Notice, Section } from '@/components/ui';
@@ -471,7 +472,7 @@ function Overview({ context, onRefresh, writeBlocked }: { context: StationContex
                     context.station.hasProducts
                         ? {
                             label: 'สินค้าและสต็อก',
-                            href: `/gas/${context.station.number}/products`,
+                            href: context.paths.inventory,
                             icon: ShoppingBag,
                             description: 'เพิ่มสินค้า รับสต็อก แก้ราคา/ระดับเตือน และดูประวัติ',
                         }
@@ -680,7 +681,12 @@ export function CanonicalStationWorkspace({ stationId, mode }: { stationId: stri
                     {mode === 'OVERVIEW' && <Overview context={context} onRefresh={load} writeBlocked={loading || Boolean(error)} />}
                     {mode === 'SALES' && !writeModeBlocked && <SalesSkeleton context={context} />}
                     {mode === 'OPERATIONS' && !writeModeBlocked && <OperationsSkeleton context={context} onRefresh={load} />}
-                    {mode === 'INVENTORY' && <GasSupplyInventory context={context} writeBlocked={writeModeBlocked} />}
+                    {mode === 'INVENTORY' && (
+                        <div className="space-y-4">
+                            <GasSupplyInventory context={context} writeBlocked={writeModeBlocked} />
+                            {context.station.hasProducts && <GasProductInventory context={context} writeBlocked={writeModeBlocked} />}
+                        </div>
+                    )}
                     {mode === 'HISTORY' && <HistorySkeleton context={context} />}
                     {context.currentShift?.status === 'OPEN' && mode !== 'HISTORY' && (
                         <div className="flex items-center gap-2 text-xs text-[var(--ui-text-muted)]">

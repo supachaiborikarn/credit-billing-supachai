@@ -3025,3 +3025,38 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S99 staging.
 - No push / no deploy / no production DB write.
+
+
+## 2026-08-29 — S100 — Move station-5 products into canonical Inventory
+- Status: `[x]`
+- Ownership change:
+  - canonical `/stations/station-5/inventory` now owns station-5 product list, create product, initial stock, receive stock, sale-price edit, alert-level edit and recent IN/OUT history.
+  - station-6 remains product-disabled and canonical Inventory shows only LPG receiving there.
+  - `/gas/5/products` and older `/gas-station/5/new/products` redirect to canonical Inventory with query/auth normalization; station-6 product bookmarks continue to canonical Overview.
+  - legacy product page source is preserved as `LegacyGasProductsPage.tsx`; product APIs remain compatibility contracts.
+- Read-side-effect cleanup:
+  - removed `Station.upsert()` from `GET /api/gas-station/[id]/products`; the capability/access guard resolves station identity and GET now only reads `ProductInventory` + Product.
+  - added route regression proving product GET never calls `prisma.station.upsert` and remains station-scoped.
+- Safety / parity:
+  - canonical UI reuses existing POST actions `create`, `receive`, `update` and existing history GET; no schema or alternate stock model was introduced.
+  - writes fail closed while StationContext is refreshing/errored; all primary inputs/actions keep >=44px touch targets.
+  - station-5 `hasProducts=true` remains the capability source; station-6 product API remains 403.
+- Verification:
+  - targeted product/middleware/context/GAS regression: 4 files / **89 tests passed**.
+  - financial release gate: 16 files / **90 tests passed**.
+  - full regression: 50 files / **409 tests passed**.
+  - TypeScript, S100-scoped ESLint and `git diff --check`: passed.
+  - production build with `NODE_ENV=production`: **127/127 routes passed**.
+- Isolated write UAT:
+  - UAT preflight confirmed separate Neon host; CreditBilling used port 3005 only and port 3000 was untouched.
+  - station-5 STAFF: canonical Inventory 200; legacy product bookmark 307; product GET 200; create 200; update 200; receive 200; history 200.
+  - direct readback after UAT = quantity 7, salePrice 43, alertLevel 2; direct DB check confirmed ProductInventory + ProductReceipt records.
+  - station-5 STAFF access to station-6 products returned 403.
+  - first UAT probe attempted to compare `Station.updatedAt`, but Station has no such column and the probe stopped before any product write; route unit regression is the read-only proof. Final UAT then passed the actual flow.
+  - temporary UAT product/receipts/inventory/session were deleted; UAT server stopped.
+- GAS frontline migration after S100:
+  - active station-5/6 normal workflow, meter/gauge recovery, LPG receiving and station-5 product inventory are now all canonical user-facing surfaces.
+  - remaining KEEP items are historical/admin/report/master-data compatibility families, not normal GAS frontline work.
+- Concurrent-work note:
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S100 staging.
+- No push / no deploy / no production DB write.

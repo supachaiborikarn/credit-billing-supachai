@@ -81,7 +81,7 @@ Applicable active stations: station numbers `5`, `6` (legacy URL parameters may 
 | `/gas/[id]/meters` | `/stations/station-[id]/operations` | **S98 RETIRED for station-5/6** | Canonical Operations now owns guarded START correction and standalone END save/retry on the exact OPEN Shift, preserving existing photo evidence when no replacement is selected. Backend baseline lock remains authoritative; post-activity ADMIN repair still uses the audited admin meter-edit flow. Legacy component remains in-tree as fallback source. |
 | `/gas/[id]/gauge` | `/stations/station-[id]/operations` | **S98 RETIRED for station-5/6** | Canonical Operations now owns guarded START-gauge correction and standalone END-gauge save/retry on the exact OPEN Shift. Existing gauge photo URLs are preserved on rewrite and the existing baseline lock still rejects unsafe START edits. Legacy component remains in-tree as fallback source. |
 | `/gas/[id]/supplies` | `/stations/station-[id]/inventory` | **S99 RETIRED for station-5/6** | Canonical Inventory now owns LPG receiving plus date-filtered history/summary using the existing station-scoped supplies API and AuditLog. Current and older supplies bookmarks redirect with auth/query preservation; legacy component remains in-tree as fallback source. |
-| `/gas/5/products` | future inventory/master-data domain | **KEEP_GAS_INVENTORY (S67 REVIEWED)** | Keep: create product, receive stock, edit sale price/alert level and view IN/OUT history. Legacy GET also upserts Station, so do not reuse it as a canonical read model without cleanup. |
+| `/gas/5/products` | `/stations/station-5/inventory` | **S100 RETIRED** | Canonical Inventory now owns create product, receive stock, sale-price/alert edit and IN/OUT history. S100 removed the legacy GET-side Station upsert so inventory reads are read-only; current/older station-5 product bookmarks redirect to canonical Inventory. |
 | `/gas/6/products` | `/stations/station-6` | **S81 CAPABILITY GUARD** | station-6 has `hasProducts=false`. Direct UI/bookmark now redirects to canonical Overview; product APIs already enforce `requireGasProductsEnabled`. |
 | `/gas/[id]/summary` | `/stations/station-[id]` | **S80 IMPLEMENTED for station-5/6** | Active current summary UI now redirects to canonical Overview after S79 parity. Middleware/login preserve query and normalize unauthenticated bookmarks; legacy UI source is retained as fallback. `GET /api/v2/gas/[stationId]/summary` remains a required read API for canonical live summary and closing flow. |
 
@@ -96,7 +96,7 @@ These are an older GAS route family. Do not remove by naming alone; some links/b
 | `/gas-station/[id]/new/sell` | `/stations/station-[id]/sales` | **S54 IMPLEMENTED** |
 | `/gas-station/[id]/new/meters` | `/stations/station-[id]/operations` | **S98 FINALIZED** |
 | `/gas-station/[id]/new/supplies` | `/stations/station-[id]/inventory` | **S99 FINALIZED for station-5/6** |
-| `/gas-station/[id]/new/products` | station-5 → `/gas/5/products`; station-6 → canonical overview | **S77 CAPABILITY MAPPING FIXED** |
+| `/gas-station/[id]/new/products` | station-5 → canonical Inventory; station-6 → canonical overview | **S100 FINALIZED / S77 CAPABILITY GUARD** |
 | `/gas-station/[id]/new/summary`, `/new/shift-summary` | `/stations/station-[id]` | **S80 IMPLEMENTED for station-5/6** |
 | `/gas-station/[id]/new/monthly-balance` | `/stations/station-[id]` | **S78 IMPLEMENTED for station-5/6** |
 

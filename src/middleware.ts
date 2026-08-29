@@ -24,6 +24,9 @@ const protectedRoutes = [
 ];
 
 function getCurrentGasRedirectPath(pathname: string) {
+    const station5ProductsMatch = pathname.match(/^\/gas\/5\/products(?:\/|$)/);
+    if (station5ProductsMatch) return '/stations/station-5/inventory';
+
     const disabledProductsMatch = pathname.match(/^\/gas\/6\/products(?:\/|$)/);
     if (disabledProductsMatch) return '/stations/station-6';
 
@@ -51,7 +54,7 @@ function getGasV2RedirectPath(pathname: string) {
     if ((stationId === '5' || stationId === '6') && (legacyPage === '' || legacyPage === 'home')) return `/stations/station-${stationId}`;
     if (legacyPage === 'sell' && (stationId === '5' || stationId === '6')) return `/stations/station-${stationId}/sales`;
     if (legacyPage === 'sell') return `/gas/${stationId}/sell`;
-    if (legacyPage === 'products' && stationId === '5') return '/gas/5/products';
+    if (legacyPage === 'products' && stationId === '5') return '/stations/station-5/inventory';
     if (legacyPage === 'products' && stationId === '6') return '/stations/station-6';
     if (legacyPage === 'monthly-balance' && (stationId === '5' || stationId === '6')) return `/stations/station-${stationId}`;
     if (legacyPage === 'supplies' && (stationId === '5' || stationId === '6')) return `/stations/station-${stationId}/inventory`;

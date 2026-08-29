@@ -24,6 +24,8 @@ Latest GAS recovery-retirement rerun: **S98 — 16 files / 90 financial tests pa
 
 Latest GAS supplies-inventory rerun: **S99 — canonical `/stations/station-5|6/inventory` moved LPG receive/history off `/gas/[id]/supplies` without changing the write API or financial model. Targeted route/context/supply gate passed 90 tests, financial release gate 90/90, full regression 407/407, TypeScript/scoped ESLint/diff check passed, production build 127/127 routes passed, and isolated UAT confirmed STAFF station-5 create/readback + AuditLog while cross-station station-6 access returned 403.**
 
+Latest GAS product-inventory rerun: **S100 — station-5 product create/receive/price-alert/history moved into canonical Inventory while preserving existing product APIs and stock records. The legacy GET-side `Station.upsert` was removed so reads are side-effect free. Targeted route/redirect gate passed 89/89, financial release gate 90/90, full regression 409/409, TypeScript/scoped ESLint/diff check passed, production build 127/127 routes passed, and isolated UAT confirmed create → update → receive → history with final quantity 7 / sale price 43 / alert 2 plus station-6 access 403.**
+
 ## Release gate
 
 Run:
