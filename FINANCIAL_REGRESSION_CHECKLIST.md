@@ -2,7 +2,7 @@
 
 > S44 source of truth for the redesign branch. Complete before retiring any active money-changing legacy route. Rerun the gate before each S45+ redirect that can affect sales, billing, shift totals, dates, or payment scope.
 
-Status: **PASS — 2026-08-28**
+Status: **PASS — 2026-08-29**
 
 Latest active-route rerun: **S81 pass 7 — 16 files / 81 tests passed on a clean HEAD + S81-only GAS patch snapshot after real isolated write UAT found and fixed the bounded Prisma transaction-timeout issue in GAS open/close; financial formulas and write semantics remain unchanged.**
 
@@ -19,6 +19,8 @@ Latest FULL transaction-create safety rerun: **S95 pass 1 — 16 files / 89 fina
 Latest FULL history-maintenance rerun: **S95 pass 2 — 16 files / 89 financial tests passed after moving transaction/slip/receipt, filtered CSV, daily print and real station/date-bound audit review into canonical History. S95 targeted regression passed 15/15; TypeScript, targeted ESLint, diff check and the 127-route production build passed. Historical create remains limited to an existing OPEN Shift and the maintenance UI clears stale date data before any action.**
 
 Latest FULL V2-retirement rerun: **S96 — 16 files / 90 financial tests passed after retiring `/station/1` and `/station/1/v2` to canonical Overview/History and adding canonical partial-opening recovery. S96 redirect/opening regression passed 183/183; isolated HEAD + S96-only full suite passed 396/396, real mixed-tree full suite passed 400/400, TypeScript/scoped ESLint passed, the production build completed 127/127 routes with `NODE_ENV=production`, and local redirect/auth normalization smoke passed 4/4 on port 3005.**
+
+Latest GAS recovery-retirement rerun: **S98 — 16 files / 90 financial tests passed after moving guarded meter/gauge START correction and standalone END save/retry into canonical Operations. S98 route/recovery regression passed 217/217; full suite passed 407/407; TypeScript/scoped ESLint and the 127-route production build passed. Isolated write UAT confirmed START edits succeed before lock, END meter/gauge saves succeed independently, subsequent START edits fail closed with 409, readback matches, and fixture cleanup completes.**
 
 ## Release gate
 

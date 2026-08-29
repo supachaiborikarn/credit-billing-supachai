@@ -8,7 +8,6 @@ import {
     Calculator,
     Clock3,
     Fuel,
-    Gauge,
     History,
     LockKeyhole,
     PackagePlus,
@@ -20,6 +19,7 @@ import { SaleFlowForm } from '@/components/sales/SaleFlowForm';
 import { ShiftClosingFlow } from '@/components/stations/ShiftClosingFlow';
 import { FullDailyPriceMaintenance } from '@/components/stations/FullDailyPriceMaintenance';
 import { FullMeterMaintenance } from '@/components/stations/FullMeterMaintenance';
+import { GasRecoveryMaintenance } from '@/components/stations/GasRecoveryMaintenance';
 import { StationHistory } from '@/components/stations/StationHistory';
 import { ShiftOpeningFlow } from '@/components/stations/ShiftOpeningFlow';
 import { AsyncRefreshState, Badge, EmptyState, FatalErrorState, LoadingState, Notice, Section } from '@/components/ui';
@@ -462,18 +462,6 @@ function Overview({ context, onRefresh, writeBlocked }: { context: StationContex
             {context.station.type === 'GAS' && context.station.operationalStatus === 'ACTIVE' && context.permissions.canOperate && (() => {
                 const gasTools = [
                     {
-                        label: 'มิเตอร์ (แก้ไข/กู้ข้อมูล)',
-                        href: `/gas/${context.station.number}/meters`,
-                        icon: Calculator,
-                        description: 'ใช้เมื่อต้องแก้ค่าเริ่มกะแบบมี server lock หรือบันทึก end meter แยก',
-                    },
-                    {
-                        label: 'เกจ (แก้ไข/กู้ข้อมูล)',
-                        href: `/gas/${context.station.number}/gauge`,
-                        icon: Gauge,
-                        description: 'แก้ start gauge ที่ยังไม่ถูก lock หรือบันทึก end gauge แยก',
-                    },
-                    {
                         label: 'ลงแก๊สเข้าถัง',
                         href: `/gas/${context.station.number}/supplies`,
                         icon: PackagePlus,
@@ -487,13 +475,13 @@ function Overview({ context, onRefresh, writeBlocked }: { context: StationContex
                             description: 'เพิ่มสินค้า รับสต็อก แก้ราคา/ระดับเตือน และดูประวัติ',
                         }
                         : null,
-                ].filter(Boolean) as Array<{ label: string; href: string; icon: typeof Calculator; description: string }>;
+                ].filter(Boolean) as Array<{ label: string; href: string; icon: typeof PackagePlus; description: string }>;
 
                 return (
-                    <Section title="เครื่องมือ GAS เพิ่มเติม" description="งาน correction และ inventory ที่ยังคงเป็น compatibility surface ระหว่าง migration">
+                    <Section title="เครื่องมือ GAS เพิ่มเติม" description="งาน inventory ที่ยังคงเป็น compatibility surface ระหว่าง migration">
                         <div className="mb-3">
                             <Notice tone="info" title="งานเปิด/ปิดกะปกติให้ใช้ Operations">
-                                เครื่องมือด้านล่างมีไว้สำหรับแก้ข้อมูลที่ backend ยังอนุญาต หรือจัดการ inventory ที่ยังไม่ได้ย้ายเข้า canonical workflow
+                                มิเตอร์และเกจ recovery ย้ายเข้า Operations แล้ว เครื่องมือด้านล่างเหลือเฉพาะ inventory ที่ยังไม่ได้ย้ายเข้า canonical workflow
                             </Notice>
                         </div>
                         <div className="grid gap-3 sm:grid-cols-2">
@@ -598,10 +586,12 @@ function OperationsSkeleton({ context, onRefresh }: { context: StationContextPay
         ? <ShiftClosingFlow context={context} onRefresh={onRefresh} />
         : <ShiftOpeningFlow context={context} onRefresh={onRefresh} />;
     const showFullAdminPriceMaintenance = context.station.type === 'FULL' && context.user.role === 'ADMIN';
+    const showGasRecovery = context.station.type === 'GAS' && context.currentShift?.status === 'OPEN';
 
     return (
         <div className="space-y-4">
             {operationFlow}
+            {showGasRecovery && <GasRecoveryMaintenance context={context} onSaved={onRefresh} />}
             {showFullAdminPriceMaintenance && (
                 <>
                     <FullDailyPriceMaintenance context={context} onSaved={onRefresh} />

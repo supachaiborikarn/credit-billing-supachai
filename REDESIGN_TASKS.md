@@ -2966,3 +2966,31 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
   - กล้องและ Epson จริงยังควร smoke บนอุปกรณ์หน้างานก่อน deploy เพราะ S97 ไม่ส่งงานพิมพ์หรืออัปโหลดรูปจริง.
   - Tank Loy auto-print implementation/tests/docs และ brain hunks ของงานอีกชุดยังไม่ถูก stage.
   - No push / no deploy / no production DB write.
+
+## 2026-08-29 — S98 — Move GAS meter/gauge recovery into canonical Operations
+- Status: `[x]`
+- Ownership change:
+  - canonical `/stations/station-5|6/operations` now owns guarded START correction plus standalone END save/retry for GAS meters and tank gauges.
+  - `/gas/5|6/meters`, `/gas/5|6/gauge` and older GAS meter bookmarks now redirect to canonical Operations with query/auth preservation; legacy source components remain in-tree as fallback.
+  - GAS Overview secondary tools now keep only inventory surfaces (`supplies` and station-5 `products`); recovery no longer leaves canonical workflow.
+- Safety / evidence:
+  - recovery reloads `/shift/current` and refuses to write unless the returned exact OPEN Shift matches StationContext.
+  - existing backend baseline lock remains authoritative: START correction is allowed only before sales/end/reconciliation evidence; after lock ADMIN meter repair still uses the audited admin meter-edit route.
+  - meter START/END rewrites preserve the existing photo URL unless a new image is selected; new images reuse the existing shift/date-scoped upload contract. Gauge rewrites preserve existing photo URLs as well.
+  - END meter validation requires existing START and `end >= start`; gauges remain exact 3 tanks within 0-100.
+- Verification:
+  - targeted route/recovery regression: 7 files / **217 tests passed**.
+  - financial release gate: 16 files / **90 tests passed**.
+  - full regression: 49 files / **407 tests passed**.
+  - TypeScript and S98-scoped ESLint: **0 warnings / 0 errors**; production build with `NODE_ENV=production`: **127/127 routes passed**.
+- Isolated write UAT:
+  - guarded preflight confirmed a different Neon host from production; CreditBilling ran only on port 3005.
+  - station-5 test shift: START meter correction 200, START gauge correction 200, standalone END meter 200, standalone END gauge 200.
+  - once END evidence existed, subsequent START meter and START gauge attempts both returned 409; API readback matched the saved values.
+  - UAT fixture cleanup passed and server 3005 was stopped afterward.
+- Remaining GAS compatibility after S98:
+  - LPG supplies and station-5 product inventory remain intentionally KEEP until their inventory workflows have canonical replacements.
+  - APIs remain compatibility contracts; S98 retires UI routes only.
+- Concurrent-work note:
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks from another task remain outside S98 staging.
+- No push / no deploy / no production DB write.

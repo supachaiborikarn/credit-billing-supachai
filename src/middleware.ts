@@ -30,6 +30,9 @@ function getCurrentGasRedirectPath(pathname: string) {
     const overviewMatch = pathname.match(/^\/gas\/(5|6)(?:\/summary)?\/?$/);
     if (overviewMatch) return `/stations/station-${overviewMatch[1]}`;
 
+    const recoveryMatch = pathname.match(/^\/gas\/(5|6)\/(?:meters|gauge)(?:\/|$)/);
+    if (recoveryMatch) return `/stations/station-${recoveryMatch[1]}/operations`;
+
     const shiftMatch = pathname.match(/^\/gas\/(5|6)\/shift\/(?:open|close)(?:\/|$)/);
     if (!shiftMatch) return null;
     return `/stations/station-${shiftMatch[1]}/operations`;
@@ -49,7 +52,9 @@ function getGasV2RedirectPath(pathname: string) {
     if (legacyPage === 'products' && stationId === '6') return '/stations/station-6';
     if (legacyPage === 'monthly-balance' && (stationId === '5' || stationId === '6')) return `/stations/station-${stationId}`;
     if (legacyPage === 'supplies') return `/gas/${stationId}/supplies`;
+    if ((legacyPage === 'meters' || legacyPage === 'gauge') && (stationId === '5' || stationId === '6')) return `/stations/station-${stationId}/operations`;
     if (legacyPage === 'meters') return `/gas/${stationId}/meters`;
+    if (legacyPage === 'gauge') return `/gas/${stationId}/gauge`;
     if ((legacyPage === 'summary' || legacyPage === 'shift-summary') && (stationId === '5' || stationId === '6')) return `/stations/station-${stationId}`;
     if (legacyPage === 'summary' || legacyPage === 'shift-summary') return `/gas/${stationId}/summary`;
 

@@ -3,6 +3,17 @@
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
 ## 2026-08-29
+- ⛽ S98 GAS meter/gauge recovery เข้า canonical Operations
+  - ย้าย guarded START correction + standalone END save/retry ของ meter 4 หัวและ gauge 3 ถังเข้า `/stations/station-5|6/operations`; legacy meter/gauge bookmarks redirect พร้อม preserve query/auth
+  - exact OPEN Shift + backend baseline lock ยังเป็น source of truth; หลังมี activity ให้ ADMIN แก้ opening meter ผ่าน audited admin route เดิม และ rewrite ต้อง preserve รูปเดิมเมื่อไม่เลือกรูปใหม่
+  - targeted 217/217, financial 90/90, full regression 407/407, TypeScript/ESLint/build 127 routes ผ่าน; isolated UAT ได้ 200/200/200/200 แล้ว START ถูกบล็อก 409/409 และ cleanup ผ่าน
+
+- ✅ S97 final canonical browser acceptance
+  - guarded UAT ใช้ Neon host แยกจาก production, port 3005 และ Chrome CDP 9223; port 3000 ไม่ถูกแตะ
+  - final authenticated ADMIN/STAFF gate ผ่าน 105/105 ที่ mobile 390x844 และ desktop 1440x900 ครบ Today, FULL/GAS canonical, retired station, redirects, role/empty/error states
+  - ยืนยัน partial FULL opening recovery เป็น `12345.67 / blank / 34567.89 / blank`, reuse รูปเดิม และไม่ hydrate zero placeholder; History เดิมยัง 10 L x 31.34 = 313.40
+  - ลบ fixture/session UAT แล้ว, baseline closed station-1/5/6 ยังครบ 3/3, ports 3005/9223 ว่าง; ไม่มี code change/push/deploy/production write
+
 - 🧭 S96 retire FULL V2 ไป canonical station workspace
   - `/station/1` และ alias root ไป canonical Overview; `/station/1/v2` รวม `summary/list/record` ไป canonical History โดย preserve query และ normalize ก่อน login
   - canonical Operations กู้ partial opening meter ต่อในกะเดิมได้ ใช้รูปเดิมต่อ อัปโหลดเฉพาะหลักฐานที่ขาด และไม่นับแถวมิเตอร์ค่า 0 ที่ระบบสร้างล่วงหน้าเป็นข้อมูลจริง

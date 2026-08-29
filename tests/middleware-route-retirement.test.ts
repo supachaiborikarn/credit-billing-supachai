@@ -108,15 +108,34 @@ describe('middleware legacy route retirement boundaries', () => {
     });
 
     it.each([
-        '/gas/5/meters?source=test',
-        '/gas/5/gauge?source=test',
         '/gas/5/supplies?source=test',
         '/gas/5/products?source=test',
-    ])('keeps compatibility subroute %s untouched', (path) => {
+    ])('keeps inventory compatibility subroute %s untouched', (path) => {
         const response = middleware(request(path));
 
         expect(response.headers.get('location')).toBeNull();
         expect(response.headers.get('x-middleware-next')).toBe('1');
+    });
+
+
+    it.each(['5', '6'])('retires GAS %s meter/gauge recovery to canonical Operations and preserves query', (stationNumber) => {
+        for (const page of ['meters', 'gauge']) {
+            const response = middleware(request(`/gas/${stationNumber}/${page}?from=s98`));
+            expect(response.status).toBe(307);
+            expect(response.headers.get('location')).toBe(
+                `https://credit-billing-supachai.local/stations/station-${stationNumber}/operations?from=s98`
+            );
+        }
+    });
+
+    it.each(['5', '6'])('normalizes unauthenticated GAS %s recovery bookmark before login', (stationNumber) => {
+        const response = middleware(request(`/gas/${stationNumber}/meters?from=s98-bookmark`, false));
+        const location = response.headers.get('location');
+        expect(response.status).toBe(307);
+        expect(location).not.toBeNull();
+        const loginUrl = new URL(location!);
+        expect(loginUrl.pathname).toBe('/login');
+        expect(loginUrl.searchParams.get('redirect')).toBe(`/stations/station-${stationNumber}/operations?from=s98-bookmark`);
     });
 
     it.each([
@@ -137,7 +156,7 @@ describe('middleware legacy route retirement boundaries', () => {
     });
 
     it.each([
-        ['/gas-station/5/new/meters?from=older', '/gas/5/meters?from=older'],
+        ['/gas-station/5/new/meters?from=older', '/stations/station-5/operations?from=older'],
         ['/gas-station/5/new/supplies?from=older', '/gas/5/supplies?from=older'],
         ['/gas-station/5/new/products?from=older', '/gas/5/products?from=older'],
         ['/gas-station/5/new/summary?from=older', '/stations/station-5?from=older'],

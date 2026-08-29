@@ -231,14 +231,9 @@ export function ShiftOpeningFlow({
                     <p>
                         API เปิดกะ GAS ปกติจะบันทึกมิเตอร์และเกจพร้อมกันแบบ atomic แต่กะนี้มีข้อมูลไม่ครบ ({context.openingState.completedMeters}/4 มิเตอร์, {context.openingState.completedGauges}/3 เกจ) จึงบล็อกการขายไว้ก่อน
                     </p>
-                    <div className="flex flex-wrap gap-3">
-                        <Link href={`/gas/${context.station.number}/meters`} className="font-semibold underline underline-offset-4 focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">
-                            ตรวจ/กู้ข้อมูลมิเตอร์
-                        </Link>
-                        <Link href={`/gas/${context.station.number}/gauge`} className="font-semibold underline underline-offset-4 focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">
-                            ตรวจ/กู้ข้อมูลเกจ
-                        </Link>
-                    </div>
+                    <p className="font-semibold">
+                        ใช้แผง “กู้/บันทึกมิเตอร์และเกจ GAS” ด้านล่างเพื่อเติมข้อมูลใน exact OPEN Shift เดิม โดยระบบจะเคารพ server lock เดิม
+                    </p>
                 </div>
             </Notice>
         );

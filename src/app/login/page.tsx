@@ -7,6 +7,9 @@ import { LogIn, Eye, EyeOff, Fuel, Sparkles, Loader2 } from 'lucide-react';
 function normalizeGasRedirectPath(path: string) {
     if (/^\/gas\/6\/products(?:[/?#]|$)/.test(path)) return '/stations/station-6';
 
+    const recoveryMatch = path.match(/^\/gas\/(5|6)\/(?:meters|gauge)(?:[/?#]|$)/);
+    if (recoveryMatch) return `/stations/station-${recoveryMatch[1]}/operations`;
+
     const currentMatch = path.match(/^\/gas\/(5|6)\/shift\/(?:open|close)(?:[/?#]|$)/);
     if (currentMatch) return `/stations/station-${currentMatch[1]}/operations`;
 
@@ -26,7 +29,9 @@ function normalizeGasRedirectPath(path: string) {
     if (legacyPage === 'products' && stationNum === '6') return '/stations/station-6';
     if (legacyPage === 'monthly-balance' && (stationNum === '5' || stationNum === '6')) return `/stations/station-${stationNum}`;
     if (legacyPage === 'supplies') return `/gas/${stationNum}/supplies`;
+    if ((legacyPage === 'meters' || legacyPage === 'gauge') && (stationNum === '5' || stationNum === '6')) return `/stations/station-${stationNum}/operations`;
     if (legacyPage === 'meters') return `/gas/${stationNum}/meters`;
+    if (legacyPage === 'gauge') return `/gas/${stationNum}/gauge`;
     if ((legacyPage === 'summary' || legacyPage === 'shift-summary') && (stationNum === '5' || stationNum === '6')) return `/stations/station-${stationNum}`;
     if (legacyPage === 'summary' || legacyPage === 'shift-summary') return `/gas/${stationNum}/summary`;
 
