@@ -17,6 +17,10 @@ function isLegacyDateKey(value: string | null | undefined): value is string {
     return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
+export function getRetiredSimpleSummaryRedirect(stationNumber: string): string | null {
+    return getRetiredSimpleStationHistoryRedirect(stationNumber);
+}
+
 export function getRetiredSimpleMeterSummaryRedirect(stationNumber: string, selectedDate?: string | null): string | null {
     const history = getRetiredSimpleStationHistoryRedirect(stationNumber);
     if (!history) return null;

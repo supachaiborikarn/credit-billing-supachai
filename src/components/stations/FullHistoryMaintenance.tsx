@@ -132,7 +132,9 @@ export function FullHistoryMaintenance({
     const meterTotal = printableMeters.reduce((sum, meter) => sum + Number(meter.liters || 0), 0);
     const transactionTotal = transactions.reduce((sum, transaction) => sum + Number(transaction.liters || 0), 0);
     const meterDiff = transactionTotal - meterTotal;
-    const canCreateAgainstOpenShift = canCreateFullHistoryTransaction(dailyRecord);
+    const canMutateHistory = context.user.role === 'ADMIN';
+    const isFullStation = context.station.type === 'FULL';
+    const canCreateAgainstOpenShift = isFullStation && canMutateHistory && canCreateFullHistoryTransaction(dailyRecord);
 
     const exportDailyCsv = () => {
         const exportTransactions = filterFullSummaryTransactions(transactions, csvPaymentFilter);
@@ -174,13 +176,21 @@ export function FullHistoryMaintenance({
 
     return (
         <Section
-            title="ดูแลข้อมูลรายวันของ FULL (แอดมิน)"
-            description="แก้/ยกเลิกรายการเดิม แนบสลิป พิมพ์ซ้ำ ส่งออก CSV พิมพ์สรุปวัน และตรวจ Audit Log จากข้อมูลจริง"
+            title={isFullStation ? 'ดูแลข้อมูลรายวันของ FULL (แอดมิน)' : 'ประวัติรายวันและเอกสารเดิม'}
+            description={canMutateHistory
+                ? 'แอดมินแก้/ยกเลิกรายการ แนบสลิป พิมพ์ซ้ำ ส่งออก CSV พิมพ์สรุปวัน และตรวจ Audit Log ได้จากข้อมูลเดิม'
+                : 'พนักงานอ่านข้อมูลเดิม ดูสลิป พิมพ์ซ้ำ ส่งออก CSV และพิมพ์สรุปวันได้ โดยไม่มีสิทธิ์แก้หรือยกเลิกรายการ'}
         >
             <div className="space-y-4">
-                <Notice tone="warning" title="การแก้ย้อนหลังมีผลกับข้อมูลจริง">
-                    ระบบใช้ API เดิมที่ผูก station และบันทึก Audit Log การแก้/ยกเลิก รายการเดิมจะไม่ถูกคำนวณราคาใหม่โดยอัตโนมัติ
-                </Notice>
+                {canMutateHistory ? (
+                    <Notice tone="warning" title="การแก้ย้อนหลังมีผลกับข้อมูลจริง">
+                        ระบบใช้ API เดิมที่ผูก station และบันทึก Audit Log การแก้/ยกเลิก รายการเดิมจะไม่ถูกคำนวณราคาใหม่โดยอัตโนมัติ
+                    </Notice>
+                ) : (
+                    <Notice tone="info" title="โหมดอ่าน/พิมพ์ข้อมูลเดิม">
+                        สถานีนี้ย้ายงานหน้าปั๊มไป POS แล้ว บัญชี STAFF ใช้หน้านี้เพื่อค้นหา ดูสลิป ส่งออก และพิมพ์ข้อมูลเดิมเท่านั้น
+                    </Notice>
+                )}
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                     <label className="block flex-1 text-sm font-semibold">
@@ -223,7 +233,7 @@ export function FullHistoryMaintenance({
                         compact
                         icon={Wrench}
                         title="วันที่นี้ไม่มี DailyRecord"
-                        description="canonical History จะไม่สร้างวันย้อนหลังจากหน้าดูแลนี้ เลือกวันที่ที่มีข้อมูลเดิมอยู่แล้ว"
+                        description="canonical History จะไม่สร้างวันย้อนหลังจากหน้านี้ เลือกวันที่ที่มีข้อมูลเดิมอยู่แล้ว"
                     />
                 ) : (
                     <>
@@ -296,7 +306,7 @@ export function FullHistoryMaintenance({
                                             onEdit={() => setEditingTransaction(transaction)}
                                             onDelete={() => void load()}
                                             onUpdated={() => void load()}
-                                            showActions
+                                            showActions={canMutateHistory}
                                             isLocked={false}
                                         />
                                     ))}
@@ -304,12 +314,12 @@ export function FullHistoryMaintenance({
                             )}
                         </div>
 
-                        <AuditTrail stationId={String(context.station.number)} date={selectedDate} />
+                        {canMutateHistory && <AuditTrail stationId={String(context.station.number)} date={selectedDate} />}
                     </>
                 )}
             </div>
 
-            {editingTransaction && (
+            {canMutateHistory && editingTransaction && (
                 <EditTransactionModal
                     stationId={String(context.station.number)}
                     transaction={editingTransaction}

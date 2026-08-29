@@ -234,6 +234,9 @@ export function StationHistory({ context }: { context: StationContextPayload }) 
     const showFullAdminMaintenance = context.station.operationalStatus === 'ACTIVE'
         && context.station.type === 'FULL'
         && context.user.role === 'ADMIN';
+    const showRetiredSimpleMaintenance = context.station.operationalStatus === 'RETIRED'
+        && context.station.type === 'SIMPLE';
+    const showDailyMaintenance = showFullAdminMaintenance || showRetiredSimpleMaintenance;
     const [{ from, to }] = React.useState(() => initialRange(searchParams));
     const [fromDate, setFromDate] = React.useState(from);
     const [toDate, setToDate] = React.useState(to);
@@ -264,9 +267,11 @@ export function StationHistory({ context }: { context: StationContextPayload }) 
 
     return (
         <div className="space-y-4">
-            <Notice tone="info" title={showFullAdminMaintenance ? 'ประวัติและเครื่องมือดูแลย้อนหลัง' : 'ประวัติเป็น read-only'}>
+            <Notice tone="info" title={showDailyMaintenance ? 'ประวัติและเอกสารย้อนหลัง' : 'ประวัติเป็น read-only'}>
                 {context.station.operationalStatus === 'RETIRED'
-                    ? 'สถานีนี้ย้ายงานหน้าปั๊มไป POS แล้ว ข้อมูลเดิมยังอ่านได้แต่ไม่มีคำสั่งแก้ไขหรือสร้างงานใหม่ ยอดเงินใช้รายการขายจริง; ระบบจะไม่คำนวณมูลค่ามิเตอร์ย้อนหลังจากราคาคงที่ของหน้าเก่า'
+                    ? context.user.role === 'ADMIN'
+                        ? 'สถานีนี้ย้ายงานหน้าปั๊มไป POS แล้ว แอดมินยังดูแลรายการเดิมแบบมีสิทธิ์แก้/ยกเลิก ส่วนพนักงานเป็น read/print/export only; ไม่มีการสร้างงานหน้าปั๊มใหม่'
+                        : 'สถานีนี้ย้ายงานหน้าปั๊มไป POS แล้ว ข้อมูลเดิมยังค้นหา ดูสลิป ส่งออก CSV และพิมพ์เอกสารได้ แต่ STAFF ไม่มีสิทธิ์แก้/ยกเลิกรายการหรือสร้างงานใหม่'
                     : showFullAdminMaintenance
                         ? 'Shift history ด้านล่างเป็นข้อมูลตรวจสอบแบบ read-only ส่วนแอดมิน FULL ใช้แผงดูแลรายวันสำหรับแก้/ยกเลิกรายการ แนบสลิป พิมพ์ และตรวจ Audit Log ได้จากหน้าเดียวกัน'
                         : 'หน้า canonical history ใช้ตรวจย้อนหลังเท่านั้น'}
@@ -357,7 +362,7 @@ export function StationHistory({ context }: { context: StationContextPayload }) 
                 </>
             ) : null}
 
-            {showFullAdminMaintenance && (
+            {showDailyMaintenance && (
                 <FullHistoryMaintenance context={context} defaultDate={toDate} />
             )}
 

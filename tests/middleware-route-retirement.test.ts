@@ -305,6 +305,21 @@ describe('middleware legacy route retirement boundaries', () => {
         expect(loginUrl.searchParams.get('redirect')).toBe('/stations/station-1?from=s90-bookmark');
     });
 
+    it.each(['2', '3', '4'])('retires retired SIMPLE %s summary to canonical History and preserves query', (stationNumber) => {
+        const response = middleware(request(`/simple-station/${stationNumber}/new/summary?from=s101`));
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(`https://credit-billing-supachai.local/stations/station-${stationNumber}/history?from=s101`);
+    });
+
+    it('normalizes unauthenticated retired SIMPLE summary before login', () => {
+        const response = middleware(request('/simple-station/2/new/summary?from=s101-bookmark', false));
+        const location = response.headers.get('location');
+        expect(response.status).toBe(307);
+        const loginUrl = new URL(location!);
+        expect(loginUrl.pathname).toBe('/login');
+        expect(loginUrl.searchParams.get('redirect')).toBe('/stations/station-2/history?from=s101-bookmark');
+    });
+
     it('normalizes unauthenticated FULL summary bookmark to canonical History before login', () => {
         const response = middleware(request('/station/1/new/summary?from=s96-bookmark', false));
         const location = response.headers.get('location');

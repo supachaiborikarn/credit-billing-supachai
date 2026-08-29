@@ -68,6 +68,11 @@ function getGasV2RedirectPath(pathname: string) {
     return `/gas/${stationId}`;
 }
 
+function getRetiredSimpleSummaryRedirectPath(pathname: string) {
+    const match = pathname.match(/^\/simple-station\/(2|3|4)\/new\/summary(?:\/|$)/);
+    return match ? `/stations/station-${match[1]}/history` : null;
+}
+
 function getTankLoyRedirectPath(pathname: string) {
     const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
 
@@ -106,6 +111,7 @@ export function middleware(request: NextRequest) {
     const currentGasRedirectPath = getCurrentGasRedirectPath(pathname);
     const gasV2RedirectPath = getGasV2RedirectPath(pathname);
     const tankLoyRedirectPath = getTankLoyRedirectPath(pathname);
+    const retiredSimpleSummaryRedirectPath = getRetiredSimpleSummaryRedirectPath(pathname);
 
     // Check if route is protected
     const isProtectedRoute = protectedRoutes.some(route =>
@@ -115,7 +121,7 @@ export function middleware(request: NextRequest) {
     // If protected route and no session, redirect to login
     if (isProtectedRoute && !sessionCookie) {
         const loginUrl = new URL('/login', request.url);
-        const redirectPath = canonicalLandingRedirectPath || currentGasRedirectPath || gasV2RedirectPath || tankLoyRedirectPath || pathname;
+        const redirectPath = canonicalLandingRedirectPath || currentGasRedirectPath || gasV2RedirectPath || tankLoyRedirectPath || retiredSimpleSummaryRedirectPath || pathname;
         loginUrl.searchParams.set('redirect', `${redirectPath}${request.nextUrl.search}`);
         return NextResponse.redirect(loginUrl);
     }
@@ -134,6 +140,12 @@ export function middleware(request: NextRequest) {
 
     if (gasV2RedirectPath) {
         const redirectUrl = new URL(gasV2RedirectPath, request.url);
+        redirectUrl.search = request.nextUrl.search;
+        return NextResponse.redirect(redirectUrl);
+    }
+
+    if (retiredSimpleSummaryRedirectPath) {
+        const redirectUrl = new URL(retiredSimpleSummaryRedirectPath, request.url);
         redirectUrl.search = request.nextUrl.search;
         return NextResponse.redirect(redirectUrl);
     }

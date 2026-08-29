@@ -43,6 +43,12 @@ function normalizeGasRedirectPath(path: string) {
     return `/gas/${stationNum}`;
 }
 
+function normalizeRetiredSimpleRedirectPath(path: string) {
+    const match = path.match(/^\/simple-station\/(2|3|4)\/new\/summary(?:[/?#]|$)/);
+    if (!match) return path;
+    return `/stations/station-${match[1]}/history`;
+}
+
 function normalizeTankLoyRedirectPath(path: string) {
     const normalized = path.length > 1 ? path.replace(/\/+$/, '') : path;
 
@@ -78,11 +84,11 @@ function normalizeRedirectPath(path: string) {
     try {
         const parsed = new URL(path, 'https://credit-billing-supachai.local');
         if (parsed.pathname === '/dashboard') return `/today${parsed.search}${parsed.hash}`;
-        const normalizedPath = normalizeTankLoyRedirectPath(normalizeGasRedirectPath(parsed.pathname));
+        const normalizedPath = normalizeRetiredSimpleRedirectPath(normalizeTankLoyRedirectPath(normalizeGasRedirectPath(parsed.pathname)));
         return `${normalizedPath}${parsed.search}${parsed.hash}`;
     } catch {
         if (path === '/dashboard') return '/today';
-        return normalizeTankLoyRedirectPath(normalizeGasRedirectPath(path));
+        return normalizeRetiredSimpleRedirectPath(normalizeTankLoyRedirectPath(normalizeGasRedirectPath(path)));
     }
 }
 

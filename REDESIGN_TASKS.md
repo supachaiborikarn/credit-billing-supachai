@@ -3060,3 +3060,35 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S100 staging.
 - No push / no deploy / no production DB write.
+
+
+## 2026-08-29 — S101 — Retire retired-SIMPLE summary into canonical History
+- Status: `[x]`
+- Ownership change:
+  - retired station-2/3/4 `/simple-station/[id]/new/summary` now redirects to `/stations/station-[id]/history` with query/auth normalization.
+  - canonical History reuses the S95 daily-maintenance component for retired SIMPLE instead of introducing a second historical financial model.
+  - old summary source remains as `LegacySimpleStationSummaryPage.tsx` for fallback/reference; receipt compatibility remains a separate route.
+- Role boundary / parity:
+  - retired SIMPLE STAFF: search/read daily data, view existing transfer proof, receipt/credit reprint 58/80 mm, payment-filtered CSV and daily report print.
+  - retired SIMPLE ADMIN: same read/print/export surface plus edit, void, transfer-proof attach/replacement and real AuditLog review.
+  - `TransactionCard` keeps print/view-proof outside mutation actions, so STAFF does not need mutation permission to reprint historical documents.
+  - AuditTrail and edit modal render only for ADMIN; backend historical mutation guard remains authoritative.
+  - historical transaction creation remains FULL-only and requires an existing OPEN Shift; retired SIMPLE never exposes create/refill.
+- Verification:
+  - targeted route/history/role regression: 5 files / **196 tests passed**.
+  - financial release gate: 16 files / **90 tests passed**.
+  - full regression: 50 files / **421 tests passed**.
+  - TypeScript, S101-scoped ESLint and `git diff --check`: passed.
+  - production build with `NODE_ENV=production`: **127/127 routes passed**.
+- Isolated role/write UAT (station-2 historical fixture):
+  - created a temporary station-2 STAFF account and one temporary historical CASH transaction only in the isolated UAT DB.
+  - STAFF: canonical History 200; legacy summary 307; daily read 200; receipt compatibility 200; edit 403; void 403; audit 403.
+  - ADMIN: canonical History 200; edit 200 with DB readback + UPDATE AuditLog; audit endpoint 200; void 200 with soft-void fields + DELETE AuditLog.
+  - first UAT assertion checked the old raw `recordId` field even though the API intentionally exposes it as `entityId`; it stopped before void, cleanup ran, and no code change was required. Rerun with the documented response shape passed fully.
+  - temporary transaction, audits, sessions and station-2 UAT user were deleted; UAT server on 3005 stopped and port 3000 was untouched.
+- Remaining retired-SIMPLE compatibility after S101:
+  - `/simple-station/[id]/new/receipt` remains **KEEP_PRINT_COMPAT**. Station-3 stays fail-closed until a verified legal/header config is available.
+  - no retired SIMPLE frontline create/operate route remains.
+- Concurrent-work note:
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S101 staging.
+- No push / no deploy / no production DB write.

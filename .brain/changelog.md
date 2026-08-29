@@ -3,6 +3,10 @@
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
 ## 2026-08-29
+- S101 retired SIMPLE summary -> canonical History
+  - station-2/3/4 summary เก่า redirect เข้า canonical History; STAFF เป็น read/view-slip/print/CSV only, ADMIN มี edit/void/proof/Audit
+  - historical create ยังคง FULL-only; targeted 196/196, financial 90/90, full 421/421, build 127/127 และ isolated role UAT ผ่าน
+  - cleanup user/transaction/audit/session UAT แล้ว; receipt compatibility ยัง KEEP โดย station-3 fail-closed; ไม่ push/deploy/เขียน production DB
 - S100 station-5 products -> canonical Inventory
   - ย้าย product list/create/receive/price-alert/history เข้า `/stations/station-5/inventory`; `/gas/5/products` และ older bookmark redirect แล้ว
   - product GET เป็น read-only โดยถอด Station.upsert; targeted 89/89, financial 90/90, full 409/409, build 127/127 และ isolated UAT create/update/receive/history/cross-station guard ผ่าน

@@ -11,6 +11,7 @@ import {
     getActiveGasSellRedirect,
     getRetiredSimpleStationRedirect,
     getRetiredSimpleStationHistoryRedirect,
+    getRetiredSimpleSummaryRedirect,
     getRetiredSimpleMeterSummaryRedirect,
 } from '../src/lib/stations/legacy-route-retirement';
 
@@ -47,6 +48,14 @@ describe('legacy route retirement', () => {
 
     it.each(['1', '5', '6', '7', ''])('does not redirect non-retired shift history %s', (stationNumber) => {
         expect(getRetiredSimpleStationHistoryRedirect(stationNumber)).toBeNull();
+    });
+
+    it.each(['2', '3', '4'])('redirects retired SIMPLE summary %s to canonical History maintenance', (stationNumber) => {
+        expect(getRetiredSimpleSummaryRedirect(stationNumber)).toBe(`/stations/station-${stationNumber}/history`);
+    });
+
+    it.each(['1', '5', '6', '7', ''])('does not retire summary for non-retired SIMPLE station %s', (stationNumber) => {
+        expect(getRetiredSimpleSummaryRedirect(stationNumber)).toBeNull();
     });
 
     it.each(['2', '3', '4'])('redirects retired SIMPLE meter summary %s to canonical history', (stationNumber) => {

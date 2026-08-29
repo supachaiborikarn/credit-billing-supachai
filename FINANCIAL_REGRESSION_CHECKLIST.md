@@ -26,6 +26,8 @@ Latest GAS supplies-inventory rerun: **S99 — canonical `/stations/station-5|6/
 
 Latest GAS product-inventory rerun: **S100 — station-5 product create/receive/price-alert/history moved into canonical Inventory while preserving existing product APIs and stock records. The legacy GET-side `Station.upsert` was removed so reads are side-effect free. Targeted route/redirect gate passed 89/89, financial release gate 90/90, full regression 409/409, TypeScript/scoped ESLint/diff check passed, production build 127/127 routes passed, and isolated UAT confirmed create → update → receive → history with final quantity 7 / sale price 43 / alert 2 plus station-6 access 403.**
 
+Latest retired-SIMPLE history-maintenance rerun: **S101 — retired station-2/3/4 summary maintenance moved into canonical History without reopening frontline operations. STAFF remains read/view-slip/print/CSV only while ADMIN retains audited edit/void/proof maintenance; historical create stays FULL-only. Targeted route/history/role gate passed 196/196, financial release gate 90/90, full regression 421/421, TypeScript/scoped ESLint/diff check passed, production build 127/127 routes passed, and isolated UAT confirmed STAFF edit/void/audit 403 vs ADMIN edit/audit/void 200 while receipt compatibility remained 200.**
+
 ## Release gate
 
 Run:
