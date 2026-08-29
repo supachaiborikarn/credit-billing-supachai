@@ -161,6 +161,8 @@ All `/api/station/*`, `/api/v2/gas/*`, `/api/simple-station/*`, invoice/payment,
 
 **S44 status (2026-08-27): PASS.** See `FINANCIAL_REGRESSION_CHECKLIST.md`. S70 reran the full financial gate after moving the audited active-GAS price-update UX into canonical Overview: 16 files / 81 tests passed; GAS price/opening/closing/context regression also passed. Remaining active operational/money routes are still eligible only for bounded one-family review.
 
+**S97 canonical browser acceptance (2026-08-29): PASS.** Guarded UAT on a separate Neon host passed 105/105 authenticated ADMIN/STAFF checks across mobile `390x844` and desktop `1440x900`, including canonical FULL/GAS/retired-SIMPLE pages, role boundaries, empty/error states and legacy redirect/query normalization. No HTTP 5xx, runtime exception or fatal console error occurred; temporary S97 fixtures were removed after verification. Physical camera/Epson smoke remains a rollout-day hardware check, not a route-parity blocker.
+
 Before redirecting an **active FULL/GAS** legacy route:
 
 1. Canonical feature parity for that exact route purpose.

@@ -277,10 +277,12 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 **Done เมื่อ:** Today ตอบคำถาม “ตอนนี้ต้องทำอะไร” ได้จาก `GET /api/today` contract
 
 ## S15 — Today responsive polish
-- [ ] desktop
-- [ ] mobile
-- [ ] touch targets
-- [ ] loading/empty/error
+- [x] desktop
+- [x] mobile
+- [x] touch targets
+- [x] loading/empty/error
+
+**S97 acceptance:** authenticated browser QA ผ่านทั้ง `390x844` และ `1440x900`; Today/canonical station pages ไม่เกิด page-level horizontal overflow, primary operational CTA ผ่าน touch-height gate และ loading/empty/permission-error states แสดงผลครบ
 
 ---
 
@@ -611,9 +613,9 @@ ADMIN Today ไม่ใช้กราฟเป็น default; รายงา�
 - [x] S78: review older GAS read family — KEEP summary/shift-summary; flatten redirect-only monthly-balance UI โดยคง monthly-balance API
 - [x] S79: canonical GAS Overview เพิ่ม meter detail + recent transactions จาก summary API เดิม; current summary parity ready แต่ยัง KEEP จน S80
 - [x] S80: retire current `/gas/5|6/summary` + older summary/shift-summary ไป canonical Overview; preserve auth/query และ keep summary API เป็น read source
-- [~] S81: local UAT บนพอร์ต 3005 — authenticated read-flow + canonical landing ผ่าน; Today cold-read retry + GAS stale-shift warning เพิ่มแล้ว; write-flow UAT ยังรอ test DB
-- [ ] ทำ legacy route/family กลุ่มถัดไปทีละชุดหลัง S81 UAT
-- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S81
+- [x] S81: local UAT บนพอร์ต 3005 ครบถึง pass 7 — authenticated read/write flow ของ station-1/5/6 ผ่านบนฐาน UAT แยก, duplicate guard/financial reconciliation ผ่าน และไม่แตะ production DB
+- [x] ทำ legacy route/family กลุ่มถัดไปหลัง S81 UAT ถึง S96; route ที่ยังเหลือเป็น intentional KEEP สำหรับ correction, inventory, historical maintenance, print, admin/report หรือ API compatibility
+- [x] preserve read/print compatibility ที่ยังจำเป็นใน S46-S96
 
 ---
 
@@ -2939,3 +2941,28 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print implementation/tests/docs and its concurrent brain edits remain unstaged and excluded from the S96 commit.
 - No push / no deploy / no production DB write.
+
+## 2026-08-29 — S97 — Final canonical browser acceptance
+- Status: `[x]`
+- Environment safety:
+  - `npm run uat:preflight` ผ่าน โดย UAT PostgreSQL ใช้คนละ Neon host กับ production.
+  - รันระบบผ่าน guarded launcher บน port `3005` และ Chrome DevTools บน `9223`; port `3000` ซึ่งเป็นของ service อื่นไม่ถูกแตะ.
+- Acceptance matrix:
+  - final data-aware browser gate ผ่าน **105/105 checks** ที่ viewport mobile `390x844` และ desktop `1440x900`.
+  - ครอบคลุม ADMIN และ STAFF station-1/5/6, Today, FULL Overview/Sales/Operations/History, GAS Overview/Sales/Operations, retired station-2, legacy redirect/query preservation และ station-6 product capability redirect.
+  - ทุกหน้าที่ตรวจไม่มี page-level horizontal overflow; primary FULL recovery CTA สูงอย่างน้อย 44px.
+  - empty History และ forbidden-station error state แสดงผลได้; own-station context = 200 และ cross-station context = 403 สำหรับ STAFF.
+  - ระหว่าง final gate ไม่พบ HTTP 5xx, browser runtime exception หรือ fatal console error.
+- S96 recovery proof:
+  - สร้าง UAT-only partial-opening fixture ใน exact OPEN Shift: หัว 1 = `12345.67` พร้อมรูปเดิม, หัว 3 = `34567.89`, หัว 2 = zero/no-photo placeholder และหัว 4 ไม่มีข้อมูล.
+  - canonical Operations แสดง `2/4` หัว, รูปครบ `1/4`, reuse รูปเดิม และ hydrate input เป็น `12345.67 / blank / 34567.89 / blank`; zero placeholder ไม่ถูกใช้เป็นหลักฐานจริง.
+  - data-settled History check ยังแสดงหลักฐานเดิม `10 L x 31.34 = 313.40` โดยไม่เปลี่ยน financial record.
+- Cleanup:
+  - ลบ S97 DailyRecord/Shift/Meter fixtures และ UAT login sessions หลังตรวจ; baseline closed shifts จาก S81 ของ station-1/5/6 ยังอยู่ครบ `3/3`.
+  - หยุด UAT server และ headless Chrome แล้ว; ports `3005` และ `9223` ว่าง.
+- Scope / decision:
+  - ไม่มี product-code change ใน S97; เป็น acceptance/documentation checkpoint.
+  - canonical frontline browser/software rollout gate = **PASS**. งานที่ยัง KEEP ตาม route plan ไม่ใช่ blocker ของหน้าปั๊ม canonical.
+  - กล้องและ Epson จริงยังควร smoke บนอุปกรณ์หน้างานก่อน deploy เพราะ S97 ไม่ส่งงานพิมพ์หรืออัปโหลดรูปจริง.
+  - Tank Loy auto-print implementation/tests/docs และ brain hunks ของงานอีกชุดยังไม่ถูก stage.
+  - No push / no deploy / no production DB write.
