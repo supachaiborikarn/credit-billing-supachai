@@ -24,7 +24,6 @@ import { StationHistory } from '@/components/stations/StationHistory';
 import { ShiftOpeningFlow } from '@/components/stations/ShiftOpeningFlow';
 import { AsyncRefreshState, Badge, EmptyState, FatalErrorState, LoadingState, Notice, Section } from '@/components/ui';
 import { isActiveSaleStationId } from '@/lib/sales/sale-flow';
-import { getActiveFullAdminMaintenancePath } from '@/lib/stations/legacy-route-retirement';
 import type { StationContextPayload } from '@/types/station';
 
 export type CanonicalStationWorkspaceMode = 'OVERVIEW' | 'SALES' | 'OPERATIONS' | 'HISTORY';
@@ -393,7 +392,6 @@ function StaleGasShiftNotice({ context }: { context: StationContextPayload }) {
 }
 
 function Overview({ context, onRefresh, writeBlocked }: { context: StationContextPayload; onRefresh: () => Promise<void>; writeBlocked: boolean }) {
-    const fullAdminMaintenancePath = getActiveFullAdminMaintenancePath(context.station.id, context.user.role);
     const actions = [
         context.permissions.canSell
             ? { label: 'ขาย', href: context.paths.sales, icon: Fuel, description: 'บันทึกรายการขายของสถานีนี้' }
@@ -452,22 +450,6 @@ function Overview({ context, onRefresh, writeBlocked }: { context: StationContex
                     </div>
                 )}
             </Section>
-
-            {fullAdminMaintenancePath && (
-                <Section title="เครื่องมือแอดมิน FULL" description="V2 เหลือเป็น compatibility surface สำหรับงานแก้ไขย้อนหลังระหว่าง migration">
-                    <div className="space-y-3">
-                        <Notice tone="info" title="งานปกติให้ใช้ canonical workspace">
-                            V2 ใช้เฉพาะแก้ราคาประจำวันย้อนหลัง, แก้มิเตอร์/รูป, ดูแล transaction/สลิป/พิมพ์ซ้ำ และ audit/export ที่ยังทยอยย้ายไม่ครบ
-                        </Notice>
-                        <Link
-                            href={fullAdminMaintenancePath}
-                            className="inline-flex min-h-11 items-center gap-2 rounded-[var(--ui-radius-md)] border border-[var(--ui-border-strong)] bg-[var(--ui-surface)] px-4 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-subtle)] focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]"
-                        >
-                            <Settings2 className="h-4 w-4" aria-hidden="true" /> เปิด V2 admin maintenance
-                        </Link>
-                    </div>
-                </Section>
-            )}
 
             {context.station.type === 'GAS' && context.station.operationalStatus === 'ACTIVE' && context.permissions.canView && (
                 <GasLiveSummary context={context} />

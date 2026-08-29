@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, ArrowRight, History, RefreshCw } from 'lucide-react';
 import { Badge, Button, EmptyState, Notice, Section } from '@/components/ui';
-import { getActiveFullAdminMaintenancePath } from '@/lib/stations/legacy-route-retirement';
+import { FullHistoryMaintenance } from '@/components/stations/FullHistoryMaintenance';
 import type { StationContextPayload } from '@/types/station';
 import type {
     StationHistoryAttentionReason,
@@ -231,7 +231,9 @@ function ShiftDetail({ shift }: { shift: StationHistoryShift }) {
 
 export function StationHistory({ context }: { context: StationContextPayload }) {
     const searchParams = useSearchParams();
-    const fullAdminMaintenancePath = getActiveFullAdminMaintenancePath(context.station.id, context.user.role);
+    const showFullAdminMaintenance = context.station.operationalStatus === 'ACTIVE'
+        && context.station.type === 'FULL'
+        && context.user.role === 'ADMIN';
     const [{ from, to }] = React.useState(() => initialRange(searchParams));
     const [fromDate, setFromDate] = React.useState(from);
     const [toDate, setToDate] = React.useState(to);
@@ -262,10 +264,12 @@ export function StationHistory({ context }: { context: StationContextPayload }) 
 
     return (
         <div className="space-y-4">
-            <Notice tone="info" title="ประวัติเป็น read-only">
+            <Notice tone="info" title={showFullAdminMaintenance ? 'ประวัติและเครื่องมือดูแลย้อนหลัง' : 'ประวัติเป็น read-only'}>
                 {context.station.operationalStatus === 'RETIRED'
                     ? 'สถานีนี้ย้ายงานหน้าปั๊มไป POS แล้ว ข้อมูลเดิมยังอ่านได้แต่ไม่มีคำสั่งแก้ไขหรือสร้างงานใหม่ ยอดเงินใช้รายการขายจริง; ระบบจะไม่คำนวณมูลค่ามิเตอร์ย้อนหลังจากราคาคงที่ของหน้าเก่า'
-                    : 'หน้า canonical history ใช้ตรวจย้อนหลังเท่านั้น การแก้ข้อมูลย้อนหลังยังไม่ถูกย้ายมาใน redesign'}
+                    : showFullAdminMaintenance
+                        ? 'Shift history ด้านล่างเป็นข้อมูลตรวจสอบแบบ read-only ส่วนแอดมิน FULL ใช้แผงดูแลรายวันสำหรับแก้/ยกเลิกรายการ แนบสลิป พิมพ์ และตรวจ Audit Log ได้จากหน้าเดียวกัน'
+                        : 'หน้า canonical history ใช้ตรวจย้อนหลังเท่านั้น'}
             </Notice>
 
             <Section title="ตัวกรอง" description="ช่วงวันที่สูงสุดครั้งละ 93 วัน">
@@ -353,12 +357,8 @@ export function StationHistory({ context }: { context: StationContextPayload }) 
                 </>
             ) : null}
 
-            {context.station.operationalStatus !== 'RETIRED' && context.station.type === 'FULL' && fullAdminMaintenancePath && (
-                <div className="text-right">
-                    <Link href={fullAdminMaintenancePath} className="inline-flex min-h-11 items-center gap-2 rounded-sm text-xs font-semibold text-[var(--ui-text-muted)] underline-offset-4 hover:text-[var(--ui-text)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">
-                        เครื่องมือแก้ไขย้อนหลัง V2 (แอดมิน) <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                    </Link>
-                </div>
+            {showFullAdminMaintenance && (
+                <FullHistoryMaintenance context={context} defaultDate={toDate} />
             )}
 
             {context.station.operationalStatus !== 'RETIRED' && context.station.type !== 'FULL' && (

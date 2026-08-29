@@ -2895,3 +2895,27 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print/shared brain changes from another task remain untouched and excluded from this commit.
 - No push / no deploy / no production DB write.
+
+## 2026-08-29 — S95 pass 2 — Move FULL historical maintenance to canonical History
+- Status: `[x]`
+- Ownership change:
+  - canonical `/stations/station-1/history` now owns the remaining FULL ADMIN maintenance surface: transaction edit/void, transfer-proof attach/replacement, receipt/credit reprint (58/80 mm), payment-filtered CSV, daily A4/58/80 print, and audit review.
+  - historical transaction create is exposed only when the selected existing DailyRecord has an existing OPEN Shift; missing/CLOSED days remain edit/void-only and are not auto-created.
+  - the FULL Overview no longer links to V2 maintenance; canonical History is now the discoverable maintenance entry.
+- Audit repair:
+  - replaced the old `/api/station/[id]/audit` placeholder that always returned `logs: []` with real ADMIN-only, station/date-bound AuditLog reads.
+  - audit entries map transaction/meter/daily/shift records, show old/new values and reasons, and identify edits after close without incorrectly classifying the CLOSE event itself.
+  - legacy transactions without `shiftId` use the DailyRecord close time as the post-close fallback.
+- UI safety:
+  - the maintenance panel clears loaded data immediately when the date changes or a reload starts, preventing stale transactions from being edited/exported/printed under a different selected date.
+  - existing transaction/receipt/report helpers and station-scoped APIs are reused; no second financial calculation model was introduced.
+- Verification:
+  - S95 targeted gate: 4 files / 15 tests passed.
+  - financial release gate: 16 files / 89 tests passed.
+  - TypeScript, targeted ESLint and `git diff --check` passed.
+  - production build with `NODE_ENV=production` passed 127/127 routes on the real working tree.
+- Remaining after S95:
+  - **S96:** isolated UAT + role/query/redirect smoke, rerun release gates, then retire `/station/1/v2` only if canonical History/Operations/Sales parity remains green.
+- Concurrent-work note:
+  - Tank Loy auto-print/shared-brain files from another task remain untouched and excluded from S95 staging/commit.
+- No push / no deploy / no production DB write.

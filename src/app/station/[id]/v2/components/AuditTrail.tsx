@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Clock, User, Edit, Plus, Trash2, AlertCircle } from 'lucide-react';
 
 interface AuditLogEntry {
     id: string;
     timestamp: string;
-    action: 'CREATE' | 'UPDATE' | 'DELETE';
-    entityType: 'TRANSACTION' | 'METER' | 'DAILY_RECORD';
+    action: string;
+    entityType: 'TRANSACTION' | 'METER' | 'DAILY_RECORD' | 'SHIFT';
     entityId: string;
     userId: string;
     userName: string;
@@ -28,25 +28,30 @@ interface AuditTrailProps {
 export default function AuditTrail({ stationId, date }: AuditTrailProps) {
     const [loading, setLoading] = useState(true);
     const [logs, setLogs] = useState<AuditLogEntry[]>([]);
+    const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        fetchAuditLogs();
-    }, [stationId, date]);
-
-    const fetchAuditLogs = async () => {
+    const fetchAuditLogs = useCallback(async () => {
         setLoading(true);
+        setError(null);
         try {
-            const res = await fetch(`/api/station/${stationId}/audit?date=${date}`);
-            if (res.ok) {
-                const data = await res.json();
-                setLogs(data.logs || []);
+            const res = await fetch(`/api/station/${stationId}/audit?date=${date}`, { cache: 'no-store' });
+            const data = await res.json().catch(() => null);
+            if (!res.ok) {
+                throw new Error(data?.error || 'โหลดประวัติการแก้ไขไม่สำเร็จ');
             }
-        } catch (error) {
-            console.error('Error fetching audit logs:', error);
+            setLogs(data?.logs || []);
+        } catch (loadError) {
+            console.error('Error fetching audit logs:', loadError);
+            setLogs([]);
+            setError(loadError instanceof Error ? loadError.message : 'โหลดประวัติการแก้ไขไม่สำเร็จ');
         } finally {
             setLoading(false);
         }
-    };
+    }, [date, stationId]);
+
+    useEffect(() => {
+        void fetchAuditLogs();
+    }, [fetchAuditLogs]);
 
     const formatTime = (timestamp: string) => {
         return new Date(timestamp).toLocaleTimeString('th-TH', {
@@ -62,7 +67,9 @@ export default function AuditTrail({ stationId, date }: AuditTrailProps) {
             case 'UPDATE':
                 return { icon: Edit, color: 'bg-blue-100 text-blue-600', label: 'แก้ไข' };
             case 'DELETE':
-                return { icon: Trash2, color: 'bg-red-100 text-red-600', label: 'ลบ' };
+                return { icon: Trash2, color: 'bg-red-100 text-red-600', label: 'ยกเลิก' };
+            case 'CLOSE':
+                return { icon: Clock, color: 'bg-orange-100 text-orange-600', label: 'ปิด' };
             default:
                 return { icon: Clock, color: 'bg-gray-100 text-gray-600', label: action };
         }
@@ -73,6 +80,7 @@ export default function AuditTrail({ stationId, date }: AuditTrailProps) {
             case 'TRANSACTION': return 'รายการเติม';
             case 'METER': return 'มิเตอร์';
             case 'DAILY_RECORD': return 'ข้อมูลวัน';
+            case 'SHIFT': return 'กะ';
             default: return type;
         }
     };
@@ -94,7 +102,13 @@ export default function AuditTrail({ stationId, date }: AuditTrailProps) {
                 </p>
             </div>
 
-            {logs.length === 0 ? (
+            {error ? (
+                <div className="p-6">
+                    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {error}
+                    </div>
+                </div>
+            ) : logs.length === 0 ? (
                 <div className="p-8 text-center text-gray-400">
                     ไม่มีประวัติการแก้ไข
                 </div>

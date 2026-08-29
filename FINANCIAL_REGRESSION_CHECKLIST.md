@@ -16,6 +16,8 @@ Latest FULL daily-price maintenance rerun: **S93 — 16 files / 85 financial tes
 
 Latest FULL transaction-create safety rerun: **S95 pass 1 — 16 files / 89 financial tests passed on a clean HEAD + S95-pass1-only snapshot after making historical transaction create ADMIN-only and fail-closed. Direct route/policy regression passed 29/29; isolated-Neon UAT confirmed missing historical days are not created, CLOSED dates do not create shifts, and ADMIN creation on an existing historical OPEN shift reuses that exact shift.**
 
+Latest FULL history-maintenance rerun: **S95 pass 2 — 16 files / 89 financial tests passed after moving transaction/slip/receipt, filtered CSV, daily print and real station/date-bound audit review into canonical History. S95 targeted regression passed 15/15; TypeScript, targeted ESLint, diff check and the 127-route production build passed. Historical create remains limited to an existing OPEN Shift and the maintenance UI clears stale date data before any action.**
+
 ## Release gate
 
 Run:
