@@ -18,6 +18,8 @@ Latest FULL transaction-create safety rerun: **S95 pass 1 — 16 files / 89 fina
 
 Latest FULL history-maintenance rerun: **S95 pass 2 — 16 files / 89 financial tests passed after moving transaction/slip/receipt, filtered CSV, daily print and real station/date-bound audit review into canonical History. S95 targeted regression passed 15/15; TypeScript, targeted ESLint, diff check and the 127-route production build passed. Historical create remains limited to an existing OPEN Shift and the maintenance UI clears stale date data before any action.**
 
+Latest FULL V2-retirement rerun: **S96 — 16 files / 90 financial tests passed after retiring `/station/1` and `/station/1/v2` to canonical Overview/History and adding canonical partial-opening recovery. S96 redirect/opening regression passed 183/183; isolated HEAD + S96-only full suite passed 396/396, real mixed-tree full suite passed 400/400, TypeScript/scoped ESLint passed, the production build completed 127/127 routes with `NODE_ENV=production`, and local redirect/auth normalization smoke passed 4/4 on port 3005.**
+
 ## Release gate
 
 Run:
@@ -83,7 +85,7 @@ S44 baseline: **16 files / 81 tests passed**.
 
 These are existing legacy behaviors, not redesign contracts:
 
-1. **Classic `/station/[id]` price mapping is older than current V2.** It contains a CASH/TRANSFER wholesale rule that differs from `/station/1/v2`. Active FULL parity is measured against current V2 + backend, not the classic page.
+1. **Classic `/station/[id]` price mapping is older than the retired V2 reference behavior.** It contains a CASH/TRANSFER wholesale rule that differed from `/station/1/v2`. S44-S95 parity was measured against V2 + backend, not the classic page; after S96 the canonical surfaces own the supported UI behavior while V2 is redirect/archive-only.
 2. **`/api/payments` is a legacy Invoice payment endpoint with no production caller found in S44.** Canonical Billing must continue using `/api/invoices/[id]/payments`; do not redirect new code to `/api/payments`. Retire separately only after route-level review.
 3. **Do not delete active sale/shift APIs during UI route retirement.** S45+ redirects UI entry routes one at a time; backend compatibility remains until all callers and print/read flows are proven migrated.
 4. **Do not combine Invoice, BillingCollection, unbilled credit, or legacy `currentCredit` into one grand total.** Their overlap is not relationally proven for historical data.

@@ -34,24 +34,34 @@ function normalizeGasRedirectPath(path: string) {
 }
 
 function normalizeTankLoyRedirectPath(path: string) {
-    if (path === '/simple-station/1') return '/station/1/v2';
-    const simpleMatch = path.match(/^\/simple-station\/1\/new(?:\/([^/?#]+))?/);
-    if (simpleMatch) {
-        const page = simpleMatch[1] || 'home';
-        if (page === 'receipt') return '/station/1/new/receipt';
-        return '/station/1/v2';
+    const normalized = path.length > 1 ? path.replace(/\/+$/, '') : path;
+
+    if (normalized === '/station/1' || normalized === '/simple-station/1') {
+        return '/stations/station-1';
+    }
+    if (normalized === '/station/1/v2' || normalized.startsWith('/station/1/v2/')) {
+        return '/stations/station-1/history';
     }
 
-    const match = path.match(/^\/station\/1\/new(?:\/([^/?#]+))?/);
-    if (!match) return path;
+    const mapLegacyPage = (page: string) => {
+        if (page === 'receipt') return '/station/1/new/receipt';
+        if (page === 'sell' || page === 'oil-sell') return '/stations/station-1/sales';
+        if (page === 'open-shift' || page === 'close-shift' || page === 'shift-end' || page === 'meters') {
+            return '/stations/station-1/operations';
+        }
+        if (page === 'shift-history' || page === 'meter-summary' || page === 'summary' || page === 'list' || page === 'record') {
+            return '/stations/station-1/history';
+        }
+        return '/stations/station-1';
+    };
 
-    const legacyPage = match[1] || 'home';
-    if (legacyPage === 'receipt') return '/station/1/new/receipt';
-    if (legacyPage === 'home') return '/stations/station-1';
-    if (legacyPage === 'sell' || legacyPage === 'oil-sell') return '/stations/station-1/sales';
-    if (legacyPage === 'open-shift' || legacyPage === 'close-shift' || legacyPage === 'shift-end' || legacyPage === 'meters') return '/stations/station-1/operations';
+    const simpleMatch = normalized.match(/^\/simple-station\/1\/new(?:\/([^/?#]+))?/);
+    if (simpleMatch) return mapLegacyPage(simpleMatch[1] || 'home');
 
-    return '/station/1/v2';
+    const stationMatch = normalized.match(/^\/station\/1\/new(?:\/([^/?#]+))?/);
+    if (stationMatch) return mapLegacyPage(stationMatch[1] || 'home');
+
+    return path;
 }
 
 function normalizeRedirectPath(path: string) {

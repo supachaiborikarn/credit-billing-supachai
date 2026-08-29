@@ -3,6 +3,7 @@ import type {
     CanonicalStationId,
     StationCanonicalPaths,
     StationContextPermissions,
+    StationOpeningMeterEvidence,
     StationOperationalStatus,
 } from '@/types/station';
 
@@ -21,6 +22,39 @@ export interface StationDefinition {
 export interface StationAccessUser {
     role: 'ADMIN' | 'STAFF';
     stationId: string | null;
+}
+
+export interface FullOpeningMeterEvidenceRow {
+    nozzleNumber: number;
+    startReading: unknown;
+    startPhoto: string | null;
+}
+
+export function buildFullOpeningMeterEvidence(
+    rows: FullOpeningMeterEvidenceRow[]
+): StationOpeningMeterEvidence[] {
+    const byNozzle = new Map<number, StationOpeningMeterEvidence>();
+
+    for (const row of rows) {
+        if (![1, 2, 3, 4].includes(row.nozzleNumber)) continue;
+        const startReading = Number(row.startReading);
+        const startPhoto = typeof row.startPhoto === 'string' && row.startPhoto.trim()
+            ? row.startPhoto.trim()
+            : null;
+
+        // The legacy daily-record flow pre-creates zero-valued rows. They are
+        // placeholders, not user-entered recovery evidence, until a reading or
+        // photo has actually been captured.
+        if ((!Number.isFinite(startReading) || startReading === 0) && !startPhoto) continue;
+
+        byNozzle.set(row.nozzleNumber, {
+            nozzleNumber: row.nozzleNumber,
+            startReading: Number.isFinite(startReading) ? startReading : 0,
+            startPhoto,
+        });
+    }
+
+    return [...byNozzle.values()].sort((left, right) => left.nozzleNumber - right.nozzleNumber);
 }
 
 export function isCanonicalStationId(value: string): value is CanonicalStationId {

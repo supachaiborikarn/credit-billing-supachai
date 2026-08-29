@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    buildFullOpeningMeterEvidence,
     buildStationPermissions,
     canCreateStationTransaction,
     canMutateStationDailyPrices,
@@ -16,6 +17,18 @@ describe('station context', () => {
     it('resolves canonical station id and numeric route input', () => {
         expect(resolveStationDefinition('station-1')).toMatchObject({ id: 'station-1', number: 1, type: 'FULL', operationalStatus: 'ACTIVE' });
         expect(resolveStationDefinition('5')).toMatchObject({ id: 'station-5', number: 5, type: 'GAS', operationalStatus: 'ACTIVE' });
+    });
+
+    it('normalizes saved FULL opening-meter evidence for canonical recovery', () => {
+        expect(buildFullOpeningMeterEvidence([
+            { nozzleNumber: 1, startReading: 0, startPhoto: null },
+            { nozzleNumber: 4, startReading: '4004.5', startPhoto: '  https://example.test/4.webp  ' },
+            { nozzleNumber: 2, startReading: 2002, startPhoto: null },
+            { nozzleNumber: 9, startReading: 9999, startPhoto: 'ignored.webp' },
+        ])).toEqual([
+            { nozzleNumber: 2, startReading: 2002, startPhoto: null },
+            { nozzleNumber: 4, startReading: 4004.5, startPhoto: 'https://example.test/4.webp' },
+        ]);
     });
 
     it('marks SIMPLE station 2/3/4 as retired', () => {

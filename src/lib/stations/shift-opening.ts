@@ -15,6 +15,7 @@ export interface NumericOpeningReading {
 
 export interface FullOpeningMeterInput extends NumericOpeningReading {
     file: File | null;
+    existingPhoto?: string | null;
 }
 
 export interface GasOpeningInput {
@@ -91,11 +92,11 @@ export function validateFullOpeningMeters(meters: FullOpeningMeterInput[]): Shif
         if (reading === null || reading < 0) {
             errors.push(`หัวจ่าย ${meter.number}: กรุณากรอกเลขมิเตอร์ที่ไม่ติดลบ`);
         }
-        if (!meter.file) {
+        if (!meter.file && !meter.existingPhoto) {
             errors.push(`หัวจ่าย ${meter.number}: กรุณาแนบรูปมิเตอร์เริ่มต้น`);
-        } else if (!meter.file.type.startsWith('image/')) {
+        } else if (meter.file && !meter.file.type.startsWith('image/')) {
             errors.push(`หัวจ่าย ${meter.number}: รูปต้องเป็นไฟล์ภาพ`);
-        } else if (meter.file.size > MAX_METER_PHOTO_BYTES) {
+        } else if (meter.file && meter.file.size > MAX_METER_PHOTO_BYTES) {
             errors.push(`หัวจ่าย ${meter.number}: รูปต้องไม่เกิน 8 MB`);
         }
     }
@@ -206,13 +207,16 @@ export async function completeFullOpeningMeters(options: {
     const uploaded = [] as Array<{ nozzleNumber: number; reading: number; photo: string }>;
 
     for (const meter of options.meters) {
-        const photo = await uploadFullStartMeterPhoto({
-            stationId: options.stationId,
-            shiftId: options.shiftId,
-            businessDate: options.businessDate,
-            meter,
-            fetchImpl,
-        });
+        const photo = meter.file
+            ? await uploadFullStartMeterPhoto({
+                stationId: options.stationId,
+                shiftId: options.shiftId,
+                businessDate: options.businessDate,
+                meter,
+                fetchImpl,
+            })
+            : meter.existingPhoto?.trim();
+        if (!photo) throw new ShiftOpeningError(`หัวจ่าย ${meter.number}: ไม่พบรูปมิเตอร์`);
         uploaded.push({
             nozzleNumber: meter.number,
             reading: parseFiniteNumber(meter.value) ?? 0,

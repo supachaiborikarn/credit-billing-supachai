@@ -76,7 +76,7 @@ function formatDuration(openedAt: string, closedAt: string | null) {
 
 function legacyHistoryPath(context: StationContextPayload) {
     if (context.station.type === 'GAS') return `/admin/gas-history?stationId=${context.station.id}`;
-    if (context.station.type === 'FULL') return `/station/${context.station.number}/v2`;
+    if (context.station.type === 'FULL') return context.paths.history;
     return `/simple-station/${context.station.number}`;
 }
 

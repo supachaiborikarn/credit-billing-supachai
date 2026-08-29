@@ -57,28 +57,32 @@ function getGasV2RedirectPath(pathname: string) {
 }
 
 function getTankLoyRedirectPath(pathname: string) {
-    if (pathname === '/station/1' || pathname === '/simple-station/1') return '/station/1/v2';
-    const simpleNewMatch = pathname.match(/^\/simple-station\/1\/new(?:\/([^/]+))?/);
-    if (simpleNewMatch) {
-        const page = simpleNewMatch[1] || 'home';
-        if (page === 'receipt') return '/station/1/new/receipt';
-        if (page === 'products') return '/stations/station-1';
-        return '/station/1/v2';
+    const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+
+    if (normalized === '/station/1' || normalized === '/simple-station/1') {
+        return '/stations/station-1';
+    }
+    if (normalized === '/station/1/v2' || normalized.startsWith('/station/1/v2/')) {
+        return '/stations/station-1/history';
     }
 
-    const stationNewMatch = pathname.match(/^\/station\/1\/new(?:\/([^/]+))?/);
-    if (stationNewMatch) {
-        const page = stationNewMatch[1] || 'home';
-        if (page === 'receipt') return null;
-        if (page === 'home') return '/stations/station-1';
+    const mapLegacyPage = (page: string, receiptPassthrough: boolean) => {
+        if (page === 'receipt') return receiptPassthrough ? null : '/station/1/new/receipt';
         if (page === 'sell' || page === 'oil-sell') return '/stations/station-1/sales';
-        if (page === 'shift-history') return '/stations/station-1/history';
-        if (page === 'meter-summary') return '/stations/station-1/history';
-        if (page === 'products') return '/stations/station-1';
-        if (page === 'summary' || page === 'list' || page === 'record') return '/station/1/v2';
-        if (page === 'open-shift' || page === 'close-shift' || page === 'shift-end' || page === 'meters') return '/stations/station-1/operations';
-        return '/station/1/v2';
-    }
+        if (page === 'open-shift' || page === 'close-shift' || page === 'shift-end' || page === 'meters') {
+            return '/stations/station-1/operations';
+        }
+        if (page === 'shift-history' || page === 'meter-summary' || page === 'summary' || page === 'list' || page === 'record') {
+            return '/stations/station-1/history';
+        }
+        return '/stations/station-1';
+    };
+
+    const simpleNewMatch = normalized.match(/^\/simple-station\/1\/new(?:\/([^/]+))?/);
+    if (simpleNewMatch) return mapLegacyPage(simpleNewMatch[1] || 'home', false);
+
+    const stationNewMatch = normalized.match(/^\/station\/1\/new(?:\/([^/]+))?/);
+    if (stationNewMatch) return mapLegacyPage(stationNewMatch[1] || 'home', true);
 
     return null;
 }

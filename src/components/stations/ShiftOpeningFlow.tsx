@@ -12,21 +12,24 @@ import {
     type FullOpeningMeterInput,
     type GasOpeningInput,
 } from '@/lib/stations/shift-opening';
-import type { StationContextPayload } from '@/types/station';
+import type { StationContextPayload, StationOpeningMeterEvidence } from '@/types/station';
 
-function createFullMeters(): FullOpeningMeterInput[] {
-    return [1, 2, 3, 4].map((number) => ({ number, value: '', file: null }));
+function createFullMeters(evidence: StationOpeningMeterEvidence[] = []): FullOpeningMeterInput[] {
+    return [1, 2, 3, 4].map((number) => {
+        const existing = evidence.find((meter) => meter.nozzleNumber === number);
+        return {
+            number,
+            value: existing ? String(existing.startReading) : '',
+            file: null,
+            existingPhoto: existing?.startPhoto || null,
+        };
+    });
 }
 
 function createGasReadings(count: number) {
     return Array.from({ length: count }, (_, index) => ({ number: index + 1, value: '' }));
 }
 
-function legacyOperationsPath(context: StationContextPayload) {
-    return context.station.type === 'GAS'
-        ? `/gas/${context.station.number}`
-        : `/station/${context.station.number}/v2`;
-}
 
 export function ShiftOpeningFlow({
     context,
@@ -65,6 +68,16 @@ export function ShiftOpeningFlow({
         }));
     }, [context.openingState.nextShiftNumber, context.saleContext?.gasPrice]);
 
+    React.useEffect(() => {
+        if (context.station.type !== 'FULL' || context.currentShift?.status !== 'OPEN') return;
+        setFullMeters(createFullMeters(context.openingState.fullMeters));
+    }, [
+        context.currentShift?.id,
+        context.currentShift?.status,
+        context.openingState.fullMeters,
+        context.station.type,
+    ]);
+
     const run = async (action: () => Promise<unknown>, successMessage: string) => {
         setBusy(true);
         setErrors([]);
@@ -89,7 +102,6 @@ export function ShiftOpeningFlow({
         );
     }
 
-    const legacy = legacyOperationsPath(context);
     const errorNotice = errors.length > 0 ? (
         <div ref={errorRegionRef} tabIndex={-1} className="focus:outline-none">
             <Notice tone="danger" title="ตรวจข้อมูลอีกครั้ง">
@@ -119,9 +131,6 @@ export function ShiftOpeningFlow({
                         <Link href={context.paths.sales} className="inline-flex h-[var(--ui-control-md)] items-center justify-center gap-2 rounded-[var(--ui-radius-md)] bg-[var(--ui-primary-700)] px-4 text-sm font-semibold text-white hover:bg-[var(--ui-primary-800)] focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">
                             <Fuel className="h-4 w-4" aria-hidden="true" /> ไปหน้าขาย
                         </Link>
-                        <Link href={legacy} className="inline-flex h-[var(--ui-control-md)] items-center justify-center rounded-[var(--ui-radius-md)] border border-[var(--ui-border-strong)] bg-[var(--ui-surface)] px-4 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-subtle)] focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">
-                            ปิดกะผ่านหน้าเดิมชั่วคราว
-                        </Link>
                     </div>
                 </div>
             </Section>
@@ -129,54 +138,68 @@ export function ShiftOpeningFlow({
     }
 
     if (context.station.type === 'FULL' && context.currentShift?.status === 'OPEN') {
-        if (context.openingState.completedMeters > 0) {
-            return (
-                <Section title="มิเตอร์ต้นกะยังไม่ครบ" description="พบข้อมูลบางหัวจ่ายแล้ว จึงไม่เขียนทับผ่าน flow ใหม่โดยไม่เห็นค่าปัจจุบัน">
-                    <Notice tone="warning" title={`ครบ ${context.openingState.completedMeters}/4 หัวจ่าย`}>
-                        <div className="flex flex-wrap items-center gap-3">
-                            <span>ให้ตรวจและเติมข้อมูลที่เหลือผ่านหน้าเดิมก่อน จากนั้นกลับมา Refresh ที่หน้านี้</span>
-                            <Link href={legacy} className="rounded-sm font-semibold underline underline-offset-4 focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">เปิดหน้าเดิม</Link>
-                        </div>
-                    </Notice>
-                </Section>
-            );
-        }
+        const recoveredMeterRows = context.openingState.fullMeters?.length || 0;
+        const isRecovery = recoveredMeterRows > 0;
 
         return (
-            <Section title="2. บันทึกมิเตอร์เริ่มต้น" description="ต้องครบ 4 หัวจ่ายและมีรูปทุกหัว ก่อนเข้าสู่ SaleFlow">
+            <Section
+                title={isRecovery ? 'ทำข้อมูลมิเตอร์ต้นกะที่ค้างต่อ' : '2. บันทึกมิเตอร์เริ่มต้น'}
+                description={isRecovery
+                    ? `พบข้อมูลเดิม ${recoveredMeterRows}/4 หัวจ่าย และมีรูปครบ ${context.openingState.completedMeters}/4 หัว ระบบจะบันทึกกลับเข้ากะเดิม`
+                    : 'ต้องครบ 4 หัวจ่ายและมีรูปทุกหัว ก่อนเข้าสู่ SaleFlow'}
+            >
                 <div className="space-y-4">
                     {errorNotice}
-                    <Notice tone="warning" title="กะเปิดแล้ว แต่ยังขายไม่ได้">
-                        กรอกเลขมิเตอร์และถ่ายรูปให้ครบก่อน ระบบจะปลดล็อกหน้าขายเมื่อบันทึกสำเร็จ
+                    <Notice tone="warning" title={isRecovery ? 'กะเปิดแล้วและข้อมูลต้นกะยังไม่ครบ' : 'กะเปิดแล้ว แต่ยังขายไม่ได้'}>
+                        {isRecovery
+                            ? 'ตรวจค่าที่ดึงจากกะเดิม เติมหัวที่ขาด และแนบรูปเฉพาะหัวที่ยังไม่มีหลักฐาน รูปเดิมจะถูกใช้ต่อหากไม่เลือกรูปใหม่'
+                            : 'กรอกเลขมิเตอร์และถ่ายรูปให้ครบก่อน ระบบจะปลดล็อกหน้าขายเมื่อบันทึกสำเร็จ'}
                     </Notice>
                     <div className="grid gap-4 sm:grid-cols-2">
-                        {fullMeters.map((meter, index) => (
-                            <div key={meter.number} className="rounded-[var(--ui-radius-md)] border border-[var(--ui-border)] p-3">
-                                <Input
-                                    label={`หัวจ่าย ${meter.number}`}
-                                    inputMode="decimal"
-                                    value={meter.value}
-                                    onChange={(event) => setFullMeters((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, value: event.target.value } : item))}
-                                    placeholder="เลขมิเตอร์เริ่มต้น"
-                                    disabled={busy}
-                                    required
-                                />
-                                <label className="mt-3 flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-[var(--ui-radius-md)] border border-dashed border-[var(--ui-border-strong)] px-3 py-2 text-sm font-semibold text-[var(--ui-text-secondary)] hover:bg-[var(--ui-surface-subtle)] focus-within:shadow-[var(--ui-shadow-focus)]">
-                                    <Camera className="h-4 w-4" aria-hidden="true" />
-                                    {meter.file ? meter.file.name : 'แนบรูปมิเตอร์'}
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        className="sr-only"
+                        {fullMeters.map((meter, index) => {
+                            const existingPhoto = meter.existingPhoto?.trim();
+                            return (
+                                <div key={meter.number} className="rounded-[var(--ui-radius-md)] border border-[var(--ui-border)] p-3">
+                                    <Input
+                                        label={`หัวจ่าย ${meter.number}`}
+                                        inputMode="decimal"
+                                        value={meter.value}
+                                        onChange={(event) => setFullMeters((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, value: event.target.value } : item))}
+                                        placeholder="เลขมิเตอร์เริ่มต้น"
                                         disabled={busy}
-                                        onChange={(event) => {
-                                            const file = event.target.files?.[0] || null;
-                                            setFullMeters((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, file } : item));
-                                        }}
+                                        required
                                     />
-                                </label>
-                            </div>
-                        ))}
+                                    <label className="mt-3 flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-[var(--ui-radius-md)] border border-dashed border-[var(--ui-border-strong)] px-3 py-2 text-sm font-semibold text-[var(--ui-text-secondary)] hover:bg-[var(--ui-surface-subtle)] focus-within:shadow-[var(--ui-shadow-focus)]">
+                                        <Camera className="h-4 w-4" aria-hidden="true" />
+                                        {meter.file
+                                            ? meter.file.name
+                                            : existingPhoto
+                                                ? 'เลือกรูปใหม่ (ใช้รูปเดิมได้)'
+                                                : 'แนบรูปมิเตอร์'}
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="sr-only"
+                                            disabled={busy}
+                                            onChange={(event) => {
+                                                const file = event.target.files?.[0] || null;
+                                                setFullMeters((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, file } : item));
+                                            }}
+                                        />
+                                    </label>
+                                    {existingPhoto && !meter.file && (
+                                        <a
+                                            href={existingPhoto}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="mt-2 inline-flex min-h-9 items-center text-xs font-semibold text-[var(--ui-info-text)] underline underline-offset-4 focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]"
+                                        >
+                                            ดูรูปต้นกะที่บันทึกไว้
+                                        </a>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                     <Button
                         size="lg"
@@ -190,10 +213,11 @@ export function ShiftOpeningFlow({
                                 businessDate: context.currentShift!.businessDate,
                                 meters: fullMeters,
                             }),
-                            'บันทึกมิเตอร์ต้นกะครบแล้ว'
+                            isRecovery ? 'เติมข้อมูลมิเตอร์ต้นกะครบแล้ว' : 'บันทึกมิเตอร์ต้นกะครบแล้ว'
                         )}
                     >
-                        <CheckCircle2 className="h-5 w-5" aria-hidden="true" /> บันทึกมิเตอร์และพร้อมขาย
+                        <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
+                        {isRecovery ? 'บันทึกข้อมูลที่เหลือและพร้อมขาย' : 'บันทึกมิเตอร์และพร้อมขาย'}
                     </Button>
                 </div>
             </Section>
@@ -203,7 +227,19 @@ export function ShiftOpeningFlow({
     if (context.station.type === 'GAS' && context.currentShift?.status === 'OPEN') {
         return (
             <Notice tone="danger" title="ข้อมูลเปิดกะ GAS ไม่ครบ">
-                API เปิดกะ GAS ปกติจะบันทึกมิเตอร์และเกจพร้อมกันแบบ atomic แต่กะนี้มีข้อมูลไม่ครบ ({context.openingState.completedMeters}/4 มิเตอร์, {context.openingState.completedGauges}/3 เกจ) จึงบล็อกการขายไว้ก่อน กรุณาตรวจผ่านหน้าเดิม
+                <div className="space-y-3">
+                    <p>
+                        API เปิดกะ GAS ปกติจะบันทึกมิเตอร์และเกจพร้อมกันแบบ atomic แต่กะนี้มีข้อมูลไม่ครบ ({context.openingState.completedMeters}/4 มิเตอร์, {context.openingState.completedGauges}/3 เกจ) จึงบล็อกการขายไว้ก่อน
+                    </p>
+                    <div className="flex flex-wrap gap-3">
+                        <Link href={`/gas/${context.station.number}/meters`} className="font-semibold underline underline-offset-4 focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">
+                            ตรวจ/กู้ข้อมูลมิเตอร์
+                        </Link>
+                        <Link href={`/gas/${context.station.number}/gauge`} className="font-semibold underline underline-offset-4 focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">
+                            ตรวจ/กู้ข้อมูลเกจ
+                        </Link>
+                    </div>
+                </div>
             </Notice>
         );
     }

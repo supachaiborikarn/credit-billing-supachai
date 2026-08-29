@@ -12,6 +12,7 @@ import {
 import { resolveDailyGasPrice } from '@/lib/gas/v2-workflow';
 import { prisma } from '@/lib/prisma';
 import {
+    buildFullOpeningMeterEvidence,
     buildStationPermissions,
     getCanonicalStationPaths,
     resolveStationDefinition,
@@ -31,6 +32,7 @@ const EMPTY_OPENING_STATE: StationOpeningState = {
     completedGauges: 0,
     requiresMeterPhotos: false,
     nextShiftNumber: null,
+    fullMeters: [],
 };
 
 async function getFullCurrentShift(stationId: string): Promise<StationCurrentShift | null> {
@@ -132,13 +134,10 @@ async function getFullOpeningState(currentShift: StationCurrentShift | null): Pr
 
     const meters = await prisma.meterReading.findMany({
         where: { shiftId: currentShift.id, nozzleNumber: { in: [1, 2, 3, 4] } },
-        select: { nozzleNumber: true, startPhoto: true },
+        select: { nozzleNumber: true, startReading: true, startPhoto: true },
     });
-    const completedMeters = new Set(
-        meters
-            .filter((meter) => typeof meter.startPhoto === 'string' && meter.startPhoto.trim())
-            .map((meter) => meter.nozzleNumber)
-    ).size;
+    const fullMeters = buildFullOpeningMeterEvidence(meters);
+    const completedMeters = fullMeters.filter((meter) => Boolean(meter.startPhoto)).length;
 
     return {
         status: completedMeters === 4 ? 'READY' : 'NEEDS_OPENING_DATA',
@@ -148,6 +147,7 @@ async function getFullOpeningState(currentShift: StationCurrentShift | null): Pr
         completedGauges: 0,
         requiresMeterPhotos: true,
         nextShiftNumber: null,
+        fullMeters,
     };
 }
 

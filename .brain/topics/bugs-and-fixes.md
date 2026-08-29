@@ -3,7 +3,7 @@
      รอบเดียวกันยังแก้แท๊งลอยให้ใช้ shift-scoped transactions, anomaly preview จากค่าปัจจุบัน, flow ปิดกะเก่าที่ไม่ต้องพึ่ง admin route,
      เพิ่ม post-close daily report printing ที่ต้องอิง station-wide `/daily` แทน `/transactions`,
      เพิ่ม per-transaction thermal print/reprint flow ที่เลือกใบเสร็จรับเงิน/บิลเงินเชื่อและขนาด 58/80mm ได้ทุกรายการ โดยปรับ preset ให้ Epson TM-m30III ใช้ 80mm เป็นค่าแนะนำ,
-     consolidate route แท๊งลอยให้เหลือ staff UI เดียว `/station/1/v2` และ classic admin `/station/1`,
+     S96 retire FULL V2/classic roots ไป canonical Overview/History และให้ canonical Operations กู้ partial opening evidence โดยไม่ใช้ zero placeholder rows,
      ใบเสร็จแท๊งลอยต้องใช้หัวเอกสาร “วัชรเกียรติออยล์” พร้อมที่อยู่ 657,
      รองรับ V2 live route ชั่วคราวพร้อมบังคับสลิปโอน/รูปมิเตอร์/ลูกค้าเงินเชื่อทั้ง UI และ API,
      และ fix หน้าใหม่ของแท๊งลอยให้เชื่อมทั้ง daily price, transaction contract, receipt/slip flow กับ backend/source ชุดเดียวกับหน้าเก่า;
@@ -380,8 +380,10 @@
 52. **Tank Loy Daily vs Shift Meter Scope**: `/api/station/[id]/daily` ต้องคง transactions ตาม station+Bangkok day ทั้งวัน; daily meter ใช้เลขเปิดแรก+เลขปิดสุดท้ายต่อหัวและ fallback legacy unscoped ต่อหัว, ส่วน live form ใช้ canonical OPEN shift และ admin historical form ใช้ start/end boundary shift IDs แยกกัน; upload รูปห้ามเขียน MeterReading ก่อนกดบันทึก และ meter+photo+audit 4 หัวต้อง atomic
 53. **GAS Admin Opening Meter Repair**: start meter ของ GAS ที่มีกิจกรรมแล้วต้องแก้ผ่าน `/admin/gas/meters/[shiftId]/edit` และ API `/api/v2/gas/admin/meters/[shiftId]`; ต้องบันทึกเหตุผลกับค่าเดิม/ค่าใหม่ใน Audit Log, ห้ามเปลี่ยน `capturedById` เดิม, ต้องกันเลขเปิดมากกว่าเลขปิด, คำนวณ `soldQty` ใหม่ และถ้ามี reconciliation ต้องปรับ `expectedFuelAmount`, `totalExpected`, `variance`, `varianceStatus` ใน transaction เดียวกัน
 54. **Tank Loy Windows Auto Print**: ต้องใช้ station-wide Bangkok-day transactions และ daily boundary meters ชุดเดียวกับ daily report; ห้ามพิมพ์ก่อนเลขเปิด-ปิดมิเตอร์ครบ 4 หัว; API ต้องปิดด้วย `TANK_LOY_PRINT_AGENT_TOKEN`; Windows agent ต้องเก็บ state `printing|printed|unknown` เพื่อกันรายงานออกซ้ำเมื่อเครือข่ายขาดระหว่างส่งงาน
+55. **FULL Opening Placeholder Rows**: legacy daily-price creation อาจสร้าง MeterReading 4 หัวด้วย `startReading=0` ก่อนพนักงานกรอกจริง; canonical opening recovery ห้าม hydrate แถว `0 + ไม่มีรูป` เป็นหลักฐาน, ต้อง reuse รูป/ค่าที่มีจริงใน exact OPEN Shift และอัปโหลดเฉพาะรูปที่ขาด เพื่อไม่ให้ผู้ใช้บันทึกศูนย์โดยไม่ตั้งใจ
 
 ## Changelog
+- 2026-08-29: S96 retire FULL V2/classic routes ไป canonical และแก้ opening recovery ไม่ให้นับ MeterReading ค่า 0/no-photo ที่ถูก pre-create เป็นหลักฐานจริง
 - 2026-07-19: เพิ่ม secure daily report API และ Windows Scheduled Task สำหรับพิมพ์สรุป Tank Loy ของเมื่อวานเวลา 07:00 ผ่าน Epson ePOS/Wi-Fi; รอมิเตอร์ครบถึง 10:00, กันพิมพ์ซ้ำ, และมี check-only/force/manual logs
 - 2026-07-15: ซ่อม live `station-5` กะ 1 วันที่ 15 ก.ค. ที่คัดเลขเปิดจากเลขเปิดกะ 2 วันก่อนแทนเลขปิดล่าสุด; แก้เป็น 33,818.39 / 42,103.20 / 58,146.98 / 112,910.67 พร้อม Audit Log 4 รายการ และเพิ่ม admin opening-meter edit flow พร้อม regression tests
 - 2026-07-11: แก้ Tank Loy กะซ้ำและ admin meter backfill, ซ่อม production วันที่ 10 ก.ค. จากรูปพร้อม Audit Log, เพิ่ม daily/shift scope helpers, atomic writes, historical admin guard และ regression tests

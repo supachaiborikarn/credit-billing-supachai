@@ -85,14 +85,14 @@ function getStationPaths(station: ActiveStationConfig) {
         };
     }
 
-    const base = `/station/${stationNumber}/v2`;
+    const base = `/stations/${station.id}`;
     return {
         base,
-        open: base,
-        sell: base,
-        attention: base,
-        close: base,
-        summary: base,
+        open: `${base}/operations`,
+        sell: `${base}/sales`,
+        attention: `${base}/operations`,
+        close: `${base}/operations`,
+        summary: `${base}/history`,
     };
 }
 

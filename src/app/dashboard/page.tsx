@@ -312,7 +312,7 @@ export default function DashboardPage() {
                 {/* =============== QUICK ACTIONS =============== */}
                 <div className={`flex flex-wrap gap-3 mb-6 transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`} style={{ transitionDelay: '100ms' }}>
                     <button
-                        onClick={() => router.push('/station/1/v2')}
+                        onClick={() => router.push('/stations/station-1/sales')}
                         className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity shadow-lg shadow-purple-500/25"
                     >
                         <Plus size={18} />

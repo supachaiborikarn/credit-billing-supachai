@@ -2919,3 +2919,23 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print/shared-brain files from another task remain untouched and excluded from S95 staging/commit.
 - No push / no deploy / no production DB write.
+
+## 2026-08-29 — S96 — Retire FULL V2 to canonical workspace
+- Status: `[x]`
+- Route retirement:
+  - `/station/1` and `/simple-station/1` normalize to canonical `/stations/station-1`.
+  - `/station/1/v2`, `/station/1/new/summary`, `/list`, `/record`, `/shift-history`, and `/meter-summary` normalize to canonical History with query preservation before authentication.
+  - dashboard, Today, login, Sidebar, BottomNav and legacy wrappers now point directly to canonical FULL routes; the thermal receipt compatibility route remains intact.
+- Partial-opening recovery:
+  - canonical Operations now receives existing FULL opening readings/photos from station context and completes the exact current OPEN Shift without sending users back to V2.
+  - saved photos are reused, only missing/new evidence is uploaded, and legacy pre-created `startReading=0` rows without photos are filtered out rather than prefilled as real readings.
+- Verification:
+  - S96 targeted route/context/opening gate: 4 files / 183 tests passed.
+  - financial release gate: 16 files / 90 tests passed.
+  - clean HEAD + S96-only worktree: TypeScript passed, full regression 48 files / 396 tests passed, scoped ESLint 0 errors (27 legacy warnings).
+  - real mixed working tree: full regression 48 files / 400 tests passed; production build with `NODE_ENV=production` passed 127/127 routes.
+  - local middleware HTTP smoke on port 3005 passed 4/4 for classic root, V2, summary and unauthenticated canonical redirect normalization; the server was stopped after the check.
+  - full-repo lint remains blocked by 35 pre-existing errors in `scratch/` and unrelated legacy files; no S96-scoped lint errors.
+- Concurrent-work note:
+  - Tank Loy auto-print implementation/tests/docs and its concurrent brain edits remain unstaged and excluded from the S96 commit.
+- No push / no deploy / no production DB write.

@@ -89,7 +89,7 @@ export default function StationPage({ params }: { params: Promise<{ id: string }
     const stationIndex = parseInt(id) - 1;
     const station = STATIONS[stationIndex];
     const isFullStation = station?.type === 'FULL';
-    const staffRoute = id === '1' ? `/station/${id}/v2` : `/station/${id}/new/home`;
+    const staffRoute = id === '1' ? '/stations/station-1' : `/station/${id}/new/home`;
 
     const [loading, setLoading] = useState(true);
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);

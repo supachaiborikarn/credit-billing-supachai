@@ -2,6 +2,13 @@
 
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
+## 2026-08-29
+- 🧭 S96 retire FULL V2 ไป canonical station workspace
+  - `/station/1` และ alias root ไป canonical Overview; `/station/1/v2` รวม `summary/list/record` ไป canonical History โดย preserve query และ normalize ก่อน login
+  - canonical Operations กู้ partial opening meter ต่อในกะเดิมได้ ใช้รูปเดิมต่อ อัปโหลดเฉพาะหลักฐานที่ขาด และไม่นับแถวมิเตอร์ค่า 0 ที่ระบบสร้างล่วงหน้าเป็นข้อมูลจริง
+  - targeted 183/183, financial gate 90/90, isolated S96-only full regression 396/396, real-tree full regression 400/400, HTTP redirect smoke 4/4, TypeScript/scoped ESLint และ production build 127/127 routes ผ่าน
+  - full-repo lint ยังติด 35 errors เดิมนอก S96; auto-print files ไม่ถูก stage; ไม่ push/deploy/เขียน production DB
+
 ## 2026-08-28
 - 📱 S81 pass 4 mobile SaleFlow/Operations visual QA
   - authenticated Chrome QA viewport 390x844 ครบ station-1/5/6 Sales + Operations แบบ read-only; ไม่มี page horizontal overflow และปุ่มปิดกะเลื่อนพ้น bottom nav

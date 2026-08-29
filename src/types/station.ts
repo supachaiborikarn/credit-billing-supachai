@@ -26,6 +26,12 @@ export interface StationStaleShift {
     businessDate: string;
 }
 
+export interface StationOpeningMeterEvidence {
+    nozzleNumber: number;
+    startReading: number;
+    startPhoto: string | null;
+}
+
 export interface StationOpeningState {
     status: StationOpeningStatus;
     requiredMeters: number;
@@ -34,6 +40,7 @@ export interface StationOpeningState {
     completedGauges: number;
     requiresMeterPhotos: boolean;
     nextShiftNumber: 1 | 2 | null;
+    fullMeters?: StationOpeningMeterEvidence[];
 }
 
 export interface StationContextPermissions {

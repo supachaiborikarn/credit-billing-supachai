@@ -216,31 +216,51 @@ describe('middleware legacy route retirement boundaries', () => {
         expect(loginUrl.searchParams.get('redirect')).toBe('/stations/station-1/history?from=bookmark');
     });
 
-    it.each(['summary', 'list', 'record'])('keeps FULL %s compatibility entry on V2 and preserves query', (page) => {
-        const response = middleware(request(`/station/1/new/${page}?from=s89`));
+    it.each(['summary', 'list', 'record'])('retires FULL %s compatibility entry to canonical History and preserves query', (page) => {
+        const response = middleware(request(`/station/1/new/${page}?from=s96`));
 
         expect(response.status).toBe(307);
         expect(response.headers.get('location')).toBe(
-            'https://credit-billing-supachai.local/station/1/v2?from=s89'
+            'https://credit-billing-supachai.local/stations/station-1/history?from=s96'
         );
     });
 
-    it('retires exact FULL classic station root to V2 and preserves query', () => {
-        const response = middleware(request('/station/1?from=s91'));
+    it('retires direct FULL V2 entry to canonical History and preserves query', () => {
+        const response = middleware(request('/station/1/v2?from=s96-v2'));
+
         expect(response.status).toBe(307);
         expect(response.headers.get('location')).toBe(
-            'https://credit-billing-supachai.local/station/1/v2?from=s91'
+            'https://credit-billing-supachai.local/stations/station-1/history?from=s96-v2'
+        );
+    });
+
+    it('normalizes unauthenticated FULL V2 bookmark before login', () => {
+        const response = middleware(request('/station/1/v2?from=s96-bookmark', false));
+        const location = response.headers.get('location');
+
+        expect(response.status).toBe(307);
+        expect(location).not.toBeNull();
+        const loginUrl = new URL(location!);
+        expect(loginUrl.pathname).toBe('/login');
+        expect(loginUrl.searchParams.get('redirect')).toBe('/stations/station-1/history?from=s96-bookmark');
+    });
+
+    it('retires exact FULL classic station root to canonical Overview and preserves query', () => {
+        const response = middleware(request('/station/1?from=s96'));
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(
+            'https://credit-billing-supachai.local/stations/station-1?from=s96'
         );
     });
 
     it('normalizes unauthenticated FULL classic station root before login', () => {
-        const response = middleware(request('/station/1?from=s91-bookmark', false));
+        const response = middleware(request('/station/1?from=s96-bookmark', false));
         const location = response.headers.get('location');
         expect(response.status).toBe(307);
         expect(location).not.toBeNull();
         const loginUrl = new URL(location!);
         expect(loginUrl.pathname).toBe('/login');
-        expect(loginUrl.searchParams.get('redirect')).toBe('/station/1/v2?from=s91-bookmark');
+        expect(loginUrl.searchParams.get('redirect')).toBe('/stations/station-1?from=s96-bookmark');
     });
 
     it.each([
@@ -264,14 +284,14 @@ describe('middleware legacy route retirement boundaries', () => {
         expect(loginUrl.searchParams.get('redirect')).toBe('/stations/station-1?from=s90-bookmark');
     });
 
-    it('normalizes unauthenticated FULL summary bookmark to V2 before login', () => {
-        const response = middleware(request('/station/1/new/summary?from=s89-bookmark', false));
+    it('normalizes unauthenticated FULL summary bookmark to canonical History before login', () => {
+        const response = middleware(request('/station/1/new/summary?from=s96-bookmark', false));
         const location = response.headers.get('location');
 
         expect(response.status).toBe(307);
         expect(location).not.toBeNull();
         const loginUrl = new URL(location!);
         expect(loginUrl.pathname).toBe('/login');
-        expect(loginUrl.searchParams.get('redirect')).toBe('/station/1/v2?from=s89-bookmark');
+        expect(loginUrl.searchParams.get('redirect')).toBe('/stations/station-1/history?from=s96-bookmark');
     });
 });

@@ -146,8 +146,7 @@ export default function Sidebar({ children }: SidebarProps) {
     // Filter stations for staff - only show their assigned station
     const getStationPath = (station: typeof STATIONS[number], index: number) => {
         if (station.type === 'FULL') {
-            const stationNum = index + 1;
-            return isAdmin ? `/station/${stationNum}` : stationNum === 1 ? '/station/1/v2' : `/station/${stationNum}/new/home`;
+            return `/stations/${station.id}`;
         }
         if (station.type === 'GAS') return `/gas/${index + 1}`;
         return `/simple-station/${index + 1}`;
@@ -296,7 +295,8 @@ export default function Sidebar({ children }: SidebarProps) {
                                     <div className="ml-2 space-y-1 mt-2">
                                         {visibleStations.map((station, index) => {
                                             const stationPath = getStationPath(station, index);
-                                            const isStationActive = isActive(`/station/${index + 1}`) ||
+                                            const isStationActive = isActive(stationPath) ||
+                                                isActive(`/station/${index + 1}`) ||
                                                 isActive(`/simple-station/${index + 1}`) ||
                                                 isActive(`/gas-station/${index + 1}`) ||
                                                 isActive(`/gas/${index + 1}`) ||
@@ -317,7 +317,7 @@ export default function Sidebar({ children }: SidebarProps) {
                                                         <span className={`flex-1 ${isStationActive ? 'text-white font-medium' : 'text-gray-400'}`}>
                                                             {station.name}
                                                         </span>
-                                                        {station.type === 'FULL' && <span className="text-xs text-purple-400">{isAdmin ? 'Classic' : 'Staff'}</span>}
+                                                        {station.type === 'FULL' && <span className="text-xs text-purple-400">FULL</span>}
                                                         {station.type === 'GAS' && <span className={`text-xs ${color.text}`}>แก๊ส</span>}
                                                     </Link>
                                                 </div>

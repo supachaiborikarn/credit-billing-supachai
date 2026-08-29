@@ -35,7 +35,7 @@ export default function LegacySimpleStationPage({ id }: { id: string }) {
     // Auto redirect to the active staff UI for SIMPLE stations and Tank Loy.
     useEffect(() => {
         if (station?.id === 'station-1') {
-            router.replace('/station/1/v2');
+            router.replace('/stations/station-1');
             return;
         }
 
