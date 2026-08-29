@@ -2864,3 +2864,34 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
   - targeted ESLint: 0 errors; 2 pre-existing V2 hook dependency warnings only.
   - production build on the real working tree: 127/127 routes passed.
   - a redundant clean-temp build was not used as evidence because Turbopack rejects external `node_modules` symlinks; clean S94 snapshot financial/tests/TypeScript passed independently as recorded above.
+
+## 2026-08-29 — S95 pass 1 — Harden FULL historical transaction creation
+- Status: `[x]`
+- Audit finding:
+  - V2 UI allowed ADMIN to open the refill modal on historical/closed dates, but the backend did not provide a clean historical-create contract.
+  - a CLOSED FULL day already failed because `ensureOpenFullStationShiftForDailyRecord()` returns no open shift.
+  - a missing historical day was more dangerous: the transaction POST could upsert a new OPEN DailyRecord before failing to find/start a usable shift, leaving historical side effects behind.
+- S95 pass-1 hardening:
+  - added `canCreateStationTransaction()` policy: active STAFF may create only on the current business date; historical create is ADMIN-only; retired STAFF remain read-only.
+  - FULL historical create now uses `DailyRecord.findUnique()` rather than upsert; a missing historical day returns 404 and is not created.
+  - FULL historical create requires an existing OPEN Shift and never calls the auto-create/open-shift helper for historical dates.
+  - CLOSED historical dates remain non-creatable; use edit/void on existing transactions instead of silently inventing a new shift.
+  - current-day STAFF creation remains on the existing DailyRecord upsert + open-shift path.
+- Verification:
+  - direct transaction-route/policy/sale-flow gate: 5 files / 29 tests passed; TypeScript and targeted ESLint passed.
+  - clean HEAD + S95-pass1-only snapshot: financial release gate 16 files / 89 tests passed; pass-1 gate 5 files / 29 tests passed; TypeScript passed.
+  - production build on the real working tree passed 127/127 routes.
+- Isolated Neon UAT:
+  - first STAFF login attempt returned 500 because Neon was temporarily unreachable; server log showed `PrismaClientInitializationError`, and retry succeeded without code change.
+  - STAFF historical create retry: login 200, transaction POST 403 with ADMIN-only message.
+  - ADMIN missing historical day (`2026-08-22`): 404; direct DB check confirmed no DailyRecord was created.
+  - ADMIN CLOSED day (`2026-08-25`): 400; no new shift was created.
+  - ADMIN existing historical OPEN day (`2026-08-23`): 200 and transaction bound to existing `uat-s95-open-shift`.
+  - direct DB check: historical fixture still has exactly one Shift; created transaction = 5 L @ 31.34 = 156.70 and recorded by ADMIN.
+  - UAT server on 3005 stopped after verification; port 3000 untouched.
+- Remaining S95 work:
+  - canonical History ADMIN daily-maintenance panel for existing transaction edit/void, transfer-proof replacement, receipt/credit 58/80 reprint, audit trail, payment-filtered CSV and daily A4/58/80 print.
+  - historical create should only be exposed if the selected date has an existing OPEN shift; CLOSED-day correction stays edit/void-only.
+- Concurrent-work note:
+  - Tank Loy auto-print/shared brain changes from another task remain untouched and excluded from this commit.
+- No push / no deploy / no production DB write.

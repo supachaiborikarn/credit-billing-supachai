@@ -8,6 +8,7 @@ import { PaymentType } from '@prisma/client';
 import { CREDIT_PAYMENT_TYPES } from '@/constants/payment-types';
 import { suggestNextStationBill } from '@/lib/station-bill-number';
 import { ensureOpenFullStationShiftForDailyRecord } from '@/lib/full-station-shift-sync';
+import { canCreateStationTransaction } from '@/lib/stations/station-context';
 
 interface TransactionInput {
     date: string;
@@ -146,6 +147,13 @@ export async function POST(
             fuelType,
             transferProofUrl,
         } = body;
+        const today = getTodayBangkok();
+        const isHistoricalDate = dateStr !== today;
+        if (!canCreateStationTransaction(auth.user, stationId, dateStr, today)) {
+            return HttpErrors.forbidden(isHistoricalDate
+                ? 'การเพิ่มรายการขายย้อนหลังทำได้เฉพาะแอดมิน'
+                : 'สถานีนี้ย้ายงานหน้าปั๊มไป POS แล้ว ไม่อนุญาตให้เพิ่มรายการขายใหม่');
+        }
         const isCreditLikePayment = creditPaymentTypeSet.has(paymentType);
         const trimmedTransferProofUrl = transferProofUrl?.trim();
         let resolvedBillBookNo = billBookNo?.trim() || null;
@@ -184,26 +192,39 @@ export async function POST(
         const station = await prisma.station.findUnique({ where: { id: stationId } });
 
         if (station?.type === 'FULL') {
-            const dailyRecord = await prisma.dailyRecord.upsert({
-                where: { stationId_date: { stationId, date } },
-                update: {},
-                create: {
-                    stationId,
-                    date,
-                    retailPrice: 31.34,
-                    wholesalePrice: 30.5,
-                    status: 'OPEN',
-                }
-            });
+            const dailyRecord = isHistoricalDate
+                ? await prisma.dailyRecord.findUnique({ where: { stationId_date: { stationId, date } } })
+                : await prisma.dailyRecord.upsert({
+                    where: { stationId_date: { stationId, date } },
+                    update: {},
+                    create: {
+                        stationId,
+                        date,
+                        retailPrice: 31.34,
+                        wholesalePrice: 30.5,
+                        status: 'OPEN',
+                    }
+                });
+
+            if (!dailyRecord) {
+                return HttpErrors.notFound('ไม่พบ DailyRecord ของวันที่เลือก จึงไม่สร้างรายการย้อนหลังในวันใหม่');
+            }
             dailyRecordId = dailyRecord.id;
 
-            const openShift = await ensureOpenFullStationShiftForDailyRecord({
-                dailyRecordId: dailyRecord.id,
-                userId,
-            });
+            const openShift = isHistoricalDate
+                ? await prisma.shift.findFirst({
+                    where: { dailyRecordId: dailyRecord.id, status: 'OPEN' },
+                    orderBy: [{ shiftNumber: 'desc' }, { createdAt: 'desc' }],
+                })
+                : await ensureOpenFullStationShiftForDailyRecord({
+                    dailyRecordId: dailyRecord.id,
+                    userId,
+                });
 
             if (!openShift) {
-                return HttpErrors.badRequest('กรุณาเปิดกะก่อนบันทึกรายการของแท๊งลอย');
+                return HttpErrors.badRequest(isHistoricalDate
+                    ? 'วันย้อนหลังนี้ไม่มี OPEN shift เดิม จึงไม่สร้างกะใหม่เพื่อเพิ่มรายการ'
+                    : 'กรุณาเปิดกะก่อนบันทึกรายการของแท๊งลอย');
             }
 
             shiftId = openShift.id;

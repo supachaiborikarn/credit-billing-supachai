@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     buildStationPermissions,
+    canCreateStationTransaction,
     canMutateStationDailyPrices,
     canMutateStationMeterData,
     canMutateHistoricalStationData,
@@ -84,5 +85,17 @@ describe('station meter mutation policy', () => {
         expect(canMutateStationMeterData({ role: 'STAFF' }, 'station-2', '2026-08-29', '2026-08-29')).toBe(false);
         expect(canMutateStationMeterData({ role: 'ADMIN' }, 'station-1', '2026-08-28', '2026-08-29')).toBe(true);
         expect(canMutateStationMeterData({ role: 'ADMIN' }, 'station-2', '2026-08-28', '2026-08-29')).toBe(true);
+    });
+});
+
+describe('station transaction creation policy', () => {
+    it('keeps active STAFF current-day creation but blocks historical creation', () => {
+        expect(canCreateStationTransaction({ role: 'STAFF' }, 'station-1', '2026-08-29', '2026-08-29')).toBe(true);
+        expect(canCreateStationTransaction({ role: 'STAFF' }, 'station-1', '2026-08-28', '2026-08-29')).toBe(false);
+    });
+
+    it('keeps retired STAFF read-only while ADMIN can explicitly create against history', () => {
+        expect(canCreateStationTransaction({ role: 'STAFF' }, 'station-2', '2026-08-29', '2026-08-29')).toBe(false);
+        expect(canCreateStationTransaction({ role: 'ADMIN' }, 'station-1', '2026-08-28', '2026-08-29')).toBe(true);
     });
 });

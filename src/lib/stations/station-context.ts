@@ -83,6 +83,17 @@ export function canMutateStationMeterData(
     return businessDate === today;
 }
 
+export function canCreateStationTransaction(
+    user: Pick<StationAccessUser, 'role'>,
+    stationId: string,
+    businessDate: string,
+    today: string
+): boolean {
+    if (user.role === 'ADMIN') return true;
+    if (isRetiredOperationalStationInput(stationId)) return false;
+    return businessDate === today;
+}
+
 export function isStationRouteBoundToTransaction(routeStationInput: string, transactionStationId: string): boolean {
     return resolveStationDefinition(routeStationInput)?.id === transactionStationId;
 }

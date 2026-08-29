@@ -14,6 +14,8 @@ Latest FULL meter-maintenance rerun: **S94 — 16 files / 87 financial tests pas
 
 Latest FULL daily-price maintenance rerun: **S93 — 16 files / 85 financial tests passed on a clean HEAD + S93-only snapshot after moving daily retail/wholesale correction into canonical Operations and hardening daily-price writes. STAFF keeps current-day price entry for active shift opening, but historical price mutation is ADMIN-only and retired-station STAFF is read-only. Isolated-Neon UAT returned STAFF 403 / ADMIN 200 for 2026-08-27; the DailyRecord changed to 30.55/29.55 while the existing transaction remained 10 L × 31.34 = 313.40.**
 
+Latest FULL transaction-create safety rerun: **S95 pass 1 — 16 files / 89 financial tests passed on a clean HEAD + S95-pass1-only snapshot after making historical transaction create ADMIN-only and fail-closed. Direct route/policy regression passed 29/29; isolated-Neon UAT confirmed missing historical days are not created, CLOSED dates do not create shifts, and ADMIN creation on an existing historical OPEN shift reuses that exact shift.**
+
 ## Release gate
 
 Run:
