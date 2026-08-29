@@ -78,4 +78,64 @@ describe('meter photo shift scope', () => {
         expect(prismaMock.dailyRecord.upsert).not.toHaveBeenCalled();
         expect(prismaMock.meterReading.upsert).not.toHaveBeenCalled();
     });
+
+    it('blocks STAFF historical photo upload before Cloudinary', async () => {
+        requireApiSessionMock.mockResolvedValue({ user: { id: 'staff-1', role: 'STAFF', stationId: 'station-1' } });
+        const formData = new FormData();
+        formData.append('file', new File(['image'], 'meter.jpg', { type: 'image/jpeg' }));
+        formData.append('type', 'end');
+        formData.append('nozzle', '1');
+        formData.append('date', '2026-07-10');
+        formData.append('stationId', 'station-1');
+        formData.append('shiftId', 'closed-shift-2');
+        const { POST } = await import('../src/app/api/upload/meter-photo/route');
+        const response = await POST(new Request('http://localhost/api/upload/meter-photo', { method: 'POST', body: formData }) as never);
+        expect(response.status).toBe(403);
+        expect(cloudinaryUploadMock).not.toHaveBeenCalled();
+    });
+
+    it('rejects a historical photo when the shift does not belong to the selected station/date', async () => {
+        prismaMock.shift.findFirst.mockResolvedValue(null);
+        const formData = new FormData();
+        formData.append('file', new File(['image'], 'meter.jpg', { type: 'image/jpeg' }));
+        formData.append('type', 'start');
+        formData.append('nozzle', '1');
+        formData.append('date', '2026-07-10');
+        formData.append('stationId', 'station-1');
+        formData.append('shiftId', 'wrong-shift');
+        const { POST } = await import('../src/app/api/upload/meter-photo/route');
+        const response = await POST(new Request('http://localhost/api/upload/meter-photo', { method: 'POST', body: formData }) as never);
+        expect(response.status).toBe(409);
+        expect(cloudinaryUploadMock).not.toHaveBeenCalled();
+    });
+
+    it('requires a shift id for historical photo correction', async () => {
+        const formData = new FormData();
+        formData.append('file', new File(['image'], 'meter.jpg', { type: 'image/jpeg' }));
+        formData.append('type', 'start');
+        formData.append('nozzle', '1');
+        formData.append('date', '2026-07-10');
+        formData.append('stationId', 'station-1');
+        const { POST } = await import('../src/app/api/upload/meter-photo/route');
+        const response = await POST(new Request('http://localhost/api/upload/meter-photo', { method: 'POST', body: formData }) as never);
+        expect(response.status).toBe(400);
+        expect(cloudinaryUploadMock).not.toHaveBeenCalled();
+    });
+
+    it('keeps current active GAS STAFF meter-photo upload working', async () => {
+        requireApiSessionMock.mockResolvedValue({ user: { id: 'staff-5', role: 'STAFF', stationId: 'station-5' } });
+        prismaMock.shift.findFirst.mockResolvedValue({ id: 'gas-shift-live' });
+        const { getTodayBangkok } = await import('../src/lib/date-utils');
+        const formData = new FormData();
+        formData.append('file', new File(['image'], 'meter.jpg', { type: 'image/jpeg' }));
+        formData.append('type', 'end');
+        formData.append('nozzle', '1');
+        formData.append('date', getTodayBangkok());
+        formData.append('stationId', 'station-5');
+        formData.append('shiftId', 'gas-shift-live');
+        const { POST } = await import('../src/app/api/upload/meter-photo/route');
+        const response = await POST(new Request('http://localhost/api/upload/meter-photo', { method: 'POST', body: formData }) as never);
+        expect(response.status).toBe(200);
+        expect(cloudinaryUploadMock).toHaveBeenCalledTimes(1);
+    });
 });

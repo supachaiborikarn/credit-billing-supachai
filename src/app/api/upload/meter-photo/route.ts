@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { v2 as cloudinary } from 'cloudinary';
 import { requireApiSession } from '@/lib/api-auth';
 import { canAccessStation } from '@/lib/auth-utils';
+import { prisma } from '@/lib/prisma';
+import { getStartOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
+import { canMutateStationMeterData } from '@/lib/stations/station-context';
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 
@@ -45,8 +48,46 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Meter nozzle is invalid' }, { status: 400 });
         }
 
-        if ((type === 'start' || type === 'end') && !canAccessStation(auth.user, stationId)) {
-            return NextResponse.json({ error: 'ไม่มีสิทธิ์อัปโหลดรูปของสถานีนี้' }, { status: 403 });
+        const isMeterUpload = type === 'start' || type === 'end';
+        if (isMeterUpload && !canAccessStation(auth.user, stationId)) {
+            return NextResponse.json({ error: "ไม่มีสิทธิ์อัปโหลดรูปของสถานีนี้" }, { status: 403 });
+        }
+
+        let validatedShiftId: string | null = null;
+        if (isMeterUpload) {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) {
+                return NextResponse.json({ error: "วันที่ของรูปมิเตอร์ไม่ถูกต้อง" }, { status: 400 });
+            }
+            const today = getTodayBangkok();
+            const isHistoricalDate = date !== today;
+            if (!canMutateStationMeterData(auth.user, stationId, date, today)) {
+                return NextResponse.json(
+                    { error: isHistoricalDate ? "การอัปโหลดรูปมิเตอร์ย้อนหลังทำได้เฉพาะแอดมิน" : "สถานีนี้ย้ายงานหน้าปั๊มไป POS แล้ว ไม่อนุญาตให้อัปโหลดรูปมิเตอร์ใหม่" },
+                    { status: 403 }
+                );
+            }
+
+            validatedShiftId = typeof requestedShiftId === 'string' && requestedShiftId.trim()
+                ? requestedShiftId.trim()
+                : null;
+            if (isHistoricalDate && !validatedShiftId) {
+                return NextResponse.json({ error: "รูปมิเตอร์ย้อนหลังต้องระบุ Shift ที่มีอยู่แล้ว" }, { status: 400 });
+            }
+            if (validatedShiftId) {
+                const shift = await prisma.shift.findFirst({
+                    where: {
+                        id: validatedShiftId,
+                        dailyRecord: {
+                            stationId,
+                            date: getStartOfDayBangkok(date),
+                        },
+                    },
+                    select: { id: true },
+                });
+                if (!shift) {
+                    return NextResponse.json({ error: "Shift ของรูปมิเตอร์ไม่ตรงกับสถานี/วันที่เลือก" }, { status: 409 });
+                }
+            }
         }
 
         // Check Cloudinary config
@@ -62,8 +103,8 @@ export async function POST(request: NextRequest) {
 
         // Generate public_id for organization
         const timestamp = Date.now();
-        const shiftScope = typeof requestedShiftId === 'string' && requestedShiftId.trim()
-            ? requestedShiftId.trim().replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80)
+        const shiftScope = validatedShiftId
+            ? validatedShiftId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80)
             : 'unassigned';
         const publicId = type === 'transfer'
             ? `transfers/${stationId}/${date}/slip_${timestamp}`

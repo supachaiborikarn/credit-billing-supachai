@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getStartOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
 import { requireStationAccessApi } from '@/lib/api-auth';
 import { ensureOpenFullStationShiftForDailyRecord } from '@/lib/full-station-shift-sync';
+import { canMutateStationMeterData } from '@/lib/stations/station-context';
 
 type MeterPayload = {
     nozzleNumber: number;
@@ -51,34 +52,52 @@ export async function POST(
             return NextResponse.json({ error: 'ข้อมูลเลขมิเตอร์ไม่ถูกต้อง' }, { status: 400 });
         }
 
-        const date = getStartOfDayBangkok(dateStr);
-
-        if (dateStr !== getTodayBangkok() && auth.user.role !== 'ADMIN') {
-            return NextResponse.json({ error: 'การแก้มิเตอร์ย้อนหลังทำได้เฉพาะแอดมิน' }, { status: 403 });
+        const today = getTodayBangkok();
+        const isHistoricalDate = dateStr !== today;
+        if (!canMutateStationMeterData(auth.user, stationId, dateStr, today)) {
+            return NextResponse.json(
+                { error: isHistoricalDate ? "การแก้มิเตอร์ย้อนหลังทำได้เฉพาะแอดมิน" : "สถานีนี้ย้ายงานหน้าปั๊มไป POS แล้ว ไม่อนุญาตให้แก้มิเตอร์ใหม่" },
+                { status: 403 }
+            );
         }
 
-        // Get or create daily record
-        const dailyRecord = await prisma.dailyRecord.upsert({
-            where: { stationId_date: { stationId, date } },
-            update: {},
-            create: {
-                stationId,
-                date,
-                retailPrice: 31.34,
-                wholesalePrice: 30.5,
-                status: 'OPEN',
-            }
-        });
+        const date = getStartOfDayBangkok(dateStr);
+        const requestedHistoricalShiftId = typeof requestedShiftId === 'string' && requestedShiftId.trim()
+            ? requestedShiftId.trim()
+            : null;
+
+        // Historical correction must bind to an existing DailyRecord/Shift.
+        const dailyRecord = isHistoricalDate
+            ? await prisma.dailyRecord.findUnique({ where: { stationId_date: { stationId, date } } })
+            : await prisma.dailyRecord.upsert({
+                where: { stationId_date: { stationId, date } },
+                update: {},
+                create: {
+                    stationId,
+                    date,
+                    retailPrice: 31.34,
+                    wholesalePrice: 30.5,
+                    status: 'OPEN',
+                }
+            });
+
+        if (!dailyRecord) {
+            return NextResponse.json({ error: "ไม่พบ DailyRecord ของวันที่เลือก จึงไม่สร้างข้อมูลย้อนหลังใหม่" }, { status: 404 });
+        }
+        if (isHistoricalDate && !requestedHistoricalShiftId) {
+            return NextResponse.json({ error: "การแก้มิเตอร์ย้อนหลังต้องระบุ Shift ที่มีอยู่แล้ว" }, { status: 400 });
+        }
 
         if (dailyRecord.status === 'CLOSED' && auth.user.role !== 'ADMIN') {
             return NextResponse.json({ error: 'วันนี้ปิดแล้ว กรุณาให้แอดมินเป็นผู้แก้ไข' }, { status: 403 });
         }
 
         let shift = null;
-        if (typeof requestedShiftId === 'string' && requestedShiftId.trim()) {
+        if (requestedHistoricalShiftId || (typeof requestedShiftId === 'string' && requestedShiftId.trim())) {
+            const boundShiftId = requestedHistoricalShiftId || requestedShiftId.trim();
             shift = await prisma.shift.findFirst({
                 where: {
-                    id: requestedShiftId.trim(),
+                    id: boundShiftId,
                     dailyRecordId: dailyRecord.id,
                 },
             });

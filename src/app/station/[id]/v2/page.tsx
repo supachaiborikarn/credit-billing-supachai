@@ -3,7 +3,6 @@
 import { useState, useEffect, use } from 'react';
 import { PAYMENT_TYPES, STATIONS } from '@/constants';
 import DayStatusCard from './components/DayStatusCard';
-import MeterSection from './components/MeterSection';
 import TransactionCard from './components/TransactionCard';
 import DailySummary from './components/DailySummary';
 import RefillModal from './components/RefillModal';
@@ -73,7 +72,6 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
     const [loading, setLoading] = useState(true);
     const [dailyRecord, setDailyRecord] = useState<DailyRecord | null>(null);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [previousDayMeters, setPreviousDayMeters] = useState<{ nozzle: number; endReading: number }[]>([]);
     const [currentUser, setCurrentUser] = useState<{ role: string } | null>(null);
     const [showRefillModal, setShowRefillModal] = useState(false);
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -114,9 +112,6 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
                 const data = await res.json();
                 setDailyRecord(data.dailyRecord);
                 setTransactions(data.transactions || []);
-                if (data.previousDayMeters) {
-                    setPreviousDayMeters(data.previousDayMeters);
-                }
 
                 if (data.transactions && data.transactions.length > 0) {
                     setLastPaymentType(data.transactions[0].paymentType);
@@ -148,26 +143,6 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
 
     const dayStatus = getDayStatus();
     const isDayClosed = dayStatus === 'closed';
-    const useHistoricalAdminMeterScope = Boolean(isAdmin && dailyRecord?.isHistoricalDate);
-    const operationalShiftMeters = dailyRecord?.shiftMeters || dailyRecord?.meters || [];
-    const meterSectionMeters = useHistoricalAdminMeterScope
-        ? dailyRecord?.meters || []
-        : operationalShiftMeters;
-    const meterSectionDayStatus: DayStatus = useHistoricalAdminMeterScope
-        ? dayStatus
-        : dailyRecord?.isHistoricalDate && !isAdmin
-            ? 'closed'
-        : dailyRecord?.meterShiftStatus === 'CLOSED'
-            ? 'closed'
-            : operationalShiftMeters.some(meter => Number(meter.startReading) > 0)
-                ? 'recording'
-                : 'not_started';
-    const meterSectionStartShiftId = useHistoricalAdminMeterScope
-        ? dailyRecord?.meterStartShiftId || dailyRecord?.meterShiftId || null
-        : dailyRecord?.meterShiftId || null;
-    const meterSectionEndShiftId = useHistoricalAdminMeterScope
-        ? dailyRecord?.meterEndShiftId || dailyRecord?.meterShiftId || null
-        : dailyRecord?.meterShiftId || null;
 
     const meterTotal = dailyRecord?.meters?.reduce((sum, m) => {
         const end = m.endReading || 0;
@@ -362,18 +337,16 @@ export default function TankStationV2Page({ params }: { params: Promise<{ id: st
 
             case 'meter':
                 return (
-                    <MeterSection
-                        key={`${selectedDate}-${dailyRecord?.meterShiftId || dailyRecord?.id || 'new'}-${useHistoricalAdminMeterScope ? 'history' : 'live'}`}
-                        stationId={id}
-                        date={selectedDate}
-                        startShiftId={meterSectionStartShiftId}
-                        endShiftId={meterSectionEndShiftId}
-                        meters={meterSectionMeters}
-                        previousDayMeters={previousDayMeters}
-                        onSave={fetchDailyData}
-                        dayStatus={meterSectionDayStatus}
-                        isAdmin={isAdmin}
-                    />
+                    <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
+                        <h2 className="font-bold text-gray-900">มิเตอร์ย้ายไป Canonical Operations แล้ว</h2>
+                        <p className="mt-2 text-sm text-gray-600">งานเปิด/ปิดกะและการแก้มิเตอร์/รูปย้อนหลังของแอดมินให้ใช้หน้า Operations เพื่อให้มี route ownership และ permission ชุดเดียว</p>
+                        <a
+                            href={`/stations/station-${id}/operations`}
+                            className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-orange-600 px-4 text-sm font-bold text-white hover:bg-orange-700"
+                        >
+                            เปิด Canonical Operations
+                        </a>
+                    </section>
                 );
 
             case 'summary':

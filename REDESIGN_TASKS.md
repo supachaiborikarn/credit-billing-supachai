@@ -2827,3 +2827,40 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print/shared brain changes from another task remain untouched and excluded from S93 staging/commit.
 - No push / no deploy / no production DB write.
+
+## 2026-08-29 — S94 — Move FULL historical meter/photo correction to canonical Operations
+- Status: `[x]`
+- Ownership change:
+  - canonical `/stations/station-1/operations` now owns ADMIN meter correction for existing FULL DailyRecord/Shift records, including start/end readings and meter-photo replacement.
+  - V2 meter tab no longer mutates meter data; it points to canonical Operations instead.
+  - normal current-day opening/closing flows remain on canonical ShiftOpeningFlow / ShiftClosingFlow.
+- Historical correction safety:
+  - historical meter writes are ADMIN-only; active FULL STAFF current-day meter entry remains allowed.
+  - historical correction must bind to an existing DailyRecord and explicit Shift; it no longer upserts a missing historical day or silently creates an open shift.
+  - meter-photo upload now uses the same current-vs-historical permission policy, requires a Shift for historical uploads, and verifies that Shift belongs to the requested station/date before Cloudinary upload.
+  - retired-station STAFF remain read-only for new meter/photo writes.
+- Financial semantics:
+  - meter correction recalculates only `MeterReading.soldQty` from the corrected start/end readings and records ADMIN audit logs.
+  - existing Transaction liters / pricePerLiter / amount are not recalculated.
+- Verification:
+  - targeted meter/photo/policy/payload gate: 4 files / 27 tests passed; includes current-day FULL STAFF meter entry and current GAS STAFF meter-photo upload regression.
+  - clean HEAD + S94-only snapshot: financial release gate 16 files / 87 tests passed; S94 gate 4 files / 27 tests passed; TypeScript passed.
+- Isolated Neon write UAT (station-1, 2026-08-25 fixture):
+  - STAFF historical meter POST 403.
+  - STAFF historical meter-photo POST 403 before Cloudinary.
+  - ADMIN correction against a missing historical DailyRecord 404; no historical record was created.
+  - ADMIN photo upload with a mismatched Shift 409 before Cloudinary.
+  - ADMIN historical meter correction 200; follow-up GET showed all four end readings/photos updated.
+  - direct DB check showed soldQty = 510 L on all four fixture meter rows and four MeterReading audit-log entries.
+  - fixture transaction remained 10 L, pricePerLiter 31.34, amount 313.40, `isVoided=false`, `deletedAt=null`.
+  - canonical Operations returned 200; UAT server on port 3005 was stopped after verification.
+- Remaining V2 migration after S94:
+  - **S95:** transaction/slip/receipt maintenance + audit/CSV/daily print.
+  - **S96:** final isolated UAT/financial gate and V2 retirement decision.
+- Concurrent-work note:
+  - Tank Loy auto-print/shared brain changes from another task remain untouched and excluded from S94 staging/commit.
+- No push / no deploy / no production DB write.
+- Final packaging:
+  - targeted ESLint: 0 errors; 2 pre-existing V2 hook dependency warnings only.
+  - production build on the real working tree: 127/127 routes passed.
+  - a redundant clean-temp build was not used as evidence because Turbopack rejects external `node_modules` symlinks; clean S94 snapshot financial/tests/TypeScript passed independently as recorded above.

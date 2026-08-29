@@ -14,6 +14,7 @@ const txMock = {
 const prismaMock = {
     $transaction: vi.fn(),
     dailyRecord: {
+        findUnique: vi.fn(),
         upsert: vi.fn(),
     },
     shift: {
@@ -43,7 +44,8 @@ beforeEach(() => {
     prismaMock.$transaction.mockImplementation(async (
         callback: (client: typeof txMock) => unknown
     ) => callback(txMock));
-    prismaMock.dailyRecord.upsert.mockResolvedValue({ id: 'daily-1' });
+    prismaMock.dailyRecord.findUnique.mockResolvedValue({ id: 'daily-1', status: 'CLOSED' });
+    prismaMock.dailyRecord.upsert.mockResolvedValue({ id: 'daily-1', status: 'OPEN' });
     prismaMock.shift.findFirst.mockResolvedValue({
         id: 'shift-2',
         dailyRecordId: 'daily-1',
@@ -71,6 +73,71 @@ beforeEach(() => {
 });
 
 describe('full-station meter write route', () => {
+    it('keeps current-day STAFF meter entry and open-shift fallback working', async () => {
+        requireStationAccessApiMock.mockResolvedValue({ user: { id: 'staff-1', role: 'STAFF', stationId: 'station-1' } });
+        ensureOpenShiftMock.mockResolvedValue({ id: 'shift-live', dailyRecordId: 'daily-1', status: 'OPEN' });
+        const { getTodayBangkok } = await import('../src/lib/date-utils');
+        const { POST } = await import('../src/app/api/station/[id]/meters/route');
+        const response = await POST(
+            new Request('http://localhost/api/station/1/meters', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    date: getTodayBangkok(), type: 'start',
+                    meters: [1, 2, 3, 4].map(nozzleNumber => ({ nozzleNumber, reading: 2000 + nozzleNumber, photo: `live-start-${nozzleNumber}` })),
+                }),
+            }) as never,
+            { params: Promise.resolve({ id: '1' }) }
+        );
+        expect(response.status).toBe(200);
+        expect(prismaMock.dailyRecord.upsert).toHaveBeenCalledTimes(1);
+        expect(prismaMock.dailyRecord.findUnique).not.toHaveBeenCalled();
+        expect(ensureOpenShiftMock).toHaveBeenCalledTimes(1);
+        expect(txMock.auditLog.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects STAFF historical meter mutation before touching a DailyRecord', async () => {
+        requireStationAccessApiMock.mockResolvedValue({ user: { id: 'staff-1', role: 'STAFF', stationId: 'station-1' } });
+        const { POST } = await import('../src/app/api/station/[id]/meters/route');
+        const response = await POST(
+            new Request('http://localhost/api/station/1/meters', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date: '2026-07-10', shiftId: 'shift-2', type: 'end', meters: [{ nozzleNumber: 1, reading: 1501, photo: 'end-1' }] }),
+            }) as never,
+            { params: Promise.resolve({ id: '1' }) }
+        );
+        expect(response.status).toBe(403);
+        expect(prismaMock.dailyRecord.findUnique).not.toHaveBeenCalled();
+        expect(prismaMock.dailyRecord.upsert).not.toHaveBeenCalled();
+    });
+
+    it('does not create a missing historical DailyRecord', async () => {
+        prismaMock.dailyRecord.findUnique.mockResolvedValue(null);
+        const { POST } = await import('../src/app/api/station/[id]/meters/route');
+        const response = await POST(
+            new Request('http://localhost/api/station/1/meters', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date: '2026-07-10', shiftId: 'shift-2', type: 'end', meters: [{ nozzleNumber: 1, reading: 1501, photo: 'end-1' }] }),
+            }) as never,
+            { params: Promise.resolve({ id: '1' }) }
+        );
+        expect(response.status).toBe(404);
+        expect(prismaMock.dailyRecord.upsert).not.toHaveBeenCalled();
+        expect(ensureOpenShiftMock).not.toHaveBeenCalled();
+    });
+
+    it('requires an existing shift id for historical correction', async () => {
+        const { POST } = await import('../src/app/api/station/[id]/meters/route');
+        const response = await POST(
+            new Request('http://localhost/api/station/1/meters', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date: '2026-07-10', type: 'start', meters: [{ nozzleNumber: 1, reading: 1001, photo: 'start-1' }] }),
+            }) as never,
+            { params: Promise.resolve({ id: '1' }) }
+        );
+        expect(response.status).toBe(400);
+        expect(ensureOpenShiftMock).not.toHaveBeenCalled();
+    });
+
     it('updates the exact shift returned by daily data and recalculates sold liters', async () => {
         const { POST } = await import('../src/app/api/station/[id]/meters/route');
         const response = await POST(

@@ -19,6 +19,7 @@ import { RedesignAppShell } from '@/components/layout';
 import { SaleFlowForm } from '@/components/sales/SaleFlowForm';
 import { ShiftClosingFlow } from '@/components/stations/ShiftClosingFlow';
 import { FullDailyPriceMaintenance } from '@/components/stations/FullDailyPriceMaintenance';
+import { FullMeterMaintenance } from '@/components/stations/FullMeterMaintenance';
 import { StationHistory } from '@/components/stations/StationHistory';
 import { ShiftOpeningFlow } from '@/components/stations/ShiftOpeningFlow';
 import { AsyncRefreshState, Badge, EmptyState, FatalErrorState, LoadingState, Notice, Section } from '@/components/ui';
@@ -620,7 +621,10 @@ function OperationsSkeleton({ context, onRefresh }: { context: StationContextPay
         <div className="space-y-4">
             {operationFlow}
             {showFullAdminPriceMaintenance && (
-                <FullDailyPriceMaintenance context={context} onSaved={onRefresh} />
+                <>
+                    <FullDailyPriceMaintenance context={context} onSaved={onRefresh} />
+                    <FullMeterMaintenance context={context} onSaved={onRefresh} />
+                </>
             )}
         </div>
     );

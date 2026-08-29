@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     buildStationPermissions,
     canMutateStationDailyPrices,
+    canMutateStationMeterData,
     canMutateHistoricalStationData,
     getCanonicalStationPaths,
     isActiveOperationalStationId,
@@ -69,5 +70,19 @@ describe('station daily price mutation policy', () => {
         expect(canMutateStationDailyPrices({ role: 'STAFF' }, 'station-2', '2026-08-28', '2026-08-28')).toBe(false);
         expect(canMutateStationDailyPrices({ role: 'ADMIN' }, 'station-2', '2026-08-27', '2026-08-28')).toBe(true);
         expect(canMutateStationDailyPrices({ role: 'ADMIN' }, 'station-1', '2026-08-27', '2026-08-28')).toBe(true);
+    });
+});
+
+describe('station meter mutation policy', () => {
+    it('allows active STAFF only on the current business date', () => {
+        expect(canMutateStationMeterData({ role: 'STAFF' }, 'station-1', '2026-08-29', '2026-08-29')).toBe(true);
+        expect(canMutateStationMeterData({ role: 'STAFF' }, 'station-1', '2026-08-28', '2026-08-29')).toBe(false);
+        expect(canMutateStationMeterData({ role: 'STAFF' }, 'station-5', '2026-08-29', '2026-08-29')).toBe(true);
+    });
+
+    it('keeps retired STAFF read-only while ADMIN can correct history', () => {
+        expect(canMutateStationMeterData({ role: 'STAFF' }, 'station-2', '2026-08-29', '2026-08-29')).toBe(false);
+        expect(canMutateStationMeterData({ role: 'ADMIN' }, 'station-1', '2026-08-28', '2026-08-29')).toBe(true);
+        expect(canMutateStationMeterData({ role: 'ADMIN' }, 'station-2', '2026-08-28', '2026-08-29')).toBe(true);
     });
 });
