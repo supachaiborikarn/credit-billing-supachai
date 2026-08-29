@@ -62,6 +62,7 @@ describe('station context', () => {
             base: '/stations/station-6',
             sales: '/stations/station-6/sales',
             operations: '/stations/station-6/operations',
+            inventory: '/stations/station-6/inventory',
             history: '/stations/station-6/history',
         });
     });

@@ -1,5 +1,5 @@
 <!-- SUMMARY: 6 สถานี: แท๊งลอยวัชรเกียรติ (FULL) ใช้ canonical `/stations/station-1` + `/sales` + `/operations` + `/history`; S96 retire `/station/1` และ `/station/1/v2`, ย้าย partial opening recovery เข้า canonical Operations, กรอง zero placeholder และคง `/station/1/new/receipt` เป็น print compatibility; S97 guarded browser acceptance ผ่าน 105/105 ที่ mobile/desktop พร้อม role, redirect, empty/error และ no-overflow gates; admin แก้มิเตอร์ย้อนหลังใช้ exact start/end shift scope, daily report รวมเลขเปิดแรกกับเลขปิดสุดท้าย, และ Windows agent พิมพ์สรุปเมื่อวานเข้า Epson TM-m30III ผ่าน Wi-Fi เวลา 07:00;
-     วัชรเกียรติออยล์/พงษ์อนันต์ปิโตรเลียม/ศุภชัยบริการ (SIMPLE) ย้ายงานหน้าปั๊มไป POS แล้ว โดย S45 redirect legacy landing `/simple-station/[id]` ของ 2/3/4 ไป canonical read-only workspace, ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS) ใช้ canonical `/stations/station-5|6` เป็น operational overview; S53-S54 retire sale, S62-S63 retire open/close, S73-S80 retire root/older entry/summary UI ไป canonical และ S98 ย้าย meter/gauge recovery เข้า canonical Operations โดยคง inventory/read API ที่ยังจำเป็น; S81 ปิด direct station-6 products/protect canonical routes และ authenticated read UAT ผ่าน; pass 4 mobile Sales/Operations QA ปิด sticky Save/bottom-nav overlap และ canonical stale-shift warning ระบุชัดว่า OPEN เก่า station-5/6 จาก 2026-04-24 เป็นคนละ shift กับ current shift โดยไม่ auto-close, GAS มี 2 กะตายตัว 07:00-19:00 และ 19:00-07:00 โดยกะ 2 ข้ามวันได้, supply receiving `/gas/[id]/supplies`, meter continuity ใน admin report, admin แก้เลขเปิดมิเตอร์และยอดกระทบยอดจากรายงานมิเตอร์พร้อม Audit Log, executive print report `/admin/gas/reports/executive`, และ admin `/admin/gas/*`; legacy admin gas-control redirect ไป v2 -->
+     วัชรเกียรติออยล์/พงษ์อนันต์ปิโตรเลียม/ศุภชัยบริการ (SIMPLE) ย้ายงานหน้าปั๊มไป POS แล้ว โดย S45 redirect legacy landing `/simple-station/[id]` ของ 2/3/4 ไป canonical read-only workspace, ปั๊มแก๊สพงษ์อนันต์/ปั๊มแก๊สศุภชัย (GAS) ใช้ canonical `/stations/station-5|6` เป็น operational overview; S53-S54 retire sale, S62-S63 retire open/close, S73-S80 retire root/older entry/summary UI ไป canonical, S98 ย้าย meter/gauge recovery เข้า canonical Operations และ S99 ย้าย LPG supplies เข้า canonical Inventory โดยคง station-5 product inventory/read API ที่ยังจำเป็น; S81 ปิด direct station-6 products/protect canonical routes และ authenticated read UAT ผ่าน; pass 4 mobile Sales/Operations QA ปิด sticky Save/bottom-nav overlap และ canonical stale-shift warning ระบุชัดว่า OPEN เก่า station-5/6 จาก 2026-04-24 เป็นคนละ shift กับ current shift โดยไม่ auto-close, GAS มี 2 กะตายตัว 07:00-19:00 และ 19:00-07:00 โดยกะ 2 ข้ามวันได้, LPG receiving canonical `/stations/station-[id]/inventory`, meter continuity ใน admin report, admin แก้เลขเปิดมิเตอร์และยอดกระทบยอดจากรายงานมิเตอร์พร้อม Audit Log, executive print report `/admin/gas/reports/executive`, และ admin `/admin/gas/*`; legacy admin gas-control redirect ไป v2 -->
 
 # Station Types
 
@@ -14,8 +14,8 @@
 | 2 | วัชรเกียรติออยล์ | SIMPLE | canonical `/stations/station-2` | ย้ายงานหน้าปั๊มไป POS; legacy landing/home redirect แล้ว |
 | 3 | พงษ์อนันต์ปิโตรเลียม | SIMPLE | canonical `/stations/station-3` | ย้ายงานหน้าปั๊มไป POS; legacy landing/home redirect แล้ว |
 | 4 | ศุภชัยบริการ | SIMPLE | canonical `/stations/station-4` | ย้ายงานหน้าปั๊มไป POS; legacy landing/home redirect แล้ว |
-| 5 | ปั๊มแก๊สพงษ์อนันต์ | GAS | canonical `/stations/station-5` | แก๊ส + สินค้า; meter/gauge recovery อยู่ canonical Operations, supplies/products ยัง KEEP |
-| 6 | ปั๊มแก๊สศุภชัย | GAS | canonical `/stations/station-6` | แก๊สอย่างเดียว; meter/gauge recovery อยู่ canonical Operations, supplies ยัง KEEP |
+| 5 | ปั๊มแก๊สพงษ์อนันต์ | GAS | canonical `/stations/station-5` | แก๊ส + สินค้า; recovery อยู่ Operations, LPG receiving อยู่ Inventory, products ยัง KEEP |
+| 6 | ปั๊มแก๊สศุภชัย | GAS | canonical `/stations/station-6` | แก๊สอย่างเดียว; recovery อยู่ Operations, LPG receiving อยู่ Inventory |
 
 ## Station Type Features
 
@@ -59,7 +59,8 @@
 - **FULL Windows auto print**: API `/src/app/api/automation/tank-loy/daily-report/route.ts`, report source `/src/lib/tank-loy-auto-print.ts`, Windows worker/installer `/scripts/tank-loy-auto-print.ps1` + `/scripts/install-tank-loy-auto-print.ps1` + `/scripts/install-tank-loy-auto-print.cmd`, และคู่มือ `/docs/TANK_LOY_AUTO_PRINT_WINDOWS.md`
 - **FULL thermal receipt implementation**: `/src/app/station/[id]/new/receipt/page.tsx` (re-export จาก simple receipt สำหรับ V2 print) และ Android Epson direct XML helper `/src/lib/thermal-receipt-print.ts` สำหรับตัดต้นฉบับ/สำเนาอัตโนมัติ
 - **GAS staff UI**: `/src/app/gas/[stationId]/page.tsx`
-- **GAS staff supply receiving**: `/src/app/gas/[stationId]/supplies/page.tsx`
+- **GAS canonical inventory**: `/src/app/stations/[id]/inventory/page.tsx` + `/src/components/stations/GasSupplyInventory.tsx`; S99 รับ LPG ผ่าน v2 supplies API เดิมและ redirect current/older supplies routes มาที่ canonical
+- **GAS legacy supply source**: `/src/app/gas/[stationId]/supplies/LegacyGasSuppliesPage.tsx` เก็บไว้เป็น fallback source
 - **GAS admin operations**: `/src/app/admin/gas/operations/page.tsx`
 - **GAS admin meter edit**: `/src/app/admin/gas/meters/[shiftId]/edit/page.tsx`, API `/src/app/api/v2/gas/admin/meters/[shiftId]/route.ts`
 - **GAS admin supply receiving**: `/src/app/admin/gas/supplies/page.tsx`
@@ -67,6 +68,7 @@
 - **Constants**: `/src/constants/index.ts`
 
 ## Changelog
+- 2026-08-29: S99 ย้าย LPG receiving/history ของ station-5/6 ไป canonical `/stations/station-[id]/inventory`; current/older supplies routes redirect แล้ว โดยคง v2 API/AuditLog เดิมและ station-5 products ไว้ S100
 - 2026-08-29: S98 ย้าย GAS meter/gauge recovery เข้า canonical Operations, retire legacy recovery UI สำหรับ station-5/6 และยืนยัน isolated write UAT ว่า START ก่อน lock/END แยกทำได้ แต่ START หลัง lock ถูก 409
 - 2026-08-29: S97 guarded canonical browser acceptance ผ่าน 105/105 บน mobile 390x844 + desktop 1440x900; ADMIN/STAFF role boundaries, redirects, empty/error states และ partial-opening zero-placeholder recovery ผ่าน โดยลบ UAT fixture หลังตรวจ
 - 2026-08-29: S96 retire `/station/1` ไป canonical Overview และ `/station/1/v2` + FULL summary/list/record ไป canonical History; canonical Operations รองรับ partial opening recovery โดยไม่ hydrate zero placeholders

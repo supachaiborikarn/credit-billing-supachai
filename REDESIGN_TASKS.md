@@ -2994,3 +2994,34 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks from another task remain outside S98 staging.
 - No push / no deploy / no production DB write.
+
+
+## 2026-08-29 — S99 — Move GAS supplies into canonical Inventory
+- Status: `[x]`
+- Ownership change:
+  - added canonical `/stations/station-5|6/inventory` and `StationCanonicalPaths.inventory`.
+  - canonical Inventory now owns LPG receiving, date filter, receiving history and summary (liters, cost, count, average cost/liter).
+  - GAS Overview `ลงแก๊สเข้าถัง` points to canonical Inventory; station-5 product inventory remains the only frontline GAS inventory compatibility surface for S100.
+  - `/gas/5|6/supplies` and older `/gas-station/5|6/new/supplies` bookmarks redirect to canonical Inventory with query/auth normalization; legacy supplies component remains in-tree as fallback source.
+- Safety / financial semantics:
+  - reuses `GET/POST /api/v2/gas/[stationId]/supplies`; no schema, stock formula or alternate cost calculation model was introduced.
+  - existing station access guard remains authoritative; STAFF can operate only the assigned GAS station and ADMIN keeps global access.
+  - POST continues to create `GasSupply` + `AuditLog` with the existing normalized liters/cost/supplier/invoice contract.
+  - canonical Inventory fail-closes writes while StationContext is refreshing/errored and keeps primary controls at least 44px high.
+- Verification:
+  - targeted station/middleware/supply/GAS regression: 4 files / **90 tests passed**.
+  - financial release gate: 16 files / **90 tests passed**.
+  - full regression: 49 files / **407 tests passed**.
+  - TypeScript, S99-scoped ESLint and `git diff --check`: passed.
+  - production build with `NODE_ENV=production`: **127/127 routes passed**.
+- Isolated write UAT:
+  - UAT preflight confirmed a different Neon host from production; CreditBilling ran only on port 3005 and port 3000 was untouched.
+  - station-5 STAFF: canonical Inventory 200; legacy supplies bookmark 307; POST receive LPG 200; filtered GET readback 200 and matched 1,234.5 L fixture.
+  - direct UAT DB verification found the expected `GasSupply` plus CREATE `AuditLog`; station-5 STAFF access to station-6 supplies returned 403.
+  - the UAT supply, AuditLog and login session were deleted after verification; UAT server was stopped.
+- Remaining GAS inventory after S99:
+  - **S100:** station-5 product master/receive-stock/price-alert/history parity, then retire `/gas/5/products` only if canonical inventory passes gates.
+  - APIs remain compatibility contracts; S99 retires UI routes only.
+- Concurrent-work note:
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S99 staging.
+- No push / no deploy / no production DB write.

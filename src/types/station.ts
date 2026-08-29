@@ -57,6 +57,7 @@ export interface StationCanonicalPaths {
     base: string;
     sales: string;
     operations: string;
+    inventory: string;
     history: string;
 }
 

@@ -10,6 +10,9 @@ function normalizeGasRedirectPath(path: string) {
     const recoveryMatch = path.match(/^\/gas\/(5|6)\/(?:meters|gauge)(?:[/?#]|$)/);
     if (recoveryMatch) return `/stations/station-${recoveryMatch[1]}/operations`;
 
+    const inventoryMatch = path.match(/^\/gas\/(5|6)\/supplies(?:[/?#]|$)/);
+    if (inventoryMatch) return `/stations/station-${inventoryMatch[1]}/inventory`;
+
     const currentMatch = path.match(/^\/gas\/(5|6)\/shift\/(?:open|close)(?:[/?#]|$)/);
     if (currentMatch) return `/stations/station-${currentMatch[1]}/operations`;
 
@@ -28,6 +31,7 @@ function normalizeGasRedirectPath(path: string) {
     if (legacyPage === 'products' && stationNum === '5') return '/gas/5/products';
     if (legacyPage === 'products' && stationNum === '6') return '/stations/station-6';
     if (legacyPage === 'monthly-balance' && (stationNum === '5' || stationNum === '6')) return `/stations/station-${stationNum}`;
+    if (legacyPage === 'supplies' && (stationNum === '5' || stationNum === '6')) return `/stations/station-${stationNum}/inventory`;
     if (legacyPage === 'supplies') return `/gas/${stationNum}/supplies`;
     if ((legacyPage === 'meters' || legacyPage === 'gauge') && (stationNum === '5' || stationNum === '6')) return `/stations/station-${stationNum}/operations`;
     if (legacyPage === 'meters') return `/gas/${stationNum}/meters`;

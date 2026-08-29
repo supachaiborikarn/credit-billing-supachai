@@ -107,12 +107,14 @@ describe('middleware legacy route retirement boundaries', () => {
         expect(loginUrl.searchParams.get('redirect')).toBe(`/stations/station-${stationNumber}?from=bookmark`);
     });
 
-    it.each([
-        '/gas/5/supplies?source=test',
-        '/gas/5/products?source=test',
-    ])('keeps inventory compatibility subroute %s untouched', (path) => {
-        const response = middleware(request(path));
+    it('retires GAS supplies to canonical Inventory and preserves query', () => {
+        const response = middleware(request('/gas/5/supplies?source=test'));
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe('https://credit-billing-supachai.local/stations/station-5/inventory?source=test');
+    });
 
+    it('keeps station-5 products inventory compatibility route untouched', () => {
+        const response = middleware(request('/gas/5/products?source=test'));
         expect(response.headers.get('location')).toBeNull();
         expect(response.headers.get('x-middleware-next')).toBe('1');
     });
@@ -157,7 +159,7 @@ describe('middleware legacy route retirement boundaries', () => {
 
     it.each([
         ['/gas-station/5/new/meters?from=older', '/stations/station-5/operations?from=older'],
-        ['/gas-station/5/new/supplies?from=older', '/gas/5/supplies?from=older'],
+        ['/gas-station/5/new/supplies?from=older', '/stations/station-5/inventory?from=older'],
         ['/gas-station/5/new/products?from=older', '/gas/5/products?from=older'],
         ['/gas-station/5/new/summary?from=older', '/stations/station-5?from=older'],
         ['/gas-station/6/new/shift-summary?from=older', '/stations/station-6?from=older'],

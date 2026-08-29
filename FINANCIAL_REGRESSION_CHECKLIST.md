@@ -22,6 +22,8 @@ Latest FULL V2-retirement rerun: **S96 — 16 files / 90 financial tests passed 
 
 Latest GAS recovery-retirement rerun: **S98 — 16 files / 90 financial tests passed after moving guarded meter/gauge START correction and standalone END save/retry into canonical Operations. S98 route/recovery regression passed 217/217; full suite passed 407/407; TypeScript/scoped ESLint and the 127-route production build passed. Isolated write UAT confirmed START edits succeed before lock, END meter/gauge saves succeed independently, subsequent START edits fail closed with 409, readback matches, and fixture cleanup completes.**
 
+Latest GAS supplies-inventory rerun: **S99 — canonical `/stations/station-5|6/inventory` moved LPG receive/history off `/gas/[id]/supplies` without changing the write API or financial model. Targeted route/context/supply gate passed 90 tests, financial release gate 90/90, full regression 407/407, TypeScript/scoped ESLint/diff check passed, production build 127/127 routes passed, and isolated UAT confirmed STAFF station-5 create/readback + AuditLog while cross-station station-6 access returned 403.**
+
 ## Release gate
 
 Run:

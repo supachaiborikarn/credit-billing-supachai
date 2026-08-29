@@ -20,13 +20,14 @@ import { ShiftClosingFlow } from '@/components/stations/ShiftClosingFlow';
 import { FullDailyPriceMaintenance } from '@/components/stations/FullDailyPriceMaintenance';
 import { FullMeterMaintenance } from '@/components/stations/FullMeterMaintenance';
 import { GasRecoveryMaintenance } from '@/components/stations/GasRecoveryMaintenance';
+import { GasSupplyInventory } from '@/components/stations/GasSupplyInventory';
 import { StationHistory } from '@/components/stations/StationHistory';
 import { ShiftOpeningFlow } from '@/components/stations/ShiftOpeningFlow';
 import { AsyncRefreshState, Badge, EmptyState, FatalErrorState, LoadingState, Notice, Section } from '@/components/ui';
 import { isActiveSaleStationId } from '@/lib/sales/sale-flow';
 import type { StationContextPayload } from '@/types/station';
 
-export type CanonicalStationWorkspaceMode = 'OVERVIEW' | 'SALES' | 'OPERATIONS' | 'HISTORY';
+export type CanonicalStationWorkspaceMode = 'OVERVIEW' | 'SALES' | 'OPERATIONS' | 'INVENTORY' | 'HISTORY';
 
 function ShiftStatus({ context }: { context: StationContextPayload }) {
     if (context.station.operationalStatus === 'RETIRED') {
@@ -463,7 +464,7 @@ function Overview({ context, onRefresh, writeBlocked }: { context: StationContex
                 const gasTools = [
                     {
                         label: 'ลงแก๊สเข้าถัง',
-                        href: `/gas/${context.station.number}/supplies`,
+                        href: context.paths.inventory,
                         icon: PackagePlus,
                         description: 'บันทึกรับ LPG ต้นทุน ซัพพลายเออร์ และประวัติใบส่ง',
                     },
@@ -481,7 +482,7 @@ function Overview({ context, onRefresh, writeBlocked }: { context: StationContex
                     <Section title="เครื่องมือ GAS เพิ่มเติม" description="งาน inventory ที่ยังคงเป็น compatibility surface ระหว่าง migration">
                         <div className="mb-3">
                             <Notice tone="info" title="งานเปิด/ปิดกะปกติให้ใช้ Operations">
-                                มิเตอร์และเกจ recovery ย้ายเข้า Operations แล้ว เครื่องมือด้านล่างเหลือเฉพาะ inventory ที่ยังไม่ได้ย้ายเข้า canonical workflow
+                                มิเตอร์และเกจ recovery อยู่ใน Operations แล้ว การรับ LPG อยู่ใน canonical Inventory; station-5 products ยังเป็น compatibility จนกว่าจะย้ายครบ
                             </Notice>
                         </div>
                         <div className="grid gap-3 sm:grid-cols-2">
@@ -639,9 +640,10 @@ export function CanonicalStationWorkspace({ stationId, mode }: { stationId: stri
         OVERVIEW: 'Station',
         SALES: 'Sales',
         OPERATIONS: 'Operations',
+        INVENTORY: 'Inventory',
         HISTORY: 'History',
     };
-    const writeModeBlocked = (mode === 'SALES' || mode === 'OPERATIONS') && (loading || Boolean(error));
+    const writeModeBlocked = (mode === 'SALES' || mode === 'OPERATIONS' || mode === 'INVENTORY') && (loading || Boolean(error));
 
     return (
         <RedesignAppShell
@@ -665,9 +667,9 @@ export function CanonicalStationWorkspace({ stationId, mode }: { stationId: stri
                         loading={loading}
                         error={error}
                         onRetry={() => void load()}
-                        loadingLabel={mode === 'SALES' || mode === 'OPERATIONS' ? 'กำลังตรวจสถานะสถานีล่าสุดก่อนทำรายการ…' : 'กำลังอัปเดตข้อมูลสถานี…'}
-                        errorTitle={mode === 'SALES' || mode === 'OPERATIONS' ? 'ตรวจสถานะสถานีล่าสุดไม่สำเร็จ' : 'อัปเดตข้อมูลสถานีไม่สำเร็จ'}
-                        staleLabel={mode === 'SALES' || mode === 'OPERATIONS' ? 'ยังแสดงข้อมูลเดิมไว้ แต่บล็อกการบันทึกจนกว่าจะรีเฟรชสำเร็จ' : 'กำลังแสดงข้อมูลสถานีล่าสุดที่โหลดสำเร็จ'}
+                        loadingLabel={mode === 'SALES' || mode === 'OPERATIONS' || mode === 'INVENTORY' ? 'กำลังตรวจสถานะสถานีล่าสุดก่อนทำรายการ…' : 'กำลังอัปเดตข้อมูลสถานี…'}
+                        errorTitle={mode === 'SALES' || mode === 'OPERATIONS' || mode === 'INVENTORY' ? 'ตรวจสถานะสถานีล่าสุดไม่สำเร็จ' : 'อัปเดตข้อมูลสถานีไม่สำเร็จ'}
+                        staleLabel={mode === 'SALES' || mode === 'OPERATIONS' || mode === 'INVENTORY' ? 'ยังแสดงข้อมูลเดิมไว้ แต่บล็อกการบันทึกจนกว่าจะรีเฟรชสำเร็จ' : 'กำลังแสดงข้อมูลสถานีล่าสุดที่โหลดสำเร็จ'}
                     />
                     <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--ui-text-muted)]">
                         <Link href={context.paths.base} className="rounded-sm hover:text-[var(--ui-text)] focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">สถานี</Link>
@@ -678,6 +680,7 @@ export function CanonicalStationWorkspace({ stationId, mode }: { stationId: stri
                     {mode === 'OVERVIEW' && <Overview context={context} onRefresh={load} writeBlocked={loading || Boolean(error)} />}
                     {mode === 'SALES' && !writeModeBlocked && <SalesSkeleton context={context} />}
                     {mode === 'OPERATIONS' && !writeModeBlocked && <OperationsSkeleton context={context} onRefresh={load} />}
+                    {mode === 'INVENTORY' && <GasSupplyInventory context={context} writeBlocked={writeModeBlocked} />}
                     {mode === 'HISTORY' && <HistorySkeleton context={context} />}
                     {context.currentShift?.status === 'OPEN' && mode !== 'HISTORY' && (
                         <div className="flex items-center gap-2 text-xs text-[var(--ui-text-muted)]">

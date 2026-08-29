@@ -138,6 +138,7 @@ export function getCanonicalStationPaths(stationId: CanonicalStationId): Station
         base,
         sales: `${base}/sales`,
         operations: `${base}/operations`,
+        inventory: `${base}/inventory`,
         history: `${base}/history`,
     };
 }

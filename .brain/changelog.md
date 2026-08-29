@@ -3,6 +3,10 @@
 บันทึกทุกการเปลี่ยนแปลงของ brain
 
 ## 2026-08-29
+- S99 GAS supplies -> canonical Inventory
+  - เพิ่ม `/stations/station-5|6/inventory` สำหรับรับ LPG + history/summary และ retire current/older supplies bookmarks เข้า canonical พร้อม auth/query normalization
+  - ใช้ v2 supplies API/AuditLog เดิม; targeted 90/90, financial 90/90, full 407/407, build 127/127 และ isolated UAT create/readback/audit/cross-station guard ผ่าน
+  - cleanup fixture/session แล้ว; station-5 products เหลือไป S100; ไม่ push/deploy/เขียน production DB
 - ⛽ S98 GAS meter/gauge recovery เข้า canonical Operations
   - ย้าย guarded START correction + standalone END save/retry ของ meter 4 หัวและ gauge 3 ถังเข้า `/stations/station-5|6/operations`; legacy meter/gauge bookmarks redirect พร้อม preserve query/auth
   - exact OPEN Shift + backend baseline lock ยังเป็น source of truth; หลังมี activity ให้ ADMIN แก้ opening meter ผ่าน audited admin route เดิม และ rewrite ต้อง preserve รูปเดิมเมื่อไม่เลือกรูปใหม่
