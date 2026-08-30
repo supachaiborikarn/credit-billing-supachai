@@ -17,7 +17,15 @@ function parseDateOnlyUtc(dateStr: string): Date {
     }
 
     const [year, month, day] = dateStr.split('-').map(Number);
-    return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    const parsed = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    if (
+        parsed.getUTCFullYear() !== year
+        || parsed.getUTCMonth() !== month - 1
+        || parsed.getUTCDate() !== day
+    ) {
+        throw new Error(`Invalid date format "${dateStr}". Expected a real YYYY-MM-DD calendar date`);
+    }
+    return parsed;
 }
 
 export function getWatcharaDispenserDatabaseUrl(): string | null {

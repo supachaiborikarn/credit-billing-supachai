@@ -180,3 +180,10 @@ A legacy route may be redirected only when:
 - Writes are ADMIN-only, active-station-only, canonical-station normalized and atomic with CREATE/UPDATE/DELETE AuditLog; FuelProduct references must be active.
 - No financial formula, sale amount calculation, price-book selection rule or billing behavior changed.
 - Targeted regression: **31/31**; financial + monthly gate: **101/101**; full regression: **600/600**; production build: **127/127**.
+
+### S123 Watchara integration local commit hardening (2026-08-30)
+- Watchara external integration remains separate from local Dispenser/Nozzle master data.
+- No sales/billing formula changed; this phase hardens control-plane auth/date parsing and the local persistence boundary only.
+- Bootstrap source upsert + AuditLog is atomic. Successful sync landing-row upserts + source success metadata + sync AuditLog are atomic after external fetch; failed external attempts can still record `lastError` outside that success transaction.
+- Date validation rejects impossible calendar dates; sync range remains max 31 days; page defaults use Bangkok date.
+- Targeted regression: **20/20**; financial + monthly gate: **101/101**; full regression: **609/609**; production build: **127/127**.

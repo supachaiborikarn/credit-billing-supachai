@@ -3662,3 +3662,30 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
   - authenticated write UAT was not attempted because user-started PID 62675 still owns port 3005 and `.next/dev/lock`; the process was deliberately not stopped and no mutation was sent to a server whose DB target was not independently verified.
   - no production DB write, push or deploy occurred.
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S122 staging.
+
+## 2026-08-30 — S123 — Harden Watchara external integration control plane and local sync commit
+- Status: `[x]`
+- Ownership:
+  - `/admin/watchara-dispenser` remains **KEEP_ADMIN_REPORT / integration control plane** for external source status, live probe, source bootstrap, dry-run and explicit sync.
+  - It remains intentionally separate from S122 local Dispenser/Nozzle master data.
+- API/auth/input hardening:
+  - status/bootstrap/sync routes now use shared `requireAdminApi()` instead of route-local cookie/session-role logic.
+  - status `probe` accepts only `0` or `1`; malformed values fail 400 before live probe work.
+  - sync request body must be an object; optional `startDate/endDate` must be strings and optional `dryRun` must be boolean before the sync service is called.
+  - sync date validation now rejects impossible calendar dates (for example 2026-02-31) in addition to enforcing real `YYYY-MM-DD`, ordered ranges and the existing max 31-day window.
+  - Watchara page date defaults now use Bangkok date rather than browser UTC date.
+- Write/audit hardening:
+  - explicit Bootstrap now upserts the source registry and writes `WATCHARA_DISPENSER_BOOTSTRAP` AuditLog in one bounded local transaction (`maxWait=5s`, `timeout=20s`).
+  - for a real Sync, external fetch/probe still occurs outside the local DB transaction by design; after fetch succeeds, every local landing-row upsert + source success metadata update + `WATCHARA_DISPENSER_SYNC` AuditLog now share one bounded local transaction (`maxWait=5s`, `timeout=30s`). Any local failure rolls back that local commit boundary instead of leaving partial imported rows without final source status/audit.
+  - pre-fetch `lastSyncAttemptAt` and failure `lastError` remain intentionally outside the success transaction so failed attempts stay visible operationally.
+  - dry-run still performs no landing-row/source mutation and retains its operator `WATCHARA_DISPENSER_DRY_RUN` audit event.
+- Verification:
+  - targeted Watchara utils/routes/local-commit/operational-sales regression: 4 files / **20 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 79 files / **609 tests passed**.
+  - TypeScript, S123-scoped ESLint and `git diff --check`: passed.
+  - production build: **127/127 routes passed**.
+- Runtime/safety:
+  - no live external probe/sync, production DB write, push or deploy occurred.
+  - live authenticated UAT was deliberately not attempted: port 3005 remains owned by user-started PID 62675 with `.next/dev/lock`, and an actual Watchara sync would also mutate external-source landing state. Atomic behavior is covered by isolated service/route tests.
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S123 staging.

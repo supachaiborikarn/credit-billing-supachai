@@ -51,3 +51,7 @@ describe('Watchara dispenser utils', () => {
         vi.unstubAllEnvs();
     });
 });
+
+it('rejects impossible calendar dates instead of normalizing them', () => {
+    expect(() => validateWatcharaSyncDateRange('2026-02-31', '2026-02-31')).toThrow('real YYYY-MM-DD calendar date');
+});

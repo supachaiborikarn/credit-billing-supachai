@@ -95,7 +95,8 @@ function formatDateTime(value: string | null) {
 }
 
 function getTodayDateInputValue() {
-    return new Date().toISOString().split('T')[0];
+    const bangkokNow = new Date(Date.now() + 7 * 60 * 60 * 1000);
+    return bangkokNow.toISOString().split('T')[0];
 }
 
 export default function WatcharaDispenserAdminPage() {

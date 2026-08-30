@@ -57,8 +57,10 @@ function getSyncWindow(options: WatcharaDispenserSyncOptions) {
     return validateWatcharaSyncDateRange(startDate, endDate);
 }
 
-async function ensureWatcharaTargetStationExists() {
-    const station = await prisma.station.findUnique({
+type WatcharaSourceClient = Pick<Prisma.TransactionClient, 'station' | 'externalSalesSource'>;
+
+async function ensureWatcharaTargetStationExists(client: WatcharaSourceClient = prisma) {
+    const station = await client.station.findUnique({
         where: { id: WATCHARA_LOCAL_STATION_ID },
         select: { id: true, name: true },
     });
@@ -70,10 +72,9 @@ async function ensureWatcharaTargetStationExists() {
     return station;
 }
 
-export async function ensureWatcharaSalesSource() {
-    await ensureWatcharaTargetStationExists();
-
-    return prisma.externalSalesSource.upsert({
+async function upsertWatcharaSalesSource(client: WatcharaSourceClient) {
+    await ensureWatcharaTargetStationExists(client);
+    return client.externalSalesSource.upsert({
         where: { code: WATCHARA_DISPENSER_SOURCE_CODE },
         create: {
             code: WATCHARA_DISPENSER_SOURCE_CODE,
@@ -93,6 +94,34 @@ export async function ensureWatcharaSalesSource() {
             isEnabled: true,
         },
     });
+}
+
+export async function ensureWatcharaSalesSource() {
+    return upsertWatcharaSalesSource(prisma);
+}
+
+export async function bootstrapWatcharaSalesSource(userId: string) {
+    return prisma.$transaction(async (tx) => {
+        const source = await upsertWatcharaSalesSource(tx);
+        await tx.auditLog.create({
+            data: {
+                userId,
+                action: 'WATCHARA_DISPENSER_BOOTSTRAP',
+                model: 'ExternalSalesSource',
+                recordId: WATCHARA_DISPENSER_SOURCE_CODE,
+                newData: {
+                    sourceId: source.id,
+                    code: source.code,
+                    stationId: source.stationId,
+                    sourceStationRef: source.sourceStationRef,
+                    fuelFamily: source.fuelFamily,
+                    rollupMode: source.rollupMode,
+                    isEnabled: source.isEnabled,
+                },
+            },
+        });
+        return source;
+    }, { maxWait: 5_000, timeout: 20_000 });
 }
 
 function toLocalExternalTransactionInput(
@@ -221,30 +250,42 @@ export async function syncWatcharaDispenser(
         }
 
         const syncedAt = new Date();
-        for (const row of rows) {
-            await prisma.externalDispenserTransaction.upsert({
-                where: {
-                    sourceId_externalTxId: {
-                        sourceId: source.id,
-                        externalTxId: row.externalTxId,
+        await prisma.$transaction(async (tx) => {
+            for (const row of rows) {
+                await tx.externalDispenserTransaction.upsert({
+                    where: {
+                        sourceId_externalTxId: {
+                            sourceId: source.id,
+                            externalTxId: row.externalTxId,
+                        },
                     },
+                    create: toLocalExternalTransactionInput(source.id, row, syncedAt),
+                    update: toLocalExternalTransactionInput(source.id, row, syncedAt),
+                });
+            }
+
+            await tx.externalSalesSource.update({
+                where: { id: source.id },
+                data: {
+                    lastSyncAttemptAt: syncedAt,
+                    lastSyncedAt: syncedAt,
+                    lastSeenSourceAt: latestSourceTransactionAt || source.lastSeenSourceAt,
+                    lastError: null,
                 },
-                create: toLocalExternalTransactionInput(source.id, row, syncedAt),
-                update: toLocalExternalTransactionInput(source.id, row, syncedAt),
             });
-        }
 
-        await prisma.externalSalesSource.update({
-            where: { id: source.id },
-            data: {
-                lastSyncAttemptAt: syncedAt,
-                lastSyncedAt: syncedAt,
-                lastSeenSourceAt: latestSourceTransactionAt || source.lastSeenSourceAt,
-                lastError: null,
-            },
-        });
-
-        await recordSyncAuditLog(options.triggeredByUserId, result);
+            if (options.triggeredByUserId) {
+                await tx.auditLog.create({
+                    data: {
+                        userId: options.triggeredByUserId,
+                        action: 'WATCHARA_DISPENSER_SYNC',
+                        model: 'ExternalSalesSource',
+                        recordId: WATCHARA_DISPENSER_SOURCE_CODE,
+                        newData: JSON.parse(JSON.stringify(result)) as Prisma.InputJsonValue,
+                    },
+                });
+            }
+        }, { maxWait: 5_000, timeout: 30_000 });
 
         return result;
     } catch (error) {

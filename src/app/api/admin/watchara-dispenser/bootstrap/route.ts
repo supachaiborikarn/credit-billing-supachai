@@ -1,21 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { HttpErrors, getErrorMessage } from '@/lib/api-error';
-import { getSessionWithError, isAdmin } from '@/lib/auth-utils';
-import { ensureWatcharaSalesSource } from '@/lib/watchara-dispenser-sync';
+import { NextResponse } from 'next/server';
+import { getErrorMessage } from '@/lib/api-error';
+import { requireAdminApi } from '@/lib/api-auth';
+import { bootstrapWatcharaSalesSource } from '@/lib/watchara-dispenser-sync';
 
-export async function POST(_request: NextRequest) {
+export async function POST() {
     try {
-        const { user, error } = await getSessionWithError();
-        if (!user) {
-            return HttpErrors.unauthorized(error || 'Unauthorized');
-        }
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
 
-        if (!isAdmin(user)) {
-            return HttpErrors.forbidden('Admin only');
-        }
-
-        const source = await ensureWatcharaSalesSource();
-
+        const source = await bootstrapWatcharaSalesSource(auth.user.id);
         return NextResponse.json({
             success: true,
             source: {
@@ -35,10 +28,7 @@ export async function POST(_request: NextRequest) {
         });
     } catch (error) {
         const message = getErrorMessage(error);
-        const status = message.includes('Target station')
-            ? 400
-            : 500;
-
+        const status = message.includes('Target station') ? 400 : 500;
         console.error('[Watchara Dispenser Bootstrap POST]:', error);
         return NextResponse.json({ error: message }, { status });
     }
