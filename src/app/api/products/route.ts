@@ -1,63 +1,30 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { HttpErrors, getErrorMessage } from '@/lib/api-error';
 import { requireAdminApi, requireApiSession } from '@/lib/api-auth';
 
-interface ProductInput {
-    name: string;
-    unit: string;
-    costPrice?: number | null;
-    salePrice: number;
-}
+const LEGACY_PRODUCT_REPLACEMENTS = {
+    canonicalInventory: '/stations/station-5/inventory',
+    stationProductApi: '/api/gas-station/5/products',
+} as const;
 
 export async function GET() {
-    try {
-        const auth = await requireApiSession();
-        if (auth.response) return auth.response;
+    const auth = await requireApiSession();
+    if (auth.response) return auth.response;
 
-        const products = await prisma.product.findMany({
-            orderBy: { name: 'asc' },
-        });
-
-        return NextResponse.json(products.map(p => ({
-            ...p,
-            costPrice: p.costPrice ? Number(p.costPrice) : null,
-            salePrice: Number(p.salePrice),
-        })));
-    } catch (error) {
-        console.error('[Products GET]:', error);
-        return HttpErrors.internal(getErrorMessage(error));
-    }
+    return NextResponse.json({
+        error: 'Legacy global Product API retired',
+        retired: true,
+        replacements: LEGACY_PRODUCT_REPLACEMENTS,
+    }, { status: 410 });
 }
 
 export async function POST(request: Request) {
-    try {
-        const auth = await requireAdminApi();
-        if (auth.response) return auth.response;
+    const auth = await requireAdminApi();
+    if (auth.response) return auth.response;
+    void request;
 
-        const body: ProductInput = await request.json();
-        const { name, unit, costPrice, salePrice } = body;
-
-        if (!name || !unit || !salePrice) {
-            return HttpErrors.badRequest('กรุณากรอกชื่อ หน่วย และราคาขาย');
-        }
-
-        const product = await prisma.product.create({
-            data: {
-                name,
-                unit,
-                costPrice: costPrice || null,
-                salePrice,
-            }
-        });
-
-        return NextResponse.json({
-            ...product,
-            costPrice: product.costPrice ? Number(product.costPrice) : null,
-            salePrice: Number(product.salePrice),
-        });
-    } catch (error) {
-        console.error('[Product POST]:', error);
-        return HttpErrors.internal(getErrorMessage(error));
-    }
+    return NextResponse.json({
+        error: 'Legacy global Product API retired',
+        retired: true,
+        replacements: LEGACY_PRODUCT_REPLACEMENTS,
+    }, { status: 410 });
 }

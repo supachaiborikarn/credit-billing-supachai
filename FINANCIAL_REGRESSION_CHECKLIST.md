@@ -212,3 +212,8 @@ A legacy route may be redirected only when:
 - `/api/payments` had no internal caller and previously wrote Payment, Invoice and legacy `Owner.currentCredit` in separate steps. It is now retired after auth with 410.
 - Canonical Billing continues to use only `/api/invoices/[id]/payments`, whose transaction and optimistic-concurrency guard are unchanged.
 - Targeted regression: **28/28**; financial + monthly gate: **101/101**; full regression: **629/629**; production build: **127/127**.
+
+### S129 Global Product API retirement (2026-08-31)
+- Unreferenced `/api/products` GET/POST now retire after auth; the global non-station Product create path is removed.
+- Active supplemental product writes remain station-5 canonical Inventory and existing station product APIs; no stock/sale/payment/billing formula changed.
+- Targeted regression: **30/30**; financial + monthly gate: **101/101**; full regression: **633/633**; production build: **127/127**.

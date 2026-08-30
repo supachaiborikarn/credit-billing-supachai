@@ -3791,3 +3791,24 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Safety / concurrent work:
   - no DB/UAT write was needed because S128 removes an unreferenced write implementation. No production DB write, push or deploy occurred.
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S128 staging.
+
+## 2026-08-31 — S129 — Retire unreferenced global Product API
+- Status: `[x]`
+- Release audit finding:
+  - repository caller audit found no internal caller for `/api/products`.
+  - its global ADMIN POST created Product rows without station scope or AuditLog, while active supplemental-product ownership is already canonical station-5 Inventory using the station product APIs.
+  - global GET was likewise unused by application code.
+- Retirement:
+  - GET keeps authenticated-session authorization then returns 410.
+  - POST keeps ADMIN authorization then returns 410.
+  - replacement metadata points to canonical `/stations/station-5/inventory` and `/api/gas-station/5/products`.
+  - all Prisma global Product read/create implementation was removed; station-5 product APIs and inventory semantics are unchanged.
+- Verification:
+  - targeted global/SIMPLE/GAS product + inventory/context regression: 6 files / **30 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 85 files / **633 tests passed**.
+  - TypeScript, S129-scoped ESLint and diff check: passed.
+  - production build: **127/127 routes passed**.
+- Safety / concurrent work:
+  - no DB/UAT write was needed because S129 removes an unreferenced write implementation. No production DB write, push or deploy occurred.
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S129 staging.
