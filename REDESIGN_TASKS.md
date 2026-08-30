@@ -3428,3 +3428,26 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
   - existing user-owned dev process on port 3005 was not stopped or modified.
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S112 staging.
 - No push / no deploy.
+
+## 2026-08-30 — S113 — Harden and KEEP GAS gauge history
+- Status: `[x]`
+- Parity / ownership decision:
+  - `/admin/gas/gauge` remains **KEEP_ADMIN_REPORT**: it is the only tank-by-tank gauge history that distinguishes opening/closing readings, filters by tank and exports the selected history to CSV.
+  - `/admin/gas/supplies` also remains **KEEP_ADMIN_REPORT** after audit: it owns cross-station supplier/cost summaries, gauge-vs-delivery verification, stock forecasts and audited edit/delete, which canonical station Inventory does not yet match.
+- Gauge read hardening:
+  - `GET /api/v2/gas/admin/gauge` keeps shared `requireAdminApi` as the authoritative permission guard.
+  - missing dates default to the latest 7 GAS business days instead of a near-zero `new Date()` range.
+  - explicit `from/to` must be valid `YYYY-MM-DD` Bangkok date keys and `from <= to`.
+  - station filter must be `all` or a configured GAS station; unrelated/unknown station IDs fail closed with 400.
+  - tank filter must be exactly 1, 2 or 3; partial values such as `1x` fail closed.
+  - Prisma date bounds use Bangkok start/end-of-day and response `date/displayDate` are serialized in Asia/Bangkok, avoiding UTC/Vercel date drift.
+- Verification:
+  - targeted gauge/analytics/v2/recovery regression: 4 files / **37 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 64 files / **517 tests passed**.
+  - TypeScript, S113-scoped ESLint and `git diff --check`: passed.
+  - production build: **127/127 routes passed**.
+- Safety / concurrent work:
+  - S113 is read-only hardening; no API write, financial formula, authenticated UAT DB write or production DB write occurred.
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S113 staging.
+- No push / no deploy.
