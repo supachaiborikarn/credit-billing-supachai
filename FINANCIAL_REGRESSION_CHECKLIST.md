@@ -192,3 +192,8 @@ A legacy route may be redirected only when:
 - Removed the unreferenced direct force-close/hard-delete/renumber implementation from `/api/admin/fix-shift`; authenticated ADMIN callers now receive 410 and replacement audited workflows.
 - This phase removes an unsafe write path and introduces no sale, shift-close, reconciliation, payment, invoice or pricing formula.
 - Targeted regression: **25/25**; financial + monthly gate: **101/101**; full regression: **612/612**; production build: **127/127**.
+
+### S125 SIMPLE shift-status force-close retirement (2026-08-31)
+- `GET /api/simple-station/[id]/shift-status` remains read-only compatibility; the legacy POST force-close write is retired with 410 after station access.
+- This removes a direct unaudited Shift mutation and adds no replacement calculation/write path; canonical Operations and retired-station read-only policy remain authoritative.
+- Targeted regression: **220/220**; financial + monthly gate: **101/101**; full regression: **615/615**; production build: **127/127**.

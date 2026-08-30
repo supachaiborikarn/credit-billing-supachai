@@ -3709,3 +3709,23 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Safety / concurrent work:
   - no DB write or HTTP mutation smoke was needed because S124 removes a write implementation; no production DB write, push or deploy occurred.
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S124 staging.
+
+## 2026-08-31 — S125 — Retire legacy SIMPLE shift-status force-close mutation
+- Status: `[x]`
+- Release audit finding:
+  - `POST /api/simple-station/[id]/shift-status` still exposed a direct `force-close` action that wrote Shift status/closedAt/varianceNote without AuditLog.
+  - repository caller audit found only legacy SIMPLE components; station-2/3/4 operational pages are already retired to POS/canonical read-only surfaces, while station-1 legacy SIMPLE bookmarks normalize to canonical Operations before hydrate.
+- Bounded retirement:
+  - `GET /api/simple-station/[id]/shift-status` remains read-only compatibility for status inspection.
+  - POST keeps the existing station-access auth boundary but no longer parses actions or mutates Prisma; authorized callers receive HTTP 410.
+  - station-1 callers are directed to canonical `/stations/station-1/operations`; retired SIMPLE station callers are directed to canonical History and told that forecourt work moved to POS.
+  - no new force-close endpoint was introduced.
+- Verification:
+  - targeted shift-status/legacy/middleware/context regression: 4 files / **220 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 81 files / **615 tests passed**.
+  - TypeScript, S125-scoped ESLint and diff check: passed.
+  - production build: **127/127 routes passed**.
+- Safety / concurrent work:
+  - S125 removes an unaudited write path; no DB write/UAT mutation was needed. No production DB write, push or deploy occurred.
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S125 staging.

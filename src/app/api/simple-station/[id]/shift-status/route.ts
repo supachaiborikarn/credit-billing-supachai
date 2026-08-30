@@ -78,48 +78,27 @@ export async function GET(
 }
 
 // POST /api/simple-station/[id]/shift-status - Force close old shift
+// POST /api/simple-station/[id]/shift-status - retired legacy force-close mutation
 export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    try {
-        const { id } = await params;
-        const stationId = id.startsWith('station-') ? id : `station-${id}`;
-        const auth = await requireStationAccessApi(stationId);
-        if (auth.response) return auth.response;
+    const { id } = await params;
+    const stationId = id.startsWith('station-') ? id : `station-${id}`;
+    const auth = await requireStationAccessApi(stationId);
+    if (auth.response) return auth.response;
+    void request;
 
-        const body = await request.json();
-        const { action, shiftId } = body;
+    const replacement = stationId === 'station-1'
+        ? '/stations/station-1/operations'
+        : `/stations/${stationId}/history`;
 
-        if (action === 'force-close' && shiftId) {
-            const shift = await prisma.shift.findUnique({
-                where: { id: shiftId },
-                include: { dailyRecord: { select: { stationId: true } } },
-            });
-
-            if (!shift || shift.dailyRecord.stationId !== stationId) {
-                return NextResponse.json({ error: 'ไม่พบกะนี้ในสถานีนี้' }, { status: 404 });
-            }
-
-            // Force close the old shift
-            await prisma.shift.update({
-                where: { id: shiftId },
-                data: {
-                    status: 'CLOSED',
-                    closedAt: new Date(),
-                    varianceNote: 'Force closed - กะค้างจากวันก่อน',
-                },
-            });
-
-            return NextResponse.json({ success: true, message: 'Shift force closed' });
-        }
-
-        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-    } catch (error) {
-        console.error('[Shift Status POST]:', error);
-        return NextResponse.json(
-            { error: 'Failed to process request' },
-            { status: 500 }
-        );
-    }
+    return NextResponse.json({
+        error: 'Legacy SIMPLE force-close API retired',
+        retired: true,
+        replacement,
+        message: stationId === 'station-1'
+            ? 'ใช้ canonical Operations สำหรับจัดการกะของ station-1'
+            : 'สถานี SIMPLE นี้ย้ายงานหน้าปั๊มไป POS แล้ว และระบบนี้เก็บเฉพาะประวัติ',
+    }, { status: 410 });
 }
