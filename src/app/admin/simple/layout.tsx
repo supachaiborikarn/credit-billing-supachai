@@ -5,9 +5,7 @@ import Link from 'next/link';
 import {
     LayoutDashboard,
     Building2,
-    Fuel,
     Clock,
-    Package,
     ChevronLeft,
     Menu,
     X,
@@ -28,7 +26,6 @@ export default function SimpleAdminLayout({
         { href: '/admin/simple/analytics', icon: BarChart3, label: 'Advanced Analytics' },
         { href: '/admin/simple/stations', icon: Building2, label: 'Station Performance' },
         { href: '/admin/simple/fuel-time', icon: Clock, label: 'Fuel & Time Analytics' },
-        { href: '/admin/simple/stock', icon: Package, label: 'Stock & Ordering' },
     ];
 
     const isActive = (href: string, exact?: boolean) => {

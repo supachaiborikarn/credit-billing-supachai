@@ -147,3 +147,8 @@ A legacy route may be redirected only when:
 - Today/week/month boundaries are Bangkok business-date based and bounded through today; the selector applies consistently to sales, liters and transaction counts.
 - This is read-only alignment: no sale, price, reconciliation, payment or inventory write formula changed.
 - Verified release gate: **101/101 tests passed**; full regression **539/539**; production build **127/127 routes**.
+
+### S117 SIMPLE mock-stock retirement (2026-08-30)
+- `/admin/simple/stock` and its v2 stock endpoint no longer expose randomized mock inventory/order data; no production tank source exists for retired SIMPLE stations.
+- This phase changes no transaction, payment, price, invoice, reconciliation or inventory write formula.
+- Verified release gate: **101/101 tests passed**; full regression **544/544**; production build **127/127 routes**.

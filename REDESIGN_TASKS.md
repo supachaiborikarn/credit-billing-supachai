@@ -3519,3 +3519,23 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Safety / concurrent work:
   - S116 is read-only dashboard hardening; no DB write, push or deploy occurred.
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S116 staging.
+
+## 2026-08-30 — S117 — Retire randomized SIMPLE stock mock
+- Status: `[x]`
+- Audit finding / ownership:
+  - `/admin/simple/stock` was not a real report: its API generated tank capacity, current volume, refill dates and daily usage with `Math.random()` on every request while the UI presented ordering status cards/tables.
+  - retired SIMPLE stations have no production Tank inventory source in this system, so fabricated stock cannot be a KEEP_ADMIN_REPORT surface or parity baseline.
+- Retirement:
+  - removed `Stock & Ordering` from the SIMPLE admin navigation.
+  - exact `/admin/simple/stock` now redirects to `/admin/simple`, preserving query parameters; middleware and login normalization also canonicalize authenticated and pre-login bookmarks.
+  - `GET /api/v2/simple/admin/stock` now calls shared `requireAdminApi`; unauthenticated/non-admin requests fail before retirement metadata and authenticated ADMIN receives 410 with `/admin/simple` replacement guidance.
+  - removed random/mock tank generation from the active API/page path.
+- Verification:
+  - targeted SIMPLE stock + middleware retirement: 2 files / **90 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 69 files / **544 tests passed**.
+  - TypeScript, S117-scoped ESLint and `git diff --check`: passed.
+  - production build: **127/127 routes passed**.
+- Safety / concurrent work:
+  - S117 is route/mock-data retirement only; no financial formula, DB write, push or deploy occurred.
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S117 staging.
