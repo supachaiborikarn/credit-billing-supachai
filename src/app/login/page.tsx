@@ -59,6 +59,7 @@ function normalizeCustomerMasterDataRedirectPath(path: string) {
 function normalizeBillingWorkspaceRedirectPath(path: string) {
     const normalized = path.length > 1 ? path.replace(/\/+$/, '') : path;
     if (normalized === '/invoices' || normalized === '/admin/invoices' || normalized === '/billing-collections' || normalized === '/admin/outstanding') return '/billing';
+    if (normalized === '/admin/generate-invoices') return '/billing?batch=monthly';
     const collectionMatch = normalized.match(/^\/billing-collections\/([^/]+)$/);
     if (collectionMatch) return `/billing/${encodeURIComponent(collectionMatch[1])}?kind=BILLING_COLLECTION`;
     return path;
@@ -100,14 +101,11 @@ function normalizeRedirectPath(path: string) {
         const parsed = new URL(path, 'https://credit-billing-supachai.local');
         if (parsed.pathname === '/dashboard') return `/today${parsed.search}${parsed.hash}`;
         const normalizedPath = normalizeRetiredSimpleRedirectPath(normalizeTankLoyRedirectPath(normalizeBillingWorkspaceRedirectPath(normalizeCustomerMasterDataRedirectPath(normalizeGasRedirectPath(parsed.pathname)))));
-        if (normalizedPath.includes('?kind=BILLING_COLLECTION')) {
-            const normalizedUrl = new URL(normalizedPath, 'https://credit-billing-supachai.local');
-            parsed.searchParams.forEach((value, key) => {
-                if (key !== 'kind') normalizedUrl.searchParams.append(key, value);
-            });
-            return `${normalizedUrl.pathname}${normalizedUrl.search}${parsed.hash}`;
-        }
-        return `${normalizedPath}${parsed.search}${parsed.hash}`;
+        const normalizedUrl = new URL(normalizedPath, 'https://credit-billing-supachai.local');
+        parsed.searchParams.forEach((value, key) => {
+            if (!normalizedUrl.searchParams.has(key)) normalizedUrl.searchParams.append(key, value);
+        });
+        return `${normalizedUrl.pathname}${normalizedUrl.search}${parsed.hash}`;
     } catch {
         if (path === '/dashboard') return '/today';
         return normalizeRetiredSimpleRedirectPath(normalizeTankLoyRedirectPath(normalizeBillingWorkspaceRedirectPath(normalizeCustomerMasterDataRedirectPath(normalizeGasRedirectPath(path)))));

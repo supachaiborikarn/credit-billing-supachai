@@ -134,6 +134,24 @@ describe('middleware legacy route retirement boundaries', () => {
         expect(loginUrl.searchParams.get('redirect')).toBe(target);
     });
 
+    it('retires legacy monthly Invoice generator into canonical Billing batch action', () => {
+        const response = middleware(request('/admin/generate-invoices?from=s106'));
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(
+            'https://credit-billing-supachai.local/billing?batch=monthly&from=s106'
+        );
+    });
+
+    it('normalizes unauthenticated monthly generator bookmark before login', () => {
+        const response = middleware(request('/admin/generate-invoices?from=s106-bookmark', false));
+        const location = response.headers.get('location');
+        expect(response.status).toBe(307);
+        expect(location).not.toBeNull();
+        const loginUrl = new URL(location!);
+        expect(loginUrl.pathname).toBe('/login');
+        expect(loginUrl.searchParams.get('redirect')).toBe('/billing?batch=monthly&from=s106-bookmark');
+    });
+
     it('redirects direct station-6 product inventory URL because products are disabled there', () => {
         const response = middleware(request('/gas/6/products?from=bookmark'));
 

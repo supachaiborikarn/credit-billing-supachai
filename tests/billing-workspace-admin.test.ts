@@ -32,6 +32,16 @@ describe('S104 canonical Billing admin workflow', () => {
         expect(actions).toContain('หน้าพิมพ์เดิม');
     });
 
+    it('owns monthly Invoice batch generation in canonical Billing without currentCredit', () => {
+        const component = source('src/components/billing/BillingWorkspaceAdminActions.tsx');
+        const service = source('src/services/monthly-invoice-service.ts');
+        expect(component).toContain("fetch('/api/admin/invoices/generate'");
+        expect(component).toContain('สร้าง Invoice รายเดือน');
+        expect(service).toContain('invoiceId: null');
+        expect(service).toContain("source: 'MONTHLY_BATCH'");
+        expect(service).not.toContain('currentCredit');
+    });
+
     it('moves BillingCollection slip review into canonical detail', () => {
         const detail = source('src/app/billing/[id]/page.tsx');
         const actions = source('src/components/billing/BillingPaymentEvidenceActions.tsx');

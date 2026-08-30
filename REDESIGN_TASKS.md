@@ -3209,3 +3209,38 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S105 staging.
 - No push / no deploy / no production DB write.
+
+## 2026-08-30 — S106 — Move monthly Invoice batch into canonical Billing
+- Status: `[x]`
+- Audit finding / reason for hardening:
+  - legacy monthly generation selected owners from `Owner.currentCredit > 0`, even though the live billing audit already proved `currentCredit` can drift from real debt.
+  - legacy monthly create did not require `invoiceId: null` and created the Invoice without connecting source transactions, so an Invoice could exist with no authoritative source-item linkage and later runs could re-read the same sales.
+- Canonical ownership:
+  - canonical `/billing` now exposes ADMIN “สร้าง Invoice รายเดือน” with Bangkok month/year selection, explicit confirmation and result counts.
+  - `/admin/generate-invoices` redirects to `/billing?batch=monthly`; authenticated and pre-login query normalization preserve bookmark context.
+  - the existing `POST /api/admin/invoices/generate` remains the ADMIN-only write contract; UI ownership moves, not the API URL.
+- Batch financial safety:
+  - monthly owner discovery is derived from real unbilled credit-like transactions using shared `CREDIT_PAYMENT_TYPES`, `invoiceId=null`, `deletedAt=null`, `isVoided=false` and Asia/Bangkok month boundaries. `currentCredit` is not consulted.
+  - one owner produces at most one monthly Invoice. Duplicate detection covers the entire Bangkok due-date day instead of exact timestamp equality, so legacy rows stored at UTC midnight and canonical rows stored at Bangkok midnight are treated as the same monthly due date and fail-closed/skipped.
+  - each owner create uses one bounded serializable Prisma transaction (maxWait 5s / timeout 20s); eligible source transactions are re-read inside the transaction, total is recomputed there, and those exact transactions are connected to the Invoice.
+  - each successful monthly Invoice writes an Invoice CREATE AuditLog with `source=MONTHLY_BATCH`, month/year, total and transaction count. No financial write retry is used.
+  - monthly period/due dates use Bangkok day boundaries; Invoice number generation continues to use the shared Bangkok document-number prefix.
+  - old exports from `credit-service` remain re-exported from the dedicated monthly service for compatibility while the implementation has a single hardened source.
+- Verification:
+  - targeted monthly/Billing/payment/redirect regression: 8 files / **109 tests passed**.
+  - expanded financial + monthly batch release gate: 18 files / **101 tests passed**.
+  - full regression: 55 files / **458 tests passed**.
+  - TypeScript, S106-scoped ESLint and `git diff --check`: passed.
+  - production build with `NODE_ENV=production`: **127/127 routes passed**.
+- Isolated Neon write UAT:
+  - UAT preflight confirmed a host different from production; CreditBilling used port 3005 only and port 3000 was untouched.
+  - used isolated period 12/2099 plus temporary station/admin/staff/owner/credit transaction fixtures so the batch could not touch an active UAT business period.
+  - canonical Billing returned 200; legacy monthly page and unauthenticated bookmark both redirected 307 to canonical Billing; STAFF batch call returned 403.
+  - with owner `currentCredit=0`, first ADMIN batch returned total=1/created=1/errors=0; resulting Invoice total was 100, exactly one source transaction was linked through `transaction.invoiceId`, due date matched Bangkok 15 Jan 2100, and CREATE AuditLog existed.
+  - a second unbilled transaction was then added for the same owner/month; rerunning the batch returned created=0/skipped=1 and Invoice count stayed exactly 1, proving duplicate fail-closed behavior.
+  - first harness attempt stopped before batch write because Node parsed a relative middleware Location without a base URL; its finally cleanup returned all fixture counts 0. Only the UAT assertion was fixed, then the same application code passed the rerun.
+  - final cleanup: Owner=0, Transaction=0, Invoice=0, User=0, Station=0; UAT server stopped and port 3005 is free.
+  - compatibility UAT then seeded a separate 12/2098 fixture with an existing legacy Invoice due at `2099-01-15T00:00:00.000Z`; the hardened batch returned total=1/created=0/skipped=1/errors=0, Invoice count remained 1, and the new unbilled transaction stayed `invoiceId=null`, proving the Bangkok-day guard sees legacy UTC-midnight documents.
+- Concurrent-work note:
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S106 staging.
+- No push / no deploy / no production DB write.

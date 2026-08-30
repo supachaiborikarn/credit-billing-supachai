@@ -119,7 +119,7 @@ export default function Sidebar({ children }: SidebarProps) {
             title: '💰 การเงิน & บิล',
             items: [
                 { href: '/billing', icon: FileText, label: 'Billing / วางบิล / รับชำระ', gradient: 'from-pink-500 to-rose-500' },
-                { href: '/admin/generate-invoices', icon: FileText, label: 'สร้าง Invoice รายเดือน', gradient: 'from-cyan-500 to-teal-500' },
+                { href: '/billing?batch=monthly', icon: FileText, label: 'สร้าง Invoice รายเดือน', gradient: 'from-cyan-500 to-teal-500' },
             ]
         },
         {

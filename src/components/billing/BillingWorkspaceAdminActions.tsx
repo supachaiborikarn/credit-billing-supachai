@@ -2,9 +2,9 @@
 
 import * as React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FilePlus2, Plus, ReceiptText, Trash2 } from 'lucide-react';
+import { CalendarClock, FilePlus2, Plus, ReceiptText, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/Toast';
-import { Button, Dialog, Input, Notice } from '@/components/ui';
+import { Button, ConfirmDialog, Dialog, Input, Notice } from '@/components/ui';
 import type { BillingWorkspaceItem, BillingWorkspacePayload } from '@/types/billing';
 
 interface OwnerOption {
@@ -18,6 +18,16 @@ interface CollectionItemDraft {
     sourceStation: string;
     sourceInvoiceNo: string;
     amount: string;
+}
+
+function bangkokYearMonth() {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Bangkok',
+        year: 'numeric',
+        month: '2-digit',
+    }).formatToParts(new Date());
+    const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return { year: Number(value.year), month: Number(value.month) };
 }
 
 function bangkokDateInput(offsetDays = 0) {
@@ -51,6 +61,8 @@ export function BillingWorkspaceAdminActions({
     const searchParams = useSearchParams();
     const [invoiceOpen, setInvoiceOpen] = React.useState(false);
     const [collectionOpen, setCollectionOpen] = React.useState(false);
+    const [monthlyOpen, setMonthlyOpen] = React.useState(false);
+    const [monthlyConfirmOpen, setMonthlyConfirmOpen] = React.useState(false);
     const [submitting, setSubmitting] = React.useState(false);
     const [invoiceOwnerIds, setInvoiceOwnerIds] = React.useState<string[]>([]);
     const [startDate, setStartDate] = React.useState('');
@@ -66,6 +78,19 @@ export function BillingWorkspaceAdminActions({
     const [collectionItems, setCollectionItems] = React.useState<CollectionItemDraft[]>([
         { sourceDescription: '', sourceStation: '', sourceInvoiceNo: '', amount: '' },
     ]);
+    const currentBangkokPeriod = React.useMemo(() => bangkokYearMonth(), []);
+    const [batchMonth, setBatchMonth] = React.useState(currentBangkokPeriod.month);
+    const [batchYear, setBatchYear] = React.useState(currentBangkokPeriod.year);
+    const [batchResult, setBatchResult] = React.useState<{
+        total: number;
+        created: number;
+        skipped: number;
+        errors: number;
+    } | null>(null);
+    const batchYearOptions = React.useMemo(
+        () => Array.from({ length: 6 }, (_, index) => currentBangkokPeriod.year - 3 + index),
+        [currentBangkokPeriod.year]
+    );
     const [error, setError] = React.useState<string | null>(null);
 
     const waitingItems = React.useMemo(
@@ -85,12 +110,61 @@ export function BillingWorkspaceAdminActions({
         router.replace('/billing', { scroll: false });
     }, [canManage, router, searchParams, waitingItems]);
 
+    React.useEffect(() => {
+        if (!canManage || searchParams.get('batch') !== 'monthly') return;
+        const period = bangkokYearMonth();
+        setBatchMonth(period.month);
+        setBatchYear(period.year);
+        setBatchResult(null);
+        setError(null);
+        setMonthlyOpen(true);
+        router.replace('/billing', { scroll: false });
+    }, [canManage, router, searchParams]);
+
     const openInvoice = (ownerId?: string) => {
         setInvoiceOwnerIds(ownerId ? [ownerId] : []);
         setStartDate(bangkokDateInput(-30));
         setEndDate(bangkokDateInput());
         setError(null);
         setInvoiceOpen(true);
+    };
+
+    const openMonthlyBatch = () => {
+        const period = bangkokYearMonth();
+        setBatchMonth(period.month);
+        setBatchYear(period.year);
+        setBatchResult(null);
+        setError(null);
+        setMonthlyOpen(true);
+    };
+
+    const runMonthlyBatch = async () => {
+        setSubmitting(true);
+        setError(null);
+        try {
+            const response = await fetch('/api/admin/invoices/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ month: batchMonth, year: batchYear }),
+            });
+            const payload = await response.json().catch(() => null);
+            if (!response.ok) throw new Error(readError(payload, 'สร้าง Invoice รายเดือนไม่สำเร็จ'));
+            const result = {
+                total: Number(payload?.total || 0),
+                created: Number(payload?.created || 0),
+                skipped: Number(payload?.skipped || 0),
+                errors: Number(payload?.errors || 0),
+            };
+            setBatchResult(result);
+            showToast(result.errors > 0 ? 'warning' : 'success', `สร้าง Invoice รายเดือน ${result.created} ใบ · ข้าม ${result.skipped} · ผิดพลาด ${result.errors}`);
+            await onSuccess();
+        } catch (submitError) {
+            const message = submitError instanceof Error ? submitError.message : 'สร้าง Invoice รายเดือนไม่สำเร็จ';
+            setError(message);
+            showToast('error', message);
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     const loadOwners = React.useCallback(async () => {
@@ -240,6 +314,10 @@ export function BillingWorkspaceAdminActions({
                     <ReceiptText className="h-4 w-4" aria-hidden="true" />
                     สร้างใบวางบิลรวม
                 </Button>
+                <Button variant="outline" onClick={openMonthlyBatch}>
+                    <CalendarClock className="h-4 w-4" aria-hidden="true" />
+                    สร้าง Invoice รายเดือน
+                </Button>
             </div>
 
             <Dialog
@@ -295,6 +373,70 @@ export function BillingWorkspaceAdminActions({
                     </div>
                 </div>
             </Dialog>
+
+            <Dialog
+                open={monthlyOpen}
+                onOpenChange={(next) => !submitting && setMonthlyOpen(next)}
+                title="สร้าง Invoice รายเดือน"
+                description="ระบบจะใช้เฉพาะรายการเครดิตในเดือนที่เลือกซึ่งยังไม่มี invoiceId และสร้างแยกหนึ่ง Invoice ต่อหนึ่งลูกค้า"
+                size="md"
+                footer={(
+                    <>
+                        <Button variant="outline" disabled={submitting} onClick={() => setMonthlyOpen(false)}>ปิด</Button>
+                        <Button disabled={submitting} onClick={() => setMonthlyConfirmOpen(true)}>ตรวจและยืนยัน</Button>
+                    </>
+                )}
+            >
+                <div className="space-y-4">
+                    {error && <Notice tone="danger">{error}</Notice>}
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        <div>
+                            <label className="mb-1.5 block text-sm font-semibold">เดือน</label>
+                            <select
+                                value={batchMonth}
+                                onChange={(event) => setBatchMonth(Number(event.target.value))}
+                                className="h-[var(--ui-control-md)] w-full rounded-[var(--ui-radius-md)] border border-[var(--ui-border-strong)] bg-[var(--ui-surface)] px-3 text-sm"
+                            >
+                                {['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'].map((label, index) => (
+                                    <option key={label} value={index + 1}>{label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="mb-1.5 block text-sm font-semibold">ปี</label>
+                            <select
+                                value={batchYear}
+                                onChange={(event) => setBatchYear(Number(event.target.value))}
+                                className="h-[var(--ui-control-md)] w-full rounded-[var(--ui-radius-md)] border border-[var(--ui-border-strong)] bg-[var(--ui-surface)] px-3 text-sm"
+                            >
+                                {batchYearOptions.map((year) => <option key={year} value={year}>{year + 543}</option>)}
+                            </select>
+                        </div>
+                    </div>
+                    <Notice tone="warning" title="Batch นี้ไม่อิง currentCredit">
+                        ระบบค้นจากรายการเครดิตที่ยังไม่ถูกวางบิลจริงในเดือนนั้น และจะข้ามลูกค้าที่มี Invoice งวดเดียวกันอยู่แล้วเพื่อป้องกันเอกสารซ้ำ
+                    </Notice>
+                    {batchResult && (
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                            <div className="rounded-[var(--ui-radius-md)] bg-[var(--ui-surface-subtle)] p-3 text-center"><div className="text-xl font-bold">{batchResult.total}</div><div className="text-xs text-[var(--ui-text-muted)]">ลูกค้าที่พบ</div></div>
+                            <div className="rounded-[var(--ui-radius-md)] bg-[var(--ui-surface-subtle)] p-3 text-center"><div className="text-xl font-bold">{batchResult.created}</div><div className="text-xs text-[var(--ui-text-muted)]">สร้างแล้ว</div></div>
+                            <div className="rounded-[var(--ui-radius-md)] bg-[var(--ui-surface-subtle)] p-3 text-center"><div className="text-xl font-bold">{batchResult.skipped}</div><div className="text-xs text-[var(--ui-text-muted)]">ข้าม</div></div>
+                            <div className="rounded-[var(--ui-radius-md)] bg-[var(--ui-surface-subtle)] p-3 text-center"><div className="text-xl font-bold">{batchResult.errors}</div><div className="text-xs text-[var(--ui-text-muted)]">ผิดพลาด</div></div>
+                        </div>
+                    )}
+                </div>
+            </Dialog>
+
+            <ConfirmDialog
+                open={monthlyConfirmOpen}
+                onOpenChange={setMonthlyConfirmOpen}
+                title="ยืนยันสร้าง Invoice รายเดือน"
+                description={`สร้างจากรายการที่ยังไม่ถูกวางบิล เดือน ${batchMonth}/${batchYear} เท่านั้น`}
+                confirmLabel="สร้าง Invoice"
+                onConfirm={runMonthlyBatch}
+            >
+                <Notice tone="warning">การทำงานนี้อาจสร้าง Invoice หลายใบ ระบบจะ audit ทุกใบและไม่รวมหลายเจ้าของไว้ในใบเดียว</Notice>
+            </ConfirmDialog>
 
             <Dialog
                 open={collectionOpen}

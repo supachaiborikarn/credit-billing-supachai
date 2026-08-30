@@ -85,6 +85,7 @@ function getBillingWorkspaceRedirectPath(pathname: string) {
     if (normalized === '/invoices' || normalized === '/admin/invoices' || normalized === '/billing-collections' || normalized === '/admin/outstanding') {
         return '/billing';
     }
+    if (normalized === '/admin/generate-invoices') return '/billing?batch=monthly';
     const collectionMatch = normalized.match(/^\/billing-collections\/([^/]+)$/);
     if (collectionMatch) return `/billing/${encodeURIComponent(collectionMatch[1])}?kind=BILLING_COLLECTION`;
     return null;
@@ -143,9 +144,7 @@ export function middleware(request: NextRequest) {
         const redirectPath = canonicalLandingRedirectPath || currentGasRedirectPath || gasV2RedirectPath || customerMasterDataRedirectPath || billingWorkspaceRedirectPath || retiredSimpleSummaryRedirectPath || tankLoyRedirectPath || pathname;
         const redirectTarget = new URL(redirectPath, request.url);
         request.nextUrl.searchParams.forEach((value, key) => {
-            if (key !== 'kind' || !redirectTarget.searchParams.has('kind')) {
-                redirectTarget.searchParams.append(key, value);
-            }
+            if (!redirectTarget.searchParams.has(key)) redirectTarget.searchParams.append(key, value);
         });
         loginUrl.searchParams.set('redirect', `${redirectTarget.pathname}${redirectTarget.search}`);
         return NextResponse.redirect(loginUrl);
@@ -178,7 +177,7 @@ export function middleware(request: NextRequest) {
     if (billingWorkspaceRedirectPath) {
         const redirectUrl = new URL(billingWorkspaceRedirectPath, request.url);
         request.nextUrl.searchParams.forEach((value, key) => {
-            if (key !== 'kind') redirectUrl.searchParams.append(key, value);
+            if (!redirectUrl.searchParams.has(key)) redirectUrl.searchParams.append(key, value);
         });
         return NextResponse.redirect(redirectUrl);
     }

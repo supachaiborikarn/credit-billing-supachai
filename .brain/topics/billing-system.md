@@ -148,3 +148,10 @@
 - `/admin/credit-limit` retire ไป `/customers`; Customer 360 มี ADMIN credit-limit edit อยู่แล้วและระบุ currentCredit ว่า legacy indicator.
 - `/admin/generate-invoices` ยัง KEEP เป็น monthly/batch workflow แยกจาก ordinary Billing create ของ S104.
 - Gates: targeted 93/93, financial 91/91, full 445/445, build 127/127; S105 ไม่มี financial write/calculation change.
+
+### Canonical monthly Invoice batch (S106 — 2026-08-30)
+- `/admin/generate-invoices` retire ไป `/billing?batch=monthly`; canonical Billing เป็น UI owner ของ monthly batch ส่วน `POST /api/admin/invoices/generate` ยังเป็น ADMIN-only write contract.
+- audit S106 พบ batch เดิมเลือก owner จาก `currentCredit > 0`, ไม่กรอง `invoiceId=null` และสร้าง Invoice โดยไม่ connect source transactions; จุดเหล่านี้ถูกย้ายไป `monthly-invoice-service` และ harden แล้ว.
+- batch ใหม่ derive owner จาก credit-like transaction จริงตาม Bangkok month, recheck eligible rows ใน bounded serializable transaction, recompute total, connect source transaction, audit `source=MONTHLY_BATCH`, และ skip เมื่อมี Invoice owner+monthly due-date เดิมอยู่แล้ว. duplicate guard เทียบทั้งวัน Bangkok เพื่อครอบคลุม dueDate เก่าที่บันทึกเป็น UTC midnight ด้วย. ไม่มี write retry.
+- `currentCredit` ไม่ถูกใช้ใน monthly batch; UAT พิสูจน์ด้วย owner currentCredit=0 ว่ายังสร้าง Invoice จาก unbilled transaction ได้ถูกต้อง และรอบสองไม่สร้างซ้ำ.
+- S106 gates: targeted 109/109, expanded financial+batch 101/101, full 458/458, build 127/127; isolated 12/2099 UAT ผ่าน source linkage + audit + STAFF 403 + duplicate skip และ cleanup ทุก fixture = 0. compatibility UAT 12/2098 กับ legacy dueDate `2099-01-15T00:00:00Z` ยืนยัน created=0/skipped=1 และไม่สร้างใบซ้ำ.
