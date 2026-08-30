@@ -137,9 +137,10 @@ Disposition: `shift-history` retired in S82, `meter-summary` retired in S83, and
 | `/billing-collections` | `/billing` | **S104 RETIRED** — canonical Billing owns manual BillingCollection creation and workspace list/filtering. |
 | `/billing-collections/[id]` | `/billing/[id]?kind=BILLING_COLLECTION` | **S104 RETIRED** — canonical detail owns evidence upload plus ADMIN verify/reject/delete of pending slips. |
 | `/admin/generate-invoices` | future scheduled/batch Billing action | KEEP_ADMIN_REPORT — separate monthly/batch workflow; not part of ordinary S104 document creation. |
-| `/admin/outstanding`, `/admin/credit-limit` | Billing/Customer 360 | KEEP_ADMIN_REPORT until explicit parity |
+| `/admin/outstanding` | `/billing` | **S105 RETIRED** — legacy page summed `Owner.currentCredit`, which live audit proved can drift from actual unbilled + Invoice balances. Canonical Billing shows separated source-of-truth debt buckets instead. |
+| `/admin/credit-limit` | `/customers` / Customer 360 | **S105 RETIRED** — canonical Customer 360 already owns ADMIN credit-limit edit and shows legacy credit only as a labeled non-authoritative indicator. |
 
-S104 makes `/billing` the normal user-facing Billing workspace. Invoice writes are owner-scoped and audited in bounded serializable transactions; BillingCollection create/review is ADMIN-only. `/invoices/[id]` deliberately remains a print-only compatibility surface, while `/admin/generate-invoices`, outstanding and credit-limit admin reports remain separate review items.
+S104 makes `/billing` the normal user-facing Billing workspace. Invoice writes are owner-scoped and audited in bounded serializable transactions; BillingCollection create/review is ADMIN-only. `/invoices/[id]` deliberately remains a print-only compatibility surface. S105 then retires the old currentCredit-based outstanding report to Billing and the duplicate credit-limit editor to Customers; `/admin/generate-invoices` remains a separate batch workflow.
 
 ## Customer/master-data routes
 

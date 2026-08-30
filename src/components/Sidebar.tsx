@@ -120,8 +120,6 @@ export default function Sidebar({ children }: SidebarProps) {
             items: [
                 { href: '/billing', icon: FileText, label: 'Billing / วางบิล / รับชำระ', gradient: 'from-pink-500 to-rose-500' },
                 { href: '/admin/generate-invoices', icon: FileText, label: 'สร้าง Invoice รายเดือน', gradient: 'from-cyan-500 to-teal-500' },
-                { href: '/admin/outstanding', icon: Users, label: 'ลูกค้าค้างชำระ', gradient: 'from-orange-500 to-red-500' },
-                { href: '/admin/credit-limit', icon: Users, label: 'จัดการวงเงิน', gradient: 'from-blue-500 to-cyan-500' },
             ]
         },
         {

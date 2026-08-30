@@ -112,6 +112,28 @@ describe('middleware legacy route retirement boundaries', () => {
         expect(response.headers.get('location')).toBeNull();
     });
 
+    it.each([
+        ['/admin/outstanding?from=s105', '/billing?from=s105'],
+        ['/admin/credit-limit?from=s105', '/customers?from=s105'],
+    ])('retires legacy credit admin view %s to canonical source-of-truth workspace', (path, target) => {
+        const response = middleware(request(path));
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(`https://credit-billing-supachai.local${target}`);
+    });
+
+    it.each([
+        ['/admin/outstanding?from=s105-bookmark', '/billing?from=s105-bookmark'],
+        ['/admin/credit-limit?from=s105-bookmark', '/customers?from=s105-bookmark'],
+    ])('normalizes unauthenticated credit admin bookmark %s before login', (path, target) => {
+        const response = middleware(request(path, false));
+        const location = response.headers.get('location');
+        expect(response.status).toBe(307);
+        expect(location).not.toBeNull();
+        const loginUrl = new URL(location!);
+        expect(loginUrl.pathname).toBe('/login');
+        expect(loginUrl.searchParams.get('redirect')).toBe(target);
+    });
+
     it('redirects direct station-6 product inventory URL because products are disabled there', () => {
         const response = middleware(request('/gas/6/products?from=bookmark'));
 

@@ -52,13 +52,13 @@ function normalizeRetiredSimpleRedirectPath(path: string) {
 
 function normalizeCustomerMasterDataRedirectPath(path: string) {
     const normalized = path.length > 1 ? path.replace(/\/+$/, '') : path;
-    if (normalized === '/owners' || normalized === '/trucks' || normalized === '/admin/owners') return '/customers';
+    if (normalized === '/owners' || normalized === '/trucks' || normalized === '/admin/owners' || normalized === '/admin/credit-limit') return '/customers';
     return path;
 }
 
 function normalizeBillingWorkspaceRedirectPath(path: string) {
     const normalized = path.length > 1 ? path.replace(/\/+$/, '') : path;
-    if (normalized === '/invoices' || normalized === '/admin/invoices' || normalized === '/billing-collections') return '/billing';
+    if (normalized === '/invoices' || normalized === '/admin/invoices' || normalized === '/billing-collections' || normalized === '/admin/outstanding') return '/billing';
     const collectionMatch = normalized.match(/^\/billing-collections\/([^/]+)$/);
     if (collectionMatch) return `/billing/${encodeURIComponent(collectionMatch[1])}?kind=BILLING_COLLECTION`;
     return path;

@@ -142,3 +142,9 @@
 - BillingCollection create เป็น ADMIN-only, validate active owner/date/positive manual items และ AuditLog; payment-slip create/review เป็น ADMIN-only, verify/reject เก็บ `verifiedById`, overpay guard เดิมยัง authoritative.
 - เลข Invoice/Collection ใช้วันที่ Asia/Bangkok เพื่อไม่เลื่อนเลขเอกสารช่วง UTC midnight.
 - S104 final gates: financial 91/91, full 441/441, build 127/127; isolated UAT ผ่าน role/create/delete/payment/export/collection/verify/reject/delete และ cleanup Owner/Transaction/Invoice/Collection/Audit = 0.
+
+### Legacy credit admin retirement (S105 — 2026-08-30)
+- `/admin/outstanding` retire ไป `/billing` เพราะหน้าเก่า sum `Owner.currentCredit` ซึ่ง audit จริงพบ drift และไม่ใช่ source of truth; Billing ใหม่แยก unbilled / Invoice / BillingCollection outstanding เพื่อไม่ double count.
+- `/admin/credit-limit` retire ไป `/customers`; Customer 360 มี ADMIN credit-limit edit อยู่แล้วและระบุ currentCredit ว่า legacy indicator.
+- `/admin/generate-invoices` ยัง KEEP เป็น monthly/batch workflow แยกจาก ordinary Billing create ของ S104.
+- Gates: targeted 93/93, financial 91/91, full 445/445, build 127/127; S105 ไม่มี financial write/calculation change.

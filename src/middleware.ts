@@ -76,13 +76,13 @@ function getRetiredSimpleSummaryRedirectPath(pathname: string) {
 
 function getCustomerMasterDataRedirectPath(pathname: string) {
     const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
-    if (normalized === '/owners' || normalized === '/trucks' || normalized === '/admin/owners') return '/customers';
+    if (normalized === '/owners' || normalized === '/trucks' || normalized === '/admin/owners' || normalized === '/admin/credit-limit') return '/customers';
     return null;
 }
 
 function getBillingWorkspaceRedirectPath(pathname: string) {
     const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
-    if (normalized === '/invoices' || normalized === '/admin/invoices' || normalized === '/billing-collections') {
+    if (normalized === '/invoices' || normalized === '/admin/invoices' || normalized === '/billing-collections' || normalized === '/admin/outstanding') {
         return '/billing';
     }
     const collectionMatch = normalized.match(/^\/billing-collections\/([^/]+)$/);

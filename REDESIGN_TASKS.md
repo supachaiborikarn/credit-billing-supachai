@@ -3188,3 +3188,24 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S104 staging.
 - No push / no deploy / no production DB write.
+
+## 2026-08-30 — S105 — Retire legacy outstanding / credit-limit admin views
+- Status: `[x]`
+- Source-of-truth decision:
+  - `/admin/outstanding` used `Owner.currentCredit` as its total and percentage source, but the billing live audit already found that legacy field drifts from actual unbilled + Invoice debt for many owners.
+  - canonical `/billing` shows unbilled, Invoice outstanding and BillingCollection outstanding separately and intentionally avoids a misleading double-counted grand total.
+  - `/admin/credit-limit` only duplicated credit-limit editing; Customer 360 already owns ADMIN credit-limit writes and labels currentCredit as legacy/non-authoritative.
+- Route/nav retirement:
+  - `/admin/outstanding` -> `/billing`; `/admin/credit-limit` -> `/customers`, both with authenticated and pre-login query normalization.
+  - removed both duplicate entries from the admin Sidebar.
+  - `/admin/generate-invoices` remains KEEP_ADMIN_REPORT as the separate monthly/batch generation workflow.
+- Verification:
+  - targeted middleware + Billing/Customer regression: 6 files / **93 tests passed**.
+  - financial release gate: 16 files / **91 tests passed**.
+  - full regression: 53 files / **445 tests passed**.
+  - TypeScript, scoped ESLint and `git diff --check`: passed.
+  - production build with `NODE_ENV=production`: **127/127 routes passed**.
+- No UAT DB write was required because S105 changes only redirect/navigation ownership and removes reliance on the legacy display page; no API/write/calculation behavior changed.
+- Concurrent-work note:
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S105 staging.
+- No push / no deploy / no production DB write.
