@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { checkLowStock } from '@/services/inventory-service';
+import { requireAdminApi } from '@/lib/api-auth';
 
 // GET - ดึงรายการสินค้าสต็อกต่ำ
 export async function GET(request: Request) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const { searchParams } = new URL(request.url);
         const stationId = searchParams.get('stationId') || undefined;
 

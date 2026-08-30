@@ -6,6 +6,7 @@
  * - ตรวจสอบสต็อกต่ำ
  */
 
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 
 /**
@@ -69,7 +70,6 @@ export async function checkLowStock(stationId?: string): Promise<LowStockItem[]>
     // Get all products with inventory
     const inventories = await prisma.productInventory.findMany({
         where: {
-            quantity: { gt: 0 },
             ...(stationId && { stationId })
         },
         include: {
@@ -85,7 +85,7 @@ export async function checkLowStock(stationId?: string): Promise<LowStockItem[]>
     const lowStockItems: LowStockItem[] = [];
 
     for (const inv of inventories) {
-        const alertLevel = Number(inv.alertLevel || 10);
+        const alertLevel = Number(inv.alertLevel ?? 10);
         const currentStock = Number(inv.quantity);
 
         if (currentStock <= alertLevel) {
@@ -128,59 +128,104 @@ export async function getStationInventorySummary(stationId: string) {
         unit: inv.product.unit,
         price: Number(inv.product.salePrice),
         currentStock: Number(inv.quantity),
-        alertLevel: Number(inv.alertLevel || 10),
-        isLowStock: Number(inv.quantity) <= Number(inv.alertLevel || 10),
+        alertLevel: Number(inv.alertLevel ?? 10),
+        isLowStock: Number(inv.quantity) <= Number(inv.alertLevel ?? 10),
         totalValue: Number(inv.quantity) * Number(inv.product.salePrice)
     }));
 }
 
 /**
- * อัปเดตสต็อกสินค้า (เพิ่มหรือลด)
- * @param stationId Station ID
- * @param productId Product ID
- * @param quantityChange จำนวนที่เปลี่ยน (บวก = เพิ่ม, ลบ = ลด)
+ * ปรับยอดสต็อกโดยแอดมิน (ไม่สร้าง receipt/sale ปลอม)
  */
-export async function updateInventory(
+const INVENTORY_ADJUST_WRITE_OPTIONS = {
+    maxWait: 5000,
+    timeout: 20000,
+    isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+} as const;
+
+export interface InventoryAdjustmentResult {
+    success: boolean;
+    inventoryId?: string;
+    previousQuantity?: number;
+    newQuantity: number;
+    error?: string;
+    code?: 'NOT_FOUND' | 'INVALID_QUANTITY' | 'INSUFFICIENT_STOCK' | 'CONFLICT';
+}
+
+export async function adjustInventory(
     stationId: string,
     productId: string,
-    quantityChange: number
-): Promise<{ success: boolean; newQuantity: number; error?: string }> {
+    quantityChange: number,
+    userId: string,
+    reason: string
+): Promise<InventoryAdjustmentResult> {
+    if (!Number.isInteger(quantityChange) || quantityChange === 0) {
+        return { success: false, newQuantity: 0, error: 'จำนวนปรับต้องเป็นจำนวนเต็มและไม่เท่ากับ 0', code: 'INVALID_QUANTITY' };
+    }
+
     try {
-        const inventory = await prisma.productInventory.findFirst({
-            where: { stationId, productId }
-        });
-
-        if (!inventory) {
-            // Create new inventory record
-            const newInv = await prisma.productInventory.create({
-                data: {
-                    stationId,
-                    productId,
-                    quantity: Math.max(0, quantityChange)
-                }
+        return await prisma.$transaction(async (tx) => {
+            const inventory = await tx.productInventory.findUnique({
+                where: { productId_stationId: { productId, stationId } },
+                include: { product: { select: { name: true } } },
             });
-            return { success: true, newQuantity: Number(newInv.quantity) };
-        }
 
-        const currentQty = Number(inventory.quantity);
-        const newQty = currentQty + quantityChange;
+            if (!inventory) {
+                return { success: false, newQuantity: 0, error: 'ไม่พบสินค้าในสต็อกสถานีนี้', code: 'NOT_FOUND' } as InventoryAdjustmentResult;
+            }
 
-        if (newQty < 0) {
+            const previousQuantity = Number(inventory.quantity);
+            const newQuantity = previousQuantity + quantityChange;
+            if (newQuantity < 0) {
+                return {
+                    success: false,
+                    inventoryId: inventory.id,
+                    previousQuantity,
+                    newQuantity: previousQuantity,
+                    error: `สต็อกไม่เพียงพอ (มี ${previousQuantity} จะลด ${Math.abs(quantityChange)})`,
+                    code: 'INSUFFICIENT_STOCK',
+                } as InventoryAdjustmentResult;
+            }
+
+            await tx.productInventory.update({
+                where: { id: inventory.id },
+                data: { quantity: newQuantity },
+            });
+            await tx.auditLog.create({
+                data: {
+                    userId,
+                    action: 'ADJUST',
+                    model: 'ProductInventory',
+                    recordId: inventory.id,
+                    oldData: {
+                        stationId,
+                        productId,
+                        productName: inventory.product.name,
+                        quantity: previousQuantity,
+                    },
+                    newData: {
+                        stationId,
+                        productId,
+                        productName: inventory.product.name,
+                        quantity: newQuantity,
+                        quantityChange,
+                        reason,
+                    },
+                },
+            });
+
             return {
-                success: false,
-                newQuantity: currentQty,
-                error: `สต็อกไม่เพียงพอ (มี ${currentQty} จะลด ${Math.abs(quantityChange)})`
+                success: true,
+                inventoryId: inventory.id,
+                previousQuantity,
+                newQuantity,
             };
-        }
-
-        const updated = await prisma.productInventory.update({
-            where: { id: inventory.id },
-            data: { quantity: newQty }
-        });
-
-        return { success: true, newQuantity: Number(updated.quantity) };
+        }, INVENTORY_ADJUST_WRITE_OPTIONS);
     } catch (error) {
-        console.error('[INVENTORY] Update error:', error);
-        return { success: false, newQuantity: 0, error: 'เกิดข้อผิดพลาด' };
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
+            return { success: false, newQuantity: 0, error: 'สต็อกถูกแก้ไขพร้อมกัน กรุณารีเฟรชแล้วลองใหม่', code: 'CONFLICT' };
+        }
+        console.error('[INVENTORY] Adjust error:', error);
+        return { success: false, newQuantity: 0, error: 'เกิดข้อผิดพลาดในการปรับสต็อก' };
     }
 }

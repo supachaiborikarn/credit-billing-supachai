@@ -103,8 +103,7 @@ export default function Sidebar({ children }: SidebarProps) {
             title: '🛢️ ปั๊มน้ำมัน',
             items: [
                 { href: '/admin/gas', icon: Fuel, label: 'Gas Control V2', gradient: 'from-purple-500 to-indigo-500' },
-                { href: '/admin/inventory', icon: Fuel, label: 'จัดการสต็อก', gradient: 'from-green-500 to-emerald-500' },
-                { href: '/admin/low-stock', icon: Fuel, label: 'สต็อกต่ำ', gradient: 'from-red-500 to-pink-500' },
+                { href: '/stations/station-5/inventory', icon: Fuel, label: 'สินค้า/สต็อก GAS', gradient: 'from-green-500 to-emerald-500' },
             ]
         },
         {

@@ -56,6 +56,12 @@ function normalizeCustomerMasterDataRedirectPath(path: string) {
     return path;
 }
 
+function normalizeAdminInventoryRedirectPath(path: string) {
+    const normalized = path.length > 1 ? path.replace(/\/+$/, '') : path;
+    if (normalized === '/admin/inventory' || normalized === '/admin/low-stock') return '/stations/station-5/inventory';
+    return path;
+}
+
 function normalizeBillingWorkspaceRedirectPath(path: string) {
     const normalized = path.length > 1 ? path.replace(/\/+$/, '') : path;
     if (normalized === '/invoices' || normalized === '/admin/invoices' || normalized === '/billing-collections' || normalized === '/admin/outstanding') return '/billing';
@@ -100,7 +106,7 @@ function normalizeRedirectPath(path: string) {
     try {
         const parsed = new URL(path, 'https://credit-billing-supachai.local');
         if (parsed.pathname === '/dashboard') return `/today${parsed.search}${parsed.hash}`;
-        const normalizedPath = normalizeRetiredSimpleRedirectPath(normalizeTankLoyRedirectPath(normalizeBillingWorkspaceRedirectPath(normalizeCustomerMasterDataRedirectPath(normalizeGasRedirectPath(parsed.pathname)))));
+        const normalizedPath = normalizeRetiredSimpleRedirectPath(normalizeTankLoyRedirectPath(normalizeAdminInventoryRedirectPath(normalizeBillingWorkspaceRedirectPath(normalizeCustomerMasterDataRedirectPath(normalizeGasRedirectPath(parsed.pathname))))));
         const normalizedUrl = new URL(normalizedPath, 'https://credit-billing-supachai.local');
         parsed.searchParams.forEach((value, key) => {
             if (!normalizedUrl.searchParams.has(key)) normalizedUrl.searchParams.append(key, value);
@@ -108,7 +114,7 @@ function normalizeRedirectPath(path: string) {
         return `${normalizedUrl.pathname}${normalizedUrl.search}${parsed.hash}`;
     } catch {
         if (path === '/dashboard') return '/today';
-        return normalizeRetiredSimpleRedirectPath(normalizeTankLoyRedirectPath(normalizeBillingWorkspaceRedirectPath(normalizeCustomerMasterDataRedirectPath(normalizeGasRedirectPath(path)))));
+        return normalizeRetiredSimpleRedirectPath(normalizeTankLoyRedirectPath(normalizeAdminInventoryRedirectPath(normalizeBillingWorkspaceRedirectPath(normalizeCustomerMasterDataRedirectPath(normalizeGasRedirectPath(path))))));
     }
 }
 

@@ -152,6 +152,24 @@ describe('middleware legacy route retirement boundaries', () => {
         expect(loginUrl.searchParams.get('redirect')).toBe('/billing?batch=monthly&from=s106-bookmark');
     });
 
+    it.each(['/admin/inventory?from=s107', '/admin/low-stock?from=s107'])('retires duplicate admin inventory view %s to canonical station-5 Inventory', (path) => {
+        const response = middleware(request(path));
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(
+            'https://credit-billing-supachai.local/stations/station-5/inventory?from=s107'
+        );
+    });
+
+    it.each(['/admin/inventory?from=s107-bookmark', '/admin/low-stock?from=s107-bookmark'])('normalizes unauthenticated inventory bookmark %s before login', (path) => {
+        const response = middleware(request(path, false));
+        const location = response.headers.get('location');
+        expect(response.status).toBe(307);
+        expect(location).not.toBeNull();
+        const loginUrl = new URL(location!);
+        expect(loginUrl.pathname).toBe('/login');
+        expect(loginUrl.searchParams.get('redirect')).toBe('/stations/station-5/inventory?from=s107-bookmark');
+    });
+
     it('redirects direct station-6 product inventory URL because products are disabled there', () => {
         const response = middleware(request('/gas/6/products?from=bookmark'));
 

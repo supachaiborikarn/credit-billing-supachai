@@ -154,7 +154,9 @@ S102 moved ordinary owner master-data writes into canonical Customers. S103 comp
 
 ## Admin/report routes
 
-`/admin/full/*`, `/admin/gas/*`, `/admin/gas-control/*`, `/admin/simple/*`, `/admin/transactions`, anomaly/reconciliation/inventory/report pages remain **KEEP_ADMIN_REPORT** unless a later task explicitly proves canonical parity. Retired SIMPLE admin history/report data remains readable; only front-line operational create entry is retired.
+S107 retires `/admin/inventory` and `/admin/low-stock` to `/stations/station-5/inventory`. Canonical station-5 Inventory now owns product create/receive/price-alert/history plus ADMIN-only audited manual `+/-` quantity correction and low-stock visibility (including quantity zero). The legacy admin inventory APIs remain compatibility contracts, but low-stock read is ADMIN-protected and manual adjustment no longer creates a missing inventory row silently.
+
+`/admin/full/*`, `/admin/gas/*`, `/admin/gas-control/*`, `/admin/simple/*`, `/admin/transactions` and remaining anomaly/reconciliation/report pages remain **KEEP_ADMIN_REPORT** unless a later task explicitly proves canonical parity. Retired SIMPLE admin history/report data remains readable; only front-line operational create entry is retired. `/admin/transactions` is explicitly outside S107 because it is a cross-station transaction edit/void maintenance surface, not inventory parity.
 
 ## APIs
 

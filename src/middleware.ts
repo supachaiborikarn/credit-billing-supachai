@@ -80,6 +80,14 @@ function getCustomerMasterDataRedirectPath(pathname: string) {
     return null;
 }
 
+function getAdminInventoryRedirectPath(pathname: string) {
+    const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+    if (normalized === '/admin/inventory' || normalized === '/admin/low-stock') {
+        return '/stations/station-5/inventory';
+    }
+    return null;
+}
+
 function getBillingWorkspaceRedirectPath(pathname: string) {
     const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
     if (normalized === '/invoices' || normalized === '/admin/invoices' || normalized === '/billing-collections' || normalized === '/admin/outstanding') {
@@ -130,6 +138,7 @@ export function middleware(request: NextRequest) {
     const gasV2RedirectPath = getGasV2RedirectPath(pathname);
     const customerMasterDataRedirectPath = getCustomerMasterDataRedirectPath(pathname);
     const billingWorkspaceRedirectPath = getBillingWorkspaceRedirectPath(pathname);
+    const adminInventoryRedirectPath = getAdminInventoryRedirectPath(pathname);
     const tankLoyRedirectPath = getTankLoyRedirectPath(pathname);
     const retiredSimpleSummaryRedirectPath = getRetiredSimpleSummaryRedirectPath(pathname);
 
@@ -141,7 +150,7 @@ export function middleware(request: NextRequest) {
     // If protected route and no session, redirect to login
     if (isProtectedRoute && !sessionCookie) {
         const loginUrl = new URL('/login', request.url);
-        const redirectPath = canonicalLandingRedirectPath || currentGasRedirectPath || gasV2RedirectPath || customerMasterDataRedirectPath || billingWorkspaceRedirectPath || retiredSimpleSummaryRedirectPath || tankLoyRedirectPath || pathname;
+        const redirectPath = canonicalLandingRedirectPath || currentGasRedirectPath || gasV2RedirectPath || customerMasterDataRedirectPath || billingWorkspaceRedirectPath || adminInventoryRedirectPath || retiredSimpleSummaryRedirectPath || tankLoyRedirectPath || pathname;
         const redirectTarget = new URL(redirectPath, request.url);
         request.nextUrl.searchParams.forEach((value, key) => {
             if (!redirectTarget.searchParams.has(key)) redirectTarget.searchParams.append(key, value);
@@ -179,6 +188,12 @@ export function middleware(request: NextRequest) {
         request.nextUrl.searchParams.forEach((value, key) => {
             if (!redirectUrl.searchParams.has(key)) redirectUrl.searchParams.append(key, value);
         });
+        return NextResponse.redirect(redirectUrl);
+    }
+
+    if (adminInventoryRedirectPath) {
+        const redirectUrl = new URL(adminInventoryRedirectPath, request.url);
+        redirectUrl.search = request.nextUrl.search;
         return NextResponse.redirect(redirectUrl);
     }
 

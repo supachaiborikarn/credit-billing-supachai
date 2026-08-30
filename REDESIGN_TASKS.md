@@ -3244,3 +3244,41 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S106 staging.
 - No push / no deploy / no production DB write.
+
+## 2026-08-30 — S107 — Retire duplicate product inventory admin views into canonical Inventory
+- Status: `[x]`
+- Audit findings:
+  - `/admin/inventory` was hard-coded to station-5 and its only capability missing from canonical Inventory was arbitrary ADMIN stock correction `+/-`.
+  - `/admin/low-stock` duplicated low-stock visibility already present in canonical station-5 Inventory.
+  - `GET /api/inventory/low-stock` had no auth and `checkLowStock()` excluded `quantity=0`, so completely depleted products could disappear from the alert list.
+  - legacy `updateInventory()` could silently create a ProductInventory row during a manual correction and wrote no AuditLog.
+  - alert-level fallback used `|| 10`, so an explicit alert level of 0 was incorrectly treated as 10.
+- Canonical ownership / route retirement:
+  - station-5 canonical `/stations/station-5/inventory` now owns product create, receive, price/alert edit, IN/OUT history, low-stock visibility and ADMIN-only manual quantity correction.
+  - `/admin/inventory` and `/admin/low-stock` redirect to `/stations/station-5/inventory`; authenticated/pre-login query normalization is covered and Sidebar now has one canonical `สินค้า/สต็อก GAS` entry.
+  - STAFF keeps normal station product workflows but never sees the manual `ปรับยอด +/-` control; backend ADMIN guard remains authoritative.
+  - `/admin/transactions` is not part of S107 and remains KEEP_ADMIN_REPORT because it is a global cross-station transaction edit/void surface.
+- Manual adjustment safety:
+  - `POST /api/admin/inventory/adjust` requires ADMIN, existing station/product inventory, integer nonzero quantity change, and a 3-200 character reason.
+  - correction runs in one bounded serializable Prisma transaction (`maxWait=5s`, `timeout=20s`), fails closed if the row is missing, refuses resulting stock below zero, and does not retry writes.
+  - successful correction writes `AuditLog { action: ADJUST, model: ProductInventory }` with product/station, old quantity, new quantity, signed change and reason.
+  - manual correction intentionally does not create ProductReceipt/ProductSale records, so physical count corrections do not masquerade as receiving or sales history.
+- Low-stock correctness/security:
+  - `/api/inventory/low-stock` now requires ADMIN.
+  - zero-stock rows remain in low-stock results; explicit `alertLevel=0` stays 0 via nullish fallback rather than becoming 10.
+- Verification:
+  - targeted inventory/service/route/canonical/middleware/context regression: 7 files / **123 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 58 files / **472 tests passed**.
+  - TypeScript, S107-scoped ESLint and `git diff --check`: passed.
+  - production build with `NODE_ENV=production`: **127/127 routes passed**.
+- Isolated Neon write UAT:
+  - UAT preflight confirmed host separate from production; only port 3005 was used and port 3000 remained untouched.
+  - temporary station-5 product started at quantity 0 / alert 2; canonical Inventory returned 200 and both retired admin pages redirected 307.
+  - low-stock API: anonymous 401, station-5 STAFF 403, ADMIN 200 and the quantity-zero fixture was present.
+  - STAFF manual adjustment returned 403. ADMIN `+5` with reason returned 200, readback changed 0 -> 5, ADJUST AuditLog contained old/new/change/reason, and matching ProductReceipt/ProductSale counts both remained 0.
+  - ADMIN overdraw `-6` returned 400 and quantity remained 5; only one successful ADJUST audit existed.
+  - cleanup verification: Product=0, ProductInventory=0, Audit=0, temporary users=0; UAT server stopped and port 3005 is free.
+- Concurrent-work note:
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S107 staging.
+- No push / no deploy / no production DB write.

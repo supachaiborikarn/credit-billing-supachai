@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { AlertTriangle, Check, ChevronDown, ChevronUp, History, Loader2, PackagePlus, Pencil, Plus, ShoppingBag, X } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, ChevronUp, History, Loader2, PackagePlus, Pencil, Plus, SlidersHorizontal, ShoppingBag, X } from 'lucide-react';
 import { EmptyState, Notice, Section } from '@/components/ui';
 import { formatCurrency } from '@/lib/gas';
 import type { StationContextPayload } from '@/types/station';
@@ -38,6 +38,9 @@ export function GasProductInventory({ context, writeBlocked }: { context: Statio
     const [editingId, setEditingId] = React.useState<string | null>(null);
     const [editPrice, setEditPrice] = React.useState('');
     const [editAlertLevel, setEditAlertLevel] = React.useState('');
+    const [adjustingId, setAdjustingId] = React.useState<string | null>(null);
+    const [adjustQty, setAdjustQty] = React.useState('');
+    const [adjustReason, setAdjustReason] = React.useState('');
     const [showHistory, setShowHistory] = React.useState(false);
     const [historyLoading, setHistoryLoading] = React.useState(false);
     const [history, setHistory] = React.useState<HistoryItem[]>([]);
@@ -142,11 +145,40 @@ export function GasProductInventory({ context, writeBlocked }: { context: Statio
         } finally { setSaving(false); }
     };
 
+    const adjust = async (item: InventoryItem) => {
+        const quantityChange = Number(adjustQty);
+        const reason = adjustReason.trim();
+        if (!Number.isInteger(quantityChange) || quantityChange === 0) {
+            setMessage({ tone: 'danger', text: 'จำนวนปรับต้องเป็นจำนวนเต็ม เช่น 5 หรือ -3 และห้ามเป็น 0' });
+            return;
+        }
+        if (reason.length < 3 || reason.length > 200) {
+            setMessage({ tone: 'danger', text: 'กรุณาระบุเหตุผลการปรับ 3-200 ตัวอักษร' });
+            return;
+        }
+
+        setSaving(true); setMessage(null);
+        try {
+            const response = await fetch('/api/admin/inventory/adjust', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stationId: context.station.id, productId: item.productId, quantityChange, reason }),
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.error || 'ปรับยอดสต็อกไม่สำเร็จ');
+            setAdjustingId(null); setAdjustQty(''); setAdjustReason('');
+            setMessage({ tone: 'success', text: `ปรับ ${item.product.name} จาก ${payload.previousQuantity} เป็น ${payload.newQuantity} แล้ว (บันทึก Audit Log)` });
+            await loadInventory();
+        } catch (error) {
+            setMessage({ tone: 'danger', text: error instanceof Error ? error.message : 'ปรับยอดสต็อกไม่สำเร็จ' });
+        } finally { setSaving(false); }
+    };
+
     if (!context.station.hasProducts) return null;
     const lowStockCount = inventory.filter((item) => item.alertLevel !== null && item.quantity <= item.alertLevel).length;
 
     return (
-        <Section title="สินค้าและสต็อก" description="เพิ่มสินค้า รับของเข้า แก้ราคาขาย/ระดับเตือน และดูประวัติ IN/OUT ของ station-5">
+        <Section title="สินค้าและสต็อก" description="เพิ่มสินค้า รับของเข้า แก้ราคาขาย/ระดับเตือน ดูประวัติ IN/OUT และให้ ADMIN ปรับยอดจริงแบบมี Audit Log">
             <div className="space-y-4">
                 {writeBlocked && <Notice tone="warning" title="กำลังตรวจสถานะสถานี">บล็อกการแก้สต็อกไว้จน StationContext รีเฟรชสำเร็จ</Notice>}
                 {message && <Notice tone={message.tone} title={message.tone === 'success' ? 'บันทึกแล้ว' : 'ทำรายการไม่สำเร็จ'}>{message.text}</Notice>}
@@ -175,7 +207,8 @@ export function GasProductInventory({ context, writeBlocked }: { context: Statio
                             <div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="flex items-center gap-2 font-semibold"><span className="truncate">{item.product.name}</span>{low && <span className="inline-flex items-center gap-1 rounded-full bg-[var(--ui-warning-bg)] px-2 py-0.5 text-xs text-[var(--ui-warning-text)]"><AlertTriangle className="h-3 w-3" />ใกล้หมด</span>}</div><div className="mt-1 text-sm text-[var(--ui-text-muted)]">฿{formatCurrency(item.product.salePrice)}/{item.product.unit}{item.alertLevel !== null ? ` · เตือน ≤ ${item.alertLevel}` : ''}</div></div><div className="text-right"><div className="font-mono text-2xl font-bold">{item.quantity}</div><div className="text-xs text-[var(--ui-text-muted)]">{item.product.unit} คงเหลือ</div></div></div>
                             {receivingId === item.id ? <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto_auto]"><input inputMode="numeric" autoFocus className={`${CONTROL} text-right font-mono`} value={receiveQty} disabled={saving} placeholder={`จำนวน (${item.product.unit})`} onChange={(e) => setReceiveQty(e.target.value)} /><button type="button" onClick={() => void receive(item)} disabled={saving} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-[var(--ui-radius-md)] bg-[var(--ui-success-bg)] px-3 font-semibold text-[var(--ui-success-text)]"><Check className="h-4 w-4" />รับเข้า</button><button type="button" onClick={() => { setReceivingId(null); setReceiveQty(''); }} className="inline-flex min-h-11 items-center justify-center rounded-[var(--ui-radius-md)] border border-[var(--ui-border)] px-3"><X className="h-4 w-4" /></button></div>
                             : editingId === item.id ? <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto]"><label className="text-xs font-semibold">ราคาขาย<input inputMode="decimal" className={`${CONTROL} mt-1 text-right font-mono`} value={editPrice} disabled={saving} onChange={(e) => setEditPrice(e.target.value)} /></label><label className="text-xs font-semibold">เตือน ≤<input inputMode="numeric" className={`${CONTROL} mt-1 text-right font-mono`} value={editAlertLevel} disabled={saving} onChange={(e) => setEditAlertLevel(e.target.value)} /></label><button type="button" onClick={() => void update(item)} disabled={saving} className="mt-5 inline-flex min-h-11 items-center justify-center rounded-[var(--ui-radius-md)] bg-[var(--ui-success-bg)] px-3 text-[var(--ui-success-text)]"><Check className="h-4 w-4" /></button><button type="button" onClick={() => setEditingId(null)} className="mt-5 inline-flex min-h-11 items-center justify-center rounded-[var(--ui-radius-md)] border border-[var(--ui-border)] px-3"><X className="h-4 w-4" /></button></div>
-                            : <div className="mt-3 grid gap-2 sm:grid-cols-2"><button type="button" disabled={writeBlocked || saving} onClick={() => { setReceivingId(item.id); setEditingId(null); setReceiveQty(''); }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--ui-radius-md)] border border-[var(--ui-border)] px-3 text-sm font-semibold hover:bg-[var(--ui-surface-subtle)] disabled:opacity-60"><PackagePlus className="h-4 w-4" />รับของเข้า</button><button type="button" disabled={writeBlocked || saving} onClick={() => { setEditingId(item.id); setReceivingId(null); setEditPrice(String(item.product.salePrice)); setEditAlertLevel(item.alertLevel === null ? '' : String(item.alertLevel)); }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--ui-radius-md)] border border-[var(--ui-border)] px-3 text-sm font-semibold hover:bg-[var(--ui-surface-subtle)] disabled:opacity-60"><Pencil className="h-4 w-4" />แก้ราคา/เตือน</button></div>}
+                            : adjustingId === item.id ? <div className="mt-3 space-y-2 rounded-[var(--ui-radius-md)] border border-[var(--ui-warning-border)] bg-[var(--ui-warning-bg)] p-3"><div className="text-xs font-semibold text-[var(--ui-warning-text)]">ปรับยอดจริงโดย ADMIN · ไม่สร้างประวัติรับเข้า/ขายปลอม และจะบันทึก Audit Log</div><div className="grid gap-2 sm:grid-cols-[140px_1fr_auto_auto]"><input inputMode="numeric" autoFocus className={`${CONTROL} text-right font-mono`} value={adjustQty} disabled={saving} placeholder="เช่น 5 หรือ -3" onChange={(e) => setAdjustQty(e.target.value)} /><input className={CONTROL} value={adjustReason} disabled={saving} maxLength={200} placeholder="เหตุผลการปรับยอด" onChange={(e) => setAdjustReason(e.target.value)} /><button type="button" onClick={() => void adjust(item)} disabled={saving} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-[var(--ui-radius-md)] bg-[var(--ui-primary-700)] px-3 font-semibold text-white disabled:opacity-60"><Check className="h-4 w-4" />บันทึก</button><button type="button" onClick={() => { setAdjustingId(null); setAdjustQty(''); setAdjustReason(''); }} disabled={saving} className="inline-flex min-h-11 items-center justify-center rounded-[var(--ui-radius-md)] border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3"><X className="h-4 w-4" /></button></div></div>
+                            : <div className={`mt-3 grid gap-2 ${context.user.role === 'ADMIN' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}><button type="button" disabled={writeBlocked || saving} onClick={() => { setReceivingId(item.id); setEditingId(null); setAdjustingId(null); setReceiveQty(''); }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--ui-radius-md)] border border-[var(--ui-border)] px-3 text-sm font-semibold hover:bg-[var(--ui-surface-subtle)] disabled:opacity-60"><PackagePlus className="h-4 w-4" />รับของเข้า</button><button type="button" disabled={writeBlocked || saving} onClick={() => { setEditingId(item.id); setReceivingId(null); setAdjustingId(null); setEditPrice(String(item.product.salePrice)); setEditAlertLevel(item.alertLevel === null ? '' : String(item.alertLevel)); }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--ui-radius-md)] border border-[var(--ui-border)] px-3 text-sm font-semibold hover:bg-[var(--ui-surface-subtle)] disabled:opacity-60"><Pencil className="h-4 w-4" />แก้ราคา/เตือน</button>{context.user.role === 'ADMIN' && <button type="button" disabled={writeBlocked || saving} onClick={() => { setAdjustingId(item.id); setReceivingId(null); setEditingId(null); setAdjustQty(''); setAdjustReason(''); }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--ui-radius-md)] border border-[var(--ui-warning-border)] px-3 text-sm font-semibold text-[var(--ui-warning-text)] hover:bg-[var(--ui-warning-bg)] disabled:opacity-60"><SlidersHorizontal className="h-4 w-4" />ปรับยอด ±</button>}</div>}
                         </div>;
                     })}
                 </div>}
