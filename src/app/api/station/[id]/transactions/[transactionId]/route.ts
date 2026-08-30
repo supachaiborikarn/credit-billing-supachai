@@ -78,6 +78,7 @@ export async function PUT(
             bookNo,
             billNo,
             transferProofUrl,
+            auditReason,
         } = body;
 
         // Get old data for audit log
@@ -192,10 +193,11 @@ export async function PUT(
                     },
                     newData: {
                         licensePlate,
-                        ownerName,
-                        paymentType,
-                        liters: Number(liters),
-                        amount: Number(amount),
+                        ownerName: nextOwnerName || null,
+                        paymentType: nextPaymentType,
+                        liters: liters === undefined ? Number(oldTransaction.liters) : Number(liters),
+                        amount: amount === undefined ? Number(oldTransaction.amount) : Number(amount),
+                        auditReason: typeof auditReason === 'string' && auditReason.trim() ? auditReason.trim().slice(0, 200) : null,
                     },
                 }
             });

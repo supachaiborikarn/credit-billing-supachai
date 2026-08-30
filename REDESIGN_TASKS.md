@@ -3282,3 +3282,36 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S107 staging.
 - No push / no deploy / no production DB write.
+
+## 2026-08-30 — S108 — Harden global admin transaction maintenance and KEEP the route
+- Status: `[x]`
+- Parity / ownership decision:
+  - audited `/admin/transactions` against canonical History and station transaction APIs instead of redirecting it by name.
+  - the page remains **KEEP_ADMIN_REPORT** because it is the only cross-station transaction edit/void maintenance workspace; GAS station-5/6 canonical History is still read-only for transaction correction.
+  - no middleware/login redirect is added for `/admin/transactions`; S108 is a hardening phase, not a route retirement.
+- Admin-list hardening:
+  - `GET /api/admin/transactions` now uses shared `requireAdminApi` rather than hand-reading the session cookie, so session expiry and ADMIN role handling match other canonical/admin APIs.
+  - default date uses Asia/Bangkok `getTodayBangkok()`; explicit date must be `YYYY-MM-DD` and parse to a valid Bangkok day.
+  - station filter is resolved through canonical station definitions; unknown station input fails closed with 400 rather than querying arbitrary IDs.
+  - existing include-voided support and cross-station read purpose remain unchanged.
+- Edit-audit hardening:
+  - the global Admin Transactions edit modal requires a 3-200 character reason before save and sends it as `auditReason`.
+  - shared station transaction PUT keeps `auditReason` optional for compatibility with canonical/legacy callers, but when present writes the trimmed reason into the existing Transaction UPDATE AuditLog.
+  - UPDATE AuditLog `newData` now records normalized/final ownerName, payment type, liters and amount instead of potentially logging undefined request fields when the caller only changes one property.
+  - void flow already required a reason in the global UI and continues using the station-bound audited DELETE route; S108 does not change its financial semantics.
+- Verification:
+  - targeted admin-auth/date/station/AuditLog + transaction/context/redirect regression: 4 files / **101 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 59 files / **476 tests passed**.
+  - TypeScript, S108-scoped ESLint and `git diff --check`: passed.
+  - production build with `NODE_ENV=production`: **127/127 routes passed**.
+- Isolated Neon UAT:
+  - UAT preflight confirmed the guarded Neon UAT host is different from production; only port 3005 was used and port 3000 was untouched.
+  - temporary station-5 CASH transaction plus ADMIN/STAFF sessions were created only in UAT.
+  - anonymous admin-list = 401; STAFF admin-list = 403; malformed date = 400; unknown station = 400.
+  - ADMIN station-5 list = 200 and contained the fixture; `/admin/transactions` page = 200.
+  - ADMIN partial PUT changed only the license plate and sent reason `แก้ทะเบียนตามเอกสาร S108`; API = 200, DB readback matched, and UPDATE AuditLog `newData.auditReason` matched exactly.
+  - cleanup verification: transaction=0, audits=0, temporary users=0; UAT server stopped and port 3005 is free.
+- Concurrent-work note:
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S108 staging.
+- No push / no deploy / no production DB write.

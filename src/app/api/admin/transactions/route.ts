@@ -1,34 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { cookies } from 'next/headers';
-import { getStartOfDayBangkok, getEndOfDayBangkok } from '@/lib/date-utils';
+import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
+import { requireAdminApi } from '@/lib/api-auth';
+import { resolveStationDefinition } from '@/lib/stations/station-context';
 import { buildTruckCodeMap, findCodeByPlate } from '@/lib/truck-utils';
 
 export async function GET(request: NextRequest) {
     try {
-        // Check admin session
-        const cookieStore = await cookies();
-        const sessionId = cookieStore.get('session')?.value;
-
-        if (!sessionId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        const session = await prisma.session.findUnique({
-            where: { id: sessionId },
-            include: { user: { select: { role: true } } }
-        });
-
-        if (!session || session.user.role !== 'ADMIN') {
-            return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-        }
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
 
         const { searchParams } = new URL(request.url);
-        const dateStr = searchParams.get('date') || new Date().toISOString().split('T')[0];
-        const stationId = searchParams.get('stationId');
+        const dateStr = searchParams.get('date') || getTodayBangkok();
+        const stationInput = searchParams.get('stationId');
         const includeVoided = searchParams.get('includeVoided') === 'true';
 
-        const startOfDay = getStartOfDayBangkok(dateStr);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            return NextResponse.json({ error: 'รูปแบบวันที่ไม่ถูกต้อง' }, { status: 400 });
+        }
+        const parsedDate = getStartOfDayBangkok(dateStr);
+        if (Number.isNaN(parsedDate.getTime())) {
+            return NextResponse.json({ error: 'วันที่ไม่ถูกต้อง' }, { status: 400 });
+        }
+
+        const station = stationInput && stationInput !== 'all' ? resolveStationDefinition(stationInput) : null;
+        if (stationInput && stationInput !== 'all' && !station) {
+            return NextResponse.json({ error: 'ไม่พบสถานี' }, { status: 400 });
+        }
+
+        const startOfDay = parsedDate;
         const endOfDay = getEndOfDayBangkok(dateStr);
 
         // Build where clause
@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
             date: { gte: startOfDay, lte: endOfDay },
         };
 
-        if (stationId && stationId !== 'all') {
-            where.stationId = stationId;
+        if (station) {
+            where.stationId = station.id;
         }
 
         if (!includeVoided) {

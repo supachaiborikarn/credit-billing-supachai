@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { FileText, Search, Trash2, Edit, X, Check, AlertTriangle } from 'lucide-react';
+import { getTodayBangkok } from '@/lib/date-utils';
 
 interface Transaction {
     id: string;
@@ -22,12 +23,13 @@ export default function AdminTransactionsPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+    const [selectedDate, setSelectedDate] = useState(getTodayBangkok());
     const [selectedStation, setSelectedStation] = useState('all');
 
     // Edit modal
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
     const [editForm, setEditForm] = useState<Partial<Transaction>>({});
+    const [editReason, setEditReason] = useState('');
 
     // Void modal
     const [voidingTransaction, setVoidingTransaction] = useState<Transaction | null>(null);
@@ -45,11 +47,7 @@ export default function AdminTransactionsPage() {
         { id: 'station-6', name: 'ปั๊มแก๊สศุภชัย' },
     ];
 
-    useEffect(() => {
-        fetchTransactions();
-    }, [selectedDate, selectedStation]);
-
-    const fetchTransactions = async () => {
+    const fetchTransactions = useCallback(async () => {
         setLoading(true);
         try {
             const params = new URLSearchParams({
@@ -68,7 +66,11 @@ export default function AdminTransactionsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedDate, selectedStation]);
+
+    useEffect(() => {
+        void fetchTransactions();
+    }, [fetchTransactions]);
 
     const handleVoid = async () => {
         if (!voidingTransaction) return;
@@ -99,6 +101,8 @@ export default function AdminTransactionsPage() {
 
     const handleEdit = async () => {
         if (!editingTransaction) return;
+        const reason = editReason.trim();
+        if (reason.length < 3 || reason.length > 200) return;
 
         setActionLoading(true);
         try {
@@ -106,11 +110,12 @@ export default function AdminTransactionsPage() {
             const res = await fetch(`/api/station/${stationNum}/transactions/${editingTransaction.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(editForm),
+                body: JSON.stringify({ ...editForm, auditReason: reason }),
             });
 
             if (res.ok) {
                 setEditingTransaction(null);
+                setEditReason('');
                 fetchTransactions();
             } else {
                 const err = await res.json();
@@ -256,6 +261,7 @@ export default function AdminTransactionsPage() {
                                                         <button
                                                             onClick={() => {
                                                                 setEditingTransaction(t);
+                                                                setEditReason('');
                                                                 setEditForm({
                                                                     licensePlate: t.licensePlate,
                                                                     ownerName: t.ownerName,
@@ -398,6 +404,18 @@ export default function AdminTransactionsPage() {
                                 </div>
                             </div>
 
+                            <div className="mt-4">
+                                <label className="block text-sm text-gray-400 mb-1">เหตุผลการแก้ไข *</label>
+                                <textarea
+                                    value={editReason}
+                                    onChange={(e) => setEditReason(e.target.value)}
+                                    placeholder="ระบุเหตุผล 3-200 ตัวอักษร..."
+                                    maxLength={200}
+                                    rows={2}
+                                    className="input-glow resize-none"
+                                />
+                            </div>
+
                             <div className="flex gap-3 mt-6">
                                 <button
                                     onClick={() => setEditingTransaction(null)}
@@ -407,7 +425,7 @@ export default function AdminTransactionsPage() {
                                 </button>
                                 <button
                                     onClick={handleEdit}
-                                    disabled={actionLoading}
+                                    disabled={actionLoading || editReason.trim().length < 3}
                                     className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-white flex items-center justify-center gap-2 disabled:opacity-50"
                                 >
                                     {actionLoading ? <div className="spinner w-4 h-4" /> : <Check size={16} />}
