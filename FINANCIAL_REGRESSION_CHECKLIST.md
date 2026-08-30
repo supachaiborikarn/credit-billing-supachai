@@ -187,3 +187,8 @@ A legacy route may be redirected only when:
 - Bootstrap source upsert + AuditLog is atomic. Successful sync landing-row upserts + source success metadata + sync AuditLog are atomic after external fetch; failed external attempts can still record `lastError` outside that success transaction.
 - Date validation rejects impossible calendar dates; sync range remains max 31 days; page defaults use Bangkok date.
 - Targeted regression: **20/20**; financial + monthly gate: **101/101**; full regression: **609/609**; production build: **127/127**.
+
+### S124 Temporary fix-shift API retirement (2026-08-31)
+- Removed the unreferenced direct force-close/hard-delete/renumber implementation from `/api/admin/fix-shift`; authenticated ADMIN callers now receive 410 and replacement audited workflows.
+- This phase removes an unsafe write path and introduces no sale, shift-close, reconciliation, payment, invoice or pricing formula.
+- Targeted regression: **25/25**; financial + monthly gate: **101/101**; full regression: **612/612**; production build: **127/127**.

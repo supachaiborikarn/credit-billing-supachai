@@ -3689,3 +3689,23 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
   - no live external probe/sync, production DB write, push or deploy occurred.
   - live authenticated UAT was deliberately not attempted: port 3005 remains owned by user-started PID 62675 with `.next/dev/lock`, and an actual Watchara sync would also mutate external-source landing state. Atomic behavior is covered by isolated service/route tests.
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S123 staging.
+
+## 2026-08-31 — S124 — Retire temporary fix-shift escape-hatch API
+- Status: `[x]`
+- Release audit finding:
+  - `/api/admin/fix-shift` was explicitly labelled a temporary endpoint but remained deployable with direct `force-close`, hard shift delete and shift-number rewrite actions.
+  - repository caller audit found no internal page/script/test caller depending on this API.
+  - the implementation changed Shift/DailyRecord directly without AuditLog and without one atomic transaction, bypassing the audited canonical/admin operations introduced later in the redesign.
+- Retirement:
+  - `POST /api/admin/fix-shift` now applies shared `requireAdminApi()` and returns HTTP 410 with audited replacement paths (`/admin/gas/operations`, `/admin/alerts`, canonical station Operations).
+  - all Prisma imports and direct shift delete/update/DailyRecord update logic were removed from the route.
+  - no replacement mutation endpoint was added; existing audited workflows remain authoritative.
+- Verification:
+  - targeted retirement/admin/GAS regression: 4 files / **25 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 80 files / **612 tests passed**.
+  - TypeScript, S124-scoped ESLint and diff check: passed.
+  - production build: **127/127 routes passed**.
+- Safety / concurrent work:
+  - no DB write or HTTP mutation smoke was needed because S124 removes a write implementation; no production DB write, push or deploy occurred.
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S124 staging.
