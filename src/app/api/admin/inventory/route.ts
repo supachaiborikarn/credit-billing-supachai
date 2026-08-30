@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { requireAdminApi } from '@/lib/api-auth';
 import { getStationInventorySummary } from '@/services/inventory-service';
+import { isProductInventoryStationId } from '@/lib/inventory-scope';
 
 // GET - ดึงสรุป Inventory ของสถานี
 export async function GET(request: NextRequest) {
@@ -13,6 +14,9 @@ export async function GET(request: NextRequest) {
 
         if (!stationId) {
             return NextResponse.json({ error: 'กรุณาระบุ stationId' }, { status: 400 });
+        }
+        if (!isProductInventoryStationId(stationId)) {
+            return NextResponse.json({ error: 'สถานีนี้ไม่รองรับสต็อกสินค้า' }, { status: 400 });
         }
 
         const items = await getStationInventorySummary(stationId);

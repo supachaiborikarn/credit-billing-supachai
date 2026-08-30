@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { checkLowStock } from '@/services/inventory-service';
 import { requireAdminApi } from '@/lib/api-auth';
+import { isProductInventoryStationId } from '@/lib/inventory-scope';
 
 // GET - ดึงรายการสินค้าสต็อกต่ำ
 export async function GET(request: Request) {
@@ -10,6 +11,9 @@ export async function GET(request: Request) {
 
         const { searchParams } = new URL(request.url);
         const stationId = searchParams.get('stationId') || undefined;
+        if (stationId && !isProductInventoryStationId(stationId)) {
+            return NextResponse.json({ error: 'สถานีนี้ไม่รองรับสต็อกสินค้า' }, { status: 400 });
+        }
 
         const lowStockItems = await checkLowStock(stationId);
 

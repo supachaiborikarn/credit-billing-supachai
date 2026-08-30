@@ -168,3 +168,9 @@ A legacy route may be redirected only when:
 - Anti-Fraud shift lock and MeterAnomaly review are ADMIN-only, conditional and atomic with AuditLog; DailyAnomaly GET no longer performs hidden scan/write work, while explicit scans are bounded to configured FULL stations and 1-90 days.
 - No sale, meter, reconciliation, payment, invoice, pricing or anomaly-detection formula changed.
 - Verified release gate: **101/101 tests passed**; full regression **583/583**; production build **127/127 routes**.
+
+### S121 Product Inventory scope / retired-page defense (2026-08-30)
+- `/admin/inventory` and `/admin/low-stock` remain retired to canonical station-5 Inventory; page files are now redirect-only defense in depth.
+- ProductInventory compatibility reads and ADMIN adjustment are scoped to `STATIONS.hasProducts` (currently station-5); invalid/non-product stations fail before service/Prisma mutation.
+- Existing ADMIN adjustment amount semantics, non-negative guard, serializable transaction, AuditLog, ProductReceipt/ProductSale separation and station-5 canonical behavior are unchanged.
+- Targeted regression: **104/104**; financial + monthly gate: **101/101**; full regression: **590/590**; production build: **127/127**.

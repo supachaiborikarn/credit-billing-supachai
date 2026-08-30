@@ -3614,3 +3614,25 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Safety / concurrent work:
   - no production DB write, push or deploy occurred.
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S120 staging.
+
+## 2026-08-30 — S121 — Finalize retired Inventory admin surfaces and product-station scope
+- Status: `[x]`
+- Retirement defense-in-depth:
+  - S107 already retired `/admin/inventory` and `/admin/low-stock` through middleware/login normalization to canonical `/stations/station-5/inventory`.
+  - S121 replaces both old client pages with server redirects as defense in depth, removing dead hard-coded station-5 UI and the unreachable adjustment form that no longer matched the required audit-reason contract.
+- Product inventory station scope:
+  - added shared `PRODUCT_INVENTORY_STATION_IDS` derived from configured `STATIONS.hasProducts`; current scope is only `station-5`.
+  - `GET /api/admin/inventory` and optional-station `GET /api/inventory/low-stock` now reject stations that are not configured for product inventory instead of querying arbitrary/retired station IDs.
+  - unfiltered low-stock compatibility reads are limited to configured product-inventory stations, so stale ProductInventory rows from retired/non-product stations cannot appear in global alerts.
+  - `POST /api/admin/inventory/adjust` applies the same station guard before the service; `adjustInventory()` also enforces it before opening a Prisma transaction, so future/internal callers cannot mutate ProductInventory outside configured product stations.
+  - existing station-5 ADMIN authorization, reason validation, serializable atomic adjustment/AuditLog semantics, non-negative stock protection and no-fake-receipt/sale behavior remain unchanged.
+- Verification:
+  - targeted inventory/service/canonical/redirect regression: 5 files / **104 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 75 files / **590 tests passed**.
+  - TypeScript, S121-scoped ESLint and `git diff --check`: passed.
+  - production build: **127/127 routes passed**.
+- Runtime/safety:
+  - no production DB write, push or deploy occurred.
+  - no authenticated UAT write was required for the new invalid-station path because it fails before Prisma; the unchanged positive station-5 adjustment path already had isolated Neon UAT coverage in S107.
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S121 staging.

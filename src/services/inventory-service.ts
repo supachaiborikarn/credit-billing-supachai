@@ -8,6 +8,7 @@
 
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { PRODUCT_INVENTORY_STATION_IDS, isProductInventoryStationId } from '@/lib/inventory-scope';
 
 /**
  * คำนวณยอดขายสินค้าอื่น (ไม่รวมน้ำมัน/แก๊ส) ต่อกะ
@@ -70,7 +71,9 @@ export async function checkLowStock(stationId?: string): Promise<LowStockItem[]>
     // Get all products with inventory
     const inventories = await prisma.productInventory.findMany({
         where: {
-            ...(stationId && { stationId })
+            stationId: stationId
+                ? stationId
+                : { in: PRODUCT_INVENTORY_STATION_IDS },
         },
         include: {
             product: {
@@ -149,7 +152,7 @@ export interface InventoryAdjustmentResult {
     previousQuantity?: number;
     newQuantity: number;
     error?: string;
-    code?: 'NOT_FOUND' | 'INVALID_QUANTITY' | 'INSUFFICIENT_STOCK' | 'CONFLICT';
+    code?: 'NOT_FOUND' | 'INVALID_STATION' | 'INVALID_QUANTITY' | 'INSUFFICIENT_STOCK' | 'CONFLICT';
 }
 
 export async function adjustInventory(
@@ -159,6 +162,9 @@ export async function adjustInventory(
     userId: string,
     reason: string
 ): Promise<InventoryAdjustmentResult> {
+    if (!isProductInventoryStationId(stationId)) {
+        return { success: false, newQuantity: 0, error: 'สถานีนี้ไม่รองรับสต็อกสินค้า', code: 'INVALID_STATION' };
+    }
     if (!Number.isInteger(quantityChange) || quantityChange === 0) {
         return { success: false, newQuantity: 0, error: 'จำนวนปรับต้องเป็นจำนวนเต็มและไม่เท่ากับ 0', code: 'INVALID_QUANTITY' };
     }

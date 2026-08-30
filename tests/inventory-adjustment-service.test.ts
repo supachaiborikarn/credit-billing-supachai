@@ -24,7 +24,7 @@ beforeEach(() => {
     prismaMock.$transaction.mockImplementation(async (callback: (tx: typeof txMock) => unknown) => callback(txMock));
 });
 
-describe('S107 inventory adjustment service', () => {
+describe('S107/S121 inventory adjustment service', () => {
     it('updates an existing inventory atomically and writes an ADJUST AuditLog', async () => {
         txMock.productInventory.findUnique.mockResolvedValue({
             id: 'inventory-1',
@@ -89,5 +89,21 @@ describe('S107 inventory adjustment service', () => {
         expect(prismaMock.productInventory.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { stationId: 'station-5' } }));
         expect(result.map((row) => row.productId)).toEqual(['p-zero', 'p-zero-alert']);
         expect(result.find((row) => row.productId === 'p-zero-alert')?.alertLevel).toBe(0);
+    });
+
+    it('rejects non-product stations before opening an adjustment transaction', async () => {
+        const { adjustInventory } = await import('../src/services/inventory-service');
+        const result = await adjustInventory('station-6', 'product-1', 1, 'admin-1', 'ตรวจนับจริง');
+        expect(result).toMatchObject({ success: false, code: 'INVALID_STATION' });
+        expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('limits an unfiltered low-stock scan to configured product-inventory stations', async () => {
+        prismaMock.productInventory.findMany.mockResolvedValue([]);
+        const { checkLowStock } = await import('../src/services/inventory-service');
+        await checkLowStock();
+        expect(prismaMock.productInventory.findMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: { stationId: { in: ['station-5'] } },
+        }));
     });
 });

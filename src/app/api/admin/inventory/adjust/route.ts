@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdminApi } from '@/lib/api-auth';
 import { adjustInventory } from '@/services/inventory-service';
+import { isProductInventoryStationId } from '@/lib/inventory-scope';
 
 // POST - ปรับสต็อกสินค้า
 export async function POST(request: Request) {
@@ -16,6 +17,9 @@ export async function POST(request: Request) {
 
         if (!stationId || !productId) {
             return NextResponse.json({ error: 'กรุณาระบุ stationId และ productId' }, { status: 400 });
+        }
+        if (!isProductInventoryStationId(stationId)) {
+            return NextResponse.json({ error: 'สถานีนี้ไม่รองรับสต็อกสินค้า' }, { status: 400 });
         }
         if (!Number.isInteger(quantityChange) || quantityChange === 0) {
             return NextResponse.json({ error: 'จำนวนปรับต้องเป็นจำนวนเต็มและไม่เท่ากับ 0' }, { status: 400 });

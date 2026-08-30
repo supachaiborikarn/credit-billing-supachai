@@ -1,13 +1,16 @@
+import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const requireAdminApiMock = vi.fn();
 const adjustInventoryMock = vi.fn();
 const checkLowStockMock = vi.fn();
+const getStationInventorySummaryMock = vi.fn();
 
 vi.mock('@/lib/api-auth', () => ({ requireAdminApi: requireAdminApiMock }));
 vi.mock('@/services/inventory-service', () => ({
     adjustInventory: adjustInventoryMock,
     checkLowStock: checkLowStockMock,
+    getStationInventorySummary: getStationInventorySummaryMock,
 }));
 
 beforeEach(() => {
@@ -15,7 +18,7 @@ beforeEach(() => {
     requireAdminApiMock.mockResolvedValue({ response: null, user: { id: 'admin-1', role: 'ADMIN' } });
 });
 
-describe('S107 inventory admin route guards', () => {
+describe('S107/S121 inventory admin route guards', () => {
     it('blocks STAFF adjustment before touching inventory', async () => {
         requireAdminApiMock.mockResolvedValueOnce({ response: new Response(JSON.stringify({ error: 'Admin only' }), { status: 403 }) });
         const { POST } = await import('../src/app/api/admin/inventory/adjust/route');
@@ -67,5 +70,39 @@ describe('S107 inventory admin route guards', () => {
         expect(allowed.status).toBe(200);
         expect(checkLowStockMock).toHaveBeenCalledWith('station-5');
         await expect(allowed.json()).resolves.toMatchObject({ count: 1, hasAlerts: true });
+    });
+
+    it('fails closed for stations that do not own product inventory', async () => {
+        const { GET: getInventory } = await import('../src/app/api/admin/inventory/route');
+        const inventoryResponse = await getInventory(new NextRequest('http://localhost/api/admin/inventory?stationId=station-6'));
+        expect(inventoryResponse.status).toBe(400);
+        expect(getStationInventorySummaryMock).not.toHaveBeenCalled();
+
+        const { GET: getLowStock } = await import('../src/app/api/inventory/low-stock/route');
+        const lowStockResponse = await getLowStock(new Request('http://localhost/api/inventory/low-stock?stationId=station-2'));
+        expect(lowStockResponse.status).toBe(400);
+        expect(checkLowStockMock).not.toHaveBeenCalled();
+
+        const { POST } = await import('../src/app/api/admin/inventory/adjust/route');
+        const adjustResponse = await POST(new Request('http://localhost/api/admin/inventory/adjust', {
+            method: 'POST', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ stationId: 'station-6', productId: 'product-1', quantityChange: 1, reason: 'ตรวจนับจริง' }),
+        }));
+        expect(adjustResponse.status).toBe(400);
+        expect(adjustInventoryMock).not.toHaveBeenCalled();
+    });
+
+    it('keeps scoped compatibility reads for the configured product station', async () => {
+        getStationInventorySummaryMock.mockResolvedValue([{ productId: 'p-1' }]);
+        const { GET: getInventory } = await import('../src/app/api/admin/inventory/route');
+        const inventoryResponse = await getInventory(new NextRequest('http://localhost/api/admin/inventory?stationId=station-5'));
+        expect(inventoryResponse.status).toBe(200);
+        expect(getStationInventorySummaryMock).toHaveBeenCalledWith('station-5');
+
+        checkLowStockMock.mockResolvedValue([]);
+        const { GET: getLowStock } = await import('../src/app/api/inventory/low-stock/route');
+        const lowStockResponse = await getLowStock(new Request('http://localhost/api/inventory/low-stock'));
+        expect(lowStockResponse.status).toBe(200);
+        expect(checkLowStockMock).toHaveBeenCalledWith(undefined);
     });
 });

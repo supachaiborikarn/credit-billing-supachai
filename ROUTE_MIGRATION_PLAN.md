@@ -204,3 +204,5 @@ Before redirecting an **active FULL/GAS** legacy route:
 5. Active FULL navigation shell → canonical workspace — **S61 `/station/1/new/home` complete** and **S96 `/station/1` + `/station/1/v2` retired** after edit/print/audit parity moved to canonical Operations/History; retain only the bounded thermal receipt compatibility route.
 6. Active GAS workspace → **S62-S63 open/close canonical**, S64-S67 keep correction/inventory subroutes, S69 tool entry + S70 price + S72 live payment/gauge/alert summary complete; `/gas/5|6` landing is now bounded S73 redirect candidate while its subroutes remain compatibility surfaces.
 7. History/summary/receipt routes last, after explicit read/print parity review.
+
+S121 finalizes the S107 `/admin/inventory` and `/admin/low-stock` retirement with redirect-only page files as defense in depth. Their compatibility APIs remain available, but ProductInventory reads/adjustments now fail closed outside stations configured with `hasProducts`; current configured product scope is station-5 only, and unfiltered low-stock reads exclude retired/non-product station inventory rows.
