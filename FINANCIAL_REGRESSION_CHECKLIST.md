@@ -174,3 +174,9 @@ A legacy route may be redirected only when:
 - ProductInventory compatibility reads and ADMIN adjustment are scoped to `STATIONS.hasProducts` (currently station-5); invalid/non-product stations fail before service/Prisma mutation.
 - Existing ADMIN adjustment amount semantics, non-negative guard, serializable transaction, AuditLog, ProductReceipt/ProductSale separation and station-5 canonical behavior are unchanged.
 - Targeted regression: **104/104**; financial + monthly gate: **101/101**; full regression: **590/590**; production build: **127/127**.
+
+### S122 Dispenser/Nozzle master-data hardening (2026-08-30)
+- Local Dispenser/Nozzle remains a separate master-data capability from Watchara external sync; meter reconciliation can use linked nozzle FuelProduct/PriceBook data.
+- Writes are ADMIN-only, active-station-only, canonical-station normalized and atomic with CREATE/UPDATE/DELETE AuditLog; FuelProduct references must be active.
+- No financial formula, sale amount calculation, price-book selection rule or billing behavior changed.
+- Targeted regression: **31/31**; financial + monthly gate: **101/101**; full regression: **600/600**; production build: **127/127**.

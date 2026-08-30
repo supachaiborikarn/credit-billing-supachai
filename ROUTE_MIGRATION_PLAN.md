@@ -206,3 +206,5 @@ Before redirecting an **active FULL/GAS** legacy route:
 7. History/summary/receipt routes last, after explicit read/print parity review.
 
 S121 finalizes the S107 `/admin/inventory` and `/admin/low-stock` retirement with redirect-only page files as defense in depth. Their compatibility APIs remain available, but ProductInventory reads/adjustments now fail closed outside stations configured with `hasProducts`; current configured product scope is station-5 only, and unfiltered low-stock reads exclude retired/non-product station inventory rows.
+
+S122 keeps `/admin/dispensers` as the local Dispenser/Nozzle master-data surface because meter reconciliation can consume `MeterReading.nozzleId` -> FuelProduct/PriceBook. It is intentionally separate from `/admin/watchara-dispenser`, which manages an external sales-source integration. Local Dispenser/Nozzle mutations are now ADMIN-only, active-station-only, canonical-ID normalized, FuelProduct validated and atomically audited; retired station master data remains read compatibility only.

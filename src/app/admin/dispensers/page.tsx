@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { STATIONS } from '@/constants';
+import { resolveStationDefinition } from '@/lib/stations/station-context';
 import {
     Plus,
     Edit,
@@ -36,6 +37,8 @@ interface Dispenser {
     nozzles: Nozzle[];
 }
 
+const ACTIVE_STATIONS = STATIONS.filter((station) => resolveStationDefinition(station.id)?.operationalStatus === 'ACTIVE');
+
 export default function DispensersPage() {
     const [selectedStation, setSelectedStation] = useState<string | null>(null);
     const [dispensers, setDispensers] = useState<Dispenser[]>([]);
@@ -55,29 +58,7 @@ export default function DispensersPage() {
     const [nozzleProductId, setNozzleProductId] = useState('');
     const [saving, setSaving] = useState(false);
 
-    useEffect(() => {
-        fetchProducts();
-    }, []);
-
-    useEffect(() => {
-        if (selectedStation) {
-            fetchDispensers();
-        }
-    }, [selectedStation]);
-
-    const fetchProducts = async () => {
-        try {
-            const res = await fetch('/api/fuel-products');
-            if (res.ok) {
-                const data = await res.json();
-                setProducts(data.products || []);
-            }
-        } catch (error) {
-            console.error('Error fetching products:', error);
-        }
-    };
-
-    const fetchDispensers = async () => {
+    const fetchDispensers = useCallback(async () => {
         if (!selectedStation) return;
         setLoading(true);
         try {
@@ -91,7 +72,26 @@ export default function DispensersPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedStation]);
+
+    useEffect(() => {
+        const fetchProducts = async () => {
+            try {
+                const res = await fetch('/api/fuel-products');
+                if (res.ok) {
+                    const data = await res.json();
+                    setProducts(data.products || []);
+                }
+            } catch (error) {
+                console.error('Error fetching products:', error);
+            }
+        };
+        void fetchProducts();
+    }, []);
+
+    useEffect(() => {
+        if (selectedStation) void fetchDispensers();
+    }, [selectedStation, fetchDispensers]);
 
     // Dispenser CRUD
     const handleSaveDispenser = async () => {
@@ -236,7 +236,7 @@ export default function DispensersPage() {
                         className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500"
                     >
                         <option value="">-- เลือกสถานี --</option>
-                        {STATIONS.map(station => (
+                        {ACTIVE_STATIONS.map(station => (
                             <option key={station.id} value={station.id}>{station.name}</option>
                         ))}
                     </select>

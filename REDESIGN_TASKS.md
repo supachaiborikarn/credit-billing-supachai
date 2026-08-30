@@ -3636,3 +3636,29 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
   - no production DB write, push or deploy occurred.
   - no authenticated UAT write was required for the new invalid-station path because it fails before Prisma; the unchanged positive station-5 adjustment path already had isolated Neon UAT coverage in S107.
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S121 staging.
+
+## 2026-08-30 — S122 — Harden Dispenser/Nozzle master data and KEEP it separate from Watchara sync
+- Status: `[x]`
+- Ownership decision:
+  - `/admin/dispensers` remains **KEEP_ADMIN_REPORT / master-data tool** because local `Dispenser` / `Nozzle` records are referenced by `MeterReading.nozzleId` and shift reconciliation can use the linked FuelProduct/PriceBook when calculating expected fuel amount.
+  - `/admin/watchara-dispenser` is a different capability: external Watchara dispenser source registry/probe/sync. S122 does not merge, redirect or change that integration.
+- Local master-data hardening:
+  - Dispenser/Nozzle writes remain ADMIN-only and now accept only stations whose canonical StationContext status is ACTIVE (`station-1`, `station-5`, `station-6`); retired SIMPLE stations 2/3/4 are not available in the admin selector and mutation attempts fail before write execution.
+  - station aliases are resolved through canonical StationContext before writes so persisted/audited station identity is normalized to `station-X`.
+  - create/update/delete Dispenser and Nozzle operations now run in bounded Prisma transactions (`maxWait=5s`, `timeout=20s`) and write CREATE/UPDATE/DELETE `AuditLog` records atomically with the mutation.
+  - Dispenser delete soft-deletes currently active nozzles in the same transaction and records the prior nozzle snapshot in the audit.
+  - Nozzle create/update validates the referenced FuelProduct exists and is active before mutation; nested nozzle creation on a new dispenser validates every product ID before creating the dispenser.
+  - route bodies are fail-closed: malformed JSON, empty updates, overlong codes and malformed nozzle arrays return 400 instead of falling through to Prisma.
+  - `/api/fuel-products` is now ADMIN-only; repository caller audit found its only UI caller is the Dispenser admin selector.
+  - read endpoints keep station-access behavior so historical master data can still be inspected according to existing access policy.
+- Verification:
+  - targeted service/route/station-context/shift-reconciliation regression: 4 files / **31 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 77 files / **600 tests passed**.
+  - TypeScript, S122-scoped ESLint and `git diff --check`: passed.
+  - production build: **127/127 routes passed**.
+- Runtime/UAT safety:
+  - `npm run uat:preflight` passed and confirmed UAT Neon differs from production.
+  - authenticated write UAT was not attempted because user-started PID 62675 still owns port 3005 and `.next/dev/lock`; the process was deliberately not stopped and no mutation was sent to a server whose DB target was not independently verified.
+  - no production DB write, push or deploy occurred.
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S122 staging.

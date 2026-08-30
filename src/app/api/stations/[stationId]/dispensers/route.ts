@@ -1,34 +1,32 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdminApi, requireStationAccessApi } from '@/lib/api-auth';
+import { createDispenserAdmin, type DispenserNozzleInput } from '@/services/dispenser-admin-service';
+
+function resultStatus(code: string) {
+    return code === 'NOT_FOUND' ? 404 : 400;
+}
 
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ stationId: string }> }
 ) {
     try {
+        void request;
         const { stationId } = await params;
         const auth = await requireStationAccessApi(stationId);
         if (auth.response) return auth.response;
 
-        // Get all dispensers with their nozzles and products
         const dispensers = await prisma.dispenser.findMany({
-            where: {
-                stationId,
-                deletedAt: null
-            },
+            where: { stationId, deletedAt: null },
             include: {
                 nozzles: {
                     where: { deletedAt: null },
-                    include: {
-                        product: {
-                            select: { id: true, name: true, code: true }
-                        }
-                    },
-                    orderBy: { code: 'asc' }
-                }
+                    include: { product: { select: { id: true, name: true, code: true } } },
+                    orderBy: { code: 'asc' },
+                },
             },
-            orderBy: { code: 'asc' }
+            orderBy: { code: 'asc' },
         });
 
         return NextResponse.json({ dispensers });
@@ -47,35 +45,40 @@ export async function POST(
         if (auth.response) return auth.response;
 
         const { stationId } = await params;
-        const body = await request.json();
-        const { code, nozzles } = body;
-
-        if (!code) {
-            return NextResponse.json({ error: 'Dispenser code is required' }, { status: 400 });
+        const body = await request.json().catch(() => null);
+        if (!body || typeof body !== 'object' || Array.isArray(body)) {
+            return NextResponse.json({ error: 'ข้อมูลไม่ถูกต้อง' }, { status: 400 });
         }
 
-        // Create dispenser with nozzles
-        const dispenser = await prisma.dispenser.create({
-            data: {
-                stationId,
-                code,
-                nozzles: nozzles?.length ? {
-                    create: nozzles.map((n: { code: string; productId: string }) => ({
-                        code: n.code,
-                        productId: n.productId
-                    }))
-                } : undefined
-            },
-            include: {
-                nozzles: {
-                    include: {
-                        product: { select: { id: true, name: true, code: true } }
-                    }
-                }
-            }
-        });
+        const input = body as Record<string, unknown>;
+        const code = typeof input.code === 'string' ? input.code.trim() : '';
+        if (!code || code.length > 50) {
+            return NextResponse.json({ error: 'Dispenser code is required (max 50 chars)' }, { status: 400 });
+        }
 
-        return NextResponse.json({ dispenser }, { status: 201 });
+        let nozzles: DispenserNozzleInput[] = [];
+        if (input.nozzles !== undefined) {
+            if (!Array.isArray(input.nozzles) || input.nozzles.length > 20) {
+                return NextResponse.json({ error: 'Nozzles must be an array with at most 20 items' }, { status: 400 });
+            }
+            nozzles = input.nozzles.map((value) => {
+                const row = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+                return {
+                    code: typeof row.code === 'string' ? row.code.trim() : '',
+                    productId: typeof row.productId === 'string' ? row.productId.trim() : '',
+                };
+            });
+            if (nozzles.some((nozzle) => !nozzle.code || nozzle.code.length > 50 || !nozzle.productId)) {
+                return NextResponse.json({ error: 'Nozzle code and productId are required' }, { status: 400 });
+            }
+        }
+
+        const result = await createDispenserAdmin({ stationId, code, nozzles, userId: auth.user.id });
+        if (!result.success) {
+            return NextResponse.json({ error: result.error }, { status: resultStatus(result.code) });
+        }
+
+        return NextResponse.json({ dispenser: result.value }, { status: 201 });
     } catch (error) {
         console.error('Create dispenser error:', error);
         return NextResponse.json({ error: 'Failed to create dispenser' }, { status: 500 });
