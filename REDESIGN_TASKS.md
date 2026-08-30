@@ -3375,3 +3375,29 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S110 staging.
 - No push / no deploy / no production DB write.
+
+
+## 2026-08-30 — S111 — Harden GAS global fallback settings
+- Status: `[x]`
+- Source-of-truth audit:
+  - runtime GAS price priority is `DailyRecord.gasPrice` first, then `Station.gasPrice`, then `gasSettings.gasPrice`, then program default `16.09`.
+  - repository search found no runtime caller for legacy settings `tankCapacity`, `tankCount`, `alertLowGauge`, or `alertCriticalGauge`; they were UI/config debt, not active source-of-truth.
+  - global `gasSettings.gasPrice` is still used by `getDefaultGasPriceForStation()` as the final configurable fallback, so `/admin/gas/settings` is kept rather than retired.
+- Settings cleanup/hardening:
+  - settings UI now exposes one field only: `ราคา fallback (บาท/ลิตร)` and explicitly explains it does not overwrite existing DailyRecord or station prices.
+  - admin GAS nav label changed to `ตั้งค่า fallback`.
+  - GET/POST `/api/v2/gas/settings` now require ADMIN; non-`gasPrice` keys are no longer exposed/writable.
+  - fallback price must be finite, >0 and <=1,000; persisted value is normalized to 2 decimals.
+  - write uses one bounded Prisma transaction (`maxWait=5s`, `timeout=20s`) and writes `GasSettings` CREATE/UPDATE AuditLog with `source=gas-global-fallback-price`.
+- Verification:
+  - targeted settings/GAS operations/price/context regression: 4 files / **40 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 62 files / **503 tests passed**.
+  - TypeScript, S111-scoped ESLint and `git diff --check`: passed.
+  - production build with `NODE_ENV=production`: **127/127 routes passed**.
+- Runtime/UAT safety:
+  - existing user-owned dev on port 3005 remains untouched. Anonymous smoke returned 307 for `/admin/gas/settings` to login and 401 for `/api/v2/gas/settings?key=gasPrice`.
+  - authenticated UAT write was not attempted because another Next dev in this repo owns `.next/dev/lock`; S111 write semantics are covered by mocked transaction/audit regression and no production DB write occurred.
+- Concurrent-work note:
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S111 staging.
+- No push / no deploy / no production DB write.

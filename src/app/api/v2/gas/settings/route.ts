@@ -1,125 +1,88 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAdminApi, requireApiSession } from '@/lib/api-auth';
+import { DEFAULT_GAS_PRICE } from '@/constants';
+import { requireAdminApi } from '@/lib/api-auth';
 
-// Default settings
-const DEFAULT_SETTINGS: Record<string, string> = {
-    gasPrice: '16.09',
-    tankCapacity: '2400',
-    tankCount: '3',
-    alertLowGauge: '20',
-    alertCriticalGauge: '10'
-};
+const FALLBACK_KEY = 'gasPrice';
 
-/**
- * GET /api/v2/gas/settings
- * Get all gas settings or specific key
- */
+function serializeSetting(setting: { key: string; value: string; updatedAt: Date } | null) {
+    if (!setting) {
+        return { key: FALLBACK_KEY, value: String(DEFAULT_GAS_PRICE), isDefault: true };
+    }
+    return { key: setting.key, value: setting.value, isDefault: false, updatedAt: setting.updatedAt };
+}
+
+/** Global GAS fallback only. Runtime price priority is DailyRecord -> Station -> this fallback. */
 export async function GET(request: NextRequest) {
     try {
-        const auth = await requireApiSession();
+        const auth = await requireAdminApi();
         if (auth.response) return auth.response;
 
-        const { searchParams } = new URL(request.url);
-        const key = searchParams.get('key');
-
-        if (key) {
-            // Get specific setting
-            const setting = await prisma.gasSettings.findUnique({
-                where: { key }
-            });
-
-            if (!setting) {
-                // Return default if exists
-                if (DEFAULT_SETTINGS[key]) {
-                    return NextResponse.json({
-                        key,
-                        value: DEFAULT_SETTINGS[key],
-                        isDefault: true
-                    });
-                }
-                return NextResponse.json({ error: 'Setting not found' }, { status: 404 });
-            }
-
-            return NextResponse.json({
-                key: setting.key,
-                value: setting.value,
-                updatedAt: setting.updatedAt
-            });
+        const key = new URL(request.url).searchParams.get('key');
+        if (key && key !== FALLBACK_KEY) {
+            return NextResponse.json({ error: 'Setting key is no longer supported' }, { status: 404 });
         }
 
-        // Get all settings
-        const settings = await prisma.gasSettings.findMany();
-
-        // Merge with defaults
-        const result: Record<string, { value: string; isDefault: boolean; updatedAt?: Date }> = {};
-
-        // Add defaults first
-        for (const [k, v] of Object.entries(DEFAULT_SETTINGS)) {
-            result[k] = { value: v, isDefault: true };
-        }
-
-        // Override with database values
-        for (const s of settings) {
-            result[s.key] = {
-                value: s.value,
-                isDefault: false,
-                updatedAt: s.updatedAt
-            };
-        }
-
-        return NextResponse.json({ settings: result });
+        const setting = await prisma.gasSettings.findUnique({ where: { key: FALLBACK_KEY } });
+        const item = serializeSetting(setting);
+        if (key === FALLBACK_KEY) return NextResponse.json(item);
+        return NextResponse.json({ settings: { [FALLBACK_KEY]: item } });
     } catch (error) {
         console.error('[Gas Settings GET]:', error);
-        return NextResponse.json({ error: 'Failed to fetch settings' }, { status: 500 });
+        return NextResponse.json({ error: 'Failed to fetch GAS fallback price' }, { status: 500 });
     }
 }
 
-/**
- * POST /api/v2/gas/settings
- * Update gas settings (Admin only)
- */
 export async function POST(request: NextRequest) {
     try {
         const auth = await requireAdminApi();
         if (auth.response) return auth.response;
 
-        const body = await request.json();
-        const { key, value } = body;
-
-        if (!key || value === undefined) {
-            return NextResponse.json({ error: 'key and value are required' }, { status: 400 });
+        const body = await request.json().catch(() => null) as { key?: unknown; value?: unknown } | null;
+        const key = typeof body?.key === 'string' ? body.key.trim() : '';
+        if (key !== FALLBACK_KEY) {
+            return NextResponse.json({ error: 'แก้ได้เฉพาะราคา fallback ของ GAS' }, { status: 400 });
         }
 
-        // Validate known keys
-        const validKeys = Object.keys(DEFAULT_SETTINGS);
-        if (!validKeys.includes(key)) {
-            return NextResponse.json({
-                error: `Invalid key. Valid keys: ${validKeys.join(', ')}`
-            }, { status: 400 });
+        const value = Number(body?.value);
+        if (!Number.isFinite(value) || value <= 0 || value > 1000) {
+            return NextResponse.json({ error: 'ราคา fallback ต้องมากกว่า 0 และไม่เกิน 1,000 บาท/ลิตร' }, { status: 400 });
         }
+        const normalizedValue = value.toFixed(2);
 
-        // Validate value type (numeric for all current settings)
-        const numValue = parseFloat(value);
-        if (isNaN(numValue) || numValue < 0) {
-            return NextResponse.json({ error: 'Value must be a positive number' }, { status: 400 });
-        }
+        const result = await prisma.$transaction(async (tx) => {
+            const previous = await tx.gasSettings.findUnique({ where: { key: FALLBACK_KEY } });
+            const setting = await tx.gasSettings.upsert({
+                where: { key: FALLBACK_KEY },
+                update: { value: normalizedValue },
+                create: { key: FALLBACK_KEY, value: normalizedValue },
+            });
 
-        // Upsert setting
-        const setting = await prisma.gasSettings.upsert({
-            where: { key },
-            update: { value: String(value) },
-            create: { key, value: String(value) }
-        });
+            await tx.auditLog.create({
+                data: {
+                    userId: auth.user.id,
+                    action: previous ? 'UPDATE' : 'CREATE',
+                    model: 'GasSettings',
+                    recordId: setting.id,
+                    oldData: previous ? { key: FALLBACK_KEY, value: previous.value } : undefined,
+                    newData: {
+                        key: FALLBACK_KEY,
+                        value: normalizedValue,
+                        source: 'gas-global-fallback-price',
+                        priority: 'after-daily-and-station-price',
+                    },
+                },
+            });
+
+            return setting;
+        }, { maxWait: 5_000, timeout: 20_000 });
 
         return NextResponse.json({
-            key: setting.key,
-            value: setting.value,
-            updatedAt: setting.updatedAt,
-            message: 'Setting updated successfully'
+            ...serializeSetting(result),
+            message: 'บันทึกราคา fallback แล้ว',
         });
     } catch (error) {
         console.error('[Gas Settings POST]:', error);
-        return NextResponse.json({ error: 'Failed to update setting' }, { status: 500 });
+        return NextResponse.json({ error: 'Failed to update GAS fallback price' }, { status: 500 });
     }
 }

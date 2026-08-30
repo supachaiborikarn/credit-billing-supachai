@@ -39,7 +39,7 @@ export default function AdminGasLayout({
         { href: '/admin/gas/reconciliation', icon: Scale, label: 'กระทบยอด' },
         { href: '/admin/gas/operations', icon: Wrench, label: 'จัดการกะ/ราคา' },
         { href: '/admin/gas/data-entry', icon: ClipboardEdit, label: 'กรอกข้อมูลย้อนหลัง' },
-        { href: '/admin/gas/settings', icon: Settings, label: 'ตั้งค่า' },
+        { href: '/admin/gas/settings', icon: Settings, label: 'ตั้งค่า fallback' },
     ];
 
     const isActive = (href: string, exact?: boolean) => {
