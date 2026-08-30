@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireStationAccessApi } from '@/lib/api-auth';
 
+function normalizeLegacyStationId(id: string) {
+    return id.startsWith('station-') ? id : `station-${id}`;
+}
+
 // GET - Fetch products for this station
 export async function GET(
     request: NextRequest,
@@ -9,7 +13,7 @@ export async function GET(
 ) {
     try {
         const { id } = await params;
-        const stationId = `station-${id}`;
+        const stationId = normalizeLegacyStationId(id);
         const auth = await requireStationAccessApi(stationId);
         if (auth.response) return auth.response;
 
@@ -40,129 +44,46 @@ export async function GET(
 }
 
 // POST - Add new product to station
+async function retiredSimpleProductWriteResponse(id: string) {
+    const stationId = normalizeLegacyStationId(id);
+    const auth = await requireStationAccessApi(stationId);
+    if (auth.response) return auth.response;
+
+    const replacement = stationId === 'station-1'
+        ? '/stations/station-1'
+        : `/stations/${stationId}/history`;
+
+    return NextResponse.json({
+        error: 'Legacy SIMPLE product write API retired',
+        retired: true,
+        replacement,
+        message: stationId === 'station-1'
+            ? 'station-1 ไม่มี product inventory ใน canonical capability; ใช้ Station Overview'
+            : 'สถานี SIMPLE นี้ย้ายงานหน้าปั๊มและสต็อก operational ไป POS แล้ว',
+    }, { status: 410 });
+}
+
+// Mutation methods are intentionally retired. GET above remains read compatibility.
 export async function POST(
-    request: NextRequest,
+    _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    try {
-        const { id } = await params;
-        const stationId = `station-${id}`;
-        const auth = await requireStationAccessApi(stationId);
-        if (auth.response) return auth.response;
-
-        const body = await request.json();
-
-        const { name, unit, salePrice, quantity } = body;
-
-        if (!name) {
-            return NextResponse.json({ error: 'กรุณากรอกชื่อสินค้า' }, { status: 400 });
-        }
-
-        // Create product
-        const productId = `product-${name.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}`;
-
-        const product = await prisma.product.create({
-            data: {
-                id: productId,
-                name,
-                unit: unit || 'ชิ้น',
-                salePrice: salePrice || 0
-            }
-        });
-
-        // Create inventory for this station
-        await prisma.productInventory.create({
-            data: {
-                productId: product.id,
-                stationId,
-                quantity: quantity || 0,
-                alertLevel: 3
-            }
-        });
-
-        return NextResponse.json({ success: true, product });
-    } catch (error) {
-        console.error('[Products POST]:', error);
-        return NextResponse.json({ error: 'Failed to add product' }, { status: 500 });
-    }
+    const { id } = await params;
+    return retiredSimpleProductWriteResponse(id);
 }
 
-// PUT - Update product
 export async function PUT(
-    request: NextRequest,
+    _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    try {
-        const { id } = await params;
-        const stationId = `station-${id}`;
-        const auth = await requireStationAccessApi(stationId);
-        if (auth.response) return auth.response;
-
-        const body = await request.json();
-
-        const { id: productId, name, unit, salePrice, quantity } = body;
-
-        if (!productId) {
-            return NextResponse.json({ error: 'Product ID is required' }, { status: 400 });
-        }
-
-        // Update product
-        await prisma.product.update({
-            where: { id: productId },
-            data: {
-                name,
-                unit: unit || 'ชิ้น',
-                salePrice: salePrice || 0
-            }
-        });
-
-        // Update inventory quantity
-        await prisma.productInventory.updateMany({
-            where: {
-                productId,
-                stationId
-            },
-            data: {
-                quantity: quantity || 0
-            }
-        });
-
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        console.error('[Products PUT]:', error);
-        return NextResponse.json({ error: 'Failed to update product' }, { status: 500 });
-    }
+    const { id } = await params;
+    return retiredSimpleProductWriteResponse(id);
 }
 
-// DELETE - Remove product from station
 export async function DELETE(
-    request: NextRequest,
+    _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    try {
-        const { id } = await params;
-        const stationId = `station-${id}`;
-        const auth = await requireStationAccessApi(stationId);
-        if (auth.response) return auth.response;
-
-        const { searchParams } = new URL(request.url);
-        const productId = searchParams.get('productId');
-
-        if (!productId) {
-            return NextResponse.json({ error: 'Product ID is required' }, { status: 400 });
-        }
-
-        // Remove inventory for this station only (don't delete product from other stations)
-        await prisma.productInventory.deleteMany({
-            where: {
-                productId,
-                stationId
-            }
-        });
-
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        console.error('[Products DELETE]:', error);
-        return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 });
-    }
+    const { id } = await params;
+    return retiredSimpleProductWriteResponse(id);
 }

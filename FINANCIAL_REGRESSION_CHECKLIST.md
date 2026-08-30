@@ -202,3 +202,8 @@ A legacy route may be redirected only when:
 - Historical/read GET remains available, but the legacy SIMPLE shift-end POST no longer invokes the financial/operational `closeFullShift()` path.
 - Canonical station-1 Operations remains the active FULL close source of truth; retired SIMPLE stations stay read-only/POS. No replacement formula or write path was added.
 - Targeted regression: **223/223**; financial + monthly gate: **101/101**; full regression: **618/618**; production build: **127/127**.
+
+### S127 SIMPLE product mutation retirement (2026-08-31)
+- SIMPLE product GET remains read compatibility; legacy POST/PUT/DELETE no longer create/update/delete Product or ProductInventory rows.
+- Active product-stock writes remain the canonical station-5 Inventory contract. No stock, sale, billing, payment or pricing formula was changed.
+- Targeted regression: **229/229**; financial + monthly gate: **101/101**; full regression: **624/624**; production build: **127/127**.

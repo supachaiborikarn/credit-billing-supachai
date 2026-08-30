@@ -3749,3 +3749,24 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Safety / concurrent work:
   - S126 removes a legacy operational write path; no DB mutation/UAT write was needed. No production DB write, push or deploy occurred.
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S126 staging.
+
+## 2026-08-31 — S127 — Retire legacy SIMPLE product mutations
+- Status: `[x]`
+- Release audit finding:
+  - `/api/simple-station/[id]/products` still exposed POST/PUT/DELETE product/inventory mutations even though repository caller audit found only legacy SIMPLE sale/product components.
+  - retired station-2/3/4 operational/product UI has already moved to POS/canonical read-only surfaces, while station-1 has `hasProducts=false` and its legacy product bookmark normalizes to canonical Overview.
+  - old writes were multi-step, unaudited product/inventory mutations and are not a canonical inventory contract.
+- Bounded retirement:
+  - GET remains station-scoped read compatibility and now accepts numeric or canonical `station-X` ids consistently.
+  - POST/PUT/DELETE keep the station-access authorization boundary but return 410 without creating/updating/deleting Product or ProductInventory rows.
+  - retired SIMPLE callers are directed to canonical History/POS; station-1 callers are directed to canonical Overview.
+  - active product inventory remains the station-5 canonical Inventory domain and its existing APIs are unchanged.
+- Verification:
+  - targeted product/shift/legacy/middleware/context regression: 6 files / **229 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 83 files / **624 tests passed**.
+  - TypeScript, S127-scoped ESLint and diff check: passed.
+  - production build: **127/127 routes passed**.
+- Safety / concurrent work:
+  - no DB write/UAT mutation was needed because S127 removes mutation implementations. No production DB write, push or deploy occurred.
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S127 staging.
