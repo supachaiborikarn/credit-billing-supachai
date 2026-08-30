@@ -1,12 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireGasStationAccess } from '@/lib/gas/api-guards';
+import { isValidDateKey } from '@/lib/gas/date-utils';
 import {
     getGasSupplyDateFilter,
     normalizeGasSupplyInput,
     serializeGasSupply,
     summarizeGasSupplies,
 } from '@/lib/gas/supply-utils';
+
+function validateSupplyDateFilters(from: string | null, to: string | null): string | null {
+    if (from && !isValidDateKey(from)) return 'วันที่เริ่มต้นไม่ถูกต้อง';
+    if (to && !isValidDateKey(to)) return 'วันที่สิ้นสุดไม่ถูกต้อง';
+    if (from && to && from > to) return 'วันที่เริ่มต้นต้องไม่เกินวันที่สิ้นสุด';
+    return null;
+}
+
+async function readJsonObject(request: NextRequest): Promise<Record<string, unknown> | null> {
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+    return body as Record<string, unknown>;
+}
 
 export async function GET(
     request: NextRequest,
@@ -18,10 +32,13 @@ export async function GET(
         if (auth.response) return auth.response;
 
         const { searchParams } = new URL(request.url);
-        const { range } = getGasSupplyDateFilter(
-            searchParams.get('from'),
-            searchParams.get('to')
-        );
+        const from = searchParams.get('from');
+        const to = searchParams.get('to');
+        const filterError = validateSupplyDateFilters(from, to);
+        if (filterError) {
+            return NextResponse.json({ error: filterError }, { status: 400 });
+        }
+        const { range } = getGasSupplyDateFilter(from, to);
 
         const rows = await prisma.gasSupply.findMany({
             where: {
@@ -55,7 +72,10 @@ export async function POST(
         const auth = await requireGasStationAccess(stationId);
         if (auth.response) return auth.response;
 
-        const body = await request.json();
+        const body = await readJsonObject(request);
+        if (!body) {
+            return NextResponse.json({ error: 'ข้อมูลรับแก๊สไม่ถูกต้อง' }, { status: 400 });
+        }
         const normalized = normalizeGasSupplyInput(body);
         if (!normalized.ok || !normalized.value) {
             return NextResponse.json({
@@ -63,38 +83,43 @@ export async function POST(
                 errors: normalized.errors,
             }, { status: 400 });
         }
+        const value = normalized.value;
 
-        const supply = await prisma.gasSupply.create({
+        const supply = await prisma.$transaction(async (tx) => {
+            const created = await tx.gasSupply.create({
             data: {
                 stationId: auth.station.dbId,
-                date: normalized.value.date,
-                liters: normalized.value.liters,
-                supplier: normalized.value.supplier,
-                invoiceNo: normalized.value.invoiceNo,
-                pricePerLiter: normalized.value.pricePerLiter,
-                totalCost: normalized.value.totalCost,
-                notes: normalized.value.notes,
-            },
-        });
+                    date: value.date,
+                    liters: value.liters,
+                    supplier: value.supplier,
+                    invoiceNo: value.invoiceNo,
+                    pricePerLiter: value.pricePerLiter,
+                    totalCost: value.totalCost,
+                    notes: value.notes,
+                },
+            });
 
-        await prisma.auditLog.create({
-            data: {
+            await tx.auditLog.create({
+                data: {
                 userId: auth.user.id,
                 action: 'CREATE',
                 model: 'GasSupply',
-                recordId: supply.id,
-                newData: {
-                    stationId: auth.station.dbId,
-                    dateKey: normalized.value.dateKey,
-                    liters: normalized.value.liters,
-                    supplier: normalized.value.supplier,
-                    invoiceNo: normalized.value.invoiceNo,
-                    pricePerLiter: normalized.value.pricePerLiter,
-                    totalCost: normalized.value.totalCost,
-                    source: 'gas-v2-supplies',
+                    recordId: created.id,
+                    newData: {
+                        stationId: auth.station.dbId,
+                        dateKey: value.dateKey,
+                        liters: value.liters,
+                        supplier: value.supplier,
+                        invoiceNo: value.invoiceNo,
+                        pricePerLiter: value.pricePerLiter,
+                        totalCost: value.totalCost,
+                        source: 'gas-v2-supplies',
+                    },
                 },
-            },
-        });
+            });
+
+            return created;
+        }, { maxWait: 5_000, timeout: 20_000 });
 
         return NextResponse.json({
             success: true,

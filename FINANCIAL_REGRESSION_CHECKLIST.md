@@ -131,3 +131,8 @@ A legacy route may be redirected only when:
 - the route is not required for read/print compatibility,
 - the redirect is limited to one bounded route/session, and
 - post-redirect smoke/regression verification passes before choosing another route.
+
+### S114 GAS supply atomicity/read hardening (2026-08-30)
+- Admin/station supply date filters fail closed on invalid/reversed Bangkok date ranges; admin station filter accepts configured GAS stations only.
+- LPG receiving normalization/math is unchanged; write mutation + AuditLog are now atomic for station CREATE and admin CREATE/UPDATE/DELETE.
+- Verified release gate: **101/101 tests passed**; full regression **530/530**; production build **127/127 routes**.

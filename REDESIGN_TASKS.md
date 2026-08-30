@@ -3451,3 +3451,27 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
   - S113 is read-only hardening; no API write, financial formula, authenticated UAT DB write or production DB write occurred.
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S113 staging.
 - No push / no deploy.
+
+## 2026-08-30 — S114 — Harden GAS supply write/read contracts and KEEP Admin Supplies
+- Status: `[x]`
+- Ownership decision:
+  - `/admin/gas/supplies` remains **KEEP_ADMIN_REPORT** because it still owns cross-station supplier/cost summaries, gauge verification, stock forecasts and ADMIN edit/delete that canonical station Inventory does not fully expose.
+  - canonical `/stations/station-5|6/inventory` continues to own normal station-scoped LPG receiving through `/api/v2/gas/[stationId]/supplies`; S114 hardens that shared write contract rather than creating a second source of truth.
+- Read/filter hardening:
+  - admin supply GET now rejects unknown/non-GAS station filters, invalid Bangkok `YYYY-MM-DD` dates and reversed `from > to` ranges with 400 instead of silently querying arbitrary IDs or falling back to today.
+  - station-scoped supply GET applies the same strict Bangkok date/range validation.
+  - malformed/non-object JSON on supply writes now returns 400 instead of surfacing as an internal error.
+- Atomic write/audit hardening:
+  - station-scoped CREATE and admin CREATE/UPDATE/DELETE now pair the `GasSupply` mutation and `AuditLog` in one bounded Prisma transaction (`maxWait=5s`, `timeout=20s`); no write retry is introduced.
+  - ADMIN update keeps the existing UI contract that a delivery cannot be moved to another station while editing; mismatched station input is rejected with 400.
+  - update/delete fail closed when an existing row is not attached to a configured GAS station.
+  - existing liters/cost normalization and Bangkok date storage remain unchanged.
+- Verification:
+  - targeted supplies/analytics/v2 regression: 4 files / **42 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 65 files / **530 tests passed**.
+  - TypeScript, S114-scoped ESLint and `git diff --check`: passed.
+  - production build: **127/127 routes passed**.
+- Safety / concurrent work:
+  - no production DB write, push or deploy occurred.
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S114 staging.

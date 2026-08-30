@@ -14,14 +14,36 @@ import {
     buildStationStockForecast,
     buildSupplyGaugeChecks,
 } from '@/lib/gas/stock-utils';
+import { isValidDateKey } from '@/lib/gas/date-utils';
 import { resolveGasStation } from '@/lib/gas/station-resolver';
 import { prisma } from '@/lib/prisma';
 
+const gasStations = STATIONS.filter((station) => station.type === 'GAS');
 const gasStationNameById = new Map<string, string>(
-    STATIONS
-        .filter((station) => station.type === 'GAS')
-        .map((station) => [station.id, station.name])
+    gasStations.map((station) => [station.id, station.name])
 );
+const configuredGasStationIds = new Set<string>(
+    gasStations.flatMap((station) => [
+        station.id,
+        ...(('aliases' in station && station.aliases) ? [...station.aliases] : []),
+    ])
+);
+
+function validateAdminSupplyFilters(stationId: string | null, from: string | null, to: string | null): string | null {
+    if (stationId && stationId !== 'all' && !configuredGasStationIds.has(stationId)) {
+        return 'กรุณาเลือกปั๊มแก๊สให้ถูกต้อง';
+    }
+    if (from && !isValidDateKey(from)) return 'วันที่เริ่มต้นไม่ถูกต้อง';
+    if (to && !isValidDateKey(to)) return 'วันที่สิ้นสุดไม่ถูกต้อง';
+    if (from && to && from > to) return 'วันที่เริ่มต้นต้องไม่เกินวันที่สิ้นสุด';
+    return null;
+}
+
+async function readJsonObject(request: NextRequest): Promise<Record<string, unknown> | null> {
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+    return body as Record<string, unknown>;
+}
 
 export async function GET(request: NextRequest) {
     try {
@@ -30,11 +52,15 @@ export async function GET(request: NextRequest) {
 
         const { searchParams } = new URL(request.url);
         const stationIdFilter = searchParams.get('stationId');
+        const from = searchParams.get('from');
+        const to = searchParams.get('to');
+        const filterError = validateAdminSupplyFilters(stationIdFilter, from, to);
+        if (filterError) {
+            return NextResponse.json({ error: filterError }, { status: 400 });
+        }
+
         const stationIds = getGasAnalyticsStationIds(stationIdFilter);
-        const { range, fromKey, toKey } = getGasSupplyDateFilter(
-            searchParams.get('from'),
-            searchParams.get('to')
-        );
+        const { range, fromKey, toKey } = getGasSupplyDateFilter(from, to);
 
         const rows = await prisma.gasSupply.findMany({
             where: {
@@ -106,8 +132,15 @@ export async function POST(request: NextRequest) {
         const auth = await requireAdminApi();
         if (auth.response) return auth.response;
 
-        const body = await request.json();
-        const stationId = typeof body.stationId === 'string' ? body.stationId : '';
+        const body = await readJsonObject(request);
+        if (!body) {
+            return NextResponse.json({ error: 'ข้อมูลรับแก๊สไม่ถูกต้อง' }, { status: 400 });
+        }
+
+        const stationId = typeof body.stationId === 'string' ? body.stationId.trim() : '';
+        if (!configuredGasStationIds.has(stationId)) {
+            return NextResponse.json({ error: 'กรุณาเลือกปั๊มแก๊สให้ถูกต้อง' }, { status: 400 });
+        }
         const station = await resolveGasStation(stationId);
         if (!station) {
             return NextResponse.json({ error: 'กรุณาเลือกปั๊มแก๊สให้ถูกต้อง' }, { status: 400 });
@@ -120,38 +153,43 @@ export async function POST(request: NextRequest) {
                 errors: normalized.errors,
             }, { status: 400 });
         }
+        const value = normalized.value;
 
-        const supply = await prisma.gasSupply.create({
-            data: {
-                stationId: station.dbId,
-                date: normalized.value.date,
-                liters: normalized.value.liters,
-                supplier: normalized.value.supplier,
-                invoiceNo: normalized.value.invoiceNo,
-                pricePerLiter: normalized.value.pricePerLiter,
-                totalCost: normalized.value.totalCost,
-                notes: normalized.value.notes,
-            },
-        });
-
-        await prisma.auditLog.create({
-            data: {
-                userId: auth.user.id,
-                action: 'CREATE',
-                model: 'GasSupply',
-                recordId: supply.id,
-                newData: {
+        const supply = await prisma.$transaction(async (tx) => {
+            const created = await tx.gasSupply.create({
+                data: {
                     stationId: station.dbId,
-                    dateKey: normalized.value.dateKey,
-                    liters: normalized.value.liters,
-                    supplier: normalized.value.supplier,
-                    invoiceNo: normalized.value.invoiceNo,
-                    pricePerLiter: normalized.value.pricePerLiter,
-                    totalCost: normalized.value.totalCost,
-                    source: 'gas-admin-supplies',
+                    date: value.date,
+                    liters: value.liters,
+                    supplier: value.supplier,
+                    invoiceNo: value.invoiceNo,
+                    pricePerLiter: value.pricePerLiter,
+                    totalCost: value.totalCost,
+                    notes: value.notes,
                 },
-            },
-        });
+            });
+
+            await tx.auditLog.create({
+                data: {
+                    userId: auth.user.id,
+                    action: 'CREATE',
+                    model: 'GasSupply',
+                    recordId: created.id,
+                    newData: {
+                        stationId: station.dbId,
+                        dateKey: value.dateKey,
+                        liters: value.liters,
+                        supplier: value.supplier,
+                        invoiceNo: value.invoiceNo,
+                        pricePerLiter: value.pricePerLiter,
+                        totalCost: value.totalCost,
+                        source: 'gas-admin-supplies',
+                    },
+                },
+            });
+
+            return created;
+        }, { maxWait: 5_000, timeout: 20_000 });
 
         return NextResponse.json({
             success: true,

@@ -6,13 +6,22 @@ import {
     serializeGasSupply,
 } from '@/lib/gas/supply-utils';
 import { toBangkokDateKey } from '@/lib/gas/date-utils';
+import { resolveGasStation } from '@/lib/gas/station-resolver';
 import { prisma } from '@/lib/prisma';
 
-const gasStationNameById = new Map<string, string>(
-    STATIONS
-        .filter((station) => station.type === 'GAS')
-        .map((station) => [station.id, station.name])
+const gasStations = STATIONS.filter((station) => station.type === 'GAS');
+const configuredGasStationIds = new Set<string>(
+    gasStations.flatMap((station) => [
+        station.id,
+        ...(('aliases' in station && station.aliases) ? [...station.aliases] : []),
+    ])
 );
+
+async function readJsonObject(request: NextRequest): Promise<Record<string, unknown> | null> {
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+    return body as Record<string, unknown>;
+}
 
 function supplyAuditSnapshot(supply: {
     stationId: string;
@@ -49,12 +58,11 @@ export async function PUT(
         if (auth.response) return auth.response;
 
         const { supplyId } = await params;
-        const existing = await prisma.gasSupply.findUnique({ where: { id: supplyId } });
-        if (!existing) {
-            return NextResponse.json({ error: 'ไม่พบรายการรับแก๊สนี้' }, { status: 404 });
+        const body = await readJsonObject(request);
+        if (!body) {
+            return NextResponse.json({ error: 'ข้อมูลรับแก๊สไม่ถูกต้อง' }, { status: 400 });
         }
 
-        const body = await request.json();
         const normalized = normalizeGasSupplyInput(body);
         if (!normalized.ok || !normalized.value) {
             return NextResponse.json({
@@ -62,40 +70,70 @@ export async function PUT(
                 errors: normalized.errors,
             }, { status: 400 });
         }
+        const value = normalized.value;
 
-        const updated = await prisma.gasSupply.update({
-            where: { id: supplyId },
-            data: {
-                date: normalized.value.date,
-                liters: normalized.value.liters,
-                supplier: normalized.value.supplier,
-                invoiceNo: normalized.value.invoiceNo,
-                pricePerLiter: normalized.value.pricePerLiter,
-                totalCost: normalized.value.totalCost,
-                notes: normalized.value.notes,
-            },
-        });
+        const requestedStationId = typeof body.stationId === 'string' ? body.stationId.trim() : null;
+        if (requestedStationId && !configuredGasStationIds.has(requestedStationId)) {
+            return NextResponse.json({ error: 'กรุณาเลือกปั๊มแก๊สให้ถูกต้อง' }, { status: 400 });
+        }
 
-        await prisma.auditLog.create({
-            data: {
-                userId: auth.user.id,
-                action: 'UPDATE',
-                model: 'GasSupply',
-                recordId: supplyId,
-                oldData: supplyAuditSnapshot(existing),
-                newData: {
-                    ...supplyAuditSnapshot(updated),
-                    source: 'gas-admin-supplies',
+        const result = await prisma.$transaction(async (tx) => {
+            const existing = await tx.gasSupply.findUnique({ where: { id: supplyId } });
+            if (!existing) return { status: 'NOT_FOUND' as const };
+            if (!configuredGasStationIds.has(existing.stationId)) return { status: 'INVALID_STATION' as const };
+
+            const existingStation = await resolveGasStation(existing.stationId);
+            if (!existingStation) return { status: 'INVALID_STATION' as const };
+            if (requestedStationId) {
+                const requestedStation = await resolveGasStation(requestedStationId);
+                if (!requestedStation || requestedStation.dbId !== existingStation.dbId) {
+                    return { status: 'STATION_MISMATCH' as const };
+                }
+            }
+
+            const updated = await tx.gasSupply.update({
+                where: { id: supplyId },
+                data: {
+                    date: value.date,
+                    liters: value.liters,
+                    supplier: value.supplier,
+                    invoiceNo: value.invoiceNo,
+                    pricePerLiter: value.pricePerLiter,
+                    totalCost: value.totalCost,
+                    notes: value.notes,
                 },
-            },
-        });
+            });
+
+            await tx.auditLog.create({
+                data: {
+                    userId: auth.user.id,
+                    action: 'UPDATE',
+                    model: 'GasSupply',
+                    recordId: supplyId,
+                    oldData: supplyAuditSnapshot(existing),
+                    newData: {
+                        ...supplyAuditSnapshot(updated),
+                        source: 'gas-admin-supplies',
+                    },
+                },
+            });
+
+            return { status: 'OK' as const, updated, stationName: existingStation.name };
+        }, { maxWait: 5_000, timeout: 20_000 });
+
+        if (result.status === 'NOT_FOUND') {
+            return NextResponse.json({ error: 'ไม่พบรายการรับแก๊สนี้' }, { status: 404 });
+        }
+        if (result.status === 'INVALID_STATION') {
+            return NextResponse.json({ error: 'รายการรับแก๊สนี้ไม่ได้ผูกกับปั๊ม GAS ที่รองรับ' }, { status: 409 });
+        }
+        if (result.status === 'STATION_MISMATCH') {
+            return NextResponse.json({ error: 'ไม่อนุญาตให้ย้ายรายการรับแก๊สข้ามปั๊มระหว่างแก้ไข' }, { status: 400 });
+        }
 
         return NextResponse.json({
             success: true,
-            supply: serializeGasSupply(
-                updated,
-                gasStationNameById.get(updated.stationId) ?? updated.stationId
-            ),
+            supply: serializeGasSupply(result.updated, result.stationName),
         });
     } catch (error) {
         console.error('[Admin Gas Supplies PUT]:', error);
@@ -116,25 +154,37 @@ export async function DELETE(
         if (auth.response) return auth.response;
 
         const { supplyId } = await params;
-        const existing = await prisma.gasSupply.findUnique({ where: { id: supplyId } });
-        if (!existing) {
+        const result = await prisma.$transaction(async (tx) => {
+            const existing = await tx.gasSupply.findUnique({ where: { id: supplyId } });
+            if (!existing) return { status: 'NOT_FOUND' as const };
+            if (!configuredGasStationIds.has(existing.stationId)) return { status: 'INVALID_STATION' as const };
+
+            const station = await resolveGasStation(existing.stationId);
+            if (!station) return { status: 'INVALID_STATION' as const };
+
+            await tx.gasSupply.delete({ where: { id: supplyId } });
+            await tx.auditLog.create({
+                data: {
+                    userId: auth.user.id,
+                    action: 'DELETE',
+                    model: 'GasSupply',
+                    recordId: supplyId,
+                    oldData: {
+                        ...supplyAuditSnapshot(existing),
+                        source: 'gas-admin-supplies',
+                    },
+                },
+            });
+
+            return { status: 'OK' as const };
+        }, { maxWait: 5_000, timeout: 20_000 });
+
+        if (result.status === 'NOT_FOUND') {
             return NextResponse.json({ error: 'ไม่พบรายการรับแก๊สนี้' }, { status: 404 });
         }
-
-        await prisma.gasSupply.delete({ where: { id: supplyId } });
-
-        await prisma.auditLog.create({
-            data: {
-                userId: auth.user.id,
-                action: 'DELETE',
-                model: 'GasSupply',
-                recordId: supplyId,
-                oldData: {
-                    ...supplyAuditSnapshot(existing),
-                    source: 'gas-admin-supplies',
-                },
-            },
-        });
+        if (result.status === 'INVALID_STATION') {
+            return NextResponse.json({ error: 'รายการรับแก๊สนี้ไม่ได้ผูกกับปั๊ม GAS ที่รองรับ' }, { status: 409 });
+        }
 
         return NextResponse.json({ success: true });
     } catch (error) {
