@@ -141,3 +141,9 @@ A legacy route may be redirected only when:
 - Executive and canonical Billing use the same derived three-bucket summary: unbilled credit-like transactions, Invoice outstanding, and BillingCollection outstanding.
 - These buckets remain deliberately separate; do not sum them into a grand total because historical overlap is not relationally proven.
 - Verified release gate: **101/101 tests passed**; full regression **534/534**; production build **127/127 routes**.
+
+### S116 GAS admin dashboard fact alignment (2026-08-30)
+- Live GAS dashboard sales/liters/transaction summaries now derive from the same shift analytics facts as GAS reports, including configured aliases and void/deleted/orphan handling.
+- Today/week/month boundaries are Bangkok business-date based and bounded through today; the selector applies consistently to sales, liters and transaction counts.
+- This is read-only alignment: no sale, price, reconciliation, payment or inventory write formula changed.
+- Verified release gate: **101/101 tests passed**; full regression **539/539**; production build **127/127 routes**.

@@ -3496,3 +3496,26 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Safety / concurrent work:
   - S115 is read-only dashboard/Billing summary alignment; no DB write, push or deploy occurred.
   - Tank Loy auto-print/shared brain concurrent files remain outside S115 scope.
+
+## 2026-08-30 — S116 — Harden and KEEP GAS admin live dashboard
+- Status: `[x]`
+- Ownership decision:
+  - `/admin/gas` remains **KEEP_ADMIN_REPORT** as the live GAS operations entry dashboard; it is not the same surface as Executive or printable reports.
+- Read correctness hardening:
+  - `/api/v2/gas/admin/dashboard` no longer aggregates raw `Transaction` rows or `DailyRecord` rows with configured IDs directly; it reuses `getGasShiftAnalyticsData()` so canonical station IDs, GAS aliases, void/deleted filtering and orphan transaction handling match the report fact layer.
+  - today/week/month windows are derived from Bangkok business-date keys without server-local `Date#setDate/setMonth`; month shifting clamps end-of-month safely.
+  - per-station current shift and today totals come from the same canonical shift facts.
+  - gauge status reads only the latest row for each tank 1–3 across canonical + alias station IDs; station average/low alert is based on those latest-per-tank values rather than one arbitrary latest gauge row.
+  - the Today/Week/Month selector now changes sales, liters and transaction counts together instead of changing sales only.
+- Async-state hardening:
+  - first-load failure no longer renders a fake all-zero dashboard; it shows an actionable fatal error with retry.
+  - periodic refresh failure keeps the last successful payload visible and shows a warning/retry state.
+- Verification:
+  - targeted dashboard/analytics/permission regression: 3 files / **16 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 68 files / **539 tests passed**.
+  - TypeScript, S116-scoped ESLint and `git diff --check`: passed.
+  - production build: **127/127 routes passed**.
+- Safety / concurrent work:
+  - S116 is read-only dashboard hardening; no DB write, push or deploy occurred.
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S116 staging.

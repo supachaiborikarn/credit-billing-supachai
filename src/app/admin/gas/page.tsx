@@ -33,7 +33,11 @@ interface DashboardData {
         weekTotal: number;
         monthTotal: number;
         todayTransactions: number;
+        weekTransactions: number;
+        monthTransactions: number;
         todayLiters: number;
+        weekLiters: number;
+        monthLiters: number;
     };
     stations: StationSummary[];
     recentAlerts: string[];
@@ -42,48 +46,75 @@ interface DashboardData {
 export default function AdminGasDashboardPage() {
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<DashboardData | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [refreshKey, setRefreshKey] = useState(0);
     const [timeRange, setTimeRange] = useState<'today' | 'week' | 'month'>('today');
 
     useEffect(() => {
+        let cancelled = false;
+
         const fetchData = async () => {
             try {
                 const res = await fetch('/api/v2/gas/admin/dashboard');
-                if (res.ok) {
-                    const json = await res.json();
-                    setData(json);
+                const payload = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    throw new Error(payload.error || 'โหลด Dashboard ไม่สำเร็จ');
                 }
-            } catch (error) {
-                console.error('Error fetching dashboard:', error);
+                if (!cancelled) {
+                    setData(payload);
+                    setError(null);
+                }
+            } catch (fetchError) {
+                console.error('Error fetching dashboard:', fetchError);
+                if (!cancelled) {
+                    setError(fetchError instanceof Error ? fetchError.message : 'โหลด Dashboard ไม่สำเร็จ');
+                }
             } finally {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             }
         };
-        fetchData();
 
-        // Refresh every minute
-        const interval = setInterval(fetchData, 60000);
-        return () => clearInterval(interval);
-    }, []);
+        void fetchData();
+        const interval = setInterval(() => { void fetchData(); }, 60000);
+        return () => {
+            cancelled = true;
+            clearInterval(interval);
+        };
+    }, [refreshKey]);
 
-    if (loading) {
+    const retry = () => {
+        if (!data) setLoading(true);
+        setRefreshKey((value) => value + 1);
+    };
+
+    if (loading && !data) {
         return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <Loader2 className="animate-spin text-purple-400" size={40} />
+            <div className="flex min-h-[400px] items-center justify-center" role="status" aria-label="กำลังโหลด Dashboard">
+                <Loader2 className="animate-spin text-purple-400" size={40} aria-hidden="true" />
             </div>
         );
     }
 
-    // Default data for demo
-    const summary = data?.summary || {
-        todayTotal: 0,
-        weekTotal: 0,
-        monthTotal: 0,
-        todayTransactions: 0,
-        todayLiters: 0
-    };
+    if (!data) {
+        return (
+            <div className="mx-auto max-w-xl rounded-xl border border-red-500/30 bg-red-950/30 p-6 text-center" role="alert">
+                <AlertTriangle className="mx-auto mb-3 text-red-400" size={32} aria-hidden="true" />
+                <h1 className="text-lg font-semibold text-red-200">โหลด Dashboard ไม่สำเร็จ</h1>
+                <p className="mt-2 text-sm text-red-300">{error || 'ไม่สามารถโหลดข้อมูลล่าสุดได้'}</p>
+                <button
+                    type="button"
+                    onClick={retry}
+                    className="mt-4 rounded-lg bg-orange-700 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
+                >
+                    ลองใหม่
+                </button>
+            </div>
+        );
+    }
 
-    const stations = data?.stations || [];
-    const alerts = data?.recentAlerts || [];
+    const summary = data.summary;
+    const stations = data.stations;
+    const alerts = data.recentAlerts;
 
     return (
         <div className="space-y-6">
@@ -111,6 +142,19 @@ export default function AdminGasDashboardPage() {
                 </div>
             </div>
 
+            {error && (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-950/30 px-4 py-3 text-sm text-amber-200" role="status">
+                    <span>อัปเดตล่าสุดไม่สำเร็จ กำลังแสดงข้อมูลครั้งล่าสุด: {error}</span>
+                    <button
+                        type="button"
+                        onClick={retry}
+                        className="shrink-0 font-semibold text-amber-100 underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+                    >
+                        ลองใหม่
+                    </button>
+                </div>
+            )}
+
             {/* Summary Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-gradient-to-br from-green-900/50 to-green-800/30 rounded-xl p-4 border border-green-500/20">
@@ -130,7 +174,8 @@ export default function AdminGasDashboardPage() {
                         <span className="text-sm">ลิตร</span>
                     </div>
                     <div className="text-2xl font-bold text-white">
-                        {summary.todayLiters.toLocaleString()}
+                        {(timeRange === 'today' ? summary.todayLiters :
+                            timeRange === 'week' ? summary.weekLiters : summary.monthLiters).toLocaleString()}
                     </div>
                 </div>
 
@@ -140,7 +185,8 @@ export default function AdminGasDashboardPage() {
                         <span className="text-sm">รายการ</span>
                     </div>
                     <div className="text-2xl font-bold text-white">
-                        {summary.todayTransactions}
+                        {timeRange === 'today' ? summary.todayTransactions :
+                            timeRange === 'week' ? summary.weekTransactions : summary.monthTransactions}
                     </div>
                 </div>
 
