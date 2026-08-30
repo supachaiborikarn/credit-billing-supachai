@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
+import { requireAdminApi } from '@/lib/api-auth';
 import { getPendingAnomalies } from '@/services/anomaly-detection';
 
-// GET - ดึงรายการ anomaly ที่ยังไม่ได้ตรวจสอบ
 export async function GET() {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
         const anomalies = await getPendingAnomalies();
-
         return NextResponse.json({ anomalies });
     } catch (error) {
         console.error('Anomalies API error:', error);

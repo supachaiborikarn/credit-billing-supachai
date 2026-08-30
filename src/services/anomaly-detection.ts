@@ -237,6 +237,19 @@ export async function getPendingAnomalies(stationId?: string) {
                 shift: { dailyRecord: { stationId } }
             })
         },
+        include: {
+            shift: {
+                select: {
+                    shiftNumber: true,
+                    dailyRecord: {
+                        select: {
+                            date: true,
+                            station: { select: { name: true } },
+                        },
+                    },
+                },
+            },
+        },
         orderBy: { createdAt: 'desc' },
         take: 50
     });
@@ -245,15 +258,35 @@ export async function getPendingAnomalies(stationId?: string) {
 /**
  * ทำเครื่องหมายว่าตรวจสอบแล้ว
  */
-export async function markAnomalyReviewed(
+export async function reviewMeterAnomaly(
     anomalyId: string,
     reviewedById: string
-): Promise<void> {
-    await prisma.meterAnomaly.update({
-        where: { id: anomalyId },
-        data: {
-            reviewedById,
-            reviewedAt: new Date()
-        }
-    });
+): Promise<'REVIEWED' | 'NOT_FOUND' | 'ALREADY_REVIEWED'> {
+    return prisma.$transaction(async (tx) => {
+        const anomaly = await tx.meterAnomaly.findUnique({
+            where: { id: anomalyId },
+            select: { reviewedAt: true, reviewedById: true },
+        });
+        if (!anomaly) return 'NOT_FOUND';
+        if (anomaly.reviewedAt) return 'ALREADY_REVIEWED';
+
+        const reviewedAt = new Date();
+        const updated = await tx.meterAnomaly.updateMany({
+            where: { id: anomalyId, reviewedAt: null },
+            data: { reviewedById, reviewedAt },
+        });
+        if (updated.count !== 1) return 'ALREADY_REVIEWED';
+
+        await tx.auditLog.create({
+            data: {
+                userId: reviewedById,
+                action: 'REVIEW',
+                model: 'MeterAnomaly',
+                recordId: anomalyId,
+                oldData: { reviewedAt: null, reviewedById: anomaly.reviewedById },
+                newData: { reviewedAt: reviewedAt.toISOString(), reviewedById },
+            },
+        });
+        return 'REVIEWED';
+    }, { maxWait: 5_000, timeout: 20_000 });
 }

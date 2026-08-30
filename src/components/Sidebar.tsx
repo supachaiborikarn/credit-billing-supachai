@@ -110,7 +110,7 @@ export default function Sidebar({ children }: SidebarProps) {
             title: '⚠️ ตรวจสอบความผิดปกติ',
             items: [
                 { href: '/admin/alerts', icon: Shield, label: 'Anti-Fraud (รายบิล)', gradient: 'from-purple-500 to-pink-500' },
-                { href: '/admin/anomalies', icon: Shield, label: 'Anomaly ปั๊มซิมเปิ้ล (กะ)', gradient: 'from-yellow-500 to-orange-500' },
+                { href: '/admin/anomalies', icon: Shield, label: 'Anomaly รายกะ/หัวจ่าย', gradient: 'from-yellow-500 to-orange-500' },
                 { href: '/admin/daily-anomalies', icon: Shield, label: 'Anomaly แท๊งลอย (วัน)', gradient: 'from-amber-500 to-yellow-500' },
             ]
         },

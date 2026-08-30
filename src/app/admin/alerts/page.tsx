@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
     AlertTriangle,
     Lock,
@@ -11,7 +11,6 @@ import {
     Shield,
     AlertCircle
 } from 'lucide-react';
-import Link from 'next/link';
 
 interface VarianceAlert {
     id: string;
@@ -68,28 +67,32 @@ export default function AdminAlertsPage() {
     const [unlockedShifts, setUnlockedShifts] = useState<UnlockedShift[]>([]);
     const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
     const [lockingId, setLockingId] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [hasLoaded, setHasLoaded] = useState(false);
 
-    const fetchAlerts = async () => {
+    const fetchAlerts = useCallback(async () => {
         setLoading(true);
         try {
             const res = await fetch('/api/admin/alerts?days=7');
-            if (res.ok) {
-                const data = await res.json();
-                setAlertCounts(data.alertCounts);
-                setVarianceAlerts(data.varianceAlerts);
-                setUnlockedShifts(data.unlockedShifts);
-                setAuditLogs(data.recentAuditLogs);
-            }
-        } catch (error) {
-            console.error('Error fetching alerts:', error);
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || 'โหลดข้อมูลตรวจสอบไม่สำเร็จ');
+            setAlertCounts(data.alertCounts);
+            setVarianceAlerts(data.varianceAlerts);
+            setUnlockedShifts(data.unlockedShifts);
+            setAuditLogs(data.recentAuditLogs);
+            setError(null);
+            setHasLoaded(true);
+        } catch (fetchError) {
+            console.error('Error fetching alerts:', fetchError);
+            setError(fetchError instanceof Error ? fetchError.message : 'โหลดข้อมูลตรวจสอบไม่สำเร็จ');
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
-        fetchAlerts();
-    }, []);
+        void fetchAlerts();
+    }, [fetchAlerts]);
 
     const handleLockShift = async (shiftId: string) => {
         if (!confirm('ยืนยันล็อกกะนี้? หลังล็อกแล้วจะไม่สามารถแก้ไขได้อีก')) return;
@@ -122,7 +125,8 @@ export default function AdminAlertsPage() {
         return new Date(dateStr).toLocaleDateString('th-TH', {
             day: 'numeric',
             month: 'short',
-            year: '2-digit'
+            year: '2-digit',
+            timeZone: 'Asia/Bangkok'
         });
     };
 
@@ -131,7 +135,8 @@ export default function AdminAlertsPage() {
             day: 'numeric',
             month: 'short',
             hour: '2-digit',
-            minute: '2-digit'
+            minute: '2-digit',
+            timeZone: 'Asia/Bangkok'
         });
     };
 
@@ -144,6 +149,7 @@ export default function AdminAlertsPage() {
             case 'VOID': return 'ยกเลิก';
             case 'UPDATE': return 'แก้ไข';
             case 'LOCK': return 'ล็อก';
+            case 'REVIEW': return 'ตรวจสอบ';
             case 'CLOSE': return 'ปิดกะ';
             default: return action;
         }
@@ -158,10 +164,25 @@ export default function AdminAlertsPage() {
                 return 'text-yellow-400 bg-yellow-500/20';
             case 'LOCK':
                 return 'text-blue-400 bg-blue-500/20';
+            case 'REVIEW':
+                return 'text-green-400 bg-green-500/20';
             default:
                 return 'text-gray-400 bg-gray-500/20';
         }
     };
+
+    if (!loading && !hasLoaded && error) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6 text-white">
+                <div className="mx-auto max-w-xl rounded-xl border border-red-500/30 bg-red-950/30 p-6 text-center" role="alert">
+                    <AlertCircle className="mx-auto mb-3 text-red-400" size={32} />
+                    <div className="font-semibold">โหลด Anti-Fraud Dashboard ไม่สำเร็จ</div>
+                    <div className="mt-2 text-sm text-red-300">{error}</div>
+                    <button type="button" onClick={() => void fetchAlerts()} className="mt-4 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold">ลองใหม่</button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
@@ -175,7 +196,7 @@ export default function AdminAlertsPage() {
                     </div>
                 </div>
                 <button
-                    onClick={fetchAlerts}
+                    onClick={() => void fetchAlerts()}
                     disabled={loading}
                     className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors disabled:opacity-50"
                 >
@@ -183,6 +204,12 @@ export default function AdminAlertsPage() {
                     รีเฟรช
                 </button>
             </div>
+
+            {error && hasLoaded && (
+                <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-950/30 px-4 py-3 text-sm text-amber-200" role="status">
+                    รีเฟรชล่าสุดไม่สำเร็จ กำลังแสดงข้อมูลครั้งล่าสุด: {error}
+                </div>
+            )}
 
             {/* Summary Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">

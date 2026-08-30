@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle, Calendar, ArrowLeft, RefreshCw, Scan } from 'lucide-react';
 import Link from 'next/link';
 
@@ -24,21 +24,25 @@ export default function DailyAnomaliesPage() {
     const [loading, setLoading] = useState(true);
     const [scanning, setScanning] = useState(false);
     const [status, setStatus] = useState<'pending' | 'reviewed' | 'all'>('pending');
+    const [error, setError] = useState<string | null>(null);
+    const [hasLoaded, setHasLoaded] = useState(false);
 
-    const fetchAnomalies = async () => {
+    const fetchAnomalies = useCallback(async () => {
         setLoading(true);
         try {
             const res = await fetch(`/api/admin/daily-anomalies?status=${status}`);
-            if (res.ok) {
-                const data = await res.json();
-                setAnomalies(data.anomalies || []);
-            }
-        } catch (error) {
-            console.error('Error fetching anomalies:', error);
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || 'โหลด daily anomaly ไม่สำเร็จ');
+            setAnomalies(data.anomalies || []);
+            setError(null);
+            setHasLoaded(true);
+        } catch (fetchError) {
+            console.error('Error fetching anomalies:', fetchError);
+            setError(fetchError instanceof Error ? fetchError.message : 'โหลด daily anomaly ไม่สำเร็จ');
         } finally {
             setLoading(false);
         }
-    };
+    }, [status]);
 
     const triggerScan = async () => {
         setScanning(true);
@@ -48,11 +52,10 @@ export default function DailyAnomaliesPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ days: 30 })
             });
-            if (res.ok) {
-                const data = await res.json();
-                alert(`สแกนเสร็จสิ้น! พบความผิดปกติ ${data.totalFound} รายการ`);
-                fetchAnomalies(); // Refresh the list
-            }
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || 'สแกนไม่สำเร็จ');
+            alert(`สแกนเสร็จสิ้น! พบความผิดปกติ ${data.totalFound} รายการ`);
+            void fetchAnomalies();
         } catch (error) {
             console.error('Error scanning:', error);
             alert('เกิดข้อผิดพลาดในการสแกน');
@@ -62,10 +65,23 @@ export default function DailyAnomaliesPage() {
     };
 
     useEffect(() => {
-        fetchAnomalies();
-    }, [status]);
+        void fetchAnomalies();
+    }, [fetchAnomalies]);
 
     const formatNumber = (n: number) => n.toLocaleString('th-TH', { maximumFractionDigits: 2 });
+
+    if (!loading && !hasLoaded && error) {
+        return (
+            <div className="min-h-screen bg-[#0a0a0f] p-6 text-white">
+                <div className="mx-auto max-w-xl rounded-xl border border-red-500/30 bg-red-950/30 p-6 text-center" role="alert">
+                    <AlertTriangle className="mx-auto mb-3 text-red-400" size={32} />
+                    <div className="font-semibold">โหลด Daily Anomaly ไม่สำเร็จ</div>
+                    <div className="mt-2 text-sm text-red-300">{error}</div>
+                    <button type="button" onClick={() => void fetchAnomalies()} className="mt-4 rounded-lg bg-yellow-700 px-4 py-2 text-sm font-semibold">ลองใหม่</button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[#0a0a0f] text-white p-6">
@@ -91,7 +107,7 @@ export default function DailyAnomaliesPage() {
                         {scanning ? 'กำลังสแกน...' : 'Scan 30 วัน'}
                     </button>
                     <button
-                        onClick={fetchAnomalies}
+                        onClick={() => void fetchAnomalies()}
                         className="p-2 hover:bg-white/10 rounded-lg"
                     >
                         <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />

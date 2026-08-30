@@ -162,3 +162,9 @@ A legacy route may be redirected only when:
 - FULL executive/anomaly reads now use the shared operational-sales fact dataset for selected-day, selected-month-to-date, 30-day and fuel summaries, with explicit Bangkok date keys.
 - The only direct transaction read is selected-day void count; sale/payment/pricing/shift write formulas are unchanged.
 - Verified release gate: **101/101 tests passed**; full regression **563/563**; production build **127/127 routes**.
+
+### S120 anomaly / Anti-Fraud admin hardening (2026-08-30)
+- Existing anomaly thresholds/formulas are unchanged (MeterAnomaly 50%/100%; DailyAnomaly 10L/50L).
+- Anti-Fraud shift lock and MeterAnomaly review are ADMIN-only, conditional and atomic with AuditLog; DailyAnomaly GET no longer performs hidden scan/write work, while explicit scans are bounded to configured FULL stations and 1-90 days.
+- No sale, meter, reconciliation, payment, invoice, pricing or anomaly-detection formula changed.
+- Verified release gate: **101/101 tests passed**; full regression **583/583**; production build **127/127 routes**.

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { AlertTriangle, ArrowLeft, RefreshCw, CheckCircle, Eye } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { AlertTriangle, ArrowLeft, RefreshCw, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 
 interface Anomaly {
@@ -27,25 +27,29 @@ export default function AnomalyReviewPage() {
     const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
     const [loading, setLoading] = useState(true);
     const [reviewing, setReviewing] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [hasLoaded, setHasLoaded] = useState(false);
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setLoading(true);
         try {
             const res = await fetch('/api/admin/anomalies');
-            if (res.ok) {
-                const data = await res.json();
-                setAnomalies(data.anomalies || []);
-            }
-        } catch (error) {
-            console.error('Fetch error:', error);
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || 'โหลด anomaly ไม่สำเร็จ');
+            setAnomalies(data.anomalies || []);
+            setError(null);
+            setHasLoaded(true);
+        } catch (fetchError) {
+            console.error('Fetch error:', fetchError);
+            setError(fetchError instanceof Error ? fetchError.message : 'โหลด anomaly ไม่สำเร็จ');
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        void fetchData();
+    }, [fetchData]);
 
     const handleMarkReviewed = async (anomalyId: string) => {
         setReviewing(anomalyId);
@@ -67,6 +71,19 @@ export default function AnomalyReviewPage() {
         }
     };
 
+    if (!loading && !hasLoaded && error) {
+        return (
+            <div className="min-h-screen bg-gray-100 p-6">
+                <div className="mx-auto max-w-xl rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-red-700" role="alert">
+                    <AlertTriangle className="mx-auto mb-3" size={32} />
+                    <div className="font-semibold">โหลดรายการ anomaly ไม่สำเร็จ</div>
+                    <div className="mt-2 text-sm">{error}</div>
+                    <button type="button" onClick={() => void fetchData()} className="mt-4 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white">ลองใหม่</button>
+                </div>
+            </div>
+        );
+    }
+
     const criticalCount = anomalies.filter(a => a.severity === 'CRITICAL').length;
     const warningCount = anomalies.filter(a => a.severity === 'WARNING').length;
 
@@ -76,13 +93,13 @@ export default function AnomalyReviewPage() {
             <header className="bg-white shadow-sm sticky top-0 z-40">
                 <div className="px-4 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <Link href="/admin" className="p-1">
+                        <Link href="/today" className="p-1">
                             <ArrowLeft size={24} className="text-gray-700" />
                         </Link>
                         <h1 className="font-bold text-gray-800 text-lg">⚠️ ตรวจสอบความผิดปกติ</h1>
                     </div>
                     <button
-                        onClick={fetchData}
+                        onClick={() => void fetchData()}
                         className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200"
                     >
                         <RefreshCw size={20} className={`text-gray-600 ${loading ? 'animate-spin' : ''}`} />
@@ -184,7 +201,7 @@ export default function AnomalyReviewPage() {
                                 </div>
 
                                 <p className="text-xs text-gray-400 mt-2 text-right">
-                                    {new Date(a.createdAt).toLocaleDateString('th-TH')}
+                                    {new Date(a.createdAt).toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok' })}
                                 </p>
                             </div>
                         ))}

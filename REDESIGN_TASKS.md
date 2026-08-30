@@ -3583,3 +3583,34 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Safety / concurrent work:
   - S119 is read-only dashboard/anomaly alignment; no DB write, financial formula, push or deploy occurred.
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S119 staging.
+
+## 2026-08-30 — S120 — Harden anomaly and Anti-Fraud admin workflows
+- Status: `[x]`
+- Ownership decision:
+  - `/admin/alerts`, `/admin/anomalies`, and `/admin/daily-anomalies` remain **KEEP_ADMIN_REPORT** because they are separate capabilities: reconciliation/stale-shift/audit Anti-Fraud operations, per-shift/nozzle `MeterAnomaly` review, and FULL daily meter-vs-transaction anomaly scanning/review.
+  - detection thresholds remain unchanged: MeterAnomaly WARNING 50% / CRITICAL 100%; DailyAnomaly WARNING 10L / CRITICAL 50L.
+- Authorization / mutation hardening:
+  - `/api/admin/alerts` now uses shared `requireAdminApi`; GET `days` is strict integer 1-90 and POST accepts only explicit `lock` for a string shift ID.
+  - Anti-Fraud lock requires the current shift status to be exactly `CLOSED`; a bounded Prisma transaction (`maxWait=5s`, `timeout=20s`) uses conditional `updateMany` and writes the `LOCK` AuditLog atomically. Missing/open/already-locked/raced states fail closed instead of blindly overwriting status.
+  - `/api/admin/anomalies` and `/api/admin/anomalies/[id]/review` are now ADMIN-only; pending reads include the shift/date/station relation the UI actually renders.
+  - MeterAnomaly review is one-shot and atomic with a `REVIEW` AuditLog; missing rows return 404 and already-reviewed rows return 409.
+- Daily anomaly read/write boundary:
+  - removed the hidden `autoScanRecentDays()` write side effect from `GET /api/admin/daily-anomalies`; GET is now a real read-only route and validates `status` plus configured FULL station scope.
+  - manual scan remains explicit ADMIN POST only, with object JSON and integer `days` 1-90; it scans configured FULL station(s) only and uses Bangkok date keys. The anomaly detection/save formula itself is unchanged.
+- UI correctness:
+  - Anti-Fraud, MeterAnomaly, and DailyAnomaly pages now surface first-load API failures with retry instead of treating request failure as valid zero/empty anomaly state; later Anti-Fraud refresh failure preserves the last good data.
+  - audit feed includes `LOCK`/`REVIEW`; anomaly timestamps render Bangkok; invalid `/admin` back link was replaced by `/today`.
+  - Sidebar label changed from `Anomaly ปั๊มซิมเปิ้ล (กะ)` to `Anomaly รายกะ/หัวจ่าย` because the same MeterAnomaly model is also consumed by GAS/Today views.
+- Verification:
+  - targeted alert/anomaly/daily-anomaly regression: 4 files / **21 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 74 files / **583 tests passed**.
+  - TypeScript, S120-scoped ESLint and `git diff --check`: passed.
+  - production build: **127/127 routes passed**.
+- UAT boundary:
+  - `npm run uat:preflight` passed and confirmed the UAT Neon host differs from production.
+  - authenticated HTTP write UAT was intentionally not run: port 3005 is owned by existing PID 62675 and `.next/dev/lock` is active, so the DB target of that existing dev server is not safe to assume. S120 did not kill/restart that process or send mutation requests to it.
+  - atomic lock/review behavior is covered by route/service tests using transaction mocks; daily GET read-only and bounded explicit scan scope are also regression-tested.
+- Safety / concurrent work:
+  - no production DB write, push or deploy occurred.
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S120 staging.

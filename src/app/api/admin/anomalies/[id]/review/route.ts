@@ -1,23 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { markAnomalyReviewed } from '@/services/anomaly-detection';
-import { getSessionUser } from '@/lib/auth-utils';
+import { requireAdminApi } from '@/lib/api-auth';
+import { reviewMeterAnomaly } from '@/services/anomaly-detection';
 
-// POST - ทำเครื่องหมาย anomaly ว่าตรวจสอบแล้ว
 export async function POST(
-    request: NextRequest,
+    _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
         const { id: anomalyId } = await params;
+        if (!anomalyId) return NextResponse.json({ error: 'Anomaly ID required' }, { status: 400 });
 
-        // Get current user
-        const user = await getSessionUser();
-        if (!user) {
-            return NextResponse.json({ error: 'กรุณาเข้าสู่ระบบ' }, { status: 401 });
-        }
-
-        await markAnomalyReviewed(anomalyId, user.id);
-
+        const result = await reviewMeterAnomaly(anomalyId, auth.user.id);
+        if (result === 'NOT_FOUND') return NextResponse.json({ error: 'ไม่พบรายการ anomaly' }, { status: 404 });
+        if (result === 'ALREADY_REVIEWED') return NextResponse.json({ error: 'รายการนี้ตรวจสอบแล้ว' }, { status: 409 });
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Mark reviewed error:', error);
