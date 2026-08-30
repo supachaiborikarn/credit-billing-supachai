@@ -80,6 +80,16 @@ function getCustomerMasterDataRedirectPath(pathname: string) {
     return null;
 }
 
+function getBillingWorkspaceRedirectPath(pathname: string) {
+    const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+    if (normalized === '/invoices' || normalized === '/admin/invoices' || normalized === '/billing-collections') {
+        return '/billing';
+    }
+    const collectionMatch = normalized.match(/^\/billing-collections\/([^/]+)$/);
+    if (collectionMatch) return `/billing/${encodeURIComponent(collectionMatch[1])}?kind=BILLING_COLLECTION`;
+    return null;
+}
+
 function getTankLoyRedirectPath(pathname: string) {
     const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
 
@@ -118,6 +128,7 @@ export function middleware(request: NextRequest) {
     const currentGasRedirectPath = getCurrentGasRedirectPath(pathname);
     const gasV2RedirectPath = getGasV2RedirectPath(pathname);
     const customerMasterDataRedirectPath = getCustomerMasterDataRedirectPath(pathname);
+    const billingWorkspaceRedirectPath = getBillingWorkspaceRedirectPath(pathname);
     const tankLoyRedirectPath = getTankLoyRedirectPath(pathname);
     const retiredSimpleSummaryRedirectPath = getRetiredSimpleSummaryRedirectPath(pathname);
 
@@ -129,8 +140,14 @@ export function middleware(request: NextRequest) {
     // If protected route and no session, redirect to login
     if (isProtectedRoute && !sessionCookie) {
         const loginUrl = new URL('/login', request.url);
-        const redirectPath = canonicalLandingRedirectPath || currentGasRedirectPath || gasV2RedirectPath || customerMasterDataRedirectPath || retiredSimpleSummaryRedirectPath || tankLoyRedirectPath || pathname;
-        loginUrl.searchParams.set('redirect', `${redirectPath}${request.nextUrl.search}`);
+        const redirectPath = canonicalLandingRedirectPath || currentGasRedirectPath || gasV2RedirectPath || customerMasterDataRedirectPath || billingWorkspaceRedirectPath || retiredSimpleSummaryRedirectPath || tankLoyRedirectPath || pathname;
+        const redirectTarget = new URL(redirectPath, request.url);
+        request.nextUrl.searchParams.forEach((value, key) => {
+            if (key !== 'kind' || !redirectTarget.searchParams.has('kind')) {
+                redirectTarget.searchParams.append(key, value);
+            }
+        });
+        loginUrl.searchParams.set('redirect', `${redirectTarget.pathname}${redirectTarget.search}`);
         return NextResponse.redirect(loginUrl);
     }
 
@@ -155,6 +172,14 @@ export function middleware(request: NextRequest) {
     if (customerMasterDataRedirectPath) {
         const redirectUrl = new URL(customerMasterDataRedirectPath, request.url);
         redirectUrl.search = request.nextUrl.search;
+        return NextResponse.redirect(redirectUrl);
+    }
+
+    if (billingWorkspaceRedirectPath) {
+        const redirectUrl = new URL(billingWorkspaceRedirectPath, request.url);
+        request.nextUrl.searchParams.forEach((value, key) => {
+            if (key !== 'kind') redirectUrl.searchParams.append(key, value);
+        });
         return NextResponse.redirect(redirectUrl);
     }
 

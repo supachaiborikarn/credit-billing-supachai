@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdminApi, requireApiSession } from '@/lib/api-auth';
+import { Prisma } from '@prisma/client';
+import { buildBillingCollectionNumberPrefix } from '@/lib/billing/document-number';
 
 // GET /api/billing-collections — ดึงรายการใบวางบิลรวม
 export async function GET(request: Request) {
@@ -53,72 +55,123 @@ export async function POST(request: Request) {
         if (auth.response) return auth.response;
 
         const body = await request.json();
-        const { ownerId, periodStart, periodEnd, periodLabel, dueDate, notes, items } = body;
+        const { ownerId, periodStart, periodEnd, periodLabel, dueDate, notes, items } = body as {
+            ownerId?: string;
+            periodStart?: string;
+            periodEnd?: string;
+            periodLabel?: string;
+            dueDate?: string;
+            notes?: string;
+            items?: Array<{
+                sourceDescription?: string;
+                sourceStation?: string;
+                sourceInvoiceNo?: string;
+                amount?: number;
+                notes?: string;
+            }>;
+        };
 
-        if (!ownerId || !periodStart || !periodEnd || !items || items.length === 0) {
+        if (!ownerId || !periodStart || !periodEnd || !Array.isArray(items) || items.length === 0) {
             return NextResponse.json(
                 { error: 'กรุณากรอกข้อมูลให้ครบ (ลูกค้า, ช่วงเวลา, รายการบิล)' },
                 { status: 400 }
             );
         }
-
-        // Get owner info
-        const owner = await prisma.owner.findUnique({ where: { id: ownerId } });
-        if (!owner) {
-            return NextResponse.json({ error: 'ไม่พบลูกค้า' }, { status: 404 });
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(periodStart) || !/^\d{4}-\d{2}-\d{2}$/.test(periodEnd) || periodStart > periodEnd) {
+            return NextResponse.json({ error: 'ช่วงวันที่ไม่ถูกต้อง' }, { status: 400 });
+        }
+        if (dueDate && !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
+            return NextResponse.json({ error: 'วันครบกำหนดไม่ถูกต้อง' }, { status: 400 });
+        }
+        if (items.length > 100) {
+            return NextResponse.json({ error: 'ใบวางบิลรวมรองรับไม่เกิน 100 รายการต่อครั้ง' }, { status: 400 });
         }
 
-        // Calculate total amount from items
-        const totalAmount = items.reduce((sum: number, item: { amount: number }) => sum + Number(item.amount), 0);
-
-        // Generate collection number: BC-YYYY-MM-NNN
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const prefix = `BC-${year}-${month}`;
-
-        const lastCollection = await prisma.billingCollection.findFirst({
-            where: { collectionNo: { startsWith: prefix } },
-            orderBy: { collectionNo: 'desc' },
-        });
-
-        let nextNum = 1;
-        if (lastCollection) {
-            const lastNum = parseInt(lastCollection.collectionNo.split('-').pop() || '0');
-            nextNum = lastNum + 1;
+        const normalizedItems = items.map((item) => ({
+            sourceDescription: item.sourceDescription?.trim() || '',
+            sourceStation: item.sourceStation?.trim() || null,
+            sourceInvoiceNo: item.sourceInvoiceNo?.trim() || null,
+            amount: Number(item.amount),
+            notes: item.notes?.trim() || null,
+        }));
+        if (normalizedItems.some((item) => !item.sourceDescription || !Number.isFinite(item.amount) || item.amount <= 0)) {
+            return NextResponse.json({ error: 'ทุกรายการต้องมีรายละเอียดและยอดเงินมากกว่า 0' }, { status: 400 });
         }
-        const collectionNo = `${prefix}-${String(nextNum).padStart(3, '0')}`;
 
-        // Create billing collection with items
-        const collection = await prisma.billingCollection.create({
-            data: {
-                collectionNo,
-                ownerId,
-                ownerName: owner.name,
-                periodStart: new Date(periodStart),
-                periodEnd: new Date(periodEnd),
-                periodLabel: periodLabel || null,
-                totalAmount,
-                dueDate: dueDate ? new Date(dueDate) : null,
-                notes: notes || null,
-                items: {
-                    create: items.map((item: { sourceDescription: string; sourceStation?: string; sourceInvoiceNo?: string; amount: number; notes?: string }) => ({
-                        sourceDescription: item.sourceDescription,
-                        sourceStation: item.sourceStation || null,
-                        sourceInvoiceNo: item.sourceInvoiceNo || null,
-                        amount: item.amount,
-                        notes: item.notes || null,
-                    })),
+        const totalAmount = normalizedItems.reduce((sum, item) => sum + item.amount, 0);
+        const collection = await prisma.$transaction(async (tx) => {
+            const owner = await tx.owner.findUnique({
+                where: { id: ownerId },
+                select: { id: true, name: true, status: true },
+            });
+            if (!owner) throw new Error('OWNER_NOT_FOUND');
+            if (owner.status !== 'ACTIVE') throw new Error('OWNER_INACTIVE');
+
+            const prefix = buildBillingCollectionNumberPrefix();
+            const lastCollection = await tx.billingCollection.findFirst({
+                where: { collectionNo: { startsWith: prefix } },
+                orderBy: { collectionNo: 'desc' },
+                select: { collectionNo: true },
+            });
+            const lastNum = lastCollection
+                ? Number.parseInt(lastCollection.collectionNo.split('-').pop() || '0', 10)
+                : 0;
+            const nextNum = Number.isFinite(lastNum) ? lastNum + 1 : 1;
+            const collectionNo = `${prefix}-${String(nextNum).padStart(3, '0')}`;
+
+            const created = await tx.billingCollection.create({
+                data: {
+                    collectionNo,
+                    ownerId,
+                    ownerName: owner.name,
+                    periodStart: new Date(`${periodStart}T00:00:00+07:00`),
+                    periodEnd: new Date(`${periodEnd}T23:59:59.999+07:00`),
+                    periodLabel: periodLabel?.trim() || null,
+                    totalAmount,
+                    dueDate: dueDate ? new Date(`${dueDate}T23:59:59.999+07:00`) : null,
+                    notes: notes?.trim() || null,
+                    items: { create: normalizedItems },
                 },
-            },
-            include: {
-                items: true,
-                owner: { select: { id: true, name: true, code: true } },
-            },
+                include: {
+                    items: true,
+                    owner: { select: { id: true, name: true, code: true } },
+                },
+            });
+
+            await tx.auditLog.create({
+                data: {
+                    userId: auth.user.id,
+                    action: 'CREATE',
+                    model: 'BillingCollection',
+                    recordId: created.id,
+                    newData: {
+                        collectionNo: created.collectionNo,
+                        ownerId,
+                        totalAmount,
+                        itemCount: normalizedItems.length,
+                        periodStart,
+                        periodEnd,
+                    },
+                },
+            });
+            return created;
+        }, {
+            maxWait: 5000,
+            timeout: 20000,
+            isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
         });
 
         return NextResponse.json(collection, { status: 201 });
     } catch (error) {
+        if (error instanceof Error && error.message === 'OWNER_NOT_FOUND') {
+            return NextResponse.json({ error: 'ไม่พบลูกค้า' }, { status: 404 });
+        }
+        if (error instanceof Error && error.message === 'OWNER_INACTIVE') {
+            return NextResponse.json({ error: 'ลูกค้าที่เลือกไม่ได้อยู่สถานะใช้งาน' }, { status: 400 });
+        }
+        if (error instanceof Prisma.PrismaClientKnownRequestError && (error.code === 'P2002' || error.code === 'P2034')) {
+            return NextResponse.json({ error: 'มีการสร้างใบวางบิลพร้อมกัน กรุณารีเฟรชแล้วลองใหม่' }, { status: 409 });
+        }
         console.error('Error creating billing collection:', error);
         return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการสร้างใบวางบิลรวม' }, { status: 500 });
     }

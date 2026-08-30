@@ -134,3 +134,11 @@
 - `currentCredit` legacy ของ source ถูกบวกเข้า target เพื่อไม่ทำ indicator เดิมหาย แต่ยอดหนี้ canonical ยัง derive จาก unbilled/invoice/collection records.
 - UAT เจอ P2028 จาก default interactive timeout 5s; แก้ด้วย bounded `maxWait=5s`, `timeout=20s` โดยไม่ retry write แล้ว real merge ผ่านครบ relation + audit.
 - Gates: targeted 87/87 + final route 68/68, financial 90/90, full 430/430, build 127/127; cleanup fixture ทุก relation = 0.
+
+### Canonical Billing workspace (S104 — 2026-08-30)
+- `/invoices`, `/admin/invoices`, `/billing-collections` และ BillingCollection detail retire เข้า `/billing`; canonical Billing เป็น normal user-facing workspace สำหรับรอวางบิล, สร้างเอกสาร, รับชำระ และตรวจสลิป.
+- ADMIN สร้าง Invoice ได้หลาย owner ในครั้งเดียวแต่ระบบสร้าง **แยก 1 Invoice ต่อ owner**; direct `combineOwners=true` หลาย owner ถูก 400 เพราะ schema มี `Invoice.ownerId` เพียงค่าเดียวและ live audit เคยพบ cross-owner invoices.
+- Invoice create/delete unpaid เป็น bounded serializable transaction + AuditLog; Invoice ที่มี Payment ลบไม่ได้. `/invoices/[id]` ยัง KEEP_PRINT_COMPAT และ export Excel/CSV ต้อง authenticated.
+- BillingCollection create เป็น ADMIN-only, validate active owner/date/positive manual items และ AuditLog; payment-slip create/review เป็น ADMIN-only, verify/reject เก็บ `verifiedById`, overpay guard เดิมยัง authoritative.
+- เลข Invoice/Collection ใช้วันที่ Asia/Bangkok เพื่อไม่เลื่อนเลขเอกสารช่วง UTC midnight.
+- S104 final gates: financial 91/91, full 441/441, build 127/127; isolated UAT ผ่าน role/create/delete/payment/export/collection/verify/reject/delete และ cleanup Owner/Transaction/Invoice/Collection/Audit = 0.

@@ -515,7 +515,7 @@ export default function ExecutiveDashboardPage() {
                             <CreditCard className="text-pink-400" size={20} />
                             <h2 className="text-lg font-semibold">เงินเชื่อค้างชำระ</h2>
                         </div>
-                        <Link href="/invoices" className="text-sm text-purple-400 hover:underline flex items-center gap-1">
+                        <Link href="/billing" className="text-sm text-purple-400 hover:underline flex items-center gap-1">
                             ดูทั้งหมด <ChevronRight size={14} />
                         </Link>
                     </div>

@@ -118,10 +118,8 @@ export default function Sidebar({ children }: SidebarProps) {
         {
             title: '💰 การเงิน & บิล',
             items: [
-                { href: '/invoices', icon: FileText, label: 'วางบิล/ชำระเงิน', gradient: 'from-pink-500 to-rose-500' },
-                { href: '/admin/generate-invoices', icon: FileText, label: 'สร้าง Invoice', gradient: 'from-cyan-500 to-teal-500' },
-                { href: '/admin/invoices', icon: FileText, label: 'รายการ Invoice', gradient: 'from-teal-500 to-green-500' },
-                { href: '/billing-collections', icon: FileText, label: 'ใบวางบิลรวม (LINE)', gradient: 'from-emerald-500 to-teal-500' },
+                { href: '/billing', icon: FileText, label: 'Billing / วางบิล / รับชำระ', gradient: 'from-pink-500 to-rose-500' },
+                { href: '/admin/generate-invoices', icon: FileText, label: 'สร้าง Invoice รายเดือน', gradient: 'from-cyan-500 to-teal-500' },
                 { href: '/admin/outstanding', icon: Users, label: 'ลูกค้าค้างชำระ', gradient: 'from-orange-500 to-red-500' },
                 { href: '/admin/credit-limit', icon: Users, label: 'จัดการวงเงิน', gradient: 'from-blue-500 to-cyan-500' },
             ]

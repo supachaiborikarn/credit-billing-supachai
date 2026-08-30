@@ -123,6 +123,25 @@ describe('billing payment route guards', () => {
         expect(txMock.payment.create).toHaveBeenCalledTimes(1);
     });
 
+    it('requires ADMIN permission before accepting a BillingCollection slip', async () => {
+        requireAdminApiMock.mockResolvedValueOnce({
+            response: new Response(JSON.stringify({ error: 'Admin only' }), { status: 403 }),
+            user: null,
+        });
+
+        const { POST } = await import('../src/app/api/billing-collections/[id]/payment-slips/route');
+        const response = await POST(
+            postRequest('http://localhost/api/billing-collections/bc-1/payment-slips', {
+                slipImageUrl: 'https://example.com/slip.webp',
+                amount: 100,
+            }),
+            { params: Promise.resolve({ id: 'bc-1' }) }
+        );
+
+        expect(response.status).toBe(403);
+        expect(prismaMock.billingCollection.findUnique).not.toHaveBeenCalled();
+    });
+
     it('rejects a second BillingCollection slip while one is pending', async () => {
         prismaMock.billingCollection.findUnique.mockResolvedValue({
             id: 'bc-1',

@@ -14,6 +14,8 @@ import {
     UserRound,
 } from 'lucide-react';
 import { ReceivePaymentDialog } from '@/components/billing/ReceivePaymentDialog';
+import { BillingDocumentAdminActions } from '@/components/billing/BillingDocumentAdminActions';
+import { BillingPaymentEvidenceActions } from '@/components/billing/BillingPaymentEvidenceActions';
 import { RedesignAppShell } from '@/components/layout';
 import {
     Badge,
@@ -208,11 +210,10 @@ export default function BillingDetailPage() {
                                     canReceivePayment={data.permissions.canReceivePayment}
                                     onSuccess={loadDetail}
                                 />
-                                <Link href={data.legacyAction.href}>
-                                    <Button variant="outline">
-                                        เปิดหน้าเดิม
-                                    </Button>
-                                </Link>
+                                <BillingDocumentAdminActions
+                                    document={data.document}
+                                    canManage={data.permissions.canReceivePayment}
+                                />
                             </div>
                         </div>
                     </Section>
@@ -331,7 +332,16 @@ export default function BillingDetailPage() {
                                             </div>
                                             <div className="mt-1 text-xs text-[var(--ui-text-muted)]">
                                                 {formatDate(payment.occurredAt)} · {payment.method || 'ไม่ระบุวิธี'}
+                                                {payment.senderName ? ` · ${payment.senderName}` : ''}
                                             </div>
+                                            {data.document.kind === 'BILLING_COLLECTION' && data.document.documentId && (
+                                                <BillingPaymentEvidenceActions
+                                                    collectionId={data.document.documentId}
+                                                    payment={payment}
+                                                    canReview={data.permissions.canReceivePayment}
+                                                    onSuccess={loadDetail}
+                                                />
+                                            )}
                                         </div>
                                         {payment.evidenceUrl && (
                                             <a

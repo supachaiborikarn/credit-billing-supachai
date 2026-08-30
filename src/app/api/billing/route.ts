@@ -148,7 +148,7 @@ export async function GET() {
                     exceptions: [],
                     nextAction: {
                         label: 'เตรียมใบวางบิล',
-                        href: '/invoices',
+                        href: `/billing?createInvoice=${encodeURIComponent(owner.id)}`,
                     },
                 };
             })

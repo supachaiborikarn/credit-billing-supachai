@@ -132,12 +132,14 @@ Disposition: `shift-history` retired in S82, `meter-summary` retired in S83, and
 
 | Legacy route | Canonical | Disposition |
 | --- | --- | --- |
-| `/invoices`, `/admin/invoices` | `/billing` | KEEP_READ_COMPAT until write/admin parity is signed off |
-| `/invoices/[id]` | `/billing/[id]?kind=INVOICE` | KEEP_READ_COMPAT; canonical receive-payment exists but legacy remains fallback |
-| `/billing-collections` | `/billing` | KEEP_READ_COMPAT |
-| `/billing-collections/[id]` | `/billing/[id]?kind=BILLING_COLLECTION` | KEEP_READ_COMPAT; slip verify/reject admin workflow still exists in legacy |
-| `/admin/generate-invoices` | future Billing action | KEEP_ADMIN_REPORT |
+| `/invoices`, `/admin/invoices` | `/billing` | **S104 RETIRED** — canonical Billing owns unbilled review, ADMIN Invoice creation, receive-payment and unpaid delete. Multi-owner selection creates one Invoice per owner; unsafe single-Invoice multi-owner mode is rejected. |
+| `/invoices/[id]` | `/billing/[id]?kind=INVOICE` | **KEEP_PRINT_COMPAT** — canonical detail owns normal read/payment/delete/export actions, but this verified legacy detail remains only for browser/legal-layout print. Export API is authenticated. |
+| `/billing-collections` | `/billing` | **S104 RETIRED** — canonical Billing owns manual BillingCollection creation and workspace list/filtering. |
+| `/billing-collections/[id]` | `/billing/[id]?kind=BILLING_COLLECTION` | **S104 RETIRED** — canonical detail owns evidence upload plus ADMIN verify/reject/delete of pending slips. |
+| `/admin/generate-invoices` | future scheduled/batch Billing action | KEEP_ADMIN_REPORT — separate monthly/batch workflow; not part of ordinary S104 document creation. |
 | `/admin/outstanding`, `/admin/credit-limit` | Billing/Customer 360 | KEEP_ADMIN_REPORT until explicit parity |
+
+S104 makes `/billing` the normal user-facing Billing workspace. Invoice writes are owner-scoped and audited in bounded serializable transactions; BillingCollection create/review is ADMIN-only. `/invoices/[id]` deliberately remains a print-only compatibility surface, while `/admin/generate-invoices`, outstanding and credit-limit admin reports remain separate review items.
 
 ## Customer/master-data routes
 

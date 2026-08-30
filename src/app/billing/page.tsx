@@ -14,6 +14,7 @@ import {
     WalletCards,
 } from 'lucide-react';
 import { RedesignAppShell } from '@/components/layout';
+import { BillingWorkspaceAdminActions } from '@/components/billing/BillingWorkspaceAdminActions';
 import {
     AsyncRefreshState,
     Badge,
@@ -377,6 +378,8 @@ export default function BillingPage() {
                     <Notice tone="info" title="ยอด Invoice และใบวางบิลรวมแยกกัน">
                         ระบบเดิมยังไม่มี relation ยืนยันว่าเอกสารสองแบบอ้างหนี้ก้อนเดียวกันหรือไม่ จึงไม่รวมเป็นยอดลูกหนี้เดียวเพื่อป้องกันการนับซ้ำ
                     </Notice>
+
+                    <BillingWorkspaceAdminActions data={data} onSuccess={loadBilling} />
 
                     <Section
                         title="งาน Billing"

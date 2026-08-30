@@ -350,7 +350,7 @@ export default function DashboardPage() {
                     <button onClick={() => router.push('/reports')} className="flex items-center gap-2 px-3 py-2.5 text-gray-400 hover:text-white rounded-xl text-sm transition-colors">
                         <FileText size={16} />รายงาน
                     </button>
-                    <button onClick={() => router.push('/invoices')} className="flex items-center gap-2 px-3 py-2.5 text-gray-400 hover:text-white rounded-xl text-sm transition-colors">
+                    <button onClick={() => router.push('/billing')} className="flex items-center gap-2 px-3 py-2.5 text-gray-400 hover:text-white rounded-xl text-sm transition-colors">
                         <CreditCard size={16} />ใบวางบิล
                     </button>
                 </div>

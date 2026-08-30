@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireApiSession } from '@/lib/api-auth';
+import { requireAdminApi } from '@/lib/api-auth';
 
 const PAYMENT_TOLERANCE = 0.01;
 
@@ -10,7 +10,7 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const auth = await requireApiSession();
+        const auth = await requireAdminApi();
         if (auth.response) return auth.response;
 
         const { id } = await params;

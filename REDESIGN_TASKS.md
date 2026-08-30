@@ -3154,3 +3154,37 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S103 staging.
 - No push / no deploy / no production DB write.
+
+## 2026-08-30 — S104 — Retire ordinary Billing UI into canonical Billing workspace
+- Status: `[x]`
+- Canonical ownership:
+  - `/billing` now owns normal unbilled review plus ADMIN Invoice creation and manual BillingCollection creation.
+  - `/billing/[id]` owns Invoice receive-payment/delete/export actions and BillingCollection payment-evidence review; pending slips can be verified, rejected or deleted by ADMIN.
+  - `/invoices`, `/admin/invoices` and `/billing-collections` redirect to `/billing`; `/billing-collections/[id]` redirects to canonical detail with `kind=BILLING_COLLECTION` and preserves query/auth normalization.
+  - visible Today/sidebar/bottom-nav/dashboard/executive links now enter canonical Billing directly.
+- Deliberate print/admin compatibility:
+  - `/invoices/[id]` remains KEEP_PRINT_COMPAT for the verified browser/legal-layout print page; canonical detail links to it only as “หน้าพิมพ์เดิม”.
+  - Invoice Excel/CSV export remains a compatibility API but now requires an authenticated session.
+  - `/admin/generate-invoices`, `/admin/outstanding` and `/admin/credit-limit` remain separate admin/report review items and are not retired by S104.
+- Financial/write hardening:
+  - removed the unsafe user-facing “combine owners into one Invoice” behavior; POST rejects `combineOwners` for multiple owners because the schema persists a single `Invoice.ownerId`. Multi-select canonical creation creates one Invoice per owner instead.
+  - Invoice create and unpaid delete use bounded serializable Prisma transactions (`maxWait=5s`, `timeout=20s`) and AuditLog; delete refuses any Invoice that already has a Payment. No write retry.
+  - BillingCollection creation validates active owner, dates, max 100 positive manual items, uses one bounded serializable transaction and AuditLog.
+  - BillingCollection slip creation is ADMIN-only; verify/reject records `verifiedById`; verified sums remain protected by the existing overpayment/atomic recalculation guards.
+  - Invoice/Collection document-number prefixes use Asia/Bangkok date instead of UTC boundary dates.
+- Verification:
+  - S104 targeted Billing/route/auth regression passed **96/96** after redirect query normalization; TypeScript, scoped ESLint and `git diff --check` passed.
+  - final financial release gate: 16 files / **91 tests passed**.
+  - final full regression: 53 files / **441 tests passed**.
+  - production build with `NODE_ENV=production`: **127/127 routes passed**.
+- Isolated Neon UAT:
+  - UAT preflight confirmed host separate from production; CreditBilling used port 3005 only, port 3000 untouched.
+  - canonical Billing read: ADMIN 200 / STAFF 200; STAFF Invoice create 403; unsafe multi-owner combine 400.
+  - ADMIN unpaid Invoice create 200 -> atomic delete 200 with transaction unlink; recreate + payment 200 -> delete blocked 400. Legacy Invoice print remained 200.
+  - Invoice export anonymous 401 / authenticated CSV 200.
+  - STAFF BillingCollection create 403; ADMIN create 201; STAFF slip create 403. ADMIN pending-slip verify/reject/delete all 200; verified paidAmount readback = 250 and rejected slip did not change paidAmount. Canonical detail normalized VERIFIED as CONFIRMED and preserved senderName.
+  - CREATE/DELETE Invoice and CREATE BillingCollection audits verified. Cleanup check after UAT: Owner=0, Transaction=0, Invoice=0, BillingCollection=0, Audit=0; UAT server stopped.
+  - first harness attempt failed before DB setup because `/tmp` could not resolve project `@prisma/client`; moving the temporary harness under project scripts resolved tooling only, with no application code change.
+- Concurrent-work note:
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S104 staging.
+- No push / no deploy / no production DB write.

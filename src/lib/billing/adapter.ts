@@ -30,6 +30,7 @@ export interface BillingPaymentEvent {
     method: string | null;
     evidenceUrl: string | null;
     notes: string | null;
+    senderName?: string | null;
 }
 
 export interface NormalizedBillingDocument {
@@ -97,6 +98,7 @@ export interface BillingCollectionSlipInput {
     status: 'PENDING' | 'VERIFIED' | 'REJECTED' | string;
     bankName?: string | null;
     notes?: string | null;
+    senderName?: string | null;
 }
 
 export interface BillingCollectionAdapterInput {
@@ -179,6 +181,7 @@ function normalizeInvoicePayments(payments: InvoiceAdapterPaymentInput[] | undef
         method: payment.paymentMethod || null,
         evidenceUrl: null,
         notes: payment.notes || null,
+        senderName: null,
     }));
 }
 
@@ -197,6 +200,7 @@ function normalizeCollectionSlips(slips: BillingCollectionSlipInput[] | undefine
         method: slip.bankName || 'TRANSFER',
         evidenceUrl: slip.slipImageUrl || null,
         notes: slip.notes || null,
+        senderName: slip.senderName || null,
     }));
 }
 

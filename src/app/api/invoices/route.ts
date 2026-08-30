@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
+import { Prisma, type Invoice, type Owner } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import { Invoice, Owner } from '@prisma/client';
 import { requireAdminApi, requireApiSession } from '@/lib/api-auth';
 import { CREDIT_PAYMENT_TYPES } from '@/constants/payment-types';
+import { buildInvoiceNumberPrefix } from '@/lib/billing/document-number';
 
 type InvoiceWithRelations = Invoice & {
     owner: Pick<Owner, 'id' | 'name' | 'code'>;
@@ -10,6 +11,28 @@ type InvoiceWithRelations = Invoice & {
 };
 
 const invoicePaymentTypes = [...CREDIT_PAYMENT_TYPES];
+const INVOICE_WRITE_OPTIONS = {
+    maxWait: 5000,
+    timeout: 20000,
+    isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+} as const;
+
+function parseBangkokDateRange(startDate?: string, endDate?: string) {
+    if (startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return null;
+    if (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) return null;
+    if (startDate && endDate && startDate > endDate) return null;
+
+    const dateFilter: { gte?: Date; lte?: Date } = {};
+    if (startDate) dateFilter.gte = new Date(`${startDate}T00:00:00+07:00`);
+    if (endDate) dateFilter.lte = new Date(`${endDate}T23:59:59.999+07:00`);
+    return dateFilter;
+}
+
+function buildInvoiceNumber(prefix: string, previousNumber?: string | null) {
+    const previous = previousNumber ? Number.parseInt(previousNumber.replace(prefix, ''), 10) : 0;
+    const next = Number.isFinite(previous) ? previous + 1 : 1;
+    return `${prefix}${String(next).padStart(3, '0')}`;
+}
 
 export async function GET() {
     try {
@@ -19,11 +42,9 @@ export async function GET() {
         const invoices = await prisma.invoice.findMany({
             orderBy: { createdAt: 'desc' },
             include: {
-                owner: {
-                    select: { id: true, name: true, code: true }
-                },
-                _count: { select: { transactions: true } }
-            }
+                owner: { select: { id: true, name: true, code: true } },
+                _count: { select: { transactions: true } },
+            },
         });
 
         return NextResponse.json(invoices);
@@ -39,151 +60,115 @@ export async function POST(request: Request) {
         if (auth.response) return auth.response;
 
         const body = await request.json();
-        const { ownerId, ownerIds, startDate, endDate, combineOwners } = body;
+        const { ownerId, ownerIds, startDate, endDate, combineOwners } = body as {
+            ownerId?: string;
+            ownerIds?: string[];
+            startDate?: string;
+            endDate?: string;
+            combineOwners?: boolean;
+        };
 
-        // Support both single ownerId and multiple ownerIds
-        const targetOwnerIds = ownerIds || (ownerId ? [ownerId] : []);
+        const rawOwnerIds = Array.isArray(ownerIds) ? ownerIds : ownerId ? [ownerId] : [];
+        const targetOwnerIds = [...new Set(rawOwnerIds.filter((id): id is string => typeof id === 'string' && id.length > 0))];
 
         if (targetOwnerIds.length === 0) {
             return NextResponse.json({ error: 'ต้องระบุเจ้าของอย่างน้อย 1 ราย' }, { status: 400 });
         }
-
-        // Build date filter if provided (using Bangkok timezone)
-        const dateFilter: { gte?: Date; lte?: Date } = {};
-        if (startDate) {
-            // Parse as Bangkok time start of day (00:00:00 +07:00)
-            dateFilter.gte = new Date(`${startDate}T00:00:00+07:00`);
+        if (targetOwnerIds.length > 50) {
+            return NextResponse.json({ error: 'สร้าง Invoice ได้ครั้งละไม่เกิน 50 ลูกค้า' }, { status: 400 });
         }
-        if (endDate) {
-            // Parse as Bangkok time end of day (23:59:59 +07:00)
-            dateFilter.lte = new Date(`${endDate}T23:59:59.999+07:00`);
-        }
-
-        const createdInvoices: InvoiceWithRelations[] = [];
-
         if (combineOwners && targetOwnerIds.length > 1) {
-            // Combine all owners into one invoice (use first owner as main)
-            const transactions = await prisma.transaction.findMany({
-                where: {
-                    ownerId: { in: targetOwnerIds },
-                    paymentType: { in: invoicePaymentTypes },
-                    invoiceId: null,
-                    deletedAt: null,
-                    isVoided: false,
-                    ...(Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {}),
-                },
-            });
+            return NextResponse.json({
+                error: 'ไม่รองรับการรวมหลายเจ้าของเป็น Invoice เดียว เพราะ Invoice มี ownerId ได้เพียง 1 ราย กรุณาสร้างแยกใบ',
+            }, { status: 400 });
+        }
 
-            if (transactions.length === 0) {
-                return NextResponse.json({ error: 'ไม่มีรายการที่รอวางบิล' }, { status: 400 });
-            }
+        const dateFilter = parseBangkokDateRange(startDate, endDate);
+        if (!dateFilter) {
+            return NextResponse.json({ error: 'ช่วงวันที่ไม่ถูกต้อง' }, { status: 400 });
+        }
 
-            const totalAmount = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
+        const createdInvoices = await prisma.$transaction(async (tx) => {
+            const created: InvoiceWithRelations[] = [];
+            const prefix = buildInvoiceNumberPrefix();
 
-            // Generate sequential invoice number
-            const today = new Date();
-            const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
-            const prefix = `INV-${dateStr}-`;
+            for (const targetOwnerId of targetOwnerIds) {
+                const owner = await tx.owner.findUnique({
+                    where: { id: targetOwnerId },
+                    select: { id: true },
+                });
+                if (!owner) throw new Error(`OWNER_NOT_FOUND:${targetOwnerId}`);
 
-            // Find the highest invoice number for today
-            const lastInvoice = await prisma.invoice.findFirst({
-                where: { invoiceNumber: { startsWith: prefix } },
-                orderBy: { invoiceNumber: 'desc' }
-            });
-
-            let nextNum = 1;
-            if (lastInvoice) {
-                const lastNum = parseInt(lastInvoice.invoiceNumber.replace(prefix, ''), 10);
-                if (!isNaN(lastNum)) nextNum = lastNum + 1;
-            }
-            const invoiceNumber = `${prefix}${String(nextNum).padStart(3, '0')}`;
-
-            const invoice = await prisma.invoice.create({
-                data: {
-                    invoiceNumber,
-                    owner: { connect: { id: targetOwnerIds[0] } },
-                    totalAmount,
-                    paidAmount: 0,
-                    status: 'PENDING',
-                    notes: `รวมจากเจ้าของ ${targetOwnerIds.length} ราย`,
-                    transactions: { connect: transactions.map(t => ({ id: t.id })) }
-                },
-                include: {
-                    owner: { select: { id: true, name: true, code: true } },
-                    _count: { select: { transactions: true } }
-                }
-            });
-
-            createdInvoices.push(invoice);
-        } else {
-            // Create separate invoice for each owner
-            for (const owId of targetOwnerIds) {
-                const transactions = await prisma.transaction.findMany({
+                const transactions = await tx.transaction.findMany({
                     where: {
-                        ownerId: owId,
+                        ownerId: targetOwnerId,
                         paymentType: { in: invoicePaymentTypes },
                         invoiceId: null,
                         deletedAt: null,
                         isVoided: false,
                         ...(Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {}),
                     },
+                    select: { id: true, amount: true },
                 });
-
                 if (transactions.length === 0) continue;
 
-                const totalAmount = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
-
-                const today = new Date();
-                const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
-                const prefix = `INV-${dateStr}-`;
-
-                // Find the highest invoice number for today
-                const lastInvoice = await prisma.invoice.findFirst({
+                const totalAmount = transactions.reduce((sum, transaction) => sum + Number(transaction.amount), 0);
+                const lastInvoice = await tx.invoice.findFirst({
                     where: { invoiceNumber: { startsWith: prefix } },
-                    orderBy: { invoiceNumber: 'desc' }
+                    orderBy: { invoiceNumber: 'desc' },
+                    select: { invoiceNumber: true },
                 });
+                const invoiceNumber = buildInvoiceNumber(prefix, lastInvoice?.invoiceNumber);
 
-                let nextNum = 1;
-                if (lastInvoice) {
-                    const lastNum = parseInt(lastInvoice.invoiceNumber.replace(prefix, ''), 10);
-                    if (!isNaN(lastNum)) nextNum = lastNum + 1;
-                }
-                const invoiceNumber = `${prefix}${String(nextNum).padStart(3, '0')}`;
-
-                const invoice = await prisma.invoice.create({
+                const invoice = await tx.invoice.create({
                     data: {
                         invoiceNumber,
-                        owner: { connect: { id: owId } },
+                        owner: { connect: { id: targetOwnerId } },
                         totalAmount,
                         paidAmount: 0,
                         status: 'PENDING',
-                        transactions: { connect: transactions.map(t => ({ id: t.id })) }
+                        transactions: { connect: transactions.map((transaction) => ({ id: transaction.id })) },
                     },
                     include: {
                         owner: { select: { id: true, name: true, code: true } },
-                        _count: { select: { transactions: true } }
-                    }
+                        _count: { select: { transactions: true } },
+                    },
                 });
 
-                createdInvoices.push(invoice);
+                await tx.auditLog.create({
+                    data: {
+                        userId: auth.user.id,
+                        action: 'CREATE',
+                        model: 'Invoice',
+                        recordId: invoice.id,
+                        newData: {
+                            invoiceNumber: invoice.invoiceNumber,
+                            ownerId: targetOwnerId,
+                            totalAmount,
+                            transactionCount: transactions.length,
+                            startDate: startDate || null,
+                            endDate: endDate || null,
+                        },
+                    },
+                });
+                created.push(invoice);
             }
-        }
+            return created;
+        }, INVOICE_WRITE_OPTIONS);
 
         if (createdInvoices.length === 0) {
-            return NextResponse.json({ error: 'ไม่มีรายการที่รอวางบิล' }, { status: 400 });
+            return NextResponse.json({ error: 'ไม่มีรายการที่รอวางบิลในช่วงวันที่เลือก' }, { status: 400 });
         }
-
-        // Return single invoice or array
-        if (createdInvoices.length === 1) {
-            return NextResponse.json(createdInvoices[0]);
-        }
+        if (createdInvoices.length === 1) return NextResponse.json(createdInvoices[0]);
         return NextResponse.json({ invoices: createdInvoices, count: createdInvoices.length });
     } catch (error: unknown) {
+        if (error instanceof Error && error.message.startsWith('OWNER_NOT_FOUND:')) {
+            return NextResponse.json({ error: 'ไม่พบลูกค้าที่เลือก' }, { status: 404 });
+        }
+        if (error instanceof Prisma.PrismaClientKnownRequestError && (error.code === 'P2002' || error.code === 'P2034')) {
+            return NextResponse.json({ error: 'มีการสร้าง Invoice พร้อมกัน กรุณารีเฟรชแล้วลองใหม่' }, { status: 409 });
+        }
         console.error('Invoice POST error:', error);
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        return NextResponse.json({
-            error: 'Failed to create invoice',
-            details: errorMessage
-        }, { status: 500 });
+        return NextResponse.json({ error: 'Failed to create invoice' }, { status: 500 });
     }
 }

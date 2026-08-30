@@ -140,7 +140,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             <Sidebar>
                 <div className="text-center py-20">
                     <p className="text-gray-400">ไม่พบใบวางบิล</p>
-                    <Link href="/invoices" className="btn btn-primary mt-4">
+                    <Link href="/billing" className="btn btn-primary mt-4">
                         กลับหน้ารายการ
                     </Link>
                 </div>
@@ -154,7 +154,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                 {/* Screen Header - Hidden when printing */}
                 <div className="flex items-center justify-between mb-6 print:hidden">
                     <div className="flex items-center gap-4">
-                        <Link href="/invoices" className="btn btn-secondary p-2">
+                        <Link href="/billing" className="btn btn-secondary p-2">
                             <ArrowLeft size={20} />
                         </Link>
                         <div>

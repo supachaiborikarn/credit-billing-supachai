@@ -35,7 +35,6 @@ describe('middleware legacy route retirement boundaries', () => {
         '/stations/station-1',
         '/customers',
         '/billing',
-        '/billing-collections',
     ])('protects canonical application route %s before login', (path) => {
         const response = middleware(request(`${path}?from=uat`, false));
         const location = response.headers.get('location');
@@ -77,6 +76,40 @@ describe('middleware legacy route retirement boundaries', () => {
         const loginUrl = new URL(location!);
         expect(loginUrl.pathname).toBe('/login');
         expect(loginUrl.searchParams.get('redirect')).toBe('/customers?from=s103-bookmark');
+    });
+
+    it.each([
+        '/invoices?from=s104',
+        '/admin/invoices?from=s104',
+        '/billing-collections?from=s104',
+    ])('retires Billing list UI %s to canonical Billing', (path) => {
+        const response = middleware(request(path));
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe('https://credit-billing-supachai.local/billing?from=s104');
+    });
+
+    it('retires BillingCollection detail to canonical Billing detail and preserves query', () => {
+        const response = middleware(request('/billing-collections/bc-123?from=s104-detail'));
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(
+            'https://credit-billing-supachai.local/billing/bc-123?kind=BILLING_COLLECTION&from=s104-detail'
+        );
+    });
+
+    it('normalizes unauthenticated BillingCollection detail before login', () => {
+        const response = middleware(request('/billing-collections/bc-123?from=s104-bookmark', false));
+        const location = response.headers.get('location');
+        expect(response.status).toBe(307);
+        expect(location).not.toBeNull();
+        const loginUrl = new URL(location!);
+        expect(loginUrl.pathname).toBe('/login');
+        expect(loginUrl.searchParams.get('redirect')).toBe('/billing/bc-123?kind=BILLING_COLLECTION&from=s104-bookmark');
+    });
+
+    it('keeps Invoice detail as print compatibility instead of redirecting it', () => {
+        const response = middleware(request('/invoices/inv-print?from=s104-print'));
+        expect(response.status).toBe(200);
+        expect(response.headers.get('location')).toBeNull();
     });
 
     it('redirects direct station-6 product inventory URL because products are disabled there', () => {

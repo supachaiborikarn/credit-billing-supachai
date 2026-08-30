@@ -40,6 +40,7 @@ export async function PATCH(
                 data: {
                     status,
                     verifiedAt: new Date(),
+                    verifiedById: auth.user.id,
                     notes: notes !== undefined ? notes : slip.notes,
                 },
             });

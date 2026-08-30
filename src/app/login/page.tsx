@@ -56,6 +56,14 @@ function normalizeCustomerMasterDataRedirectPath(path: string) {
     return path;
 }
 
+function normalizeBillingWorkspaceRedirectPath(path: string) {
+    const normalized = path.length > 1 ? path.replace(/\/+$/, '') : path;
+    if (normalized === '/invoices' || normalized === '/admin/invoices' || normalized === '/billing-collections') return '/billing';
+    const collectionMatch = normalized.match(/^\/billing-collections\/([^/]+)$/);
+    if (collectionMatch) return `/billing/${encodeURIComponent(collectionMatch[1])}?kind=BILLING_COLLECTION`;
+    return path;
+}
+
 function normalizeTankLoyRedirectPath(path: string) {
     const normalized = path.length > 1 ? path.replace(/\/+$/, '') : path;
 
@@ -91,11 +99,18 @@ function normalizeRedirectPath(path: string) {
     try {
         const parsed = new URL(path, 'https://credit-billing-supachai.local');
         if (parsed.pathname === '/dashboard') return `/today${parsed.search}${parsed.hash}`;
-        const normalizedPath = normalizeRetiredSimpleRedirectPath(normalizeTankLoyRedirectPath(normalizeCustomerMasterDataRedirectPath(normalizeGasRedirectPath(parsed.pathname))));
+        const normalizedPath = normalizeRetiredSimpleRedirectPath(normalizeTankLoyRedirectPath(normalizeBillingWorkspaceRedirectPath(normalizeCustomerMasterDataRedirectPath(normalizeGasRedirectPath(parsed.pathname)))));
+        if (normalizedPath.includes('?kind=BILLING_COLLECTION')) {
+            const normalizedUrl = new URL(normalizedPath, 'https://credit-billing-supachai.local');
+            parsed.searchParams.forEach((value, key) => {
+                if (key !== 'kind') normalizedUrl.searchParams.append(key, value);
+            });
+            return `${normalizedUrl.pathname}${normalizedUrl.search}${parsed.hash}`;
+        }
         return `${normalizedPath}${parsed.search}${parsed.hash}`;
     } catch {
         if (path === '/dashboard') return '/today';
-        return normalizeRetiredSimpleRedirectPath(normalizeTankLoyRedirectPath(normalizeCustomerMasterDataRedirectPath(normalizeGasRedirectPath(path))));
+        return normalizeRetiredSimpleRedirectPath(normalizeTankLoyRedirectPath(normalizeBillingWorkspaceRedirectPath(normalizeCustomerMasterDataRedirectPath(normalizeGasRedirectPath(path)))));
     }
 }
 

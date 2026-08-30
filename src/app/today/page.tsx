@@ -327,7 +327,7 @@ function AdminToday({ data }: { data: TodayAdminPayload }) {
             <div className="grid gap-4 xl:grid-cols-2">
                 <Section title="Billing attention" description="แยก Invoice กับใบวางบิลรวมเพื่อไม่บวกยอดซ้ำข้าม workflow">
                     <div className="divide-y divide-[var(--ui-border)]">
-                        <Link href="/invoices" className="flex items-center gap-3 rounded-sm py-3 first:pt-0 hover:text-[var(--ui-primary-text)] focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">
+                        <Link href="/billing" className="flex items-center gap-3 rounded-sm py-3 first:pt-0 hover:text-[var(--ui-primary-text)] focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">
                             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--ui-radius-md)] bg-[var(--ui-credit-soft)]">
                                 <ReceiptText className="h-4 w-4 text-[var(--ui-credit-text)]" aria-hidden="true" />
                             </div>
@@ -338,7 +338,7 @@ function AdminToday({ data }: { data: TodayAdminPayload }) {
                             <div className="font-bold tabular-nums">฿{formatMoney(data.billing.readyToInvoice.amount)}</div>
                         </Link>
 
-                        <Link href="/invoices" className="flex items-center gap-3 rounded-sm py-3 hover:text-[var(--ui-primary-text)] focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">
+                        <Link href="/billing" className="flex items-center gap-3 rounded-sm py-3 hover:text-[var(--ui-primary-text)] focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">
                             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--ui-radius-md)] bg-[var(--ui-info-soft)]">
                                 <Banknote className="h-4 w-4 text-[var(--ui-info-text)]" aria-hidden="true" />
                             </div>
@@ -349,7 +349,7 @@ function AdminToday({ data }: { data: TodayAdminPayload }) {
                             <div className="font-bold tabular-nums">฿{formatMoney(data.billing.invoiceAwaitingPayment.amount)}</div>
                         </Link>
 
-                        <Link href="/billing-collections" className="flex items-center gap-3 rounded-sm py-3 hover:text-[var(--ui-primary-text)] focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">
+                        <Link href="/billing" className="flex items-center gap-3 rounded-sm py-3 hover:text-[var(--ui-primary-text)] focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">
                             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--ui-radius-md)] bg-[var(--ui-surface-subtle)]">
                                 <WalletCards className="h-4 w-4 text-[var(--ui-text-muted)]" aria-hidden="true" />
                             </div>
@@ -360,7 +360,7 @@ function AdminToday({ data }: { data: TodayAdminPayload }) {
                             <div className="font-bold tabular-nums">฿{formatMoney(data.billing.collectionAwaitingPayment.amount)}</div>
                         </Link>
 
-                        <Link href="/billing-collections" className="flex items-center gap-3 rounded-sm py-3 last:pb-0 hover:text-[var(--ui-primary-text)] focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">
+                        <Link href="/billing" className="flex items-center gap-3 rounded-sm py-3 last:pb-0 hover:text-[var(--ui-primary-text)] focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">
                             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--ui-radius-md)] bg-[var(--ui-warning-soft)]">
                                 <FileWarning className="h-4 w-4 text-[var(--ui-warning-text)]" aria-hidden="true" />
                             </div>

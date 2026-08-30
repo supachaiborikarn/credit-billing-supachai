@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import ExcelJS from 'exceljs';
+import { requireApiSession } from '@/lib/api-auth';
+import type { Prisma } from '@prisma/client';
+
+type ExportInvoice = Prisma.InvoiceGetPayload<{ include: { owner: true; transactions: true } }>;
 
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const auth = await requireApiSession();
+        if (auth.response) return auth.response;
+
         const { id } = await params;
         const searchParams = request.nextUrl.searchParams;
         const format = searchParams.get('format') || 'excel'; // 'excel' or 'csv'
@@ -37,7 +44,7 @@ export async function GET(
     }
 }
 
-function generateCSV(invoice: any) {
+function generateCSV(invoice: ExportInvoice) {
     // BOM for Thai characters support in Excel when opening CSV
     const BOM = '\uFEFF';
     let csvContent = BOM;
@@ -51,13 +58,13 @@ function generateCSV(invoice: any) {
     csvContent += `ลำดับ,วันที่,ทะเบียนรถ,จำนวน (ลิตร),ราคา/ลิตร,รวมเงิน (บาท)\n`;
 
     // Rows
-    invoice.transactions.forEach((t: any, index: number) => {
+    invoice.transactions.forEach((t, index) => {
         const date = new Date(t.date).toLocaleDateString('th-TH');
         csvContent += `${index + 1},${date},${t.licensePlate},${t.liters},${t.pricePerLiter},${t.amount}\n`;
     });
 
     // Total
-    const totalLiters = invoice.transactions.reduce((sum: number, t: any) => sum + Number(t.liters), 0);
+    const totalLiters = invoice.transactions.reduce((sum, t) => sum + Number(t.liters), 0);
     const totalAmount = invoice.totalAmount;
 
     csvContent += `,,รวมทั้งสิ้น,${totalLiters.toFixed(2)},,${Number(totalAmount).toFixed(2)}\n`;
@@ -70,7 +77,7 @@ function generateCSV(invoice: any) {
     });
 }
 
-async function generateExcel(invoice: any) {
+async function generateExcel(invoice: ExportInvoice) {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Invoice');
 
@@ -124,7 +131,7 @@ async function generateExcel(invoice: any) {
     let currentRow = 11;
     let totalLiters = 0;
 
-    invoice.transactions.forEach((t: any, index: number) => {
+    invoice.transactions.forEach((t, index) => {
         const row = worksheet.getRow(currentRow);
         row.getCell(1).value = index + 1;
         row.getCell(2).value = new Date(t.date).toLocaleDateString('th-TH');

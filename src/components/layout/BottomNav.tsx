@@ -8,7 +8,7 @@ const navItems = [
     { icon: Home, label: "หน้าหลัก", path: "/m" },
     { icon: Users, label: "ลูกค้า", path: "/owners" },
     { icon: Plus, label: "เพิ่ม", path: "/stations/station-1/sales", isFab: true },
-    { icon: FileText, label: "บิล", path: "/invoices" },
+    { icon: FileText, label: "บิล", path: "/billing" },
     { icon: Settings, label: "ตั้งค่า", path: "/dashboard" },
 ];
 
