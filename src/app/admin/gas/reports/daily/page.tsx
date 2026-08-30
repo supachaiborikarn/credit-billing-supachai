@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Loader2, FileText, Download, Search, Eye } from 'lucide-react';
 import { formatCurrency, getGasBusinessDateKey } from '@/lib/gas';
 import DateRangePresets from '@/app/admin/gas/components/DateRangePresets';
@@ -70,15 +71,22 @@ async function loadDailyReports({
 }
 
 export default function DailyReportPage() {
+    const searchParams = useSearchParams();
+    const initialStationId = searchParams.get('stationId');
+    const initialFrom = searchParams.get('from') || searchParams.get('startDate');
+    const initialTo = searchParams.get('to') || searchParams.get('endDate');
+    const isDateKey = (value: string | null): value is string => Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
+
     const [loading, setLoading] = useState(true);
     const [reports, setReports] = useState<DayReport[]>([]);
-    const [stationId, setStationId] = useState<string>('all');
+    const [stationId, setStationId] = useState<string>(initialStationId === 'station-5' || initialStationId === 'station-6' ? initialStationId : 'all');
     const [fromDate, setFromDate] = useState<string>(() => {
+        if (isDateKey(initialFrom)) return initialFrom;
         const d = new Date();
         d.setDate(d.getDate() - 7);
         return d.toISOString().split('T')[0];
     });
-    const [toDate, setToDate] = useState<string>(getGasBusinessDateKey());
+    const [toDate, setToDate] = useState<string>(isDateKey(initialTo) ? initialTo : getGasBusinessDateKey());
     const [stations, setStations] = useState<{ id: string; name: string }[]>([]);
 
     // Selected row for detail view

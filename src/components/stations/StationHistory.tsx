@@ -74,12 +74,6 @@ function formatDuration(openedAt: string, closedAt: string | null) {
     return `${hours} ชม. ${minutes} นาที`;
 }
 
-function legacyHistoryPath(context: StationContextPayload) {
-    if (context.station.type === 'GAS') return `/admin/gas-history?stationId=${context.station.id}`;
-    if (context.station.type === 'FULL') return context.paths.history;
-    return `/simple-station/${context.station.number}`;
-}
-
 const attentionLabels: Record<StationHistoryAttentionReason, string> = {
     OPEN_SHIFT: 'กะยังเปิด',
     METER_ANOMALY: 'มิเตอร์ผิดปกติ',
@@ -242,6 +236,9 @@ export function StationHistory({ context }: { context: StationContextPayload }) 
     const [toDate, setToDate] = React.useState(to);
     const [status, setStatus] = React.useState('ALL');
     const [attentionOnly, setAttentionOnly] = React.useState(false);
+    const gasAdminReportPath = context.station.type === 'GAS' && context.user.role === 'ADMIN'
+        ? `/admin/gas/reports/daily?stationId=${context.station.id}&from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}`
+        : null;
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [data, setData] = React.useState<StationHistoryResponse | null>(null);
@@ -366,10 +363,10 @@ export function StationHistory({ context }: { context: StationContextPayload }) 
                 <FullHistoryMaintenance context={context} defaultDate={toDate} />
             )}
 
-            {context.station.operationalStatus !== 'RETIRED' && context.station.type !== 'FULL' && (
+            {gasAdminReportPath && (
                 <div className="text-right">
-                    <Link href={legacyHistoryPath(context)} className="inline-flex min-h-11 items-center gap-2 rounded-sm text-xs font-semibold text-[var(--ui-text-muted)] underline-offset-4 hover:text-[var(--ui-text)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">
-                        เปิดประวัติเดิม (fallback) <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    <Link href={gasAdminReportPath} className="inline-flex min-h-11 items-center gap-2 rounded-sm text-xs font-semibold text-[var(--ui-text-muted)] underline-offset-4 hover:text-[var(--ui-text)] hover:underline focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">
+                        เปิดรายงาน GAS สำหรับแอดมิน <ArrowRight className="h-4 w-4" aria-hidden="true" />
                     </Link>
                 </div>
             )}

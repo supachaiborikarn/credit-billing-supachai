@@ -3315,3 +3315,33 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S108 staging.
 - No push / no deploy / no production DB write.
+
+
+## 2026-08-30 — S109 — Retire legacy GAS history admin surface
+- Status: `[x]`
+- Parity/audit decision:
+  - repository caller audit found `/api/admin/gas-history` was called only by `/admin/gas-history`; no script, canonical page, or v2 GAS flow depends on it.
+  - the legacy page is stale: its station selector still declares `station-3/4` labels while defaulting to `station-5`, and its GET used `getDbStation()` that could create a Station row during a read.
+  - legacy `createRecord` could create one/two OPEN shifts with zero start meters but no 3-tank gauges, violating the current atomic GAS opening contract; legacy meter edit also updated daily-level rows outside the modern shift/gauge/reconciliation model.
+  - v2 replacements already own the safe capabilities: `/admin/gas/reports/daily` + meter/shift reports for read history, `/admin/gas/data-entry` for historical create/edit, and `/admin/gas/operations` for audited empty-shift cleanup.
+- UI/route retirement:
+  - middleware and login normalization send `/admin/gas-history` to `/admin/gas/reports/daily` while preserving query strings.
+  - the active `page.tsx` is now a server redirect as defense in depth; the old UI source is retained as `LegacyGasHistoryAdminPage.tsx` for reference only.
+  - the modern daily report hydrates `stationId`, modern `from/to`, and legacy `startDate/endDate` bookmark filters.
+  - canonical GAS History no longer exposes “ประวัติเดิม”; ADMIN gets a link to the modern GAS daily report with the canonical History date range, while STAFF stays on canonical History.
+- API retirement safety:
+  - `/api/admin/gas-history` GET/POST/DELETE now call `requireAdminApi` then return HTTP 410 with `readPath=/admin/gas/reports/daily`, `editPath=/admin/gas/data-entry`, and `operationsPath=/admin/gas/operations`.
+  - the route contains no Prisma import, Station creation helper, DailyRecord/Shift/Meter mutation, or hidden read-side write.
+- Verification:
+  - targeted S109 API/redirect/operations regression: 4 files / **111 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 60 files / **486 tests passed**.
+  - TypeScript, S109-scoped ESLint and `git diff --check`: passed (legacy reference file retains one pre-existing hook warning and is not active).
+  - production build with `NODE_ENV=production`: **127/127 routes passed**.
+- Runtime/UAT safety:
+  - `npm run uat:preflight` confirmed the UAT Neon host differs from production.
+  - guarded UAT dev on 3006 could not start because an existing user-started `npm run dev -p 3005` in the same repo owns `.next/dev/lock`; that process was deliberately not stopped or modified.
+  - no authenticated UAT DB write was attempted. Anonymous no-cookie smoke against the existing dev returned 307 from `/admin/gas-history?...` to `/login?redirect=/admin/gas/reports/daily?...` with filters preserved, and `/api/admin/gas-history` returned 401.
+- Concurrent-work note:
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S109 staging.
+- No push / no deploy / no production DB write.

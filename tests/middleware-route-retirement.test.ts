@@ -170,6 +170,26 @@ describe('middleware legacy route retirement boundaries', () => {
         expect(loginUrl.searchParams.get('redirect')).toBe('/stations/station-5/inventory?from=s107-bookmark');
     });
 
+    it('retires legacy GAS history UI to the modern daily report and preserves legacy filters', () => {
+        const response = middleware(request('/admin/gas-history?stationId=station-5&startDate=2026-08-01&endDate=2026-08-30&from=s109'));
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(
+            'https://credit-billing-supachai.local/admin/gas/reports/daily?stationId=station-5&startDate=2026-08-01&endDate=2026-08-30&from=s109'
+        );
+    });
+
+    it('normalizes unauthenticated legacy GAS history bookmark before login', () => {
+        const response = middleware(request('/admin/gas-history?stationId=station-6&startDate=2026-08-01&endDate=2026-08-30&from=s109-bookmark', false));
+        const location = response.headers.get('location');
+        expect(response.status).toBe(307);
+        expect(location).not.toBeNull();
+        const loginUrl = new URL(location!);
+        expect(loginUrl.pathname).toBe('/login');
+        expect(loginUrl.searchParams.get('redirect')).toBe(
+            '/admin/gas/reports/daily?stationId=station-6&startDate=2026-08-01&endDate=2026-08-30&from=s109-bookmark'
+        );
+    });
+
     it('redirects direct station-6 product inventory URL because products are disabled there', () => {
         const response = middleware(request('/gas/6/products?from=bookmark'));
 
