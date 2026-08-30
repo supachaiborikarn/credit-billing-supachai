@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { STATIONS } from '@/constants';
+import { requireAdminApi } from '@/lib/api-auth';
+import { isSimpleAdminStationId, SIMPLE_ADMIN_STATIONS } from '@/lib/simple/admin-read-contract';
 import { getEndOfDayBangkok, getStartOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
 import {
     addDaysToDateKey,
@@ -15,15 +17,21 @@ import {
 // GET: Advanced Analytics for Simple/FULL stations
 export async function GET(request: NextRequest) {
     try {
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
         const { searchParams } = new URL(request.url);
         const stationId = searchParams.get('stationId');
-        const stationType = searchParams.get('type') || 'SIMPLE'; // SIMPLE or FULL
-
-        // Get stations based on type
-        let stations = STATIONS.filter(s => s.type === stationType);
-        if (stationId) {
-            stations = stations.filter(s => s.id === stationId);
+        const stationType = searchParams.get('type') || 'SIMPLE';
+        if (stationType !== 'SIMPLE') {
+            return NextResponse.json({ error: 'Only SIMPLE analytics are supported by this endpoint' }, { status: 400 });
         }
+        if (stationId && !isSimpleAdminStationId(stationId)) {
+            return NextResponse.json({ error: 'Invalid SIMPLE station' }, { status: 400 });
+        }
+
+        let stations = [...SIMPLE_ADMIN_STATIONS];
+        if (stationId) stations = stations.filter((station) => station.id === stationId);
         const stationIds = stations.map(s => s.id);
 
         if (stationIds.length === 0) {

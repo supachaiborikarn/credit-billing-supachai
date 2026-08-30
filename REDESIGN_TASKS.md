@@ -3539,3 +3539,23 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Safety / concurrent work:
   - S117 is route/mock-data retirement only; no financial formula, DB write, push or deploy occurred.
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S117 staging.
+
+## 2026-08-30 — S118 — Harden SIMPLE admin report access and filters
+- Status: `[x]`
+- Ownership decision:
+  - `/admin/simple`, `/admin/simple/stations`, `/admin/simple/fuel-time`, and `/admin/simple/analytics` remain **KEEP_ADMIN_REPORT**: unlike the retired stock mock, they use the shared operational-sales dataset and Watchara external-source status for real historical/reporting data.
+- Access/scope hardening:
+  - `GET /api/v2/simple/admin/{overview,stations,fuel-time,analytics}` now runs shared `requireAdminApi` before report dataset/Prisma access.
+  - `stations` and `fuel-time` `days` filters must be integer 1-90; malformed, zero, negative, partial or oversized ranges fail closed with 400.
+  - optional `fuel-time`/`analytics` station filters accept only retired SIMPLE station-2/3/4; unrelated GAS/FULL/unknown IDs fail closed.
+  - analytics now accepts only `type=SIMPLE`; repository caller audit found no internal FULL caller, so the previous cross-type expansion is removed from this admin endpoint.
+  - report calculations, Watchara merge behavior and top-customer scope remain unchanged.
+- Verification:
+  - targeted SIMPLE admin + operational/Watchara regression: 3 files / **25 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 70 files / **558 tests passed**.
+  - TypeScript, S118-scoped ESLint and `git diff --check`: passed.
+  - production build: **127/127 routes passed**.
+- Safety / concurrent work:
+  - S118 is read-only permission/filter hardening; no DB write, financial formula, push or deploy occurred.
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S118 staging.

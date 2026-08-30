@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { STATIONS } from '@/constants';
+import { requireAdminApi } from '@/lib/api-auth';
+import { isSimpleAdminStationId, parseSimpleAdminDays, SIMPLE_ADMIN_STATION_IDS } from '@/lib/simple/admin-read-contract';
 import { getTodayBangkok } from '@/lib/date-utils';
 import {
     addDaysToDateKey,
@@ -14,15 +15,18 @@ import {
 // GET: Fuel Type & Time Analytics
 export async function GET(request: NextRequest) {
     try {
-        const { searchParams } = new URL(request.url);
-        const requestedDays = Number.parseInt(searchParams.get('days') || '7', 10);
-        const days = Number.isFinite(requestedDays) && requestedDays > 0 ? requestedDays : 7;
-        const selectedStation = searchParams.get('stationId');
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
 
-        const simpleStations = STATIONS.filter(s => s.type === 'SIMPLE');
-        const stationIds = selectedStation
-            ? [selectedStation]
-            : simpleStations.map(s => s.id);
+        const { searchParams } = new URL(request.url);
+        const parsedDays = parseSimpleAdminDays(searchParams.get('days'));
+        if (!parsedDays.ok) return NextResponse.json({ error: parsedDays.error }, { status: 400 });
+        const days = parsedDays.days;
+        const selectedStation = searchParams.get('stationId');
+        if (selectedStation && !isSimpleAdminStationId(selectedStation)) {
+            return NextResponse.json({ error: 'Invalid SIMPLE station' }, { status: 400 });
+        }
+        const stationIds = selectedStation ? [selectedStation] : [...SIMPLE_ADMIN_STATION_IDS];
 
         const endDateKey = getTodayBangkok();
         const startDateKey = addDaysToDateKey(endDateKey, -(days - 1));

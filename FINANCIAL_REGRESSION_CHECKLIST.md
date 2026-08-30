@@ -152,3 +152,8 @@ A legacy route may be redirected only when:
 - `/admin/simple/stock` and its v2 stock endpoint no longer expose randomized mock inventory/order data; no production tank source exists for retired SIMPLE stations.
 - This phase changes no transaction, payment, price, invoice, reconciliation or inventory write formula.
 - Verified release gate: **101/101 tests passed**; full regression **544/544**; production build **127/127 routes**.
+
+### S118 SIMPLE admin read-scope hardening (2026-08-30)
+- Real SIMPLE admin reports remain read-only and now require ADMIN before operational-sales/Prisma access; report range/station/type inputs fail closed to bounded SIMPLE-only scope.
+- No transaction, payment, price, invoice, reconciliation or operational-sales aggregation formula changed.
+- Verified release gate: **101/101 tests passed**; full regression **558/558**; production build **127/127 routes**.

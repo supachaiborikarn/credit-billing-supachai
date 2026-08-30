@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { STATIONS } from '@/constants';
+import { requireAdminApi } from '@/lib/api-auth';
+import { parseSimpleAdminDays, SIMPLE_ADMIN_STATIONS } from '@/lib/simple/admin-read-contract';
 import { getEndOfDayBangkok, getStartOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
 import {
     addDaysToDateKey,
@@ -12,12 +13,14 @@ import {
 // GET: Station Performance data for Simple Stations only
 export async function GET(request: NextRequest) {
     try {
-        const { searchParams } = new URL(request.url);
-        const requestedDays = Number.parseInt(searchParams.get('days') || '7', 10);
-        const days = Number.isFinite(requestedDays) && requestedDays > 0 ? requestedDays : 7;
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
 
-        // Simple stations only (not FULL)
-        const simpleStations = STATIONS.filter(s => s.type === 'SIMPLE');
+        const { searchParams } = new URL(request.url);
+        const parsedDays = parseSimpleAdminDays(searchParams.get('days'));
+        if (!parsedDays.ok) return NextResponse.json({ error: parsedDays.error }, { status: 400 });
+        const days = parsedDays.days;
+        const simpleStations = SIMPLE_ADMIN_STATIONS;
         const stationIds = simpleStations.map((station) => station.id);
 
         const endDateKey = getTodayBangkok();

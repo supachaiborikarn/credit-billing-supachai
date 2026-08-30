@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { STATIONS } from '@/constants';
+import { requireAdminApi } from '@/lib/api-auth';
+import { SIMPLE_ADMIN_STATIONS } from '@/lib/simple/admin-read-contract';
 import { getTodayBangkok } from '@/lib/date-utils';
 import {
     addDaysToDateKey,
@@ -13,8 +14,10 @@ import {
 // GET: Executive Overview data for Simple Stations only
 export async function GET() {
     try {
-        // Simple stations only (not FULL)
-        const simpleStations = STATIONS.filter(s => s.type === 'SIMPLE');
+        const auth = await requireAdminApi();
+        if (auth.response) return auth.response;
+
+        const simpleStations = SIMPLE_ADMIN_STATIONS;
         const stationIds = simpleStations.map(s => s.id);
 
         // Date ranges
