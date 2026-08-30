@@ -118,7 +118,7 @@ S44 baseline: **16 files / 81 tests passed**.
 These are existing legacy behaviors, not redesign contracts:
 
 1. **Classic `/station/[id]` price mapping is older than the retired V2 reference behavior.** It contains a CASH/TRANSFER wholesale rule that differed from `/station/1/v2`. S44-S95 parity was measured against V2 + backend, not the classic page; after S96 the canonical surfaces own the supported UI behavior while V2 is redirect/archive-only.
-2. **`/api/payments` is a legacy Invoice payment endpoint with no production caller found in S44.** Canonical Billing must continue using `/api/invoices/[id]/payments`; do not redirect new code to `/api/payments`. Retire separately only after route-level review.
+2. **`/api/payments` was the legacy Invoice payment endpoint found unreferenced in S44 and is retired in S128.** Canonical Billing must continue using `/api/invoices/[id]/payments`; do not reintroduce a global payment write that mutates `Owner.currentCredit`.
 3. **Do not delete active sale/shift APIs during UI route retirement.** S45+ redirects UI entry routes one at a time; backend compatibility remains until all callers and print/read flows are proven migrated.
 4. **Do not combine Invoice, BillingCollection, unbilled credit, or legacy `currentCredit` into one grand total.** Their overlap is not relationally proven for historical data.
 
@@ -207,3 +207,8 @@ A legacy route may be redirected only when:
 - SIMPLE product GET remains read compatibility; legacy POST/PUT/DELETE no longer create/update/delete Product or ProductInventory rows.
 - Active product-stock writes remain the canonical station-5 Inventory contract. No stock, sale, billing, payment or pricing formula was changed.
 - Targeted regression: **229/229**; financial + monthly gate: **101/101**; full regression: **624/624**; production build: **127/127**.
+
+### S128 Legacy global Invoice payment API retirement (2026-08-31)
+- `/api/payments` had no internal caller and previously wrote Payment, Invoice and legacy `Owner.currentCredit` in separate steps. It is now retired after auth with 410.
+- Canonical Billing continues to use only `/api/invoices/[id]/payments`, whose transaction and optimistic-concurrency guard are unchanged.
+- Targeted regression: **28/28**; financial + monthly gate: **101/101**; full regression: **629/629**; production build: **127/127**.

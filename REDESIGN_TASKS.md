@@ -3770,3 +3770,24 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Safety / concurrent work:
   - no DB write/UAT mutation was needed because S127 removes mutation implementations. No production DB write, push or deploy occurred.
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S127 staging.
+
+## 2026-08-31 — S128 — Retire legacy global Invoice payment API
+- Status: `[x]`
+- Release audit finding:
+  - repository caller audit found no internal caller for `/api/payments`; canonical Billing and the legacy print detail both use `/api/invoices/[id]/payments`.
+  - the old POST created Payment, updated Invoice, then separately mutated drift-prone `Owner.currentCredit`; these writes were not one atomic transaction and lacked the canonical optimistic-concurrency guard.
+  - global GET was likewise unreferenced.
+- Retirement:
+  - POST keeps shared ADMIN authorization then returns 410 with `/billing` and `/api/invoices/[invoiceId]/payments` replacements.
+  - GET keeps authenticated-session authorization then returns the same 410 metadata.
+  - Prisma and `updateOwnerCredit` were removed from the legacy route; no payment, Invoice or Owner write remains.
+  - canonical `/api/invoices/[id]/payments` remains the only supported Invoice payment write path and keeps its existing atomic optimistic-concurrency semantics.
+- Verification:
+  - targeted legacy/canonical Billing payment regression: 6 files / **28 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 84 files / **629 tests passed**.
+  - TypeScript, S128-scoped ESLint and diff check: passed.
+  - production build: **127/127 routes passed**.
+- Safety / concurrent work:
+  - no DB/UAT write was needed because S128 removes an unreferenced write implementation. No production DB write, push or deploy occurred.
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S128 staging.
