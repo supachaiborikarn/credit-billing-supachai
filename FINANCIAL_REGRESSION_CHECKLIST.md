@@ -30,6 +30,8 @@ Latest retired-SIMPLE history-maintenance rerun: **S101 — retired station-2/3/
 
 Latest customer master-data rerun: **S102 — ordinary `/owners` create/edit/deactivate/add-truck work moved into canonical Customers/Customer 360 with ADMIN-only UI permission while preserving the existing Owner/Truck APIs as source of truth. Targeted customer/retry/redirect gate passed 81/81, financial release gate 90/90, full regression 424/424, TypeScript/scoped ESLint/diff check passed, production build 127/127 routes passed, and isolated UAT confirmed STAFF master-data permission=false vs ADMIN=true plus create → edit → add truck → edit plate → soft-deactivate, with final status INACTIVE and cleanup 0/0. UAT also exposed a transient Neon P1001 on Customer reads; list/detail now reuse the existing P1001/P2024 read-retry helper.**
 
+Latest customer merge/reassignment rerun: **S103 — `/trucks` and `/admin/owners` moved into canonical Customers ADMIN tools. Truck/Owner edits are ADMIN-only; duplicate merge now moves Truck + Transaction + Invoice + BillingCollection in one audited transaction, preserves BillingCollection owner-name snapshots, transfers a single LINE mapping and refuses dual LINE mappings. Targeted master-data/customer/retry/redirect gate passed 87/87, final route/redirect gate after the timeout fix passed 68/68, financial release gate 90/90, full regression 430/430, TypeScript/scoped ESLint/diff check passed, and production build 127/127 routes passed. Isolated UAT first exposed Prisma P2028 at the default 5s interactive-transaction timeout; keeping the merge atomic with bounded maxWait 5s / timeout 20s then passed real relation migration and AuditLog verification.**
+
 ## Release gate
 
 Run:

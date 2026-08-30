@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { RedesignAppShell } from '@/components/layout';
 import { CustomerCreatePanel } from '@/components/customers/CustomerCreatePanel';
+import { CustomerAdminTools } from '@/components/customers/CustomerAdminTools';
 import {
     AsyncRefreshState,
     Badge,
@@ -301,6 +302,10 @@ export default function CustomersPage() {
 
                 {data?.permissions.canManageMasterData && (
                     <CustomerCreatePanel onCreated={(customerId) => router.push(`/customers/${customerId}`)} />
+                )}
+
+                {data?.permissions.canManageMasterData && (
+                    <CustomerAdminTools onChanged={() => loadCustomers(search, status)} />
                 )}
 
                 <Notice tone="info" title="ยอดค้างแสดงแยกตามแหล่งข้อมูล">

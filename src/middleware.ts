@@ -76,7 +76,8 @@ function getRetiredSimpleSummaryRedirectPath(pathname: string) {
 
 function getCustomerMasterDataRedirectPath(pathname: string) {
     const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
-    return normalized === '/owners' ? '/customers' : null;
+    if (normalized === '/owners' || normalized === '/trucks' || normalized === '/admin/owners') return '/customers';
+    return null;
 }
 
 function getTankLoyRedirectPath(pathname: string) {

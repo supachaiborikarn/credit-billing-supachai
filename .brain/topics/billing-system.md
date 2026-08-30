@@ -126,3 +126,11 @@
 - STAFF canonical permission `canManageMasterData=false`; `/trucks` ยัง KEEP สำหรับ cross-owner reassignment และ `/admin/owners` ยัง KEEP สำหรับ duplicate merge ไป S103.
 - UAT จับ Neon P1001 ตอน Customer read; `/api/customers` list/detail จึงใช้ `withPrismaReadRetry` policy เดิมสำหรับ P1001/P2024.
 - Gates: targeted 81/81, financial 90/90, full 424/424, build 127/127; isolated UAT create/edit/add truck/edit plate/deactivate ผ่านและ cleanup 0/0.
+
+### Customer duplicate merge / truck reassignment (S103 — 2026-08-30)
+- `/trucks` และ `/admin/owners` retire ไป `/customers`; ADMIN tools ใน Customers รองรับย้ายรถข้าม owner และ merge owner ซ้ำ.
+- merge ต้องย้าย Truck + Transaction + Invoice + BillingCollection ใน transaction เดียว, AuditLog `MERGE`, และคง BillingCollection `ownerName` เป็น snapshot เดิม.
+- source LINE mapping ย้ายได้เมื่อ target ยังไม่มีเท่านั้น; ถ้าทั้งคู่มี LINE ให้ 409 เพื่อกันผูกผิดคน.
+- `currentCredit` legacy ของ source ถูกบวกเข้า target เพื่อไม่ทำ indicator เดิมหาย แต่ยอดหนี้ canonical ยัง derive จาก unbilled/invoice/collection records.
+- UAT เจอ P2028 จาก default interactive timeout 5s; แก้ด้วย bounded `maxWait=5s`, `timeout=20s` โดยไม่ retry write แล้ว real merge ผ่านครบ relation + audit.
+- Gates: targeted 87/87 + final route 68/68, financial 90/90, full 430/430, build 127/127; cleanup fixture ทุก relation = 0.

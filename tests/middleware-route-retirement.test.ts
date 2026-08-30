@@ -63,12 +63,20 @@ describe('middleware legacy route retirement boundaries', () => {
         expect(loginUrl.searchParams.get('redirect')).toBe('/customers?from=s102-bookmark');
     });
 
-    it('keeps Trucks and admin owner-merge routes for the next parity pass', () => {
-        for (const path of ['/trucks?from=s102', '/admin/owners?from=s102']) {
-            const response = middleware(request(path));
-            expect(response.headers.get('location')).toBeNull();
-            expect(response.headers.get('x-middleware-next')).toBe('1');
-        }
+    it.each(['/trucks?from=s103', '/admin/owners?from=s103'])('retires remaining master-data UI %s to canonical Customers', (path) => {
+        const response = middleware(request(path));
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe('https://credit-billing-supachai.local/customers?from=s103');
+    });
+
+    it('normalizes unauthenticated Trucks bookmark before login', () => {
+        const response = middleware(request('/trucks?from=s103-bookmark', false));
+        const location = response.headers.get('location');
+        expect(response.status).toBe(307);
+        expect(location).not.toBeNull();
+        const loginUrl = new URL(location!);
+        expect(loginUrl.pathname).toBe('/login');
+        expect(loginUrl.searchParams.get('redirect')).toBe('/customers?from=s103-bookmark');
     });
 
     it('redirects direct station-6 product inventory URL because products are disabled there', () => {

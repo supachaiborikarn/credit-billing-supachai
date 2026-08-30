@@ -144,10 +144,10 @@ Disposition: `shift-history` retired in S82, `meter-summary` retired in S83, and
 | Legacy route | Canonical | Disposition |
 | --- | --- | --- |
 | `/owners` | `/customers` | **S102 RETIRED** — canonical Customers/Customer 360 now owns ADMIN create/edit/soft-deactivate plus add/edit-plate for the current customer's trucks. Legacy bookmark/login redirects normalize to `/customers`. |
-| `/admin/owners` | `/customers` / settings | KEEP_MASTER_DATA — duplicate-owner merge remains here for S103; do not redirect until merge also preserves billing relations safely. |
-| `/trucks` | `/customers/[id]` / master data | KEEP_MASTER_DATA — canonical Customer 360 can add/edit the current customer's plate, but global owner reassignment remains here for S103. |
+| `/admin/owners` | `/customers` | **S103 RETIRED** — canonical Customers ADMIN tools now own duplicate merge; merge moves Truck, Transaction, Invoice and BillingCollection relations atomically, audits the target, guards dual LINE mappings, and preserves BillingCollection `ownerName` snapshot. |
+| `/trucks` | `/customers` / `/customers/[id]` | **S103 RETIRED** — Customer 360 owns add/edit-plate for the current customer and Customers ADMIN tools own cross-owner reassignment. Truck PUT is ADMIN-only; frontline search/create contracts remain. |
 
-S102 moved ordinary owner master-data writes into canonical Customers with ADMIN-only UI permission. `/admin/owners` and `/trucks` intentionally remain compatibility surfaces until S103 proves safe duplicate merge and cross-owner truck reassignment parity.
+S102 moved ordinary owner master-data writes into canonical Customers. S103 completes the user-facing master-data migration by retiring `/trucks` and `/admin/owners`; Owner/Truck APIs stay as compatibility/data contracts for sale and search flows.
 
 ## Admin/report routes
 

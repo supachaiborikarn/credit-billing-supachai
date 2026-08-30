@@ -3121,3 +3121,36 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S102 staging.
 - No push / no deploy / no production DB write.
+
+## 2026-08-30 — S103 — Retire Trucks/Admin Owners into canonical customer master-data tools
+- Status: `[x]`
+- Canonical ownership:
+  - `/customers` ADMIN tools now own global truck reassignment and duplicate-owner merge; `/trucks` and `/admin/owners` bookmarks/login redirects normalize to `/customers` with query preservation.
+  - Customer 360 continues to own add/edit plate for a single customer from S102.
+  - `PUT /api/trucks/[id]` and `PUT /api/owners/[id]` are now ADMIN-only master-data mutations; frontline truck search and truck-create APIs remain unchanged for operational sale flows.
+- Merge correctness / financial relations:
+  - replaced the legacy merge that moved only Truck + Transaction before deleting the source Owner.
+  - canonical merge uses one Prisma interactive transaction to move Truck, Transaction, Invoice and BillingCollection relation keys before deleting the source.
+  - Transaction `ownerName` is normalized to the retained target owner; BillingCollection `ownerName` remains the original billing-document snapshot and is intentionally not rewritten.
+  - legacy `currentCredit` is incremented onto the retained target so a split legacy indicator is not silently lost; canonical debt totals remain derived from actual unbilled/invoice/collection records.
+  - a source LINE mapping transfers only when the target has none; if both owners already have LINE mappings, merge fails closed with 409.
+  - successful merge writes an Owner `MERGE` AuditLog with moved relation counts.
+- UAT-found timeout hardening:
+  - first relation-complete merge UAT reached `owner.delete` after the default 5s Prisma interactive transaction deadline and rolled back atomically with P2028/500.
+  - S103 keeps one atomic transaction but sets bounded `maxWait: 5_000` and `timeout: 20_000`; no write retry was added.
+- Verification:
+  - targeted master-data/customer/retry/middleware regression: **87/87 passed**; after timeout hardening, route/middleware gate **68/68 passed**.
+  - financial release gate: 16 files / **90 tests passed**.
+  - final full regression: 51 files / **430 tests passed**.
+  - TypeScript, S103-scoped ESLint and `git diff --check`: passed.
+  - final production build with `NODE_ENV=production`: **127/127 routes passed**.
+- Isolated write UAT:
+  - UAT host remained separate from production; CreditBilling used port 3005 only and port 3000 was untouched.
+  - STAFF Owner edit 403 and Truck edit 403; ADMIN cross-owner truck reassignment 200; `/trucks` and `/admin/owners` both redirect 307 to Customers.
+  - real merge returned 200 and moved 1 Truck, 1 Transaction, 1 Invoice and 1 BillingCollection; source Owner was deleted, target legacy currentCredit became 50, source LINE mapping transferred, Transaction owner normalized, BillingCollection snapshot stayed unchanged, and MERGE AuditLog existed.
+  - cleanup verification after UAT: Owner=0, Truck=0, Transaction=0, Invoice=0, BillingCollection=0 for S103 fixtures; UAT server stopped.
+- Remaining user-facing compatibility after S103:
+  - Customer/master-data UI family is canonical; remaining major user-facing KEEP family is Billing (`/invoices`, `/billing-collections` and detail/admin parity) plus receipt print compatibility that intentionally stays legacy.
+- Concurrent-work note:
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S103 staging.
+- No push / no deploy / no production DB write.

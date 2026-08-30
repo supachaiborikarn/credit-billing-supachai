@@ -52,7 +52,8 @@ function normalizeRetiredSimpleRedirectPath(path: string) {
 
 function normalizeCustomerMasterDataRedirectPath(path: string) {
     const normalized = path.length > 1 ? path.replace(/\/+$/, '') : path;
-    return normalized === '/owners' ? '/customers' : path;
+    if (normalized === '/owners' || normalized === '/trucks' || normalized === '/admin/owners') return '/customers';
+    return path;
 }
 
 function normalizeTankLoyRedirectPath(path: string) {
