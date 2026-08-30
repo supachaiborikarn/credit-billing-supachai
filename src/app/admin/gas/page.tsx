@@ -301,7 +301,7 @@ export default function AdminGasDashboardPage() {
                 </Link>
 
                 <Link
-                    href="/admin/gas/reconciliation"
+                    href="/admin/gas/reports/shift?view=reconciliation"
                     className="bg-[#1a1a24] rounded-xl p-4 border border-white/10 hover:border-purple-500/50 transition-colors group"
                 >
                     <div className="text-green-400 group-hover:text-green-300 mb-2">⚖️</div>

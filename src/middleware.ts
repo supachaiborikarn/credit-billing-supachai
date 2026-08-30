@@ -98,6 +98,11 @@ function getLegacyGasControlRedirectPath(pathname: string) {
     return normalized === '/admin/gas-control' ? '/admin/gas' : null;
 }
 
+function getLegacyGasReconciliationRedirectPath(pathname: string) {
+    const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+    return normalized === '/admin/gas/reconciliation' ? '/admin/gas/reports/shift?view=reconciliation' : null;
+}
+
 function getBillingWorkspaceRedirectPath(pathname: string) {
     const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
     if (normalized === '/invoices' || normalized === '/admin/invoices' || normalized === '/billing-collections' || normalized === '/admin/outstanding') {
@@ -151,6 +156,7 @@ export function middleware(request: NextRequest) {
     const adminInventoryRedirectPath = getAdminInventoryRedirectPath(pathname);
     const legacyGasHistoryRedirectPath = getLegacyGasHistoryRedirectPath(pathname);
     const legacyGasControlRedirectPath = getLegacyGasControlRedirectPath(pathname);
+    const legacyGasReconciliationRedirectPath = getLegacyGasReconciliationRedirectPath(pathname);
     const tankLoyRedirectPath = getTankLoyRedirectPath(pathname);
     const retiredSimpleSummaryRedirectPath = getRetiredSimpleSummaryRedirectPath(pathname);
 
@@ -162,7 +168,7 @@ export function middleware(request: NextRequest) {
     // If protected route and no session, redirect to login
     if (isProtectedRoute && !sessionCookie) {
         const loginUrl = new URL('/login', request.url);
-        const redirectPath = canonicalLandingRedirectPath || currentGasRedirectPath || gasV2RedirectPath || customerMasterDataRedirectPath || billingWorkspaceRedirectPath || adminInventoryRedirectPath || legacyGasHistoryRedirectPath || legacyGasControlRedirectPath || retiredSimpleSummaryRedirectPath || tankLoyRedirectPath || pathname;
+        const redirectPath = canonicalLandingRedirectPath || currentGasRedirectPath || gasV2RedirectPath || customerMasterDataRedirectPath || billingWorkspaceRedirectPath || adminInventoryRedirectPath || legacyGasHistoryRedirectPath || legacyGasControlRedirectPath || legacyGasReconciliationRedirectPath || retiredSimpleSummaryRedirectPath || tankLoyRedirectPath || pathname;
         const redirectTarget = new URL(redirectPath, request.url);
         request.nextUrl.searchParams.forEach((value, key) => {
             if (!redirectTarget.searchParams.has(key)) redirectTarget.searchParams.append(key, value);
@@ -218,6 +224,14 @@ export function middleware(request: NextRequest) {
     if (legacyGasControlRedirectPath) {
         const redirectUrl = new URL(legacyGasControlRedirectPath, request.url);
         redirectUrl.search = request.nextUrl.search;
+        return NextResponse.redirect(redirectUrl);
+    }
+
+    if (legacyGasReconciliationRedirectPath) {
+        const redirectUrl = new URL(legacyGasReconciliationRedirectPath, request.url);
+        request.nextUrl.searchParams.forEach((value, key) => {
+            if (!redirectUrl.searchParams.has(key)) redirectUrl.searchParams.append(key, value);
+        });
         return NextResponse.redirect(redirectUrl);
     }
 

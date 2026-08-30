@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -26,6 +26,14 @@ export default function AdminGasLayout({
 }) {
     const pathname = usePathname();
     const [menuOpen, setMenuOpen] = useState(false);
+    const [currentView, setCurrentView] = useState<string | null>(null);
+
+    useEffect(() => {
+        const syncView = () => setCurrentView(new URLSearchParams(window.location.search).get('view'));
+        syncView();
+        window.addEventListener('popstate', syncView);
+        return () => window.removeEventListener('popstate', syncView);
+    }, [pathname]);
 
     const navItems = [
         { href: '/admin/gas', icon: LayoutDashboard, label: 'Dashboard', exact: true },
@@ -36,15 +44,25 @@ export default function AdminGasLayout({
         { href: '/admin/gas/reports/meters', icon: Calculator, label: 'รายงานมิเตอร์' },
         { href: '/admin/gas/gauge', icon: Gauge, label: 'ประวัติเกจ' },
         { href: '/admin/gas/supplies', icon: PackagePlus, label: 'สั่ง/ลงแก๊ส' },
-        { href: '/admin/gas/reconciliation', icon: Scale, label: 'กระทบยอด' },
+        { href: '/admin/gas/reports/shift?view=reconciliation', icon: Scale, label: 'กระทบยอด' },
         { href: '/admin/gas/operations', icon: Wrench, label: 'จัดการกะ/ราคา' },
         { href: '/admin/gas/data-entry', icon: ClipboardEdit, label: 'กรอกข้อมูลย้อนหลัง' },
         { href: '/admin/gas/settings', icon: Settings, label: 'ตั้งค่า fallback' },
     ];
 
     const isActive = (href: string, exact?: boolean) => {
-        if (exact) return pathname === href;
-        return pathname.startsWith(href);
+        const target = new URL(href, 'https://credit-billing-supachai.local');
+        const targetView = target.searchParams.get('view');
+
+        if (targetView) return pathname === target.pathname && currentView === targetView;
+        if (target.pathname === '/admin/gas/reports/shift' && currentView === 'reconciliation') return false;
+        if (exact) return pathname === target.pathname;
+        return pathname.startsWith(target.pathname);
+    };
+
+    const syncViewForHref = (href: string) => {
+        const target = new URL(href, 'https://credit-billing-supachai.local');
+        setCurrentView(target.searchParams.get('view'));
     };
 
     return (
@@ -89,6 +107,7 @@ export default function AdminGasLayout({
                         <Link
                             key={item.href}
                             href={item.href}
+                            onClick={() => syncViewForHref(item.href)}
                             className={`flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition-colors ${isActive(item.href, item.exact)
                                 ? 'bg-purple-600 text-white'
                                 : 'text-gray-400 hover:bg-white/10 hover:text-white'
@@ -109,7 +128,7 @@ export default function AdminGasLayout({
                         <Link
                             key={item.href}
                             href={item.href}
-                            onClick={() => setMenuOpen(false)}
+                            onClick={() => { syncViewForHref(item.href); setMenuOpen(false); }}
                             className={`flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition-colors ${isActive(item.href, item.exact)
                                 ? 'bg-purple-600 text-white'
                                 : 'text-gray-400 hover:bg-white/10'

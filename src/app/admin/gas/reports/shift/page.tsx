@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2, Clock, Download, Search, Eye, Edit2, Check, X } from 'lucide-react';
+import { Loader2, Clock, Download, Search, Eye, Edit2, Check, X, Scale, AlertTriangle } from 'lucide-react';
 import { formatCurrency, formatThaiTime, getGasBusinessDateKey, getShiftName, getVarianceColorClass, getVarianceText } from '@/lib/gas';
 import DateRangePresets from '@/app/admin/gas/components/DateRangePresets';
 
 interface ShiftReport {
     id: string;
+    stationId: string;
+    stationName: string;
     dateKey: string;
     displayDate: string;
     shiftNumber: number;
@@ -108,6 +110,9 @@ export default function ShiftReportPage() {
     const [reports, setReports] = useState<ShiftReport[]>([]);
     const [stationId, setStationId] = useState<string>('all');
     const [shiftFilter, setShiftFilter] = useState<string>('all');
+    const [reconciliationMode, setReconciliationMode] = useState(false);
+    const [varianceFilter, setVarianceFilter] = useState<string>('all');
+    const [editShiftId, setEditShiftId] = useState<string | null>(null);
     const [fromDate, setFromDate] = useState<string>(() => {
         const d = new Date();
         d.setDate(d.getDate() - 7);
@@ -119,6 +124,8 @@ export default function ShiftReportPage() {
     // Detail modal
     const [selectedShift, setSelectedShift] = useState<ShiftReport | null>(null);
     const [editing, setEditing] = useState(false);
+    const [savingEdit, setSavingEdit] = useState(false);
+    const [editError, setEditError] = useState<string | null>(null);
     const [editForm, setEditForm] = useState<{
         cashReceived: string;
         creditReceived: string;
@@ -126,6 +133,7 @@ export default function ShiftReportPage() {
         transferReceived: string;
         nonGasSalesAmount: string;
         otherExpensesAmount: string;
+        varianceNote: string;
     } | null>(null);
 
     // Fetch stations
@@ -140,6 +148,24 @@ export default function ShiftReportPage() {
             .catch(console.error);
     }, []);
 
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const queryStationId = params.get('stationId');
+        const queryFrom = params.get('from');
+        const queryTo = params.get('to');
+        const queryShift = params.get('shift');
+        const queryStatus = params.get('status');
+        const queryEditShiftId = params.get('editShiftId');
+
+        setReconciliationMode(params.get('view') === 'reconciliation');
+        if (queryStationId) setStationId(queryStationId);
+        if (queryFrom) setFromDate(queryFrom);
+        if (queryTo) setToDate(queryTo);
+        if (queryShift === '1' || queryShift === '2') setShiftFilter(queryShift);
+        if (['BALANCED', 'OVER', 'SHORT'].includes(queryStatus || '')) setVarianceFilter(queryStatus!);
+        if (queryEditShiftId) setEditShiftId(queryEditShiftId);
+    }, []);
+
     // Fetch reports
     useEffect(() => {
         void loadShiftReports({
@@ -152,9 +178,28 @@ export default function ShiftReportPage() {
         });
     }, [fromDate, toDate, stationId, shiftFilter]);
 
+    const parseEditAmount = (value: string): number | null => {
+        if (!value.trim()) return 0;
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed) || parsed < 0) return null;
+        return Number(parsed.toFixed(2));
+    };
+
+    const closeShiftModal = () => {
+        setSelectedShift(null);
+        setEditing(false);
+        setEditForm(null);
+        setEditError(null);
+
+        const url = new URL(window.location.href);
+        url.searchParams.delete('editShiftId');
+        window.history.replaceState(null, '', `${url.pathname}${url.search}`);
+    };
+
     const handleEdit = (shift: ShiftReport) => {
         setSelectedShift(shift);
         setEditing(true);
+        setEditError(null);
         setEditForm({
             cashReceived: String(shift.reconciliation?.cashReceived ?? shift.sales.cash),
             creditReceived: String(shift.reconciliation?.creditReceived ?? shift.sales.credit),
@@ -162,40 +207,78 @@ export default function ShiftReportPage() {
             transferReceived: String(shift.reconciliation?.transferReceived ?? shift.sales.transfer),
             nonGasSalesAmount: String(shift.reconciliation?.nonGasSalesAmount ?? 0),
             otherExpensesAmount: String(shift.reconciliation?.otherExpensesAmount ?? 0),
+            varianceNote: shift.reconciliation?.varianceNote ?? '',
         });
     };
 
+    useEffect(() => {
+        if (!editShiftId || selectedShift) return;
+        const matchedShift = reports.find((report) => report.id === editShiftId);
+        if (!matchedShift) return;
+
+        setSelectedShift(matchedShift);
+        setEditing(true);
+        setEditError(null);
+        setEditForm({
+            cashReceived: String(matchedShift.reconciliation?.cashReceived ?? matchedShift.sales.cash),
+            creditReceived: String(matchedShift.reconciliation?.creditReceived ?? matchedShift.sales.credit),
+            cardReceived: String(matchedShift.reconciliation?.cardReceived ?? matchedShift.sales.card),
+            transferReceived: String(matchedShift.reconciliation?.transferReceived ?? matchedShift.sales.transfer),
+            nonGasSalesAmount: String(matchedShift.reconciliation?.nonGasSalesAmount ?? 0),
+            otherExpensesAmount: String(matchedShift.reconciliation?.otherExpensesAmount ?? 0),
+            varianceNote: matchedShift.reconciliation?.varianceNote ?? '',
+        });
+        setEditShiftId(null);
+    }, [reports, editShiftId, selectedShift]);
+
     const handleSaveEdit = async () => {
         if (!selectedShift || !editForm) return;
+
+        const payload = {
+            cashReceived: parseEditAmount(editForm.cashReceived),
+            creditReceived: parseEditAmount(editForm.creditReceived),
+            cardReceived: parseEditAmount(editForm.cardReceived),
+            transferReceived: parseEditAmount(editForm.transferReceived),
+            nonGasSalesAmount: parseEditAmount(editForm.nonGasSalesAmount),
+            otherExpensesAmount: parseEditAmount(editForm.otherExpensesAmount),
+            varianceNote: editForm.varianceNote,
+        };
+
+        if (Object.values(payload).some((value) => value === null)) {
+            setEditError('กรอกตัวเลขให้ถูกต้อง และยอดต้องไม่ติดลบ');
+            return;
+        }
+
+        setSavingEdit(true);
+        setEditError(null);
 
         try {
             const res = await fetch(`/api/v2/gas/admin/reconciliation/${selectedShift.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    cashReceived: parseFloat(editForm.cashReceived) || 0,
-                    creditReceived: parseFloat(editForm.creditReceived) || 0,
-                    cardReceived: parseFloat(editForm.cardReceived) || 0,
-                    transferReceived: parseFloat(editForm.transferReceived) || 0,
-                    nonGasSalesAmount: parseFloat(editForm.nonGasSalesAmount) || 0,
-                    otherExpensesAmount: parseFloat(editForm.otherExpensesAmount) || 0,
-                })
+                body: JSON.stringify(payload),
             });
+            const data = await res.json().catch(() => ({}));
 
-            if (res.ok) {
-                setEditing(false);
-                setSelectedShift(null);
-                void loadShiftReports({
-                    fromDate,
-                    toDate,
-                    stationId,
-                    shiftFilter,
-                    setLoading,
-                    setReports,
-                });
+            if (!res.ok) {
+                setEditError(data.error || 'บันทึกไม่สำเร็จ');
+                return;
             }
+
+            closeShiftModal();
+            await loadShiftReports({
+                fromDate,
+                toDate,
+                stationId,
+                shiftFilter,
+                setLoading,
+                setReports,
+            });
         } catch (error) {
-            console.error('Error saving:', error);
+            console.error('Error saving reconciliation:', error);
+            setEditError('บันทึกไม่สำเร็จ กรุณาลองใหม่');
+        } finally {
+            setSavingEdit(false);
         }
     };
 
@@ -209,15 +292,54 @@ export default function ShiftReportPage() {
         window.open(`/api/export/csv?${params}`, '_blank');
     };
 
+    const displayedReports = reports.filter((report) => {
+        if (reconciliationMode && !report.reconciliation) return false;
+        if (reconciliationMode && varianceFilter !== 'all' && report.reconciliation?.varianceStatus !== varianceFilter) return false;
+        return true;
+    });
+
+    const reconciliationSummary = displayedReports.reduce((sum, report) => {
+        if (!report.reconciliation) return sum;
+        sum.expected += report.reconciliation.expected;
+        sum.received += report.reconciliation.received;
+        sum.variance += report.reconciliation.variance;
+        if (report.reconciliation.varianceStatus !== 'BALANCED') sum.offBalance += 1;
+        return sum;
+    }, { expected: 0, received: 0, variance: 0, offBalance: 0 });
+
+    const editPreview = selectedShift && editForm ? (() => {
+        const cash = parseEditAmount(editForm.cashReceived) ?? 0;
+        const credit = parseEditAmount(editForm.creditReceived) ?? 0;
+        const card = parseEditAmount(editForm.cardReceived) ?? 0;
+        const transfer = parseEditAmount(editForm.transferReceived) ?? 0;
+        const nonGasSales = parseEditAmount(editForm.nonGasSalesAmount) ?? 0;
+        const otherExpenses = parseEditAmount(editForm.otherExpensesAmount) ?? 0;
+        const expectedFuel = selectedShift.reconciliation?.expectedFuelAmount ?? selectedShift.sales.total;
+        const expected = Number((expectedFuel + nonGasSales - otherExpenses).toFixed(2));
+        const received = Number((cash + credit + card + transfer).toFixed(2));
+        const variance = Number((received - expected).toFixed(2));
+        const expectedNetCash = selectedShift.reconciliation
+            ? getExpectedNetCashToSubmit({
+                cashExpected: selectedShift.reconciliation.cashExpected,
+                nonGasSalesAmount: nonGasSales,
+                otherExpensesAmount: otherExpenses,
+            })
+            : null;
+        return { expected, received, variance, expectedNetCash };
+    })() : null;
+
     return (
         <div className="space-y-6">
             {/* Header */}
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold flex items-center gap-2">
-                        <Clock className="text-blue-400" />
-                        รายงานตามกะ
+                        {reconciliationMode ? <Scale className="text-green-400" /> : <Clock className="text-blue-400" />}
+                        {reconciliationMode ? 'กระทบยอดตามกะ' : 'รายงานตามกะ'}
                     </h1>
+                    {reconciliationMode && (
+                        <p className="mt-1 text-sm text-gray-400">ตรวจส่วนต่างและแก้ยอดรับจริงจากรายงานกะเดียวกัน</p>
+                    )}
                 </div>
 
                 <button
@@ -228,6 +350,32 @@ export default function ShiftReportPage() {
                     Export CSV
                 </button>
             </div>
+
+            {reconciliationMode && (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                    <div className="rounded-xl border border-white/10 bg-[#1a1a24] p-4">
+                        <div className="text-sm text-gray-400">ยอดคาดหวังรวม</div>
+                        <div className="text-2xl font-bold text-cyan-400">฿{formatCurrency(reconciliationSummary.expected)}</div>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-[#1a1a24] p-4">
+                        <div className="text-sm text-gray-400">ยอดรับจริงรวม</div>
+                        <div className="text-2xl font-bold text-green-400">฿{formatCurrency(reconciliationSummary.received)}</div>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-[#1a1a24] p-4">
+                        <div className="text-sm text-gray-400">ส่วนต่างรวม</div>
+                        <div className={`text-2xl font-bold ${reconciliationSummary.variance >= 0 ? 'text-yellow-400' : 'text-red-400'}`}>
+                            {reconciliationSummary.variance >= 0 ? '+' : ''}฿{formatCurrency(reconciliationSummary.variance)}
+                        </div>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-[#1a1a24] p-4">
+                        <div className="text-sm text-gray-400">กะที่ต้องตรวจ</div>
+                        <div className={`text-2xl font-bold ${reconciliationSummary.offBalance > 0 ? 'text-yellow-400' : 'text-green-400'}`}>
+                            {reconciliationSummary.offBalance}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-500">กะที่ยอดไม่ตรง</div>
+                    </div>
+                </div>
+            )}
 
             {/* Filters */}
             <div className="bg-[#1a1a24] rounded-xl p-4 border border-white/10">
@@ -258,6 +406,22 @@ export default function ShiftReportPage() {
                             <option value="2">กะ 2</option>
                         </select>
                     </div>
+
+                    {reconciliationMode && (
+                        <div className="min-w-[120px]">
+                            <label className="block text-sm text-gray-400 mb-1">ส่วนต่าง</label>
+                            <select
+                                value={varianceFilter}
+                                onChange={(e) => setVarianceFilter(e.target.value)}
+                                className="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2"
+                            >
+                                <option value="all">ทั้งหมด</option>
+                                <option value="BALANCED">ตรง</option>
+                                <option value="OVER">เกิน</option>
+                                <option value="SHORT">ขาด</option>
+                            </select>
+                        </div>
+                    )}
 
                     <div className="min-w-[130px]">
                         <label className="block text-sm text-gray-400 mb-1">จากวันที่</label>
@@ -312,7 +476,7 @@ export default function ShiftReportPage() {
                     <div className="flex items-center justify-center p-12">
                         <Loader2 className="animate-spin text-purple-400" size={32} />
                     </div>
-                ) : reports.length === 0 ? (
+                ) : displayedReports.length === 0 ? (
                     <div className="p-12 text-center text-gray-500">
                         ไม่พบข้อมูล
                     </div>
@@ -322,20 +486,22 @@ export default function ShiftReportPage() {
                             <thead className="bg-gray-800/50">
                                 <tr>
                                     <th className="text-left px-4 py-3 font-medium text-gray-400">วันที่</th>
+                                    <th className="text-left px-4 py-3 font-medium text-gray-400">สถานี</th>
                                     <th className="text-center px-4 py-3 font-medium text-gray-400">กะ</th>
                                     <th className="text-left px-4 py-3 font-medium text-gray-400">พนักงาน</th>
                                     <th className="text-center px-4 py-3 font-medium text-gray-400">เวลา</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">ยอดมิเตอร์</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">ยอดขาย</th>
                                     <th className="text-right px-4 py-3 font-medium text-gray-400">ส่วนต่าง</th>
-                                    <th className="text-center px-4 py-3 font-medium text-gray-400">สถานะ</th>
+                                    <th className="text-center px-4 py-3 font-medium text-gray-400">{reconciliationMode ? 'กระทบยอด' : 'สถานะ'}</th>
                                     <th className="px-4 py-3"></th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5">
-                                {reports.map((r) => (
+                                {displayedReports.map((r) => (
                                     <tr key={r.id} className="hover:bg-white/5">
                                         <td className="px-4 py-3">{r.displayDate}</td>
+                                        <td className="px-4 py-3">{r.stationName}</td>
                                         <td className="px-4 py-3 text-center">
                                             <span className={`px-2 py-1 rounded text-xs ${r.shiftNumber === 1 ? 'bg-blue-900/50 text-blue-300' : 'bg-purple-900/50 text-purple-300'
                                                 }`}>
@@ -361,13 +527,22 @@ export default function ShiftReportPage() {
                                             }
                                         </td>
                                         <td className="px-4 py-3 text-center">
-                                            <span className={`px-2 py-1 rounded text-xs ${r.status === 'OPEN' ? 'bg-green-900/50 text-green-300' :
-                                                r.status === 'CLOSED' ? 'bg-gray-700 text-gray-300' :
-                                                    'bg-blue-900/50 text-blue-300'
-                                                }`}>
-                                                {r.status === 'OPEN' ? 'เปิด' :
-                                                    r.status === 'CLOSED' ? 'ปิด' : 'ล็อค'}
-                                            </span>
+                                            {reconciliationMode && r.reconciliation ? (
+                                                <span className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs ${getVarianceColorClass(r.reconciliation.varianceStatus)}`}>
+                                                    {r.reconciliation.varianceStatus === 'BALANCED'
+                                                        ? <Check size={14} aria-hidden="true" />
+                                                        : <AlertTriangle size={14} aria-hidden="true" />}
+                                                    {getVarianceText(r.reconciliation.varianceStatus)}
+                                                </span>
+                                            ) : (
+                                                <span className={`px-2 py-1 rounded text-xs ${r.status === 'OPEN' ? 'bg-green-900/50 text-green-300' :
+                                                    r.status === 'CLOSED' ? 'bg-gray-700 text-gray-300' :
+                                                        'bg-blue-900/50 text-blue-300'
+                                                    }`}>
+                                                    {r.status === 'OPEN' ? 'เปิด' :
+                                                        r.status === 'CLOSED' ? 'ปิด' : 'ล็อค'}
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="px-4 py-3">
                                             <div className="flex gap-1">
@@ -404,7 +579,7 @@ export default function ShiftReportPage() {
                                 {selectedShift.displayDate} - {getShiftName(selectedShift.shiftNumber)}
                             </h3>
                             <button
-                                onClick={() => { setSelectedShift(null); setEditing(false); }}
+                                onClick={closeShiftModal}
                                 className="p-1 hover:bg-white/10 rounded"
                             >
                                 <X size={20} />
@@ -503,6 +678,47 @@ export default function ShiftReportPage() {
                                                 className="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 mt-1"
                                             />
                                         </div>
+
+                                        {editError && (
+                                            <div className="col-span-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+                                                {editError}
+                                            </div>
+                                        )}
+
+                                        <label className="col-span-2 block">
+                                            <span className="text-sm text-gray-400">หมายเหตุ</span>
+                                            <textarea
+                                                value={editForm.varianceNote}
+                                                onChange={(e) => setEditForm({ ...editForm, varianceNote: e.target.value })}
+                                                rows={3}
+                                                className="mt-1 w-full resize-none rounded-lg border border-white/10 bg-gray-800 px-3 py-2 focus:border-orange-500 focus:outline-none"
+                                            />
+                                        </label>
+
+                                        {editPreview && (
+                                            <div className="col-span-2 grid grid-cols-2 gap-3 rounded-lg border border-white/10 bg-gray-900 p-3 text-sm md:grid-cols-4">
+                                                <div>
+                                                    <div className="text-gray-400">ยอดที่ควรได้</div>
+                                                    <div className="font-mono font-bold">฿{formatCurrency(editPreview.expected)}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-gray-400">เงินสดควรส่งสุทธิ</div>
+                                                    <div className="font-mono font-bold text-green-300">
+                                                        {editPreview.expectedNetCash === null ? '-' : `฿${formatCurrency(editPreview.expectedNetCash)}`}
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-gray-400">ยอดรับจริงใหม่</div>
+                                                    <div className="font-mono font-bold text-green-400">฿{formatCurrency(editPreview.received)}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-gray-400">ส่วนต่างใหม่</div>
+                                                    <div className={`font-mono font-bold ${editPreview.variance >= 0 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                                        {editPreview.variance >= 0 ? '+' : ''}฿{formatCurrency(editPreview.variance)}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-4 gap-2">
@@ -609,22 +825,23 @@ export default function ShiftReportPage() {
                             {editing ? (
                                 <>
                                     <button
-                                        onClick={() => setEditing(false)}
+                                        onClick={closeShiftModal}
                                         className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg"
                                     >
                                         ยกเลิก
                                     </button>
                                     <button
                                         onClick={handleSaveEdit}
-                                        className="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg flex items-center gap-2"
+                                        disabled={savingEdit}
+                                        className="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg flex items-center gap-2 disabled:opacity-60"
                                     >
-                                        <Check size={18} />
+                                        {savingEdit ? <Loader2 className="animate-spin" size={18} /> : <Check size={18} />}
                                         บันทึก
                                     </button>
                                 </>
                             ) : (
                                 <button
-                                    onClick={() => { setSelectedShift(null); }}
+                                    onClick={closeShiftModal}
                                     className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg"
                                 >
                                     ปิด

@@ -3401,3 +3401,30 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S111 staging.
 - No push / no deploy / no production DB write.
+
+## 2026-08-30 — S112 — Consolidate GAS reconciliation into Shift Report
+- Status: `[x]`
+- Parity / ownership decision:
+  - standalone `/admin/gas/reconciliation` duplicated `/admin/gas/reports/shift` and both edit through the same `/api/v2/gas/admin/reconciliation/[shiftId]` PUT.
+  - Shift Report now owns reconciliation mode via `view=reconciliation`, including reconciled-only rows, `BALANCED/OVER/SHORT` filter, expected/received/variance totals, off-balance count and station visibility.
+  - legacy `stationId`, `from`, `to`, `status`, `shift` and `editShiftId` bookmarks hydrate the consolidated report; meter-report `แก้ยอด` links target the same mode.
+  - edit parity moved into Shift Report: non-negative numeric validation, API/error/loading state, `varianceNote`, preview of expected/received/variance/net cash and deep-link modal cleanup.
+- Route/API retirement:
+  - exact `/admin/gas/reconciliation` redirects to `/admin/gas/reports/shift?view=reconciliation`; middleware and login normalization preserve incoming filters/deep links.
+  - GAS admin nav/dashboard and redesign More nav now point to the consolidated report.
+  - `GET /api/v2/gas/admin/reconciliation` had no remaining caller after consolidation; it now uses the shared ADMIN guard and returns 410 with the report replacement plus active per-shift PUT pattern, with no Prisma/analytics read path.
+  - `/api/v2/gas/admin/reconciliation/[shiftId]` PUT remains active and unchanged; S112 changes no reconciliation formula/write semantics.
+- Verification:
+  - targeted reconciliation/redirect/analytics/GAS regression: 5 files / **118 tests passed**.
+  - after query-aware nav fix: focused retirement/per-shift/middleware regression: 3 files / **92 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 63 files / **511 tests passed**.
+  - TypeScript, S112-scoped ESLint and `git diff --check`: passed.
+  - first production build exposed an S112-introduced shared `useSearchParams` CSR-bailout on static `/billing`; the shared hook was removed and query-aware state was kept local to GAS admin layout.
+  - final production build: **127/127 routes passed**.
+  - anonymous runtime smoke on existing user-owned port 3005: legacy reconciliation bookmark returned 307 to login with canonical `view=reconciliation` + filters/deep-link preserved; retired list API returned 401 before ADMIN auth.
+- Safety / concurrent work:
+  - no authenticated UAT DB write was needed because the active per-shift PUT implementation/formula did not change; no production DB write occurred.
+  - existing user-owned dev process on port 3005 was not stopped or modified.
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S112 staging.
+- No push / no deploy.

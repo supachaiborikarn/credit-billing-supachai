@@ -206,6 +206,26 @@ describe('middleware legacy route retirement boundaries', () => {
         expect(loginUrl.searchParams.get('redirect')).toBe('/admin/gas?from=s110-bookmark');
     });
 
+    it('retires standalone GAS reconciliation view into Shift Report reconciliation mode and preserves filters', () => {
+        const response = middleware(request('/admin/gas/reconciliation?stationId=station-5&from=2026-08-01&to=2026-08-30&status=SHORT&editShiftId=shift-1'));
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(
+            'https://credit-billing-supachai.local/admin/gas/reports/shift?view=reconciliation&stationId=station-5&from=2026-08-01&to=2026-08-30&status=SHORT&editShiftId=shift-1'
+        );
+    });
+
+    it('normalizes unauthenticated GAS reconciliation bookmark before login', () => {
+        const response = middleware(request('/admin/gas/reconciliation?stationId=station-6&from=2026-08-15&to=2026-08-30&status=OVER', false));
+        const location = response.headers.get('location');
+        expect(response.status).toBe(307);
+        expect(location).not.toBeNull();
+        const loginUrl = new URL(location!);
+        expect(loginUrl.pathname).toBe('/login');
+        expect(loginUrl.searchParams.get('redirect')).toBe(
+            '/admin/gas/reports/shift?view=reconciliation&stationId=station-6&from=2026-08-15&to=2026-08-30&status=OVER'
+        );
+    });
+
     it('redirects direct station-6 product inventory URL because products are disabled there', () => {
         const response = middleware(request('/gas/6/products?from=bookmark'));
 

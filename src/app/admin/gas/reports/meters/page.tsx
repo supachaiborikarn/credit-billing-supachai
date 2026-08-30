@@ -164,7 +164,9 @@ export default function MeterReportPage() {
             editShiftId: report.id,
         });
 
-        return `/admin/gas/reconciliation?${params}`;
+        params.set('view', 'reconciliation');
+
+        return `/admin/gas/reports/shift?${params}`;
     };
 
     const getEditMetersUrl = (report: MeterReport): string => (

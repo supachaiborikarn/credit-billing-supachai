@@ -62,15 +62,16 @@ const adminPrimaryNav: NavItem[] = [
 const adminMoreNav: MoreItem[] = [
     { label: 'Reports', href: '/reports', icon: BarChart3, description: 'รายงานและข้อมูลย้อนหลัง' },
     { label: 'Alerts & anomalies', href: '/admin/alerts', icon: ShieldCheck, description: 'รายการที่ต้องตรวจสอบ' },
-    { label: 'Reconciliation', href: '/admin/gas/reconciliation', icon: FileClock, description: 'ตรวจและกระทบยอด' },
+    { label: 'Reconciliation', href: '/admin/gas/reports/shift?view=reconciliation', icon: FileClock, description: 'ตรวจและกระทบยอด' },
     { label: 'Users', href: '/users', icon: UserCog, description: 'ผู้ใช้และสิทธิ์' },
     { label: 'Settings', href: '/settings', icon: Settings, description: 'ตั้งค่าระบบ' },
     { label: 'Integrations', href: '/admin/watchara-dispenser', icon: Plug, description: 'ระบบเชื่อมต่อภายนอก' },
 ];
 
 function isRouteActive(pathname: string, href: string) {
-    if (href === '/today') return pathname === '/today';
-    return pathname === href || pathname.startsWith(`${href}/`);
+    const target = new URL(href, 'https://credit-billing-supachai.local');
+    if (target.pathname === '/today') return pathname === '/today';
+    return pathname === target.pathname || pathname.startsWith(`${target.pathname}/`);
 }
 
 function getStaffNav(user: ShellUser | null): NavItem[] {
