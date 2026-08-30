@@ -4,6 +4,8 @@ import {
     STATIONS,
 } from '@/constants';
 import { requireAdminApi } from '@/lib/api-auth';
+import { CREDIT_PAYMENT_TYPES } from '@/constants/payment-types';
+import { buildBillingOutstandingSummary } from '@/lib/billing/outstanding-summary';
 import {
     buildGasStaffPerformance,
     buildGasNozzlePerformance,
@@ -299,37 +301,55 @@ export async function GET() {
             })
             .slice(0, 8);
 
-        const ownersWithCredit = await prisma.owner.findMany({
-            where: {
-                currentCredit: { gt: 0 },
-                deletedAt: null,
-            },
-            orderBy: { currentCredit: 'desc' },
-            take: 5,
-            select: {
-                id: true,
-                name: true,
-                currentCredit: true,
-                creditLimit: true,
-            },
-        });
-
-        const totalAR = await prisma.owner.aggregate({
-            where: { deletedAt: null },
-            _sum: { currentCredit: true },
-        });
-
-        const recentAnomalies = await prisma.meterAnomaly.findMany({
-            where: { reviewedAt: null },
-            orderBy: { createdAt: 'desc' },
-            take: 5,
-            include: {
-                shift: {
-                    include: {
-                        dailyRecord: { select: { stationId: true, date: true } },
+        const [pendingCreditOwners, invoiceBalances, collectionBalances, recentAnomalies] = await Promise.all([
+            prisma.owner.findMany({
+                where: {
+                    deletedAt: null,
+                    transactions: {
+                        some: {
+                            paymentType: { in: [...CREDIT_PAYMENT_TYPES] },
+                            invoiceId: null,
+                            deletedAt: null,
+                            isVoided: false,
+                        },
                     },
                 },
-            },
+                select: {
+                    transactions: {
+                        where: {
+                            paymentType: { in: [...CREDIT_PAYMENT_TYPES] },
+                            invoiceId: null,
+                            deletedAt: null,
+                            isVoided: false,
+                        },
+                        select: { amount: true },
+                    },
+                },
+            }),
+            prisma.invoice.findMany({
+                select: { totalAmount: true, paidAmount: true },
+            }),
+            prisma.billingCollection.findMany({
+                select: { totalAmount: true, paidAmount: true },
+            }),
+            prisma.meterAnomaly.findMany({
+                where: { reviewedAt: null },
+                orderBy: { createdAt: 'desc' },
+                take: 5,
+                include: {
+                    shift: {
+                        include: {
+                            dailyRecord: { select: { stationId: true, date: true } },
+                        },
+                    },
+                },
+            }),
+        ]);
+
+        const billingOutstanding = buildBillingOutstandingSummary({
+            pendingOwners: pendingCreditOwners,
+            invoices: invoiceBalances,
+            collections: collectionBalances,
         });
 
         const anomalies = recentAnomalies.map((anomaly) => ({
@@ -410,13 +430,8 @@ export async function GET() {
                 alerts,
             },
             ar: {
-                totalOutstanding: Number(totalAR._sum.currentCredit) || 0,
-                topDebtors: ownersWithCredit.map((owner) => ({
-                    id: owner.id,
-                    name: owner.name,
-                    amount: Number(owner.currentCredit),
-                    limit: Number(owner.creditLimit),
-                })),
+                ...billingOutstanding,
+                combinedOutstandingSuppressed: true,
             },
             audit: {
                 unreviewedAnomalies: anomalies.length,

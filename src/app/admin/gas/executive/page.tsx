@@ -109,8 +109,10 @@ interface ExecutiveData {
         }[];
     };
     ar: {
-        totalOutstanding: number;
-        topDebtors: { id: string; name: string; amount: number; limit: number }[];
+        waitingToBill: { ownerCount: number; transactionCount: number; amount: number };
+        invoiceOutstanding: { documentCount: number; amount: number };
+        collectionOutstanding: { documentCount: number; amount: number };
+        combinedOutstandingSuppressed: true;
     };
     audit: {
         unreviewedAnomalies: number;
@@ -520,27 +522,32 @@ export default function ExecutiveDashboardPage() {
                         </Link>
                     </div>
 
-                    <div className="bg-gradient-to-r from-pink-900/30 to-purple-900/30 rounded-xl p-4 mb-4">
-                        <div className="text-sm text-gray-400">ยอดค้างรวม</div>
-                        <div className="text-3xl font-bold text-pink-400">฿{formatCurrency(data.ar.totalOutstanding)}</div>
-                    </div>
-
-                    <div className="text-sm text-gray-400 mb-2">Top 5 ลูกหนี้</div>
-                    {data.ar.topDebtors.length === 0 ? (
-                        <div className="text-center py-4 text-gray-500">ไม่มีลูกหนี้ค้าง</div>
-                    ) : (
-                        <div className="space-y-2">
-                            {data.ar.topDebtors.map((d, i) => (
-                                <div key={d.id} className="flex items-center justify-between bg-black/20 rounded-lg p-2">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-gray-500">#{i + 1}</span>
-                                        <span className="text-sm truncate">{d.name}</span>
-                                    </div>
-                                    <span className="font-mono text-pink-400">฿{formatCurrency(d.amount)}</span>
-                                </div>
-                            ))}
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                        <div className="rounded-lg border border-violet-500/20 bg-violet-900/20 p-3">
+                            <div className="text-xs text-gray-400">รอออกบิล</div>
+                            <div className="mt-1 text-xl font-bold text-violet-300">฿{formatCurrency(data.ar.waitingToBill.amount)}</div>
+                            <div className="mt-1 text-xs text-gray-500">
+                                {data.ar.waitingToBill.ownerCount} ลูกค้า · {data.ar.waitingToBill.transactionCount} รายการ
+                            </div>
                         </div>
-                    )}
+                        <div className="rounded-lg border border-blue-500/20 bg-blue-900/20 p-3">
+                            <div className="text-xs text-gray-400">Invoice คงเหลือ</div>
+                            <div className="mt-1 text-xl font-bold text-blue-300">฿{formatCurrency(data.ar.invoiceOutstanding.amount)}</div>
+                            <div className="mt-1 text-xs text-gray-500">
+                                {data.ar.invoiceOutstanding.documentCount} เอกสาร
+                            </div>
+                        </div>
+                        <div className="rounded-lg border border-cyan-500/20 bg-cyan-900/20 p-3">
+                            <div className="text-xs text-gray-400">Collection คงเหลือ</div>
+                            <div className="mt-1 text-xl font-bold text-cyan-300">฿{formatCurrency(data.ar.collectionOutstanding.amount)}</div>
+                            <div className="mt-1 text-xs text-gray-500">
+                                {data.ar.collectionOutstanding.documentCount} เอกสาร
+                            </div>
+                        </div>
+                    </div>
+                    <p className="mt-3 text-xs text-gray-500">
+                        แยกยอดตามขั้นเอกสารเหมือน Billing เพื่อไม่บวกซ้ำระหว่าง Invoice และ Collection
+                    </p>
                 </div>
 
                 {/* ======== 5. AUDIT ======== */}

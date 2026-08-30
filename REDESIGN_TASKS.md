@@ -3475,3 +3475,24 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Safety / concurrent work:
   - no production DB write, push or deploy occurred.
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S114 staging.
+
+## 2026-08-30 — S115 — Align GAS Executive AR with canonical Billing buckets
+- Status: `[x]`
+- Audit finding:
+  - `/admin/gas/executive` and `/admin/gas/reports/executive` are intentionally different surfaces (live management dashboard vs date-range A4 print report) and both remain KEEP_ADMIN_REPORT.
+  - the live Executive AR card still read `Owner.currentCredit`, contradicting S105 where that legacy field was proven drift-prone and the old outstanding page was retired.
+- Implemented so far:
+  - added shared `buildBillingOutstandingSummary()` using the same derived settlement rules as canonical Billing.
+  - `/api/billing` now uses that helper for waiting-to-bill, Invoice outstanding and BillingCollection outstanding summary buckets.
+  - GAS Executive queries real unbilled credit-like transactions plus Invoice/BillingCollection total-vs-paid balances; it no longer reads `currentCredit`.
+  - Executive UI removes the unsafe combined AR total/Top-5 debtors and shows three separate buckets with counts, explicitly avoiding cross-document double counting.
+- Verification completed:
+  - targeted Billing/Executive regression: 5 files / **19 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 67 files / **534 tests passed**.
+  - TypeScript, S115-scoped ESLint and `git diff --check`: passed.
+- Final gate:
+  - production build durable task `e4b6eb07-9569-4fb8-ae38-307d550712d6` completed with exit 0: **127/127 routes passed**.
+- Safety / concurrent work:
+  - S115 is read-only dashboard/Billing summary alignment; no DB write, push or deploy occurred.
+  - Tank Loy auto-print/shared brain concurrent files remain outside S115 scope.

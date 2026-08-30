@@ -7,6 +7,7 @@ import {
     type NormalizedBillingDocument,
 } from '@/lib/billing/adapter';
 import { getBillingExceptions } from '@/lib/billing/exceptions';
+import { buildBillingOutstandingSummary } from '@/lib/billing/outstanding-summary';
 import { prisma } from '@/lib/prisma';
 import type {
     BillingWorkspaceItem,
@@ -161,8 +162,11 @@ export async function GET() {
             .map(toWorkspaceDocument)
             .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
-        const invoiceOutstanding = invoiceDocuments.filter((document) => document.stage !== 'CLOSED');
-        const collectionOutstanding = collectionDocuments.filter((document) => document.stage !== 'CLOSED');
+        const outstandingSummary = buildBillingOutstandingSummary({
+            pendingOwners,
+            invoices,
+            collections,
+        });
 
         const payload: BillingWorkspacePayload = {
             generatedAt: now.toISOString(),
@@ -173,19 +177,7 @@ export async function GET() {
             },
             items: [...waitingItems, ...documentItems],
             summary: {
-                waitingToBill: {
-                    ownerCount: waitingItems.length,
-                    transactionCount: waitingItems.reduce((sum, item) => sum + item.sourceItemCount, 0),
-                    amount: waitingItems.reduce((sum, item) => sum + item.totalAmount, 0),
-                },
-                invoiceOutstanding: {
-                    documentCount: invoiceOutstanding.length,
-                    amount: invoiceOutstanding.reduce((sum, document) => sum + document.remainingAmount, 0),
-                },
-                collectionOutstanding: {
-                    documentCount: collectionOutstanding.length,
-                    amount: collectionOutstanding.reduce((sum, document) => sum + document.remainingAmount, 0),
-                },
+                ...outstandingSummary,
                 pendingPaymentSlips: collectionDocuments.reduce(
                     (sum, document) => sum + document.attention.pendingPaymentReviews,
                     0

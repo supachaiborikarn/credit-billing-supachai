@@ -136,3 +136,8 @@ A legacy route may be redirected only when:
 - Admin/station supply date filters fail closed on invalid/reversed Bangkok date ranges; admin station filter accepts configured GAS stations only.
 - LPG receiving normalization/math is unchanged; write mutation + AuditLog are now atomic for station CREATE and admin CREATE/UPDATE/DELETE.
 - Verified release gate: **101/101 tests passed**; full regression **530/530**; production build **127/127 routes**.
+### S115 GAS Executive Billing-source alignment (2026-08-30)
+- Live GAS Executive no longer uses drift-prone `Owner.currentCredit` for AR.
+- Executive and canonical Billing use the same derived three-bucket summary: unbilled credit-like transactions, Invoice outstanding, and BillingCollection outstanding.
+- These buckets remain deliberately separate; do not sum them into a grand total because historical overlap is not relationally proven.
+- Verified release gate: **101/101 tests passed**; full regression **534/534**; production build **127/127 routes**.
