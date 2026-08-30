@@ -3092,3 +3092,32 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S101 staging.
 - No push / no deploy / no production DB write.
+
+## 2026-08-30 — S102 — Move ordinary Owner master data into canonical Customers
+- Status: `[x]`
+- Ownership change:
+  - canonical `/customers` now exposes ADMIN customer creation and redirects legacy `/owners` bookmarks/login redirects to `/customers` with query preservation.
+  - canonical `/customers/[id]` now exposes ADMIN edit for name, phone, owner group, vendor code and credit limit; it also owns add-truck, edit current-customer plate and soft-deactivate.
+  - existing `/api/owners`, `/api/owners/[id]`, `/api/trucks` and `/api/trucks/[id]` remain the write contracts; S102 does not introduce a second owner/truck data model.
+  - STAFF receives `canManageMasterData=false` and sees no canonical master-data controls; Customer 360's existing ADMIN permissions remain authoritative for the detail surface.
+- Deliberate compatibility kept for S103:
+  - `/trucks` remains because it still owns global cross-owner truck reassignment.
+  - `/admin/owners` remains because it still owns duplicate-owner merge; S102 does not redirect it until merge safely covers billing relations as well as trucks/transactions.
+- Resilience found during UAT:
+  - first isolated read attempt hit transient Neon `P1001` while loading BillingCollection data before any S102 fixture write.
+  - Customer list + Customer 360 detail now reuse the existing `withPrismaReadRetry` helper for P1001/P2024; subsequent UAT reads returned 200 without client-side retry.
+- Verification:
+  - targeted customer/retry/middleware regression: 4 files / **81 tests passed**.
+  - financial release gate: 16 files / **90 tests passed**.
+  - full regression: 50 files / **424 tests passed**.
+  - TypeScript, S102-scoped ESLint and `git diff --check`: passed.
+  - production build with `NODE_ENV=production`: **127/127 routes passed**.
+- Isolated write UAT:
+  - UAT preflight confirmed a Neon host different from production; CreditBilling used port 3005 only and port 3000 was untouched.
+  - STAFF customer list returned 200 with `canManageMasterData=false`; ADMIN returned 200 with `canManageMasterData=true`.
+  - legacy `/owners` returned 307 to canonical Customers; canonical list/detail returned 200.
+  - ADMIN create owner 200 → edit owner/credit limit 200 → add truck 200 → edit plate 200 → soft-deactivate 200; final Customer 360 readback reported `INACTIVE`.
+  - temporary S102 owner/truck/session fixtures were removed; direct UAT DB cleanup check returned owner=0 and truck=0; UAT server stopped.
+- Concurrent-work note:
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S102 staging.
+- No push / no deploy / no production DB write.

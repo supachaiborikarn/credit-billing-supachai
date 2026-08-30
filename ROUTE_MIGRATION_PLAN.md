@@ -143,11 +143,11 @@ Disposition: `shift-history` retired in S82, `meter-summary` retired in S83, and
 
 | Legacy route | Canonical | Disposition |
 | --- | --- | --- |
-| `/owners` | `/customers` | KEEP_MASTER_DATA — legacy still owns create/edit/deactivate/add-truck operations |
-| `/admin/owners` | `/customers` / settings | KEEP_MASTER_DATA |
-| `/trucks` | `/customers/[id]` / master data | KEEP_MASTER_DATA |
+| `/owners` | `/customers` | **S102 RETIRED** — canonical Customers/Customer 360 now owns ADMIN create/edit/soft-deactivate plus add/edit-plate for the current customer's trucks. Legacy bookmark/login redirects normalize to `/customers`. |
+| `/admin/owners` | `/customers` / settings | KEEP_MASTER_DATA — duplicate-owner merge remains here for S103; do not redirect until merge also preserves billing relations safely. |
+| `/trucks` | `/customers/[id]` / master data | KEEP_MASTER_DATA — canonical Customer 360 can add/edit the current customer's plate, but global owner reassignment remains here for S103. |
 
-Customer 360 is currently the read/workspace surface; do not redirect master-data writes until their actions are migrated with permission checks.
+S102 moved ordinary owner master-data writes into canonical Customers with ADMIN-only UI permission. `/admin/owners` and `/trucks` intentionally remain compatibility surfaces until S103 proves safe duplicate merge and cross-owner truck reassignment parity.
 
 ## Admin/report routes
 

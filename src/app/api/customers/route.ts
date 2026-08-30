@@ -3,6 +3,7 @@ import { CREDIT_PAYMENT_TYPES } from '@/constants/payment-types';
 import { requireApiSession } from '@/lib/api-auth';
 import { deriveCustomerAttention, getCustomerNextAction } from '@/lib/customers/customer-list';
 import { prisma } from '@/lib/prisma';
+import { withPrismaReadRetry } from '@/lib/prisma-read-retry';
 import type { CustomerListPayload } from '@/types/customer';
 
 function remainingAmount(totalAmount: unknown, paidAmount: unknown) {
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
         const status = searchParams.get('status') || 'ACTIVE';
         const search = (searchParams.get('search') || '').trim();
 
-        const owners = await prisma.owner.findMany({
+        const owners = await withPrismaReadRetry(() => prisma.owner.findMany({
             where: {
                 ...(status !== 'ALL' ? { status: status as 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' } : {}),
                 ...(search
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
                     },
                 },
             },
-        });
+        }));
 
         const ownerIds = owners.map((owner) => owner.id);
         if (ownerIds.length === 0) {
@@ -63,6 +64,9 @@ export async function GET(request: NextRequest) {
                     invoiceOutstandingAmount: 0,
                     collectionOutstandingAmount: 0,
                 },
+                permissions: {
+                    canManageMasterData: auth.user.role === 'ADMIN',
+                },
                 workflow: {
                     combinedOutstandingSuppressed: true,
                     legacyCreditIsAuthoritative: false,
@@ -71,7 +75,7 @@ export async function GET(request: NextRequest) {
             return NextResponse.json(empty);
         }
 
-        const [transactionGroups, unbilledGroups, invoices, collections, pendingSlips] = await Promise.all([
+        const [transactionGroups, unbilledGroups, invoices, collections, pendingSlips] = await withPrismaReadRetry(() => Promise.all([
             prisma.transaction.groupBy({
                 by: ['ownerId'],
                 where: { ownerId: { in: ownerIds }, deletedAt: null, isVoided: false },
@@ -104,7 +108,7 @@ export async function GET(request: NextRequest) {
                 },
                 select: { billingCollection: { select: { ownerId: true } } },
             }),
-        ]);
+        ]));
 
         const transactionCountMap = new Map(
             transactionGroups.filter((row) => row.ownerId).map((row) => [row.ownerId as string, row._count._all])
@@ -206,6 +210,9 @@ export async function GET(request: NextRequest) {
                 unbilledAmount: items.reduce((sum, item) => sum + item.outstanding.unbilledAmount, 0),
                 invoiceOutstandingAmount: items.reduce((sum, item) => sum + item.outstanding.invoiceAmount, 0),
                 collectionOutstandingAmount: items.reduce((sum, item) => sum + item.outstanding.collectionAmount, 0),
+            },
+            permissions: {
+                canManageMasterData: auth.user.role === 'ADMIN',
             },
             workflow: {
                 combinedOutstandingSuppressed: true,

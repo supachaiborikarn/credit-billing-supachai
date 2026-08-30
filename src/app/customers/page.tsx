@@ -14,6 +14,7 @@ import {
     Users,
 } from 'lucide-react';
 import { RedesignAppShell } from '@/components/layout';
+import { CustomerCreatePanel } from '@/components/customers/CustomerCreatePanel';
 import {
     AsyncRefreshState,
     Badge,
@@ -296,6 +297,10 @@ export default function CustomersPage() {
                             <div className="mt-2 text-2xl font-bold tabular-nums">฿{formatMoney(data.summary.collectionOutstandingAmount)}</div>
                         </div>
                     </div>
+                )}
+
+                {data?.permissions.canManageMasterData && (
+                    <CustomerCreatePanel onCreated={(customerId) => router.push(`/customers/${customerId}`)} />
                 )}
 
                 <Notice tone="info" title="ยอดค้างแสดงแยกตามแหล่งข้อมูล">

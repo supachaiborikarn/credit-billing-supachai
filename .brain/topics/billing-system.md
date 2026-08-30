@@ -119,3 +119,10 @@
 - 2026-02-24: สร้างไฟล์ brain topic นี้จากประวัติการทำงานจริง
 - 2026-02-23: แก้ sort order billing จาก string เป็น numeric (parseInt)
 - 2026-02-21: แก้ sort ของ billing notes
+
+### Canonical Customer master data (S102 — 2026-08-30)
+- `/owners` ถูก retire ไป `/customers`; ADMIN เพิ่มลูกค้าได้จาก Customers และแก้ชื่อ/โทร/กลุ่ม/vendor code/วงเงิน + soft-deactivate ใน Customer 360.
+- Customer 360 เพิ่มรถและแก้ทะเบียนของรถที่ยังผูกกับ owner เดิมได้ โดยใช้ Owner/Truck APIs เดิม ไม่สร้าง source of truth ใหม่.
+- STAFF canonical permission `canManageMasterData=false`; `/trucks` ยัง KEEP สำหรับ cross-owner reassignment และ `/admin/owners` ยัง KEEP สำหรับ duplicate merge ไป S103.
+- UAT จับ Neon P1001 ตอน Customer read; `/api/customers` list/detail จึงใช้ `withPrismaReadRetry` policy เดิมสำหรับ P1001/P2024.
+- Gates: targeted 81/81, financial 90/90, full 424/424, build 127/127; isolated UAT create/edit/add truck/edit plate/deactivate ผ่านและ cleanup 0/0.

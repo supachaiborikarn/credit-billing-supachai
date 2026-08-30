@@ -8,6 +8,7 @@ export const OwnerGroup = {
     GENERAL_CREDIT: 'GENERAL_CREDIT',
     BOX_TRUCK: 'BOX_TRUCK',
     OIL_TRUCK: 'OIL_TRUCK',
+    OOY_TRUCK: 'OOY_TRUCK',
 } as const;
 
 export type OwnerGroupValue = typeof OwnerGroup[keyof typeof OwnerGroup];
@@ -20,6 +21,7 @@ export const OwnerGroupLabels: Record<OwnerGroupValue, string> = {
     GENERAL_CREDIT: 'เงินเชื่อทั่วไป',
     BOX_TRUCK: 'รถตู้',
     OIL_TRUCK: 'รถน้ำมัน',
+    OOY_TRUCK: 'รถอ้อย',
 };
 
 /**

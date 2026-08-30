@@ -73,6 +73,12 @@ function getRetiredSimpleSummaryRedirectPath(pathname: string) {
     return match ? `/stations/station-${match[1]}/history` : null;
 }
 
+
+function getCustomerMasterDataRedirectPath(pathname: string) {
+    const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+    return normalized === '/owners' ? '/customers' : null;
+}
+
 function getTankLoyRedirectPath(pathname: string) {
     const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
 
@@ -110,6 +116,7 @@ export function middleware(request: NextRequest) {
     const canonicalLandingRedirectPath = pathname === '/dashboard' ? '/today' : null;
     const currentGasRedirectPath = getCurrentGasRedirectPath(pathname);
     const gasV2RedirectPath = getGasV2RedirectPath(pathname);
+    const customerMasterDataRedirectPath = getCustomerMasterDataRedirectPath(pathname);
     const tankLoyRedirectPath = getTankLoyRedirectPath(pathname);
     const retiredSimpleSummaryRedirectPath = getRetiredSimpleSummaryRedirectPath(pathname);
 
@@ -121,7 +128,7 @@ export function middleware(request: NextRequest) {
     // If protected route and no session, redirect to login
     if (isProtectedRoute && !sessionCookie) {
         const loginUrl = new URL('/login', request.url);
-        const redirectPath = canonicalLandingRedirectPath || currentGasRedirectPath || gasV2RedirectPath || tankLoyRedirectPath || retiredSimpleSummaryRedirectPath || pathname;
+        const redirectPath = canonicalLandingRedirectPath || currentGasRedirectPath || gasV2RedirectPath || customerMasterDataRedirectPath || retiredSimpleSummaryRedirectPath || tankLoyRedirectPath || pathname;
         loginUrl.searchParams.set('redirect', `${redirectPath}${request.nextUrl.search}`);
         return NextResponse.redirect(loginUrl);
     }
@@ -140,6 +147,12 @@ export function middleware(request: NextRequest) {
 
     if (gasV2RedirectPath) {
         const redirectUrl = new URL(gasV2RedirectPath, request.url);
+        redirectUrl.search = request.nextUrl.search;
+        return NextResponse.redirect(redirectUrl);
+    }
+
+    if (customerMasterDataRedirectPath) {
+        const redirectUrl = new URL(customerMasterDataRedirectPath, request.url);
         redirectUrl.search = request.nextUrl.search;
         return NextResponse.redirect(redirectUrl);
     }

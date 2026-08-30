@@ -11,6 +11,7 @@ import {
     toCustomerBillingDocument,
 } from '@/lib/customers/customer-360';
 import { prisma } from '@/lib/prisma';
+import { withPrismaReadRetry } from '@/lib/prisma-read-retry';
 import type { Customer360Payload } from '@/types/customer';
 
 const RECENT_TRANSACTION_LIMIT = 100;
@@ -26,7 +27,7 @@ export async function GET(
         const { id } = await params;
         const now = new Date();
 
-        const [owner, recentTransactions, activeTransactionCount, unbilledCredit, invoices, collections] = await Promise.all([
+        const [owner, recentTransactions, activeTransactionCount, unbilledCredit, invoices, collections] = await withPrismaReadRetry(() => Promise.all([
             prisma.owner.findUnique({
                 where: { id },
                 include: {
@@ -88,7 +89,7 @@ export async function GET(
                     _count: { select: { items: true, paymentSlips: true } },
                 },
             }),
-        ]);
+        ]));
 
         if (!owner) {
             return NextResponse.json({ error: 'ไม่พบข้อมูลลูกค้า' }, { status: 404 });

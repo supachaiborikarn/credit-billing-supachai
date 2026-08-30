@@ -16,6 +16,7 @@ import {
     WalletCards,
 } from 'lucide-react';
 import { RedesignAppShell } from '@/components/layout';
+import { CustomerMasterDataPanel } from '@/components/customers/CustomerMasterDataPanel';
 import {
     Badge,
     Button,
@@ -283,6 +284,8 @@ export default function CustomerDetailPage() {
                             <div className="text-sm text-[var(--ui-text-muted)]">{data.counts.activeTransactions} รายการขายทั้งหมด</div>
                         </div>
                     </Section>
+
+                    <CustomerMasterDataPanel data={data} onChanged={loadCustomer} />
 
                     {(data.credit.overdueDocuments > 0 || data.credit.pendingPaymentReviews > 0) && (
                         <Notice tone={data.credit.overdueDocuments > 0 ? 'danger' : 'warning'} title="มีงานเครดิตที่ต้องจัดการ">

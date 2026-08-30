@@ -28,6 +28,8 @@ Latest GAS product-inventory rerun: **S100 — station-5 product create/receive/
 
 Latest retired-SIMPLE history-maintenance rerun: **S101 — retired station-2/3/4 summary maintenance moved into canonical History without reopening frontline operations. STAFF remains read/view-slip/print/CSV only while ADMIN retains audited edit/void/proof maintenance; historical create stays FULL-only. Targeted route/history/role gate passed 196/196, financial release gate 90/90, full regression 421/421, TypeScript/scoped ESLint/diff check passed, production build 127/127 routes passed, and isolated UAT confirmed STAFF edit/void/audit 403 vs ADMIN edit/audit/void 200 while receipt compatibility remained 200.**
 
+Latest customer master-data rerun: **S102 — ordinary `/owners` create/edit/deactivate/add-truck work moved into canonical Customers/Customer 360 with ADMIN-only UI permission while preserving the existing Owner/Truck APIs as source of truth. Targeted customer/retry/redirect gate passed 81/81, financial release gate 90/90, full regression 424/424, TypeScript/scoped ESLint/diff check passed, production build 127/127 routes passed, and isolated UAT confirmed STAFF master-data permission=false vs ADMIN=true plus create → edit → add truck → edit plate → soft-deactivate, with final status INACTIVE and cleanup 0/0. UAT also exposed a transient Neon P1001 on Customer reads; list/detail now reuse the existing P1001/P2024 read-retry helper.**
+
 ## Release gate
 
 Run:

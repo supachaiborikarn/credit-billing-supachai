@@ -158,6 +158,9 @@ export interface CustomerListPayload {
         invoiceOutstandingAmount: number;
         collectionOutstandingAmount: number;
     };
+    permissions: {
+        canManageMasterData: boolean;
+    };
     workflow: {
         combinedOutstandingSuppressed: true;
         legacyCreditIsAuthoritative: false;

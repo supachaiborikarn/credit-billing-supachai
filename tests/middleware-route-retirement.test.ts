@@ -47,6 +47,30 @@ describe('middleware legacy route retirement boundaries', () => {
         expect(loginUrl.searchParams.get('redirect')).toBe(`${path}?from=uat`);
     });
 
+    it('retires legacy Owners master-data page to canonical Customers and preserves query', () => {
+        const response = middleware(request('/owners?from=s102'));
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe('https://credit-billing-supachai.local/customers?from=s102');
+    });
+
+    it('normalizes unauthenticated legacy Owners bookmark before login', () => {
+        const response = middleware(request('/owners?from=s102-bookmark', false));
+        const location = response.headers.get('location');
+        expect(response.status).toBe(307);
+        expect(location).not.toBeNull();
+        const loginUrl = new URL(location!);
+        expect(loginUrl.pathname).toBe('/login');
+        expect(loginUrl.searchParams.get('redirect')).toBe('/customers?from=s102-bookmark');
+    });
+
+    it('keeps Trucks and admin owner-merge routes for the next parity pass', () => {
+        for (const path of ['/trucks?from=s102', '/admin/owners?from=s102']) {
+            const response = middleware(request(path));
+            expect(response.headers.get('location')).toBeNull();
+            expect(response.headers.get('x-middleware-next')).toBe('1');
+        }
+    });
+
     it('redirects direct station-6 product inventory URL because products are disabled there', () => {
         const response = middleware(request('/gas/6/products?from=bookmark'));
 
