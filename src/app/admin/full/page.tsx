@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
     TrendingUp,
     Fuel,
@@ -11,6 +11,7 @@ import {
     Calendar,
     RefreshCw
 } from 'lucide-react';
+import { getTodayBangkok } from '@/lib/date-utils';
 
 interface DashboardData {
     station: { id: string; name: string };
@@ -35,26 +36,28 @@ const formatNumber = (n: number) => n.toLocaleString('th-TH', { maximumFractionD
 export default function FullDashboardPage() {
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<DashboardData | null>(null);
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+    const [error, setError] = useState<string | null>(null);
+    const [selectedDate, setSelectedDate] = useState(getTodayBangkok());
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setLoading(true);
         try {
             const res = await fetch(`/api/v2/full/admin/dashboard?date=${selectedDate}`);
-            if (res.ok) {
-                const json = await res.json();
-                setData(json);
-            }
-        } catch (error) {
-            console.error('Error:', error);
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(payload.error || 'โหลดข้อมูลไม่สำเร็จ');
+            setData(payload);
+            setError(null);
+        } catch (fetchError) {
+            console.error('Error:', fetchError);
+            setError(fetchError instanceof Error ? fetchError.message : 'โหลดข้อมูลไม่สำเร็จ');
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedDate]);
 
     useEffect(() => {
-        fetchData();
-    }, [selectedDate]);
+        void fetchData();
+    }, [fetchData]);
 
     if (loading) {
         return (
@@ -65,7 +68,14 @@ export default function FullDashboardPage() {
     }
 
     if (!data) {
-        return <div className="text-center py-12 text-gray-400">ไม่สามารถโหลดข้อมูลได้</div>;
+        return (
+            <div className="mx-auto max-w-xl rounded-xl border border-red-500/30 bg-red-950/30 p-6 text-center" role="alert">
+                <AlertTriangle className="mx-auto mb-3 text-red-400" size={32} aria-hidden="true" />
+                <div className="font-semibold text-red-200">ไม่สามารถโหลดข้อมูลได้</div>
+                <div className="mt-2 text-sm text-red-300">{error || 'ไม่สามารถโหลดข้อมูลล่าสุดได้'}</div>
+                <button type="button" onClick={() => void fetchData()} className="mt-4 rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600">ลองใหม่</button>
+            </div>
+        );
     }
 
     // Calculate chart dimensions
@@ -89,9 +99,10 @@ export default function FullDashboardPage() {
 
     // Date presets
     const setPreset = (days: number) => {
-        const d = new Date();
-        d.setDate(d.getDate() - days);
-        setSelectedDate(d.toISOString().split('T')[0]);
+        const [year, month, day] = getTodayBangkok().split('-').map(Number);
+        const date = new Date(Date.UTC(year, month - 1, day));
+        date.setUTCDate(date.getUTCDate() - days);
+        setSelectedDate(date.toISOString().slice(0, 10));
     };
 
     return (
@@ -105,7 +116,7 @@ export default function FullDashboardPage() {
                 <div className="flex flex-wrap items-center gap-2">
                     <button onClick={() => setPreset(0)} className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 rounded-lg text-sm font-medium transition-colors">วันนี้</button>
                     <button onClick={() => setPreset(1)} className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors">เมื่อวาน</button>
-                    <button onClick={() => setPreset(7)} className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors">7 วัน</button>
+                    <button onClick={() => setPreset(7)} className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors">7 วันก่อน</button>
                     <div className="flex items-center gap-2 bg-gray-800 rounded-lg px-3 py-1.5">
                         <Calendar size={16} className="text-gray-400" />
                         <input
@@ -115,11 +126,18 @@ export default function FullDashboardPage() {
                             className="bg-transparent text-white text-sm focus:outline-none"
                         />
                     </div>
-                    <button onClick={fetchData} className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors">
+                    <button onClick={() => void fetchData()} className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors">
                         <RefreshCw size={16} />
                     </button>
                 </div>
             </div>
+
+            {error && (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-950/30 px-4 py-3 text-sm text-amber-200" role="status">
+                    <span>โหลดข้อมูลล่าสุดไม่สำเร็จ กำลังแสดงข้อมูลครั้งล่าสุด: {error}</span>
+                    <button type="button" onClick={() => void fetchData()} className="font-semibold underline underline-offset-2">ลองใหม่</button>
+                </div>
+            )}
 
             {/* Anomaly Alerts */}
             {data.anomalies.length > 0 && (
@@ -176,7 +194,7 @@ export default function FullDashboardPage() {
                 <div className="bg-gradient-to-br from-purple-900/50 to-pink-900/50 rounded-xl p-4 border border-purple-500/20">
                     <div className="flex items-center gap-2 mb-2">
                         <Fuel className="text-purple-400" size={18} />
-                        <span className="text-sm text-gray-400">เดือนนี้ (ลิตร)</span>
+                        <span className="text-sm text-gray-400">เดือนของวันที่เลือก (ลิตร)</span>
                     </div>
                     <div className="text-2xl font-bold text-purple-400">{formatNumber(data.kpi.month.liters)}</div>
                 </div>
@@ -184,7 +202,7 @@ export default function FullDashboardPage() {
                 <div className="bg-gradient-to-br from-blue-900/50 to-cyan-900/50 rounded-xl p-4 border border-blue-500/20">
                     <div className="flex items-center gap-2 mb-2">
                         <Receipt className="text-blue-400" size={18} />
-                        <span className="text-sm text-gray-400">เดือนนี้ (บาท)</span>
+                        <span className="text-sm text-gray-400">เดือนของวันที่เลือก (บาท)</span>
                     </div>
                     <div className="text-2xl font-bold text-blue-400">฿{formatCurrency(data.kpi.month.revenue)}</div>
                 </div>
@@ -221,7 +239,7 @@ export default function FullDashboardPage() {
                                         const y = chartHeight - (d.revenue / maxRevenue) * (chartHeight - 20);
                                         return d.revenue > 0 ? (
                                             <circle key={i} cx={x} cy={y} r="4" fill="#f59e0b" className="hover:r-6 transition-all">
-                                                <title>{new Date(d.date).toLocaleDateString('th-TH')}
+                                                <title>{new Date(`${d.date}T00:00:00+07:00`).toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok' })}
                                                     ฿{formatCurrency(d.revenue)}
                                                     {formatNumber(d.liters)} L</title>
                                             </circle>
@@ -244,9 +262,9 @@ export default function FullDashboardPage() {
                         </div>
                         {/* X-axis labels */}
                         <div className="flex ml-20 mt-2 justify-between text-xs text-gray-500">
-                            <span>{trendData[0] ? new Date(trendData[0].date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) : ''}</span>
-                            <span>{trendData[Math.floor(trendData.length / 2)] ? new Date(trendData[Math.floor(trendData.length / 2)].date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) : ''}</span>
-                            <span>{trendData[trendData.length - 1] ? new Date(trendData[trendData.length - 1].date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) : ''}</span>
+                            <span>{trendData[0] ? new Date(`${trendData[0].date}T00:00:00+07:00`).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' }) : ''}</span>
+                            <span>{trendData[Math.floor(trendData.length / 2)] ? new Date(`${trendData[Math.floor(trendData.length / 2)].date}T00:00:00+07:00`).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' }) : ''}</span>
+                            <span>{trendData[trendData.length - 1] ? new Date(`${trendData[trendData.length - 1].date}T00:00:00+07:00`).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' }) : ''}</span>
                         </div>
                     </div>
                 </div>

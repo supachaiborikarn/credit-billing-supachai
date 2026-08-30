@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
     AlertTriangle,
     CheckCircle,
@@ -10,6 +10,7 @@ import {
     XCircle,
     Activity
 } from 'lucide-react';
+import { getTodayBangkok } from '@/lib/date-utils';
 
 interface Anomaly {
     type: string;
@@ -47,25 +48,27 @@ const getAnomalyTypeLabel = (type: string) => {
 export default function AnomaliesPage() {
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<AnomalyData | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/v2/full/admin/dashboard');
-            if (res.ok) {
-                const json = await res.json();
-                setData(json);
-            }
-        } catch (error) {
-            console.error('Error:', error);
+            const res = await fetch(`/api/v2/full/admin/dashboard?date=${getTodayBangkok()}`);
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(payload.error || 'โหลดข้อมูลไม่สำเร็จ');
+            setData(payload);
+            setError(null);
+        } catch (fetchError) {
+            console.error('Error:', fetchError);
+            setError(fetchError instanceof Error ? fetchError.message : 'โหลดข้อมูลไม่สำเร็จ');
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        void fetchData();
+    }, [fetchData]);
 
     if (loading) {
         return (
@@ -76,7 +79,7 @@ export default function AnomaliesPage() {
     }
 
     if (!data) {
-        return <div className="text-center py-12 text-gray-400">ไม่สามารถโหลดข้อมูลได้</div>;
+        return <div className="text-center py-12 text-red-300">{error || 'ไม่สามารถโหลดข้อมูลได้'}</div>;
     }
 
     const criticalAnomalies = data.anomalies.filter(a => a.severity === 'CRITICAL');
@@ -94,7 +97,7 @@ export default function AnomaliesPage() {
                     <p className="text-gray-400 text-sm">{data.station.name}</p>
                 </div>
                 <button
-                    onClick={fetchData}
+                    onClick={() => void fetchData()}
                     className="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
                 >
                     <RefreshCw size={20} />

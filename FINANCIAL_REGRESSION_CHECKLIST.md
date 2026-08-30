@@ -157,3 +157,8 @@ A legacy route may be redirected only when:
 - Real SIMPLE admin reports remain read-only and now require ADMIN before operational-sales/Prisma access; report range/station/type inputs fail closed to bounded SIMPLE-only scope.
 - No transaction, payment, price, invoice, reconciliation or operational-sales aggregation formula changed.
 - Verified release gate: **101/101 tests passed**; full regression **558/558**; production build **127/127 routes**.
+
+### S119 FULL admin fact/date alignment (2026-08-30)
+- FULL executive/anomaly reads now use the shared operational-sales fact dataset for selected-day, selected-month-to-date, 30-day and fuel summaries, with explicit Bangkok date keys.
+- The only direct transaction read is selected-day void count; sale/payment/pricing/shift write formulas are unchanged.
+- Verified release gate: **101/101 tests passed**; full regression **563/563**; production build **127/127 routes**.

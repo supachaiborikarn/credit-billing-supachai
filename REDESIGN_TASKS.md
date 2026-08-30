@@ -3559,3 +3559,27 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Safety / concurrent work:
   - S118 is read-only permission/filter hardening; no DB write, financial formula, push or deploy occurred.
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S118 staging.
+
+## 2026-08-30 — S119 — Harden FULL admin dashboard/anomaly facts
+- Status: `[x]`
+- Ownership decision:
+  - `/admin/full` and `/admin/full/anomalies` remain **KEEP_ADMIN_REPORT**: they are executive/anomaly views for active FULL station-1 and are not duplicated by canonical station History.
+- Read/auth/date hardening:
+  - `GET /api/v2/full/admin/dashboard` now applies shared `requireAdminApi` before report/Prisma access and rejects invalid/non-calendar `date=YYYY-MM-DD` values with 400.
+  - selected-day KPI, month-to-selected-day KPI, 30-day trend and fuel breakdown now derive from the shared `getOperationalSalesDataset`/Bangkok date-key helpers instead of server-local `Date#setDate`, current-server-month boundaries and UTC `toISOString()` grouping.
+  - month KPI is scoped to the month of the selected historical date rather than the server's current month.
+  - voided anomaly count remains a direct transaction read but is scoped to station-1, selected Bangkok day, `isVoided:true`, and `deletedAt:null`.
+  - anomaly volume/stddev/sudden-drop detection derives from the same 30-day operational facts.
+- UI hardening:
+  - FULL dashboard defaults to Bangkok today; historical presets use UTC-safe date-key arithmetic and the old ambiguous `7 วัน` label is now `7 วันก่อน`.
+  - trend labels explicitly render Bangkok dates; month cards say `เดือนของวันที่เลือก`.
+  - dashboard/anomaly API failures are visible and retryable instead of silently presenting missing data as a valid empty state.
+- Verification:
+  - targeted FULL dashboard + operational/financial regression: 3 files / **14 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 71 files / **563 tests passed**.
+  - TypeScript, S119-scoped ESLint and `git diff --check`: passed.
+  - production build: **127/127 routes passed**.
+- Safety / concurrent work:
+  - S119 is read-only dashboard/anomaly alignment; no DB write, financial formula, push or deploy occurred.
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S119 staging.
