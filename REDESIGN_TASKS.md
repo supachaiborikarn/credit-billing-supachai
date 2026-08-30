@@ -3345,3 +3345,33 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Concurrent-work note:
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S109 staging.
 - No push / no deploy / no production DB write.
+
+
+## 2026-08-30 — S110 — Retire Gas Control v1 API family
+- Status: `[x]`
+- Caller/parity audit:
+  - `/admin/gas-control` UI had already become a server redirect to `/admin/gas`; S110 adds middleware/login normalization for old bookmarks.
+  - repository search found no internal callers for `/api/admin/gas-control/dashboard`, `/gauge`, `/meters`, `/reports`, or `/shifts`.
+  - dashboard/report/shift reads are already served by `/api/v2/gas/admin/dashboard`, `/reports/*`, and `/operations`.
+  - legacy gauge POST is unsafe/outdated: it writes only tank 1 / shift 1 and derives liters from a hard-coded 7,200 L capacity; historical GAS gauge/meter correction is owned by `/admin/gas/data-entry`.
+  - legacy meter PUT edits a single start/end row directly; opening-meter correction is now the audited shift-scoped `/admin/gas/meters/[shiftId]` flow and full historical correction belongs to data-entry.
+- API retirement:
+  - added shared `retiredGasControlResponse()` using `requireAdminApi`.
+  - all supported v1 methods now return HTTP 410 with their v2/admin replacement paths.
+  - retired route files contain no Prisma import, direct cookie/session lookup, or remaining DB mutation/read implementation.
+- Route normalization:
+  - exact `/admin/gas-control` bookmark -> `/admin/gas`, preserving query for authenticated and pre-login redirect normalization.
+  - page-level server redirect remains as defense in depth.
+- Verification:
+  - targeted S110 v1-retirement + GAS v2/meter/operations/redirect regression: 6 files / **126 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 61 files / **498 tests passed**.
+  - TypeScript, S110-scoped ESLint and `git diff --check`: passed.
+  - production build with `NODE_ENV=production`: **127/127 routes passed**.
+- Runtime/UAT safety:
+  - existing user-owned `npm run dev -p 3005` was left untouched.
+  - anonymous runtime smoke: `/admin/gas-control?from=s110-smoke` returned 307 to login with normalized `/admin/gas?from=s110-smoke`; anonymous v1 dashboard GET and gauge POST both returned 401.
+  - no authenticated UAT call or DB write was required/attempted because S110 removes unreferenced write implementations rather than introducing a replacement write path.
+- Concurrent-work note:
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S110 staging.
+- No push / no deploy / no production DB write.

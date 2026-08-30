@@ -190,6 +190,22 @@ describe('middleware legacy route retirement boundaries', () => {
         );
     });
 
+    it('flattens legacy Gas Control v1 landing to Gas Control V2 and preserves query', () => {
+        const response = middleware(request('/admin/gas-control?from=s110'));
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe('https://credit-billing-supachai.local/admin/gas?from=s110');
+    });
+
+    it('normalizes unauthenticated Gas Control v1 bookmark before login', () => {
+        const response = middleware(request('/admin/gas-control?from=s110-bookmark', false));
+        const location = response.headers.get('location');
+        expect(response.status).toBe(307);
+        expect(location).not.toBeNull();
+        const loginUrl = new URL(location!);
+        expect(loginUrl.pathname).toBe('/login');
+        expect(loginUrl.searchParams.get('redirect')).toBe('/admin/gas?from=s110-bookmark');
+    });
+
     it('redirects direct station-6 product inventory URL because products are disabled there', () => {
         const response = middleware(request('/gas/6/products?from=bookmark'));
 
