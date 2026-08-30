@@ -217,3 +217,8 @@ A legacy route may be redirected only when:
 - Unreferenced `/api/products` GET/POST now retire after auth; the global non-station Product create path is removed.
 - Active supplemental product writes remain station-5 canonical Inventory and existing station product APIs; no stock/sale/payment/billing formula changed.
 - Targeted regression: **30/30**; financial + monthly gate: **101/101**; full regression: **633/633**; production build: **127/127**.
+
+### S130 PriceBook control-plane hardening (2026-08-31)
+- PriceBook remains a financial/reconciliation input: active `PriceBookLine` can supply per-nozzle expected fuel price. The reconciliation lookup/fallback formula itself is unchanged.
+- Line-based API writes now validate station/date/active FuelProduct/positive unique prices, reject scalar `price-service` rows, and commit PriceBook + line replacement + AuditLog atomically. Active reads are authenticated and STAFF station-scoped.
+- Targeted regression: **39/39**; financial + monthly gate: **101/101**; full regression: **644/644**; production build: **127/127**.

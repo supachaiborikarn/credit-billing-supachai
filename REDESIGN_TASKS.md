@@ -3812,3 +3812,30 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Safety / concurrent work:
   - no DB/UAT write was needed because S129 removes an unreferenced write implementation. No production DB write, push or deploy occurred.
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S129 staging.
+
+## 2026-08-31 — S130 — Harden and KEEP PriceBook control plane
+- Status: `[x]`
+- Ownership / release-audit decision:
+  - `/api/price-books*` is **not retired** even though repository HTTP/UI caller search is empty: `PriceBookLine` remains a runtime input to shift reconciliation through linked Nozzle/FuelProduct, and `price-service` uses the same `PriceBook` model for a separate scalar-price record shape.
+  - S130 therefore hardens only the line-based PriceBook API/control plane and deliberately leaves `src/services/price-service.ts` plus reconciliation price-selection/formulas unchanged.
+- Access / input hardening:
+  - `/api/price-books/active` now requires an authenticated session; STAFF is station-scoped and cannot query another station. Station IDs/aliases normalize through canonical station definitions.
+  - root list remains ADMIN-only and rejects unknown station/status filters instead of querying arbitrary IDs.
+  - new line-based PriceBooks may be global or scoped only to active configured station-1/5/6; retired stations remain historical/read only.
+  - effective dates reject invalid/impossible calendar values and reversed intervals; line lists are limited to 1-100 unique FuelProducts with finite positive prices.
+  - referenced FuelProducts must exist and be active before a write.
+- Atomic write/audit hardening:
+  - CREATE/UPDATE/DELETE line-based PriceBook mutations now run in bounded Prisma transactions (`maxWait=5s`, `timeout=20s`) with CREATE/UPDATE/DELETE AuditLog records.
+  - UPDATE line replacement (`deleteMany` + `createMany`) is atomic with the PriceBook update and AuditLog rather than being three independent writes.
+  - DELETE remains DRAFT-only and now audits atomically.
+  - line-based mutation APIs fail closed with 409 if the target is a scalar `productType/retailPrice/wholesalePrice` row owned by `price-service`, preventing accidental cross-shape corruption in the shared model.
+  - active line-price reads require a PriceBook with at least one line and retain the existing effective-window + station-specific/global fallback behavior.
+- Verification:
+  - targeted PriceBook/dispenser/closing/context regression: 5 files / **39 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 86 files / **644 tests passed**.
+  - TypeScript, S130-scoped ESLint and diff check: passed.
+  - production build: **127/127 routes passed**.
+- Safety / concurrent work:
+  - no live PriceBook write/UAT mutation was required; regression tests cover the transaction boundary and scalar-row guard. No production DB write, push or deploy occurred.
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S130 staging.
