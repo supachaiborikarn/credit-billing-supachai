@@ -197,3 +197,8 @@ A legacy route may be redirected only when:
 - `GET /api/simple-station/[id]/shift-status` remains read-only compatibility; the legacy POST force-close write is retired with 410 after station access.
 - This removes a direct unaudited Shift mutation and adds no replacement calculation/write path; canonical Operations and retired-station read-only policy remain authoritative.
 - Targeted regression: **220/220**; financial + monthly gate: **101/101**; full regression: **615/615**; production build: **127/127**.
+
+### S126 SIMPLE shift-end write retirement (2026-08-31)
+- Historical/read GET remains available, but the legacy SIMPLE shift-end POST no longer invokes the financial/operational `closeFullShift()` path.
+- Canonical station-1 Operations remains the active FULL close source of truth; retired SIMPLE stations stay read-only/POS. No replacement formula or write path was added.
+- Targeted regression: **223/223**; financial + monthly gate: **101/101**; full regression: **618/618**; production build: **127/127**.

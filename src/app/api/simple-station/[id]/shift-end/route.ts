@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getEndOfDayBangkok, getStartOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
 import { requireStationAccessApi } from '@/lib/api-auth';
-import { closeFullShift } from '@/lib/full-shift-close';
 import { listTransactionsForShiftWindow } from '@/lib/shift-transaction-utils';
 
 const STATION_FUEL_CONFIGS: Record<string, Array<{ nozzle: number; name: string; price: number }>> = {
@@ -157,36 +156,22 @@ export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    try {
-        const { id } = await params;
-        const stationId = `station-${id}`;
-        const auth = await requireStationAccessApi(stationId);
-        if (auth.response) return auth.response;
+    const { id } = await params;
+    const stationId = id.startsWith('station-') ? id : `station-${id}`;
+    const auth = await requireStationAccessApi(stationId);
+    if (auth.response) return auth.response;
+    void request;
 
-        const body = await request.json();
-        const { shiftId, meters = [], products = [], cash = {}, anomalyNote } = body;
+    const replacement = stationId === 'station-1'
+        ? '/stations/station-1/operations'
+        : `/stations/${stationId}/history`;
 
-        if (!shiftId) {
-            return NextResponse.json({ error: '❌ ไม่พบกะที่เปิดอยู่ กรุณาเปิดกะก่อน' }, { status: 400 });
-        }
-
-        const result = await closeFullShift({
-            stationId,
-            shiftId,
-            userId: auth.user.id,
-            meters,
-            products,
-            cash,
-            anomalyNote,
-        });
-
-        return NextResponse.json(result);
-    } catch (error) {
-        console.error('[Shift End POST]:', error);
-        const message = error instanceof Error ? error.message : 'Failed to close shift';
-        return NextResponse.json(
-            { error: message },
-            { status: message.startsWith('❌') ? 400 : 500 }
-        );
-    }
+    return NextResponse.json({
+        error: 'Legacy SIMPLE shift-end write API retired',
+        retired: true,
+        replacement,
+        message: stationId === 'station-1'
+            ? 'ใช้ canonical Operations สำหรับปิดกะ station-1'
+            : 'สถานี SIMPLE นี้ย้ายงานหน้าปั๊มไป POS แล้ว และระบบนี้ไม่รับการปิดกะใหม่',
+    }, { status: 410 });
 }

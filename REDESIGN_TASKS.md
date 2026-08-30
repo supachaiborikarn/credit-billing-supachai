@@ -3729,3 +3729,23 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Safety / concurrent work:
   - S125 removes an unaudited write path; no DB write/UAT mutation was needed. No production DB write, push or deploy occurred.
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S125 staging.
+
+## 2026-08-31 — S126 — Retire legacy SIMPLE shift-end write API
+- Status: `[x]`
+- Release audit finding:
+  - `POST /api/simple-station/[id]/shift-end` still called the shared `closeFullShift()` operational close path even though its only UI callers are legacy SIMPLE components.
+  - station-2/3/4 operational pages are already retired to POS/read-only canonical surfaces; station-1 SIMPLE compatibility bookmarks normalize to canonical Operations before hydrate.
+- Bounded retirement:
+  - `GET /api/simple-station/[id]/shift-end` remains read compatibility for historical meter/transaction/product/carry-over inspection.
+  - POST keeps station-access authorization but no longer parses closing payloads or calls `closeFullShift`; authorized callers receive HTTP 410.
+  - station-1 replacement is canonical `/stations/station-1/operations`; retired SIMPLE replacements are canonical History with the POS-migration notice.
+  - no new shift-close write contract was introduced.
+- Verification:
+  - targeted shift-end/status/legacy/middleware/context regression: 5 files / **223 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 82 files / **618 tests passed**.
+  - TypeScript, S126-scoped ESLint and diff check: passed.
+  - production build: **127/127 routes passed**.
+- Safety / concurrent work:
+  - S126 removes a legacy operational write path; no DB mutation/UAT write was needed. No production DB write, push or deploy occurred.
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S126 staging.
