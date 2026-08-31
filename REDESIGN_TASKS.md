@@ -3935,3 +3935,25 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Safety / concurrent work:
   - no DB/UAT write, production DB write, push or deploy occurred.
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S134 staging.
+
+## 2026-08-31 — S135 — Retire orphaned legacy meter/gauge/shift write APIs
+- Status: `[x]`.
+- Final mutation-sweep finding:
+  - exact repository caller audit found no internal caller for `POST /api/station/[id]/shift-meters`, legacy `POST /api/gas-station/[id]/gauge`, or legacy `PUT /api/gas-station/[id]/shifts/[shiftId]`.
+  - canonical FULL close/meter workflows use canonical station Operations / `/api/station/[id]/shift-end` and meter maintenance routes; canonical GAS gauge/close workflows use `/api/v2/gas/[stationId]/gauge` and `/api/v2/gas/[stationId]/shift/close`.
+  - the orphaned writers were multi-write/unaudited or accepted request-supplied capture identity, so keeping them live added release risk without an active owner.
+- Bounded retirement / read compatibility:
+  - `POST /api/station/[id]/shift-meters` keeps station-access authorization then returns 410 without meter upsert.
+  - legacy GAS gauge POST keeps GAS station authorization then returns 410 with canonical Operations/V2 gauge replacements.
+  - legacy GAS shift-detail PUT keeps GAS station authorization then returns 410 with canonical Operations/V2 close replacements.
+  - legacy GAS gauge GET remains read compatibility but is now side-effect free: Station upsert/create was removed, station identity comes from the GAS access resolver, date/shift filters fail closed, and impossible calendar dates are rejected.
+  - legacy GAS shift-detail GET remains read compatibility and now authenticates/binds the requested route station before returning a shift, preventing cross-station URL mismatch.
+- Verification:
+  - targeted legacy-write/GAS V2/shift/context/middleware regression: 5 files / **134 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 92 files / **681 tests passed**.
+  - TypeScript, S135-scoped ESLint and diff check: passed.
+  - production build: **127/127 routes passed** through the S134 normalized build wrapper.
+- Safety / concurrent work:
+  - no DB/UAT mutation was needed because S135 removes orphaned mutation implementations and hardens reads only.
+  - no production DB write, push or deploy occurred; Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S135 staging.

@@ -2,72 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireStationAccessApi } from '@/lib/api-auth';
 
-// POST /api/station/[id]/shift-meters - Save meter readings for current open shift
+// POST /api/station/[id]/shift-meters — retired write compatibility
 export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    try {
-        const { id } = await params;
-        const stationId = `station-${id}`;
-        const auth = await requireStationAccessApi(stationId);
-        if (auth.response) return auth.response;
+    void request;
+    const { id } = await params;
+    const stationId = `station-${id}`;
+    const auth = await requireStationAccessApi(stationId);
+    if (auth.response) return auth.response;
 
-        const body = await request.json();
-        const { type, meters, staffId } = body;
-
-        // Find current open shift
-        const openShift = await prisma.shift.findFirst({
-            where: {
-                status: 'OPEN',
-                dailyRecord: { stationId }
-            },
-            orderBy: { createdAt: 'desc' }
-        });
-
-        if (!openShift) {
-            return NextResponse.json({ error: 'ไม่พบกะที่เปิดอยู่' }, { status: 400 });
-        }
-
-        // Save meter readings linked to this shift
-        for (const meter of meters) {
-            await prisma.meterReading.upsert({
-                where: {
-                    shiftId_nozzleNumber: {
-                        shiftId: openShift.id,
-                        nozzleNumber: meter.nozzleNumber,
-                    }
-                },
-                update: type === 'start'
-                    ? {
-                        startReading: meter.reading,
-                        capturedById: staffId,
-                        capturedAt: new Date()
-                    }
-                    : {
-                        endReading: meter.reading,
-                        soldQty: meter.soldQty || null,
-                        capturedById: staffId,
-                        capturedAt: new Date()
-                    },
-                create: {
-                    shiftId: openShift.id,
-                    dailyRecordId: openShift.dailyRecordId,
-                    nozzleNumber: meter.nozzleNumber,
-                    startReading: type === 'start' ? meter.reading : 0,
-                    endReading: type === 'end' ? meter.reading : null,
-                    soldQty: type === 'end' ? meter.soldQty : null,
-                    capturedById: staffId,
-                    capturedAt: new Date()
-                }
-            });
-        }
-
-        return NextResponse.json({ success: true, shiftId: openShift.id });
-    } catch (error) {
-        console.error('Shift Meters POST error:', error);
-        return NextResponse.json({ error: 'Failed to save shift meters' }, { status: 500 });
-    }
+    return NextResponse.json({
+        error: 'legacy shift-meter write API retired',
+        canonicalOperations: `/stations/${stationId}/operations`,
+        note: 'Use the canonical meter/open-close workflow for station operations.',
+    }, { status: 410 });
 }
 
 // GET /api/station/[id]/shift-meters - Get meter readings for current open shift

@@ -1,117 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { createNextShiftWithCarryOver } from '@/services/shift-service';
-import { requireStationAccessApi } from '@/lib/api-auth';
+import { requireGasStationAccess, shiftBelongsToStation } from '@/lib/gas/api-guards';
 
-// PUT - Close shift (add end meter readings)
+// PUT — retired legacy close path. Canonical GAS shift close owns mutation.
 export async function PUT(
     request: NextRequest,
     { params }: { params: Promise<{ id: string; shiftId: string }> }
 ) {
-    try {
-        const { shiftId } = await params;
-        const body = await request.json();
-        const { meters } = body; // Array of { nozzleNumber, endReading }
+    void request;
+    const { id } = await params;
+    const auth = await requireGasStationAccess(id);
+    if (auth.response) return auth.response;
 
-        // Get shift with dailyRecord for carry-over logic
-        const shift = await prisma.shift.findUnique({
-            where: { id: shiftId },
-            include: {
-                meters: true,
-                dailyRecord: true
-            }
-        });
-
-        if (!shift) {
-            return NextResponse.json({ error: 'ไม่พบกะนี้' }, { status: 404 });
-        }
-
-        const auth = await requireStationAccessApi(shift.dailyRecord.stationId);
-        if (auth.response) return auth.response;
-
-        if (shift.status === 'CLOSED') {
-            return NextResponse.json({ error: 'กะนี้ปิดแล้ว' }, { status: 400 });
-        }
-
-        // Update meter end readings
-        if (meters && Array.isArray(meters)) {
-            for (const m of meters) {
-                await prisma.meterReading.updateMany({
-                    where: {
-                        shiftId,
-                        nozzleNumber: m.nozzleNumber,
-                    },
-                    data: {
-                        endReading: m.endReading,
-                    }
-                });
-            }
-        }
-
-        // Calculate closingStock from gauge readings for this shift
-        const LITERS_PER_PERCENT = 98;
-        let closingStock: number | null = null;
-
-        const gaugeReadings = await prisma.gaugeReading.findMany({
-            where: {
-                stationId: shift.dailyRecord.stationId,
-                shiftNumber: shift.shiftNumber,
-                dailyRecordId: shift.dailyRecordId,
-                notes: 'end', // Only end readings
-            },
-            orderBy: { createdAt: 'desc' }
-        });
-
-        if (gaugeReadings.length > 0) {
-            const totalPercentage = gaugeReadings.reduce((sum, g) => sum + Number(g.percentage), 0);
-            closingStock = totalPercentage * LITERS_PER_PERCENT;
-        }
-
-        // Close the shift with closingStock
-        const updatedShift = await prisma.shift.update({
-            where: { id: shiftId },
-            data: {
-                status: 'CLOSED',
-                closedAt: new Date(),
-                closingStock: closingStock,
-            },
-            include: {
-                staff: { select: { name: true } },
-                meters: true,
-            }
-        });
-
-        // Calculate meter comparison
-        const meterComparison = updatedShift.meters.map(m => ({
-            nozzleNumber: m.nozzleNumber,
-            startReading: Number(m.startReading),
-            endReading: m.endReading ? Number(m.endReading) : 0,
-            difference: m.endReading ? Number(m.endReading) - Number(m.startReading) : 0,
-        }));
-
-        const totalLitersSold = meterComparison.reduce((sum, m) => sum + m.difference, 0);
-
-        // ===== CARRY-OVER LOGIC: Use service function =====
-        await createNextShiftWithCarryOver(shiftId, closingStock);
-        // ===== END CARRY-OVER LOGIC =====
-
-        return NextResponse.json({
-            success: true,
-            shift: {
-                id: updatedShift.id,
-                shiftNumber: updatedShift.shiftNumber,
-                shiftName: updatedShift.shiftNumber === 1 ? 'กะเช้า' : 'กะบ่าย',
-                staffName: updatedShift.staff?.name || '-',
-                status: updatedShift.status,
-                closedAt: updatedShift.closedAt?.toISOString(),
-            },
-            meterComparison,
-            totalLitersSold,
-        });
-    } catch (error) {
-        console.error('Shift PUT error:', error);
-        return NextResponse.json({ error: 'Failed to close shift' }, { status: 500 });
-    }
+    return NextResponse.json({
+        error: 'legacy GAS shift-detail close API retired',
+        canonicalOperations: `/stations/station-${auth.station.index}/operations`,
+        canonicalCloseApi: `/api/v2/gas/${auth.station.index}/shift/close`,
+    }, { status: 410 });
 }
 
 // GET - Get shift details with meter comparison
@@ -120,7 +25,9 @@ export async function GET(
     { params }: { params: Promise<{ id: string; shiftId: string }> }
 ) {
     try {
-        const { shiftId } = await params;
+        const { id, shiftId } = await params;
+        const auth = await requireGasStationAccess(id);
+        if (auth.response) return auth.response;
 
         const shift = await prisma.shift.findUnique({
             where: { id: shiftId },
@@ -135,8 +42,9 @@ export async function GET(
             return NextResponse.json({ error: 'ไม่พบกะนี้' }, { status: 404 });
         }
 
-        const auth = await requireStationAccessApi(shift.dailyRecord.stationId);
-        if (auth.response) return auth.response;
+        if (!shiftBelongsToStation(shift, auth.station)) {
+            return NextResponse.json({ error: 'ไม่พบกะนี้ในสถานีนี้' }, { status: 404 });
+        }
 
         const meterComparison = shift.meters.map(m => ({
             nozzleNumber: m.nozzleNumber,

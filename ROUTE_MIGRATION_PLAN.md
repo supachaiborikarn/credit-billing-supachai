@@ -248,3 +248,9 @@ S130 reviews `/api/price-books`, `/api/price-books/[id]`, and `/api/price-books/
 - `/api/admin/owners/merge` remains KEEP because canonical Customers still calls it for duplicate-owner merge; S133 does not change its audited atomic relation migration or legacy-currentCredit preservation indicator.
 - dead `credit-service` helpers that checked, mutated, or listed `Owner.currentCredit` are removed; the file remains only as a compatibility re-export of canonical monthly Invoice generation.
 - Sidebar no longer points at `/owners` or `/admin/owners`; Customers is the one user-facing owner/customer workspace.
+
+### S135 — orphaned legacy operational write retirement
+- `POST /api/station/[id]/shift-meters` is RETIRED after station auth (410). No internal caller remains; canonical FULL meter/close ownership is station Operations plus the audited/canonical meter and shift-end contracts. GET remains read compatibility.
+- `POST /api/gas-station/[id]/gauge` is RETIRED after GAS station auth (410). Canonical gauge mutation is `/api/v2/gas/[stationId]/gauge` through canonical Operations. Legacy GET remains read-only compatibility and no longer creates/upserts Station rows.
+- `PUT /api/gas-station/[id]/shifts/[shiftId]` is RETIRED after GAS station auth (410). Canonical GAS close is `/api/v2/gas/[stationId]/shift/close`; legacy GET remains station-bound read compatibility.
+- These retirements do not change canonical FULL/GAS closing formulas, gauge calculations, reconciliation, or shift carry-over behavior.

@@ -259,3 +259,10 @@ A legacy route may be redirected only when:
 - [x] portable Node wrapper forces `NODE_ENV=production` without shell-specific syntax and propagates Next's exit code.
 - [x] targeted env/build guard **10/10**, financial/monthly **101/101**, full regression **674/674**, TypeScript/scoped ESLint/diff check passed.
 - [x] plain `npm run build` passed **127/127 routes while the parent shell still reported `NODE_ENV=development`**.
+
+### S135 Legacy operational write retirement (2026-08-31)
+- [x] Orphaned shift-meter POST, legacy GAS gauge POST, and legacy GAS shift-detail PUT authorize first and return 410 without DB mutation.
+- [x] Canonical FULL close/meter and GAS V2 gauge/close contracts remain unchanged.
+- [x] Legacy GAS gauge GET is side-effect free and rejects impossible date keys / invalid shift filters.
+- [x] Legacy GAS shift-detail GET binds the requested station to the returned shift.
+- [x] Targeted regression **134/134**, financial/monthly **101/101**, full regression **681/681**, TypeScript/scoped ESLint/diff check passed, build **127/127**.
