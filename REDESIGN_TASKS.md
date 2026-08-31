@@ -3867,3 +3867,29 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
   - isolated UAT harness created one temporary station-5 product, updated sale price to `23` and alert level to `2`, received stock to quantity `5`, and verified two ProductReceipt rows plus three AuditLog rows.
   - cleanup verification returned Product, ProductInventory, ProductReceipt, ProductSale and matching AuditLog counts to `0`; the temporary harness was removed after the durable result was recorded.
   - no production DB write, push or deploy occurred; Tank Loy auto-print/shared brain changes remain outside S131.
+
+## 2026-08-31 — S132 — Retire legacy GAS transaction writes
+- Status: `[x]`
+- Release-audit finding:
+  - canonical GAS sales use `/api/v2/gas/[stationId]/sell`; repository caller audit found no active caller for legacy `POST /api/gas-station/[id]/transactions`.
+  - the only legacy DELETE caller was an orphaned hook, while canonical History/admin maintenance use the station-scoped transaction API.
+  - legacy create could upsert Station, create DailyRecord and create Transaction in separate writes; legacy delete updated Transaction and AuditLog separately without requiring a reason.
+- Bounded retirement and replacement:
+  - legacy POST/DELETE keep station authorization then return HTTP 410 with canonical Sales, Operations, History and admin maintenance paths; both route files contain no Prisma mutation.
+  - canonical GAS SaleFlow supports `CASH`, `CREDIT`, `CREDIT_CARD`, and `TRANSFER` only.
+  - legacy `EXPENSE` transaction creation is removed; canonical GAS records expenses as an aggregate `otherExpensesAmount` during shift closing or admin historical data entry.
+  - legacy `BOX_TRUCK` and `OIL_TRUCK_SUPACHAI` values are intentionally unsupported for GAS sales.
+- Void replacement hardening:
+  - canonical station transaction DELETE now requires a trimmed 3-200 character reason before reading or writing transaction data.
+  - the FULL History maintenance modal and global admin transaction page validate and send the same reason contract.
+  - Transaction void fields and DELETE AuditLog remain committed in one Prisma transaction.
+  - the transaction row is claimed with conditional `updateMany` on `isVoided=false` and `deletedAt=null`; repeat/concurrent requests return 409 without replacing the first reason/time/user or creating a second AuditLog.
+- Verification:
+  - targeted retirement/void/GAS regression: 5 files / **43 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 89 files / **667 tests passed**.
+  - TypeScript and diff check passed; scoped ESLint passed with zero errors and one pre-existing `no-img-element` warning in TransactionCard.
+  - production build: **127/127 routes passed**.
+- Safety / concurrent work:
+  - no DB/UAT write was needed because S132 removes legacy writes and tests the retained void boundary with mocks. No production DB write, push or deploy occurred.
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S132 staging.

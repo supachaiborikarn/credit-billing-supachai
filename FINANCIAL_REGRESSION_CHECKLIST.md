@@ -235,3 +235,13 @@ A legacy route may be redirected only when:
 - [x] Targeted regression **49/49**, financial/monthly gate **101/101**, full regression **652/652**, TypeScript/scoped ESLint/diff check passed.
 - [x] Post-review focused regression **22/22**, full regression **652/652**, TypeScript/scoped ESLint/diff check, and production build **127/127** passed.
 - [x] Isolated UAT create/update/receive verified quantity `5`, sale price `23`, alert level `2`, two ProductReceipt rows and three AuditLog rows; cleanup returned Product/ProductInventory/ProductReceipt/ProductSale/AuditLog counts to zero.
+
+### S132 Legacy GAS transaction write retirement (2026-08-31)
+- [x] Legacy GAS transaction POST/DELETE authorize first, return 410, and contain no Prisma mutation.
+- [x] Canonical GAS sales remain on `/api/v2/gas/[stationId]/sell` with `CASH`, `CREDIT`, `CREDIT_CARD`, and `TRANSFER` only.
+- [x] Legacy per-Transaction `EXPENSE` creation is removed; shift closing/admin data entry retain aggregate `otherExpensesAmount` reconciliation.
+- [x] `BOX_TRUCK` and `OIL_TRUCK_SUPACHAI` remain FULL-only and are intentionally unsupported for GAS sales.
+- [x] Canonical transaction void requires a trimmed 3-200 character reason before reads/writes.
+- [x] Transaction void state and DELETE AuditLog commit in one Prisma transaction.
+- [x] Repeat/concurrent void requests return 409 and preserve the first reason, time, user and single AuditLog.
+- [x] Targeted regression **43/43**, financial/monthly gate **101/101**, full regression **667/667**, TypeScript/diff check and production build **127/127** passed.

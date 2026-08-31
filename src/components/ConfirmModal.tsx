@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 
 interface ConfirmModalProps {
@@ -12,6 +13,8 @@ interface ConfirmModalProps {
     onConfirm: () => void;
     onCancel: () => void;
     loading?: boolean;
+    confirmDisabled?: boolean;
+    children?: ReactNode;
 }
 
 const variantConfig = {
@@ -41,7 +44,9 @@ export default function ConfirmModal({
     variant = 'danger',
     onConfirm,
     onCancel,
-    loading = false
+    loading = false,
+    confirmDisabled = false,
+    children,
 }: ConfirmModalProps) {
     if (!isOpen) return null;
 
@@ -79,6 +84,12 @@ export default function ConfirmModal({
                     </div>
                 </div>
 
+                {children && (
+                    <div className="px-6 pb-4">
+                        {children}
+                    </div>
+                )}
+
                 {/* Actions */}
                 <div className="px-6 pb-6 flex gap-3">
                     <button
@@ -90,7 +101,7 @@ export default function ConfirmModal({
                     </button>
                     <button
                         onClick={onConfirm}
-                        disabled={loading}
+                        disabled={loading || confirmDisabled}
                         className={`flex-1 py-3 px-4 rounded-xl font-semibold text-white transition disabled:opacity-50 flex items-center justify-center gap-2 ${config.button}`}
                     >
                         {loading ? (

@@ -232,3 +232,12 @@ S130 reviews `/api/price-books`, `/api/price-books/[id]`, and `/api/price-books/
 - duplicate `POST /api/gas-station/[id]/products/add` and `POST /api/gas-station/[id]/products/sell` are RETIRED with HTTP 410; repository caller audit found no active callers.
 - Product sale rows generated from station-5 shift stock counting remain owned by `/api/v2/gas/[stationId]/shift/close`; S131 does not change shift-close product revenue/reconciliation formulas.
 - Final S131 gate passed focused/full regression, TypeScript, scoped ESLint, production build and isolated UAT create/update/receive/audit/cleanup with no fixture residue.
+
+### S132 — legacy GAS transaction write retirement
+- `POST /api/gas-station/[id]/transactions` is RETIRED with HTTP 410 after station authorization; canonical GAS sales use `/api/v2/gas/[stationId]/sell`.
+- `DELETE /api/gas-station/[id]/transactions/[transactionId]` is RETIRED with HTTP 410 after station authorization; audited maintenance uses `/api/station/[id]/transactions/[transactionId]` from canonical History or `/admin/transactions`.
+- the retained station-scoped DELETE requires a trimmed 3-200 character reason and commits Transaction void state plus AuditLog atomically.
+- repeat or concurrent void requests cannot overwrite the first reason/time/user or create another AuditLog; losing requests receive HTTP 409.
+- GAS sale payment scope is `CASH`, `CREDIT`, `CREDIT_CARD`, and `TRANSFER`; legacy `BOX_TRUCK` and `OIL_TRUCK_SUPACHAI` inputs are no longer accepted for GAS.
+- legacy per-Transaction `EXPENSE` creation is removed; canonical GAS stores aggregate shift expenses through `otherExpensesAmount` in closing/admin historical data entry.
+- no legacy Prisma transaction-create/delete implementation remains in the retired GAS routes.

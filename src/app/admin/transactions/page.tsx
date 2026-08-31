@@ -74,6 +74,8 @@ export default function AdminTransactionsPage() {
 
     const handleVoid = async () => {
         if (!voidingTransaction) return;
+        const reason = voidReason.trim();
+        if (reason.length < 3 || reason.length > 200) return;
 
         setActionLoading(true);
         try {
@@ -81,7 +83,7 @@ export default function AdminTransactionsPage() {
             const res = await fetch(`/api/station/${stationNum}/transactions/${voidingTransaction.id}`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ reason: voidReason }),
+                body: JSON.stringify({ reason }),
             });
 
             if (res.ok) {
@@ -277,7 +279,10 @@ export default function AdminTransactionsPage() {
                                                             <Edit size={16} />
                                                         </button>
                                                         <button
-                                                            onClick={() => setVoidingTransaction(t)}
+                                                            onClick={() => {
+                                                                setVoidReason('');
+                                                                setVoidingTransaction(t);
+                                                            }}
                                                             className="p-2 text-red-400 hover:bg-red-500/20 rounded-lg"
                                                             title="ยกเลิก"
                                                         >
@@ -311,20 +316,24 @@ export default function AdminTransactionsPage() {
                                     value={voidReason}
                                     onChange={(e) => setVoidReason(e.target.value)}
                                     placeholder="ระบุเหตุผล..."
+                                    maxLength={200}
                                     className="input-glow resize-none"
                                     rows={3}
                                 />
                             </div>
                             <div className="flex gap-3">
                                 <button
-                                    onClick={() => setVoidingTransaction(null)}
+                                    onClick={() => {
+                                        setVoidingTransaction(null);
+                                        setVoidReason('');
+                                    }}
                                     className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg text-white"
                                 >
                                     ยกเลิก
                                 </button>
                                 <button
                                     onClick={handleVoid}
-                                    disabled={!voidReason.trim() || actionLoading}
+                                    disabled={voidReason.trim().length < 3 || voidReason.trim().length > 200 || actionLoading}
                                     className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-white flex items-center justify-center gap-2 disabled:opacity-50"
                                 >
                                     {actionLoading ? <div className="spinner w-4 h-4" /> : <Trash2 size={16} />}

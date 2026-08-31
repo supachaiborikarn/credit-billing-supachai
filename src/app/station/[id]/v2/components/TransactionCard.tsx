@@ -52,6 +52,7 @@ export default function TransactionCard({
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showPrintModal, setShowPrintModal] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [deleteReason, setDeleteReason] = useState('');
     const [uploadingProof, setUploadingProof] = useState(false);
     const proofInputRef = useRef<HTMLInputElement>(null);
 
@@ -90,14 +91,19 @@ export default function TransactionCard({
             alert('ไม่สามารถลบได้ วันนี้ปิดแล้ว');
             return;
         }
+        setDeleteReason('');
         setShowDeleteConfirm(true);
     };
 
     const handleConfirmDelete = async () => {
+        const reason = deleteReason.trim();
+        if (reason.length < 3 || reason.length > 200) return;
+
         setDeleting(true);
         try {
-            await voidFullStationTransaction({ stationParam: stationId, transactionId: transaction.id });
+            await voidFullStationTransaction({ stationParam: stationId, transactionId: transaction.id, reason });
             setShowDeleteConfirm(false);
+            setDeleteReason('');
             onDelete();
         } catch (error) {
             alert(error instanceof Error ? error.message : 'ลบไม่สำเร็จ');
@@ -365,9 +371,30 @@ export default function TransactionCard({
                 cancelText="ยกเลิก"
                 variant="danger"
                 onConfirm={handleConfirmDelete}
-                onCancel={() => setShowDeleteConfirm(false)}
+                onCancel={() => {
+                    setShowDeleteConfirm(false);
+                    setDeleteReason('');
+                }}
                 loading={deleting}
-            />
+                confirmDisabled={deleteReason.trim().length < 3 || deleteReason.trim().length > 200}
+            >
+                <label className="block text-sm font-semibold text-gray-700">
+                    เหตุผลในการยกเลิก
+                    <textarea
+                        value={deleteReason}
+                        onChange={(event) => setDeleteReason(event.target.value)}
+                        maxLength={200}
+                        rows={3}
+                        autoFocus
+                        disabled={deleting}
+                        placeholder="ระบุเหตุผลอย่างน้อย 3 ตัวอักษร"
+                        className="mt-2 w-full resize-none rounded-xl border border-gray-300 px-3 py-2 font-normal text-gray-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-100 disabled:bg-gray-100"
+                    />
+                    <span className="mt-1 block text-xs font-normal text-gray-500">
+                        {deleteReason.trim().length}/200 ตัวอักษร
+                    </span>
+                </label>
+            </ConfirmModal>
         </>
     );
 }

@@ -63,4 +63,13 @@ describe('S108 global admin transaction maintenance hardening', () => {
         expect(route).toContain('auditReason: typeof auditReason');
         expect(route).toContain("auditReason.trim().slice(0, 200)");
     });
+
+    it('requires a 3-200 character void reason in the global UI', () => {
+        const page = readFileSync('src/app/admin/transactions/page.tsx', 'utf8');
+        expect(page).toContain('const reason = voidReason.trim()');
+        expect(page).toContain('reason.length < 3 || reason.length > 200');
+        expect(page).toContain('body: JSON.stringify({ reason })');
+        expect(page).toContain('maxLength={200}');
+        expect(page).toContain("setVoidReason('')");
+    });
 });

@@ -57,8 +57,28 @@ describe('FULL summary compatibility helpers', () => {
         expect(getStationTransactionApiPath('1', 'txn/1')).toBe('/api/station/1/transactions/txn%2F1');
 
         const deleteFetch = vi.fn(async () => new Response(JSON.stringify({ success: true }), { status: 200 }));
-        await voidFullStationTransaction({ stationParam: '1', transactionId: 'txn-1', fetchImpl: deleteFetch });
-        expect(deleteFetch).toHaveBeenCalledWith('/api/station/1/transactions/txn-1', { method: 'DELETE' });
+        await voidFullStationTransaction({
+            stationParam: '1',
+            transactionId: 'txn-1',
+            reason: '  ลงรายการซ้ำ  ',
+            fetchImpl: deleteFetch,
+        });
+        expect(deleteFetch).toHaveBeenCalledWith('/api/station/1/transactions/txn-1', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: 'ลงรายการซ้ำ' }),
+        });
+    });
+
+    it('blocks historical void calls with an invalid reason before sending the request', async () => {
+        const deleteFetch = vi.fn();
+        await expect(voidFullStationTransaction({
+            stationParam: '1',
+            transactionId: 'txn-1',
+            reason: '  ',
+            fetchImpl: deleteFetch,
+        })).rejects.toThrow('เหตุผลในการยกเลิกต้องมีความยาว 3-200 ตัวอักษร');
+        expect(deleteFetch).not.toHaveBeenCalled();
     });
 
     it('uploads a replacement proof then updates the same station-bound transaction without changing money fields', async () => {

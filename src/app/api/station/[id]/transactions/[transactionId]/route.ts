@@ -224,15 +224,25 @@ export async function DELETE(
         const userId = auth.user.id;
         const userRole = auth.user.role;
 
-        // Get reason from query string or body
+        // Keep query-string compatibility, but require an explicit audited reason.
         const url = new URL(request.url);
-        let reason = url.searchParams.get('reason') || 'ไม่ระบุเหตุผล';
+        let reasonInput: unknown = url.searchParams.get('reason');
 
         try {
-            const body = await request.json();
-            if (body.reason) reason = body.reason;
+            const body = await request.json() as unknown;
+            if (body && typeof body === 'object' && !Array.isArray(body) && 'reason' in body) {
+                reasonInput = (body as { reason?: unknown }).reason;
+            }
         } catch {
-            // No body, use query param
+            // No JSON body; use the query-string value when provided.
+        }
+
+        const reason = typeof reasonInput === 'string' ? reasonInput.trim() : '';
+        if (reason.length < 3 || reason.length > 200) {
+            return NextResponse.json(
+                { error: 'เหตุผลในการยกเลิกต้องมีความยาว 3-200 ตัวอักษร' },
+                { status: 400 }
+            );
         }
 
         // Get old data for audit log
@@ -266,6 +276,13 @@ export async function DELETE(
             );
         }
 
+        if (oldTransaction.isVoided || oldTransaction.deletedAt) {
+            return NextResponse.json(
+                { error: 'รายการนี้ถูกยกเลิกไปแล้ว' },
+                { status: 409 }
+            );
+        }
+
         // Anti-Fraud: Check if locked (Admin can bypass)
         if (userRole !== 'ADMIN') {
             const closedShifts = oldTransaction.dailyRecord?.shifts || [];
@@ -292,11 +309,15 @@ export async function DELETE(
             }
         }
 
-        await prisma.$transaction(async (tx) => {
+        const voided = await prisma.$transaction(async (tx) => {
             const now = new Date();
 
-            await tx.transaction.update({
-                where: { id: transactionId },
+            const result = await tx.transaction.updateMany({
+                where: {
+                    id: transactionId,
+                    isVoided: false,
+                    deletedAt: null,
+                },
                 data: {
                     isVoided: true,
                     voidedAt: now,
@@ -305,6 +326,8 @@ export async function DELETE(
                     deletedAt: now,
                 }
             });
+
+            if (result.count !== 1) return false;
 
             await tx.auditLog.create({
                 data: {
@@ -323,7 +346,16 @@ export async function DELETE(
                     },
                 }
             });
+
+            return true;
         });
+
+        if (!voided) {
+            return NextResponse.json(
+                { error: 'รายการนี้ถูกยกเลิกไปแล้ว' },
+                { status: 409 }
+            );
+        }
 
         return NextResponse.json({ success: true, message: 'รายการถูกยกเลิกเรียบร้อย' });
     } catch (error) {

@@ -83,11 +83,19 @@ async function getResponseError(response: Response, fallback: string): Promise<E
 export async function voidFullStationTransaction(input: {
     stationParam: string;
     transactionId: string;
+    reason: string;
     fetchImpl?: FetchLike;
 }): Promise<void> {
+    const reason = input.reason.trim();
+    if (reason.length < 3 || reason.length > 200) {
+        throw new Error('เหตุผลในการยกเลิกต้องมีความยาว 3-200 ตัวอักษร');
+    }
+
     const fetchImpl = input.fetchImpl || fetch;
     const response = await fetchImpl(getStationTransactionApiPath(input.stationParam, input.transactionId), {
         method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
     });
     if (!response.ok) throw await getResponseError(response, 'ลบรายการไม่สำเร็จ');
 }
