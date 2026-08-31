@@ -254,3 +254,10 @@ S130 reviews `/api/price-books`, `/api/price-books/[id]`, and `/api/price-books/
 - `POST /api/gas-station/[id]/gauge` is RETIRED after GAS station auth (410). Canonical gauge mutation is `/api/v2/gas/[stationId]/gauge` through canonical Operations. Legacy GET remains read-only compatibility and no longer creates/upserts Station rows.
 - `PUT /api/gas-station/[id]/shifts/[shiftId]` is RETIRED after GAS station auth (410). Canonical GAS close is `/api/v2/gas/[stationId]/shift/close`; legacy GET remains station-bound read compatibility.
 - These retirements do not change canonical FULL/GAS closing formulas, gauge calculations, reconciliation, or shift carry-over behavior.
+
+### S136 — final release-readiness disposition
+- Final route/security/mutation sweep plus production-runtime UAT found no remaining software route-parity blocker after S135.
+- Production-runtime UAT on the guarded UAT DB passed 35/35 across canonical FULL/GAS/Billing/Customers pages, ADMIN/STAFF station boundaries, legacy redirects and retired API contracts.
+- UAT and production schemas both match `prisma/schema.prisma` by read-only Prisma diff; no schema migration is required for this release snapshot.
+- `npm run build` and `npm start` now normalize `NODE_ENV=production` internally, preventing workstation/CI ambient `NODE_ENV=development` from corrupting the release build/runtime.
+- Automated software release readiness is **PASS**. Remaining rollout-only checks: real camera upload and Epson TM-m30III 58/80 mm printing. Station-3 receipt stays KEEP_PRINT_COMPAT but fail-closed until verified legal/header data is supplied.

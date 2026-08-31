@@ -266,3 +266,13 @@ A legacy route may be redirected only when:
 - [x] Legacy GAS gauge GET is side-effect free and rejects impossible date keys / invalid shift filters.
 - [x] Legacy GAS shift-detail GET binds the requested station to the returned shift.
 - [x] Targeted regression **134/134**, financial/monthly **101/101**, full regression **681/681**, TypeScript/scoped ESLint/diff check passed, build **127/127**.
+
+### S136 Final software release-readiness gate (2026-08-31)
+- [x] `npm start` uses a portable Node wrapper that forces `NODE_ENV=production` and forwards runtime CLI args; production UAT server starts without inherited development-mode contamination.
+- [x] UAT preflight confirms a Neon host distinct from production.
+- [x] Read-only Prisma schema diff: UAT vs `schema.prisma` = **No difference detected**.
+- [x] Read-only Prisma schema diff: production vs `schema.prisma` = **No difference detected**; no schema push/migration is required for this snapshot.
+- [x] Production-runtime UAT on port 3006/UAT DB passed **35/35** canonical page, auth, role-boundary, legacy redirect, retired-API and read-compat checks.
+- [x] S136 UAT cleanup: recent UAT session residue = **0**; no business fixture was created; port 3006 stopped/free.
+- [x] Final financial/monthly gate **101/101**, full regression **683/683**, TypeScript/scoped ESLint/diff check passed, production build **127/127**.
+- [x] Automated software release gate = **PASS**. Remaining checks are rollout-day physical camera/Epson smoke; station-3 legal receipt header remains intentionally fail-closed pending verified config.

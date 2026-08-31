@@ -3957,3 +3957,35 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Safety / concurrent work:
   - no DB/UAT mutation was needed because S135 removes orphaned mutation implementations and hardens reads only.
   - no production DB write, push or deploy occurred; Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S135 staging.
+
+## 2026-08-31 — S136 — Final software release-readiness + production-runtime UAT
+- Status: `[x]` — automated software release gate **PASS**.
+- Release finding / runtime guard:
+  - the workstation shell still inherits `NODE_ENV=development`; S134 normalized `npm run build`, but the first production-runtime UAT probe showed plain `next start` inherited the same invalid value.
+  - `npm start` now runs portable `scripts/run-next-start.mjs`, which resolves the Next JS CLI, forwards runtime CLI args, forces `NODE_ENV=production`, streams stdio and propagates the child exit code without `shell:true`.
+  - a production server started through the UAT DB guard on port 3006 with the new wrapper showed no non-standard NODE_ENV warning; the existing user-owned port 3005 dev process was not touched.
+- Schema readiness (read-only):
+  - `npm run uat:preflight` passed and confirmed UAT/production use different Neon hosts.
+  - read-only `prisma migrate diff` reported `No difference detected` for UAT vs `prisma/schema.prisma`.
+  - the same read-only diff reported `No difference detected` for production vs `prisma/schema.prisma`; this snapshot requires no schema push/migration before software rollout.
+- Final production-runtime UAT (UAT DB only, port 3006):
+  - authenticated matrix passed **35/35** using isolated UAT ADMIN and station-1/5/6 STAFF accounts.
+  - canonical ADMIN pages returned 200 for Today, Customers, Billing, station-1 Overview/Operations/History, station-5 Overview/Inventory/Operations/Sales, station-6 Overview, global Transactions and GAS admin dashboard.
+  - anonymous Today redirected to login; legacy owner/outstanding/GAS bookmarks redirected to canonical destinations.
+  - STAFF station boundaries passed: own StationContext 200 and cross-station context 403 for station-1/5/6.
+  - retired APIs from S133/S135 returned expected 410; strict invalid gauge date returned 400 and valid read compatibility returned 200.
+  - all UAT login sessions were logged out in cleanup; direct readback found **0 recent S136 session residue**. No business fixture was created.
+  - UAT production server was stopped and port 3006 is free after verification.
+- Final verification:
+  - start/build/env/UAT-guard targeted regression: **12/12** before runtime UAT.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 93 files / **683 tests passed**.
+  - TypeScript, S136-scoped ESLint and diff check: passed.
+  - production build through S134 wrapper: **127/127 routes passed**.
+- Release disposition:
+  - automated browser/API/schema/software gate is PASS; no new code-parity blocker remains from the final mutation/security sweep.
+  - remaining rollout-day manual checks are physical camera upload and Epson TM-m30III 58/80 mm print smoke on real hardware.
+  - station-3 receipt printing intentionally remains fail-closed until a verified legal/header configuration is supplied; station-3 frontline operations already moved to POS, so this is not an active canonical forecourt blocker.
+- Safety / concurrent work:
+  - production DB was read-only schema-compared only; no production DB write, push or deploy occurred.
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S136 staging.
