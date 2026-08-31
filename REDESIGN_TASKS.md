@@ -3839,3 +3839,31 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Safety / concurrent work:
   - no live PriceBook write/UAT mutation was required; regression tests cover the transaction boundary and scalar-row guard. No production DB write, push or deploy occurred.
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S130 staging.
+
+## 2026-08-31 — S131 — Harden canonical station-5 product inventory writes
+- Status: `[x]`
+- Release-audit finding:
+  - canonical station-5 Inventory and the retired legacy product page both use only `create`, `receive`, and `update` actions on `POST /api/gas-station/[id]/products`.
+  - the route still contained legacy `sell` / `add_to_inventory` actions plus dedicated `/products/add` and `/products/sell` endpoints with no repository caller.
+  - canonical writes had inconsistent safety: create was partly transactional, price + alert update were separate writes, receive stock + ProductReceipt were separate writes, validation was uneven, and the POST path still `station.upsert()`-ed before action validation.
+- Bounded hardening:
+  - new `src/services/product-inventory-write-service.ts` owns canonical create/update/receive writes with bounded SERIALIZABLE Prisma transactions (`maxWait=5s`, `timeout=20s`).
+  - create now validates station capability in the transaction, creates Product + ProductInventory + optional opening ProductReceipt + AuditLog atomically, and fails closed instead of silently upserting a missing station.
+  - update changes Product.salePrice + ProductInventory.alertLevel + AuditLog atomically.
+  - receive uses an atomic quantity increment together with ProductReceipt + AuditLog and rejects invalid/fractional/overflow quantities.
+  - route validation rejects malformed names/units/prices/quantities/alert levels before writes.
+  - numeric validation accepts numbers/numeric strings only and rejects booleans/empty/non-numeric values; update/receive now repeat the DB station capability check inside their transaction.
+  - root `sell` / `add_to_inventory` actions and dedicated `/products/add` / `/products/sell` endpoints keep station/product-capability auth but return 410 without Prisma mutation. Product sales remain owned by the V2 shift-close stock-count workflow.
+  - GET inventory/history and V2 shift close/reconciliation formulas are unchanged.
+- Verification:
+  - targeted product/inventory/V2 close regression: 6 files / **49 tests passed**.
+  - post-review focused product/legacy/closing regression: 4 files / **22 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 87 files / **652 tests passed**.
+  - TypeScript, S131-scoped ESLint and diff check: passed.
+  - production build: **127/127 routes passed**.
+- UAT / safety:
+  - `npm run uat:preflight` passed and confirmed production/UAT hosts are separate.
+  - isolated UAT harness created one temporary station-5 product, updated sale price to `23` and alert level to `2`, received stock to quantity `5`, and verified two ProductReceipt rows plus three AuditLog rows.
+  - cleanup verification returned Product, ProductInventory, ProductReceipt, ProductSale and matching AuditLog counts to `0`; the temporary harness was removed after the durable result was recorded.
+  - no production DB write, push or deploy occurred; Tank Loy auto-print/shared brain changes remain outside S131.

@@ -224,3 +224,11 @@ S128 completes the route-level review of legacy `/api/payments` noted in the fin
 S129 retires the unreferenced global `/api/products` GET/POST family after auth. Active Product/ProductInventory ownership is station-scoped canonical station-5 Inventory (`/api/gas-station/5/products`); the old global POST had no station scope/AuditLog and no repo caller. FuelProduct/PriceBook master data is a separate domain and is not retired by S129.
 
 S130 reviews `/api/price-books`, `/api/price-books/[id]`, and `/api/price-books/active` and **keeps them as master-data/API compatibility** because `PriceBookLine` still participates in shift reconciliation. The control plane is now authenticated/station-bounded, validates active FuelProducts/dates/positive unique lines, and performs line-based CREATE/UPDATE/DELETE atomically with AuditLog. The shared PriceBook model also contains scalar `productType/retailPrice/wholesalePrice` records used by `price-service`; line-based mutation APIs explicitly refuse those rows, and S130 does not change reconciliation or scalar price-service semantics.
+
+### S131 — station-5 Product Inventory write ownership
+- `GET /api/gas-station/[id]/products` remains the authenticated/capability-scoped canonical inventory read for station-5.
+- `POST /api/gas-station/[id]/products` keeps only canonical `create`, `receive`, and `update` actions; those writes are bounded/atomic and audited through `product-inventory-write-service`.
+- legacy root actions `sell` and `add_to_inventory` are RETIRED with HTTP 410 after auth/capability checks.
+- duplicate `POST /api/gas-station/[id]/products/add` and `POST /api/gas-station/[id]/products/sell` are RETIRED with HTTP 410; repository caller audit found no active callers.
+- Product sale rows generated from station-5 shift stock counting remain owned by `/api/v2/gas/[stationId]/shift/close`; S131 does not change shift-close product revenue/reconciliation formulas.
+- Final S131 gate passed focused/full regression, TypeScript, scoped ESLint, production build and isolated UAT create/update/receive/audit/cleanup with no fixture residue.

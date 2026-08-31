@@ -222,3 +222,16 @@ A legacy route may be redirected only when:
 - PriceBook remains a financial/reconciliation input: active `PriceBookLine` can supply per-nozzle expected fuel price. The reconciliation lookup/fallback formula itself is unchanged.
 - Line-based API writes now validate station/date/active FuelProduct/positive unique prices, reject scalar `price-service` rows, and commit PriceBook + line replacement + AuditLog atomically. Active reads are authenticated and STAFF station-scoped.
 - Targeted regression: **39/39**; financial + monthly gate: **101/101**; full regression: **644/644**; production build: **127/127**.
+
+### S131 Product Inventory atomic write gate (2026-08-31)
+- [x] Canonical station-5 product create/update/receive writes use bounded SERIALIZABLE transactions.
+- [x] Product create + ProductInventory + opening receipt (when any) + AuditLog commit atomically.
+- [x] Price + alert-level update + AuditLog commit atomically.
+- [x] Receive increment + ProductReceipt + AuditLog commit atomically.
+- [x] Invalid/fractional/negative quantities and invalid prices fail before writes.
+- [x] Missing/non-product station fails closed; POST no longer silently upserts Station.
+- [x] Direct legacy product sale/add mutation paths return 410 and cannot mutate ProductInventory/ProductSale.
+- [x] V2 shift-close stock-count/ProductSale/reconciliation calculation is unchanged.
+- [x] Targeted regression **49/49**, financial/monthly gate **101/101**, full regression **652/652**, TypeScript/scoped ESLint/diff check passed.
+- [x] Post-review focused regression **22/22**, full regression **652/652**, TypeScript/scoped ESLint/diff check, and production build **127/127** passed.
+- [x] Isolated UAT create/update/receive verified quantity `5`, sale price `23`, alert level `2`, two ProductReceipt rows and three AuditLog rows; cleanup returned Product/ProductInventory/ProductReceipt/ProductSale/AuditLog counts to zero.
