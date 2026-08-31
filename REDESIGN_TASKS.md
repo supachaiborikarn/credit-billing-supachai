@@ -3916,3 +3916,22 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Safety / concurrent work:
   - no DB/UAT write is required because S133 retires dead list/edit/currentCredit helpers and changes redirects/navigation only.
   - no production DB write, push or deploy occurred; Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S133 staging.
+
+## 2026-08-31 — S134 — Make production build independent from inherited NODE_ENV
+- Status: `[x]`.
+- Release-audit finding:
+  - the workstation shell inherits `NODE_ENV=development`; invoking `next build` under that non-standard environment produced an unrelated prerender failure even though S133 TypeScript and all regressions passed.
+  - rerunning the same application snapshot with `NODE_ENV=production` passed 127/127 routes, proving the failure was build-environment contamination rather than an application regression.
+- Release build hardening:
+  - `npm run build` now calls portable `scripts/run-next-build.mjs` instead of invoking `next build` directly.
+  - the wrapper resolves Next's JS CLI through Node, spawns it with `NODE_ENV=production`, preserves the remaining environment, streams output, and propagates the child exit code.
+  - no shell-specific `NODE_ENV=production command` syntax or `shell:true` is used, so the wrapper remains portable across Mac/Windows/CI.
+- Verification:
+  - targeted build/env/UAT-guard regression: 3 files / **10 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 91 files / **674 tests passed**.
+  - TypeScript, S134-scoped ESLint and diff check: passed.
+  - with inherited machine environment explicitly showing `NODE_ENV=development`, plain `npm run build` passed **127/127 routes**, proving the wrapper normalizes the build environment.
+- Safety / concurrent work:
+  - no DB/UAT write, production DB write, push or deploy occurred.
+  - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S134 staging.

@@ -253,3 +253,9 @@ A legacy route may be redirected only when:
 - [x] Dead `checkCreditLimit`, `updateOwnerCredit`, and `getOwnersWithOutstandingCredit` helpers are removed; no runtime currentCredit mutation helper remains in `credit-service`.
 - [x] Retired owner/outstanding/credit-limit pages server-redirect to Customers/Billing and Sidebar points directly to Customers.
 - [x] Targeted regression **106/106**, financial/monthly gate **101/101**, full regression **672/672**, TypeScript/scoped ESLint/diff check passed; production build **127/127** passed with `NODE_ENV=production`; the first attempt inherited non-standard machine-level `NODE_ENV=development` and failed in unrelated prerender pages.
+
+### S134 Release build environment guard (2026-08-31)
+- [x] `npm run build` no longer inherits an invalid `NODE_ENV=development` into Next production build.
+- [x] portable Node wrapper forces `NODE_ENV=production` without shell-specific syntax and propagates Next's exit code.
+- [x] targeted env/build guard **10/10**, financial/monthly **101/101**, full regression **674/674**, TypeScript/scoped ESLint/diff check passed.
+- [x] plain `npm run build` passed **127/127 routes while the parent shell still reported `NODE_ENV=development`**.
