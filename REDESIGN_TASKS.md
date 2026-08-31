@@ -3893,3 +3893,26 @@ S03 ทำก่อน route migration จริงได้ ไม่จำเ�
 - Safety / concurrent work:
   - no DB/UAT write was needed because S132 removes legacy writes and tests the retained void boundary with mocks. No production DB write, push or deploy occurred.
   - Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S132 staging.
+
+## 2026-08-31 — S133 — Retire legacy owner/currentCredit admin control plane
+- Status: `[x]`.
+- Release-audit finding:
+  - `/api/admin/owners` GET was only called by retired `/admin/outstanding` and `/admin/credit-limit` pages and still filtered/sorted by drift-prone `Owner.currentCredit`.
+  - `/api/admin/owners/[id]` PATCH was only called by the retired credit-limit page; canonical Customer master-data edits already use ADMIN-only `/api/owners/[id]`.
+  - `/api/admin/owners/merge` remains active from canonical Customers and is intentionally kept; its relation-complete atomic merge and legacy-currentCredit preservation indicator are not changed.
+  - `checkCreditLimit`, `updateOwnerCredit`, and `getOwnersWithOutstandingCredit` in `credit-service` had no runtime callers; the canonical monthly batch imports `monthly-invoice-service` directly.
+- Retirement / canonical ownership:
+  - legacy admin owner list/edit APIs preserve ADMIN auth then return 410 with Customers/Billing/canonical Owner API replacements and no Prisma reads/writes.
+  - `/admin/owners`, `/admin/credit-limit`, and `/admin/outstanding` now server-redirect directly to canonical Customers/Billing in addition to existing middleware/login normalization.
+  - Sidebar points `ลูกค้า & รถ` directly to `/customers` and removes the duplicate retired `รวมเจ้าของ` entry.
+  - `credit-service` is reduced to a compatibility barrel for canonical monthly Invoice generation; no `currentCredit` check/update/outstanding helper remains.
+  - canonical Customers/Customer 360 continue showing legacy currentCredit only as a labeled non-authoritative indicator; merge remains the one intentional legacy-value preservation write.
+- Verification:
+  - targeted owner/customer/monthly/redirect regression: 5 files / **106 tests passed**.
+  - financial + monthly release gate: 18 files / **101 tests passed**.
+  - full regression: 90 files / **672 tests passed**.
+  - TypeScript, S133-scoped ESLint and diff check: passed.
+  - production build: **127/127 routes passed with `NODE_ENV=production`**. The first build attempt inherited machine-level `NODE_ENV=development`, which Next.js flags as non-standard and failed in unrelated prerendered pages; rerunning with the correct production environment passed without code changes.
+- Safety / concurrent work:
+  - no DB/UAT write is required because S133 retires dead list/edit/currentCredit helpers and changes redirects/navigation only.
+  - no production DB write, push or deploy occurred; Tank Loy auto-print implementation/tests/docs and shared brain hunks remain outside S133 staging.

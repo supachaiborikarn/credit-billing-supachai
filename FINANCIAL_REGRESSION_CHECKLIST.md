@@ -245,3 +245,11 @@ A legacy route may be redirected only when:
 - [x] Transaction void state and DELETE AuditLog commit in one Prisma transaction.
 - [x] Repeat/concurrent void requests return 409 and preserve the first reason, time, user and single AuditLog.
 - [x] Targeted regression **43/43**, financial/monthly gate **101/101**, full regression **667/667**, TypeScript/diff check and production build **127/127** passed.
+
+### S133 Legacy owner/currentCredit admin retirement (2026-08-31)
+- [x] Retired admin owner list/edit APIs authorize ADMIN first and return 410 without Prisma access.
+- [x] Canonical Customer master-data edit remains `/api/owners/[id]`; canonical AR remains separate unbilled / Invoice / BillingCollection buckets.
+- [x] `/api/admin/owners/merge` remains active and unchanged for audited atomic duplicate-owner merge.
+- [x] Dead `checkCreditLimit`, `updateOwnerCredit`, and `getOwnersWithOutstandingCredit` helpers are removed; no runtime currentCredit mutation helper remains in `credit-service`.
+- [x] Retired owner/outstanding/credit-limit pages server-redirect to Customers/Billing and Sidebar points directly to Customers.
+- [x] Targeted regression **106/106**, financial/monthly gate **101/101**, full regression **672/672**, TypeScript/scoped ESLint/diff check passed; production build **127/127** passed with `NODE_ENV=production`; the first attempt inherited non-standard machine-level `NODE_ENV=development` and failed in unrelated prerender pages.

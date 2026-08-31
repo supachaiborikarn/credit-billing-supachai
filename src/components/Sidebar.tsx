@@ -93,7 +93,7 @@ export default function Sidebar({ children }: SidebarProps) {
 
     const menuItems = [
         { href: '/dashboard', icon: LayoutDashboard, label: 'ภาพรวม', gradient: 'from-purple-500 to-pink-500' },
-        { href: '/owners', icon: Users, label: 'ลูกค้า & รถ', gradient: 'from-blue-500 to-cyan-500' },
+        { href: '/customers', icon: Users, label: 'ลูกค้า & รถ', gradient: 'from-blue-500 to-cyan-500' },
         { href: '/reports', icon: FileText, label: 'รายงาน', gradient: 'from-orange-500 to-yellow-500' },
     ];
 
@@ -125,7 +125,6 @@ export default function Sidebar({ children }: SidebarProps) {
             title: '👥 ข้อมูลพื้นฐาน',
             items: [
                 { href: '/admin/transactions', icon: Edit, label: 'แก้ไขรายการ', gradient: 'from-red-500 to-orange-500' },
-                { href: '/admin/owners', icon: Users, label: 'รวมเจ้าของ', gradient: 'from-indigo-500 to-blue-500' },
                 { href: '/users', icon: Users, label: 'จัดการผู้ใช้', gradient: 'from-violet-500 to-purple-500' },
                 { href: '/settings', icon: Settings, label: 'ตั้งค่า', gradient: 'from-gray-500 to-slate-500' },
             ]

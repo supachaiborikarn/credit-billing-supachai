@@ -241,3 +241,10 @@ S130 reviews `/api/price-books`, `/api/price-books/[id]`, and `/api/price-books/
 - GAS sale payment scope is `CASH`, `CREDIT`, `CREDIT_CARD`, and `TRANSFER`; legacy `BOX_TRUCK` and `OIL_TRUCK_SUPACHAI` inputs are no longer accepted for GAS.
 - legacy per-Transaction `EXPENSE` creation is removed; canonical GAS stores aggregate shift expenses through `otherExpensesAmount` in closing/admin historical data entry.
 - no legacy Prisma transaction-create/delete implementation remains in the retired GAS routes.
+
+### S133 — legacy owner/currentCredit admin control-plane retirement
+- `/admin/owners` and `/admin/credit-limit` server-redirect to `/customers`; `/admin/outstanding` server-redirects to `/billing`, matching existing middleware/login normalization.
+- `GET /api/admin/owners` and `PATCH /api/admin/owners/[id]` are RETIRED with HTTP 410 after ADMIN authorization. Canonical list/detail/master-data ownership is `/api/customers`, `/api/customers/[id]`, and ADMIN-only `/api/owners/[id]`.
+- `/api/admin/owners/merge` remains KEEP because canonical Customers still calls it for duplicate-owner merge; S133 does not change its audited atomic relation migration or legacy-currentCredit preservation indicator.
+- dead `credit-service` helpers that checked, mutated, or listed `Owner.currentCredit` are removed; the file remains only as a compatibility re-export of canonical monthly Invoice generation.
+- Sidebar no longer points at `/owners` or `/admin/owners`; Customers is the one user-facing owner/customer workspace.

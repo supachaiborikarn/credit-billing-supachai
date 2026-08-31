@@ -1,43 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { requireAdminApi } from '@/lib/api-auth';
 
-// PATCH - อัปเดต Owner (รวมถึง creditLimit)
 export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    try {
-        const auth = await requireAdminApi();
-        if (auth.response) return auth.response;
+    void request;
+    void await params;
+    const auth = await requireAdminApi();
+    if (auth.response) return auth.response;
 
-        const { id } = await params;
-        const body = await request.json();
-        const { creditLimit, name, phone } = body;
-
-        const updateData: Record<string, unknown> = {};
-        if (creditLimit !== undefined) updateData.creditLimit = creditLimit;
-        if (name !== undefined) updateData.name = name;
-        if (phone !== undefined) updateData.phone = phone;
-
-        const owner = await prisma.owner.update({
-            where: { id },
-            data: updateData,
-            select: {
-                id: true,
-                name: true,
-                creditLimit: true,
-                currentCredit: true
-            }
-        });
-
-        return NextResponse.json({
-            ...owner,
-            creditLimit: Number(owner.creditLimit),
-            currentCredit: Number(owner.currentCredit)
-        });
-    } catch (error) {
-        console.error('Owner PATCH error:', error);
-        return NextResponse.json({ error: 'Failed to update owner' }, { status: 500 });
-    }
+    return NextResponse.json({
+        error: 'Legacy admin owner edit API retired',
+        canonicalCustomers: '/customers',
+        canonicalOwnerApi: '/api/owners/[id]',
+        note: 'Use the ADMIN-only canonical owner master-data contract.',
+    }, { status: 410 });
 }
