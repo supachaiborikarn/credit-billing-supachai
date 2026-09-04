@@ -23,6 +23,7 @@ interface ShiftWindowInput {
     stationId: string;
     openedAt: Date;
     closedAt: Date | null;
+    fallbackClosedAt?: Date;
 }
 
 function toNumber(value: AmountLike): number {
@@ -85,8 +86,9 @@ export async function listTransactionsForShiftWindow({
     stationId,
     openedAt,
     closedAt,
+    fallbackClosedAt,
 }: ShiftWindowInput) {
-    const effectiveClosedAt = closedAt ?? new Date();
+    const effectiveClosedAt = closedAt ?? fallbackClosedAt ?? new Date();
 
     return prisma.transaction.findMany({
         where: {

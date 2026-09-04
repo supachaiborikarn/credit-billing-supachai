@@ -95,19 +95,44 @@ describe('full-station meter write route', () => {
         expect(txMock.auditLog.create).not.toHaveBeenCalled();
     });
 
-    it('rejects STAFF historical meter mutation before touching a DailyRecord', async () => {
+    it('rejects STAFF historical opening-meter correction', async () => {
         requireStationAccessApiMock.mockResolvedValue({ user: { id: 'staff-1', role: 'STAFF', stationId: 'station-1' } });
+        prismaMock.dailyRecord.findUnique.mockResolvedValue({ id: 'daily-1', status: 'OPEN' });
         const { POST } = await import('../src/app/api/station/[id]/meters/route');
         const response = await POST(
             new Request('http://localhost/api/station/1/meters', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date: '2026-07-10', shiftId: 'shift-2', type: 'end', meters: [{ nozzleNumber: 1, reading: 1501, photo: 'end-1' }] }),
+                body: JSON.stringify({ date: '2026-07-10', shiftId: 'shift-2', type: 'start', meters: [{ nozzleNumber: 1, reading: 1501, photo: 'start-1' }] }),
             }) as never,
             { params: Promise.resolve({ id: '1' }) }
         );
         expect(response.status).toBe(403);
-        expect(prismaMock.dailyRecord.findUnique).not.toHaveBeenCalled();
+        expect(prismaMock.dailyRecord.findUnique).toHaveBeenCalledTimes(1);
         expect(prismaMock.dailyRecord.upsert).not.toHaveBeenCalled();
+    });
+
+    it('allows STAFF to finish end meters on an exact historical OPEN Tank Loy shift', async () => {
+        requireStationAccessApiMock.mockResolvedValue({ user: { id: 'staff-1', role: 'STAFF', stationId: 'station-1' } });
+        prismaMock.dailyRecord.findUnique.mockResolvedValue({ id: 'daily-1', status: 'OPEN' });
+        const { POST } = await import('../src/app/api/station/[id]/meters/route');
+        const response = await POST(
+            new Request('http://localhost/api/station/1/meters', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    date: '2026-07-10', shiftId: 'shift-2', type: 'end',
+                    meters: [1, 2, 3, 4].map(nozzleNumber => ({
+                        nozzleNumber,
+                        reading: 1_500 + nozzleNumber,
+                        photo: `end-${nozzleNumber}.webp`,
+                    })),
+                }),
+            }) as never,
+            { params: Promise.resolve({ id: '1' }) }
+        );
+
+        expect(response.status).toBe(200);
+        expect(txMock.meterReading.upsert).toHaveBeenCalledTimes(4);
+        expect(txMock.auditLog.create).not.toHaveBeenCalled();
     });
 
     it('does not create a missing historical DailyRecord', async () => {

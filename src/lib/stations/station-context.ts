@@ -117,6 +117,19 @@ export function canMutateStationMeterData(
     return businessDate === today;
 }
 
+export function canCompleteOpenFullStationShift(
+    stationId: string,
+    businessDate: string,
+    today: string,
+    meterType: string,
+    shiftStatus: string | null | undefined
+): boolean {
+    return stationId === 'station-1'
+        && businessDate !== today
+        && meterType === 'end'
+        && shiftStatus === 'OPEN';
+}
+
 export function canCreateStationTransaction(
     user: Pick<StationAccessUser, 'role'>,
     stationId: string,

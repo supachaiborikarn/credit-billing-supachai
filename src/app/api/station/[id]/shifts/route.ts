@@ -5,6 +5,7 @@ import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok } from '@/lib
 import { closeShift as closeShiftService, lockShift, validateCloseShift, calculateReconciliation } from '@/services/shift-service';
 import { auditShift } from '@/services/audit-service';
 import { requireStationAccessApi } from '@/lib/api-auth';
+import { findLatestPriorOpenFullShift } from '@/lib/full-station-stale-shift';
 
 export async function GET(
     request: Request,
@@ -121,23 +122,14 @@ export async function POST(
         }
 
         if (action === 'open') {
-            // Check for old unclosed shifts from previous days
-            const oldUnclosedShift = await prisma.shift.findFirst({
-                where: {
-                    dailyRecord: { stationId },
-                    status: 'OPEN',
-                    createdAt: { lt: startOfDay } // From before today
-                },
-                include: {
-                    dailyRecord: { select: { date: true } }
-                },
-                orderBy: { createdAt: 'desc' }
-            });
+            // The business date is authoritative. createdAt can be later when a
+            // delayed request or repair creates the row after midnight.
+            const oldUnclosedShift = await findLatestPriorOpenFullShift(stationId, startOfDay);
 
             if (oldUnclosedShift) {
-                const oldDate = new Date(oldUnclosedShift.dailyRecord.date);
+                const oldDate = new Date(`${oldUnclosedShift.businessDate}T00:00:00+07:00`);
                 const dateStr = oldDate.toLocaleDateString('th-TH', {
-                    day: 'numeric', month: 'short', year: 'numeric'
+                    day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Bangkok'
                 });
                 return NextResponse.json({
                     error: `มีกะวันที่ ${dateStr} ที่ยังไม่ปิด กรุณาปิดกะเก่าก่อน`,
@@ -145,8 +137,8 @@ export async function POST(
                     oldShift: {
                         id: oldUnclosedShift.id,
                         shiftNumber: oldUnclosedShift.shiftNumber,
-                        date: oldUnclosedShift.dailyRecord.date,
-                        createdAt: oldUnclosedShift.createdAt
+                        date: oldUnclosedShift.businessDate,
+                        createdAt: oldUnclosedShift.openedAt
                     }
                 }, { status: 400 });
             }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireApiSession } from '@/lib/api-auth';
 import { getStartOfDayBangkok, getEndOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
 import { selectCanonicalFullStationShift } from '@/lib/full-station-shift-scope';
+import { findLatestPriorOpenFullShift } from '@/lib/full-station-stale-shift';
 import {
     getEndOfDayBangkokUTC,
     getGasActiveShiftDateRange,
@@ -112,14 +113,21 @@ async function getGasStaleShift(
             },
         },
         orderBy: { createdAt: 'asc' },
-        include: { dailyRecord: { select: { date: true } } },
+        include: {
+            dailyRecord: { select: { date: true } },
+            staff: { select: { name: true } },
+        },
     });
 
     if (!shift || shift.id === currentShift?.id) return null;
     return {
         id: shift.id,
         shiftNumber: shift.shiftNumber,
+        status: 'OPEN',
         businessDate: toBangkokDateKey(shift.dailyRecord.date),
+        openedAt: shift.createdAt.toISOString(),
+        closedAt: null,
+        staffName: shift.staff?.name || null,
     };
 }
 
@@ -263,6 +271,11 @@ export async function GET(
 
             if (station.type === 'GAS') {
                 staleShift = await getGasStaleShift(station.id, currentShift);
+            } else {
+                staleShift = await findLatestPriorOpenFullShift(
+                    station.id,
+                    getStartOfDayBangkok(getTodayBangkok())
+                );
             }
 
             if (station.type === 'FULL') {

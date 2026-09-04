@@ -3,6 +3,7 @@ import {
     buildFullOpeningMeterEvidence,
     buildStationPermissions,
     canCreateStationTransaction,
+    canCompleteOpenFullStationShift,
     canMutateStationDailyPrices,
     canMutateStationMeterData,
     canMutateHistoricalStationData,
@@ -99,6 +100,13 @@ describe('station meter mutation policy', () => {
         expect(canMutateStationMeterData({ role: 'STAFF' }, 'station-2', '2026-08-29', '2026-08-29')).toBe(false);
         expect(canMutateStationMeterData({ role: 'ADMIN' }, 'station-1', '2026-08-28', '2026-08-29')).toBe(true);
         expect(canMutateStationMeterData({ role: 'ADMIN' }, 'station-2', '2026-08-28', '2026-08-29')).toBe(true);
+    });
+
+    it('allows only end-meter completion for an exact historical OPEN Tank Loy shift', () => {
+        expect(canCompleteOpenFullStationShift('station-1', '2026-09-03', '2026-09-04', 'end', 'OPEN')).toBe(true);
+        expect(canCompleteOpenFullStationShift('station-1', '2026-09-03', '2026-09-04', 'start', 'OPEN')).toBe(false);
+        expect(canCompleteOpenFullStationShift('station-1', '2026-09-03', '2026-09-04', 'end', 'CLOSED')).toBe(false);
+        expect(canCompleteOpenFullStationShift('station-2', '2026-09-03', '2026-09-04', 'end', 'OPEN')).toBe(false);
     });
 });
 

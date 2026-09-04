@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { listTransactionsForShiftWindow, summarizeShiftPayments } from '@/lib/shift-transaction-utils';
+import { formatDateBangkok, getEndOfDayBangkok } from '@/lib/date-utils';
 
 interface SubmittedMeter {
     nozzleNumber: number;
@@ -93,7 +94,7 @@ export async function closeFullShift(input: CloseFullShiftInput) {
         where: { id: input.shiftId },
         include: {
             dailyRecord: {
-                select: { stationId: true },
+                select: { stationId: true, date: true },
             },
         },
     });
@@ -161,6 +162,7 @@ export async function closeFullShift(input: CloseFullShiftInput) {
             stationId: input.stationId,
             openedAt: shift.createdAt,
             closedAt: shift.closedAt,
+            fallbackClosedAt: getEndOfDayBangkok(formatDateBangkok(shift.dailyRecord.date)),
         })
     );
 

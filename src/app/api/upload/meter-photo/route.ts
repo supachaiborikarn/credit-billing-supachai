@@ -4,7 +4,10 @@ import { requireApiSession } from '@/lib/api-auth';
 import { canAccessStation } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
 import { getStartOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
-import { canMutateStationMeterData } from '@/lib/stations/station-context';
+import {
+    canCompleteOpenFullStationShift,
+    canMutateStationMeterData,
+} from '@/lib/stations/station-context';
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 
@@ -54,15 +57,22 @@ export async function POST(request: NextRequest) {
         }
 
         let validatedShiftId: string | null = null;
+        let validatedShiftStatus: string | null = null;
         if (isMeterUpload) {
             if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) {
                 return NextResponse.json({ error: "วันที่ของรูปมิเตอร์ไม่ถูกต้อง" }, { status: 400 });
             }
             const today = getTodayBangkok();
             const isHistoricalDate = date !== today;
-            if (!canMutateStationMeterData(auth.user, stationId, date, today)) {
+            const canUseStandardMeterFlow = canMutateStationMeterData(
+                auth.user,
+                stationId,
+                date,
+                today
+            );
+            if (!isHistoricalDate && !canUseStandardMeterFlow) {
                 return NextResponse.json(
-                    { error: isHistoricalDate ? "การอัปโหลดรูปมิเตอร์ย้อนหลังทำได้เฉพาะแอดมิน" : "สถานีนี้ย้ายงานหน้าปั๊มไป POS แล้ว ไม่อนุญาตให้อัปโหลดรูปมิเตอร์ใหม่" },
+                    { error: "สถานีนี้ย้ายงานหน้าปั๊มไป POS แล้ว ไม่อนุญาตให้อัปโหลดรูปมิเตอร์ใหม่" },
                     { status: 403 }
                 );
             }
@@ -82,11 +92,24 @@ export async function POST(request: NextRequest) {
                             date: getStartOfDayBangkok(date),
                         },
                     },
-                    select: { id: true },
+                    select: { id: true, status: true },
                 });
                 if (!shift) {
                     return NextResponse.json({ error: "Shift ของรูปมิเตอร์ไม่ตรงกับสถานี/วันที่เลือก" }, { status: 409 });
                 }
+                validatedShiftStatus = shift.status;
+            }
+            if (!canUseStandardMeterFlow && !canCompleteOpenFullStationShift(
+                stationId,
+                date,
+                today,
+                type,
+                validatedShiftStatus
+            )) {
+                return NextResponse.json(
+                    { error: "การอัปโหลดรูปมิเตอร์ย้อนหลังทำได้เฉพาะแอดมิน ยกเว้นรูปปิดกะของ Shift OPEN เดิม" },
+                    { status: 403 }
+                );
             }
         }
 

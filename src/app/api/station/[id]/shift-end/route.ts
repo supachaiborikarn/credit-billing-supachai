@@ -112,6 +112,7 @@ export async function GET(
                 stationId,
                 openedAt: activeShift.createdAt,
                 closedAt: activeShift.closedAt,
+                fallbackClosedAt: endOfDay,
             })
             : [];
 

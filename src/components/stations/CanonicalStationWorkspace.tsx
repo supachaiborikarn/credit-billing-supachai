@@ -369,8 +369,26 @@ function GasLiveSummary({ context }: { context: StationContextPayload }) {
     );
 }
 
-function StaleGasShiftNotice({ context }: { context: StationContextPayload }) {
-    if (context.station.type !== 'GAS' || !context.staleShift) return null;
+function StaleShiftNotice({ context }: { context: StationContextPayload }) {
+    if (!context.staleShift) return null;
+
+    if (context.station.type === 'FULL') {
+        return (
+            <Notice tone="danger" title="พบกะเก่าที่ยังไม่ได้ปิด">
+                <div className="flex flex-wrap items-center gap-3">
+                    <span>
+                        กะ #{context.staleShift.shiftNumber} วันที่ {context.staleShift.businessDate} ยัง OPEN อยู่ และสามารถเลือกปิดกะนี้ในหน้า Operations
+                    </span>
+                    <Link
+                        href={context.paths.operations}
+                        className="font-semibold underline underline-offset-4 focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]"
+                    >
+                        ไปปิดกะเก่า
+                    </Link>
+                </div>
+            </Notice>
+        );
+    }
 
     return (
         <Notice tone="danger" title="พบกะเก่าค้างแยกจากกะปัจจุบัน">
@@ -576,6 +594,23 @@ function SalesSkeleton({ context }: { context: StationContextPayload }) {
 }
 
 function OperationsSkeleton({ context, onRefresh }: { context: StationContextPayload; onRefresh: () => Promise<void> }) {
+    const fullClosingTargets = React.useMemo(() => context.station.type === 'FULL'
+        ? [context.staleShift, context.currentShift]
+            .filter((shift): shift is NonNullable<typeof shift> => Boolean(shift && shift.status === 'OPEN'))
+            .filter((shift, index, shifts) => shifts.findIndex((item) => item.id === shift.id) === index)
+        : [], [context.currentShift, context.staleShift, context.station.type]);
+    const [selectedFullShiftId, setSelectedFullShiftId] = React.useState<string | null>(
+        fullClosingTargets[0]?.id || null
+    );
+
+    React.useEffect(() => {
+        setSelectedFullShiftId((selected) => (
+            fullClosingTargets.some((shift) => shift.id === selected)
+                ? selected
+                : fullClosingTargets[0]?.id || null
+        ));
+    }, [fullClosingTargets]);
+
     if (!context.permissions.canOperate) {
         return (
             <Notice tone="info" title="ไม่มี Operations สำหรับสถานีนี้">
@@ -584,14 +619,43 @@ function OperationsSkeleton({ context, onRefresh }: { context: StationContextPay
         );
     }
 
-    const operationFlow = context.currentShift?.status === 'OPEN' && context.openingState.status === 'READY'
-        ? <ShiftClosingFlow context={context} onRefresh={onRefresh} />
-        : <ShiftOpeningFlow context={context} onRefresh={onRefresh} />;
+    const selectedFullShift = fullClosingTargets.find((shift) => shift.id === selectedFullShiftId)
+        || fullClosingTargets[0]
+        || null;
+    const operationFlow = context.station.type === 'FULL'
+        ? selectedFullShift
+            ? <ShiftClosingFlow context={context} targetShift={selectedFullShift} onRefresh={onRefresh} />
+            : <ShiftOpeningFlow context={context} onRefresh={onRefresh} />
+        : context.currentShift?.status === 'OPEN' && context.openingState.status === 'READY'
+            ? <ShiftClosingFlow context={context} onRefresh={onRefresh} />
+            : <ShiftOpeningFlow context={context} onRefresh={onRefresh} />;
     const showFullAdminPriceMaintenance = context.station.type === 'FULL' && context.user.role === 'ADMIN';
     const showGasRecovery = context.station.type === 'GAS' && context.currentShift?.status === 'OPEN';
 
     return (
         <div className="space-y-4">
+            {fullClosingTargets.length > 1 && (
+                <Section title="เลือกกะที่จะปิด" description="กะเก่าและกะวันนี้แยกข้อมูลกัน ระบบจะบันทึกตามกะที่เลือก">
+                    <div className="flex flex-wrap gap-2">
+                        {fullClosingTargets.map((shift) => {
+                            const selected = shift.id === selectedFullShift?.id;
+                            return (
+                                <button
+                                    key={shift.id}
+                                    type="button"
+                                    aria-pressed={selected}
+                                    onClick={() => setSelectedFullShiftId(shift.id)}
+                                    className={selected
+                                        ? 'min-h-11 rounded-[var(--ui-radius-md)] bg-[var(--ui-primary-700)] px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]'
+                                        : 'min-h-11 rounded-[var(--ui-radius-md)] border border-[var(--ui-border-strong)] bg-[var(--ui-surface)] px-4 text-sm font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-surface-subtle)] focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]'}
+                                >
+                                    {shift.id === context.staleShift?.id ? 'กะเก่า' : 'กะวันนี้'} · {shift.businessDate} · กะ {shift.shiftNumber}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </Section>
+            )}
             {operationFlow}
             {showGasRecovery && <GasRecoveryMaintenance context={context} onSaved={onRefresh} />}
             {showFullAdminPriceMaintenance && (
@@ -677,7 +741,7 @@ export function CanonicalStationWorkspace({ stationId, mode }: { stationId: stri
                         <span>/</span>
                         {mode !== 'OVERVIEW' && <span>{titles[mode]}</span>}
                     </div>
-                    <StaleGasShiftNotice context={context} />
+                    <StaleShiftNotice context={context} />
                     {mode === 'OVERVIEW' && <Overview context={context} onRefresh={load} writeBlocked={loading || Boolean(error)} />}
                     {mode === 'SALES' && !writeModeBlocked && <SalesSkeleton context={context} />}
                     {mode === 'OPERATIONS' && !writeModeBlocked && <OperationsSkeleton context={context} onRefresh={load} />}

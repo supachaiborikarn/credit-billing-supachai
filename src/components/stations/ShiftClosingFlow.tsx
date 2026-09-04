@@ -24,7 +24,7 @@ import {
     type FullClosingCashInput,
     type GasClosingMoneyInput,
 } from '@/lib/stations/shift-closing';
-import type { StationContextPayload } from '@/types/station';
+import type { StationContextPayload, StationCurrentShift } from '@/types/station';
 
 type FullShiftEndPayload = {
     meters?: Array<{
@@ -32,6 +32,7 @@ type FullShiftEndPayload = {
         nozzleNumber: number;
         startReading: number | string;
         endReading: number | string | null;
+        startPhoto?: string | null;
         endPhoto?: string | null;
     }>;
     transactions?: Array<{ paymentType: string; amount: number | string }>;
@@ -109,7 +110,15 @@ function hasInvalidMoney(values: string[]) {
 
 const textareaClass = 'min-h-24 w-full rounded-[var(--ui-radius-md)] border border-[var(--ui-border-strong)] bg-[var(--ui-surface)] px-3 py-2 text-base text-[var(--ui-text)] outline-none focus:border-[var(--ui-primary-500)] focus:shadow-[var(--ui-shadow-focus)]';
 
-export function ShiftClosingFlow({ context, onRefresh }: { context: StationContextPayload; onRefresh: () => Promise<void> }) {
+export function ShiftClosingFlow({
+    context,
+    onRefresh,
+    targetShift,
+}: {
+    context: StationContextPayload;
+    onRefresh: () => Promise<void>;
+    targetShift?: StationCurrentShift | null;
+}) {
     const { showToast } = useToast();
     const [loading, setLoading] = React.useState(true);
     const [busy, setBusy] = React.useState(false);
@@ -126,7 +135,8 @@ export function ShiftClosingFlow({ context, onRefresh }: { context: StationConte
     const [gasMoney, setGasMoney] = React.useState<GasClosingMoneyInput>(EMPTY_GAS_MONEY);
     const [gasPrice, setGasPrice] = React.useState(context.saleContext?.gasPrice || 0);
 
-    const shift = context.currentShift;
+    const shift = targetShift ?? context.currentShift;
+    const isCurrentShift = shift?.id === context.currentShift?.id;
 
     const load = React.useCallback(async () => {
         if (!shift || shift.status !== 'OPEN') return;
@@ -139,6 +149,14 @@ export function ShiftClosingFlow({ context, onRefresh }: { context: StationConte
                 if (!response.ok) throw new Error(payload?.error || 'โหลดข้อมูลปิดกะไม่สำเร็จ');
                 const fuelByNozzle = new Map((payload?.fuelConfig || []).map((fuel) => [fuel.nozzle, fuel]));
                 const shiftMeters = (payload?.meters || []).filter((meter) => meter.shiftId === shift.id);
+                const openingNozzles = new Set(
+                    shiftMeters
+                        .filter((meter) => Boolean(meter.startPhoto))
+                        .map((meter) => meter.nozzleNumber)
+                );
+                if (shiftMeters.length < 4 || openingNozzles.size < 4) {
+                    throw new Error('ข้อมูลมิเตอร์ต้นกะเดิมไม่ครบ กรุณาให้แอดมินตรวจและเติมข้อมูลก่อนปิดกะ');
+                }
                 setMeters([1, 2, 3, 4].map((number) => {
                     const meter = shiftMeters.find((item) => item.nozzleNumber === number);
                     return {
@@ -219,7 +237,7 @@ export function ShiftClosingFlow({ context, onRefresh }: { context: StationConte
         return () => window.clearTimeout(timer);
     }, [errors.length]);
 
-    if (!shift || shift.status !== 'OPEN' || context.openingState.status !== 'READY') {
+    if (!shift || shift.status !== 'OPEN' || (isCurrentShift && context.openingState.status !== 'READY')) {
         return <Notice tone="info" title="ยังไม่พร้อมปิดกะ">ต้องมีกะ OPEN และข้อมูลต้นกะครบก่อน</Notice>;
     }
 
@@ -322,12 +340,21 @@ export function ShiftClosingFlow({ context, onRefresh }: { context: StationConte
 
     return (
         <div className="space-y-4">
+            {!isCurrentShift && (
+                <Notice tone="warning" title="กำลังปิดกะค้างจากวันก่อน">
+                    ข้อมูลทั้งหมดด้านล่างเป็นของวันที่ {shift.businessDate} และจะบันทึกเข้ากะ #{shift.shiftNumber} เท่านั้น
+                </Notice>
+            )}
             <Section title={`กะ ${shift.shiftNumber} กำลังทำงาน`} description={`${shift.businessDate} · ${shift.staffName || 'ไม่ระบุพนักงาน'}`}>
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                    <Badge variant="success">OPEN · พร้อมขาย</Badge>
-                    <Link href={context.paths.sales} className="inline-flex h-[var(--ui-control-md)] items-center justify-center gap-2 rounded-[var(--ui-radius-md)] bg-[var(--ui-primary-700)] px-4 text-sm font-semibold text-white hover:bg-[var(--ui-primary-800)] focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">
-                        <Fuel className="h-4 w-4" aria-hidden="true" /> กลับไปขาย
-                    </Link>
+                    <Badge variant={isCurrentShift ? 'success' : 'warning'}>
+                        {isCurrentShift ? 'OPEN · พร้อมขาย' : 'OPEN · กะค้าง'}
+                    </Badge>
+                    {isCurrentShift && (
+                        <Link href={context.paths.sales} className="inline-flex h-[var(--ui-control-md)] items-center justify-center gap-2 rounded-[var(--ui-radius-md)] bg-[var(--ui-primary-700)] px-4 text-sm font-semibold text-white hover:bg-[var(--ui-primary-800)] focus-visible:outline-none focus-visible:shadow-[var(--ui-shadow-focus)]">
+                            <Fuel className="h-4 w-4" aria-hidden="true" /> กลับไปขาย
+                        </Link>
+                    )}
                 </div>
             </Section>
 

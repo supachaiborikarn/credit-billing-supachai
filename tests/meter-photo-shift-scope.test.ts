@@ -79,11 +79,11 @@ describe('meter photo shift scope', () => {
         expect(prismaMock.meterReading.upsert).not.toHaveBeenCalled();
     });
 
-    it('blocks STAFF historical photo upload before Cloudinary', async () => {
+    it('blocks STAFF historical opening-photo correction before Cloudinary', async () => {
         requireApiSessionMock.mockResolvedValue({ user: { id: 'staff-1', role: 'STAFF', stationId: 'station-1' } });
         const formData = new FormData();
         formData.append('file', new File(['image'], 'meter.jpg', { type: 'image/jpeg' }));
-        formData.append('type', 'end');
+        formData.append('type', 'start');
         formData.append('nozzle', '1');
         formData.append('date', '2026-07-10');
         formData.append('stationId', 'station-1');
@@ -92,6 +92,27 @@ describe('meter photo shift scope', () => {
         const response = await POST(new Request('http://localhost/api/upload/meter-photo', { method: 'POST', body: formData }) as never);
         expect(response.status).toBe(403);
         expect(cloudinaryUploadMock).not.toHaveBeenCalled();
+    });
+
+    it('allows STAFF to upload an end photo for an exact historical OPEN Tank Loy shift', async () => {
+        requireApiSessionMock.mockResolvedValue({ user: { id: 'staff-1', role: 'STAFF', stationId: 'station-1' } });
+        prismaMock.shift.findFirst.mockResolvedValue({ id: 'shift-open', status: 'OPEN' });
+        const formData = new FormData();
+        formData.append('file', new File(['image'], 'meter.jpg', { type: 'image/jpeg' }));
+        formData.append('type', 'end');
+        formData.append('nozzle', '1');
+        formData.append('date', '2026-07-10');
+        formData.append('stationId', 'station-1');
+        formData.append('shiftId', 'shift-open');
+
+        const { POST } = await import('../src/app/api/upload/meter-photo/route');
+        const response = await POST(new Request('http://localhost/api/upload/meter-photo', {
+            method: 'POST',
+            body: formData,
+        }) as never);
+
+        expect(response.status).toBe(200);
+        expect(cloudinaryUploadMock).toHaveBeenCalledTimes(1);
     });
 
     it('rejects a historical photo when the shift does not belong to the selected station/date', async () => {

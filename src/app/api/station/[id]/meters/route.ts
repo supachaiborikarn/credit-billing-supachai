@@ -3,7 +3,10 @@ import { prisma } from '@/lib/prisma';
 import { getStartOfDayBangkok, getTodayBangkok } from '@/lib/date-utils';
 import { requireStationAccessApi } from '@/lib/api-auth';
 import { ensureOpenFullStationShiftForDailyRecord } from '@/lib/full-station-shift-sync';
-import { canMutateStationMeterData } from '@/lib/stations/station-context';
+import {
+    canCompleteOpenFullStationShift,
+    canMutateStationMeterData,
+} from '@/lib/stations/station-context';
 
 type MeterPayload = {
     nozzleNumber: number;
@@ -54,9 +57,15 @@ export async function POST(
 
         const today = getTodayBangkok();
         const isHistoricalDate = dateStr !== today;
-        if (!canMutateStationMeterData(auth.user, stationId, dateStr, today)) {
+        const canUseStandardMeterFlow = canMutateStationMeterData(
+            auth.user,
+            stationId,
+            dateStr,
+            today
+        );
+        if (!isHistoricalDate && !canUseStandardMeterFlow) {
             return NextResponse.json(
-                { error: isHistoricalDate ? "การแก้มิเตอร์ย้อนหลังทำได้เฉพาะแอดมิน" : "สถานีนี้ย้ายงานหน้าปั๊มไป POS แล้ว ไม่อนุญาตให้แก้มิเตอร์ใหม่" },
+                { error: "สถานีนี้ย้ายงานหน้าปั๊มไป POS แล้ว ไม่อนุญาตให้แก้มิเตอร์ใหม่" },
                 { status: 403 }
             );
         }
@@ -116,6 +125,20 @@ export async function POST(
                 requireStartedMeters: false,
             });
         }
+
+        if (!canUseStandardMeterFlow && !canCompleteOpenFullStationShift(
+            stationId,
+            dateStr,
+            today,
+            type,
+            shift?.status
+        )) {
+            return NextResponse.json(
+                { error: "การแก้มิเตอร์ย้อนหลังทำได้เฉพาะแอดมิน ยกเว้นการลงมิเตอร์ปิดให้กะ OPEN เดิม" },
+                { status: 403 }
+            );
+        }
+
         const existingMeters = await prisma.meterReading.findMany({
             where: shift
                 ? { shiftId: shift.id }

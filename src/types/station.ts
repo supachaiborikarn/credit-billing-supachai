@@ -20,10 +20,8 @@ export interface StationCurrentShift {
     staffName: string | null;
 }
 
-export interface StationStaleShift {
-    id: string;
-    shiftNumber: number;
-    businessDate: string;
+export interface StationStaleShift extends StationCurrentShift {
+    status: 'OPEN';
 }
 
 export interface StationOpeningMeterEvidence {
